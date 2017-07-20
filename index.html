@@ -154,113 +154,6 @@
           <div id="js-content" class="content-ll">
             
   
-    <article id="post-snmp-introduction" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/07/19/snmp-introduction/">SNMP介绍</a>
-    </h1>
-  
-
-        
-        <a href="/2017/07/19/snmp-introduction/" class="archive-article-date">
-  	<time datetime="2017-07-19T13:17:02.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-07-19</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#1-snmp原理">1. SNMP原理</a></li>
-<li><a href="#2-snmpdconf配置">2. snmpd.conf配置</a></li>
-<li><a href="#3-snmp开发">3. SNMP开发</a></li>
-</ul>
-<!-- tocstop -->
-<h2 id="1-snmp原理"><a href="#1-SNMP原理" class="headerlink" title="1. SNMP原理"></a>1. SNMP原理</h2><p>简单的说，SNMP指的是一套网络协议，主要用在对服务器和网络设备的管理上。要使用SNMP对设备进行管理，需要在设备上部署遵守SNMP协议的软件，例如Linux环境下的net-snmp。SNMP采用C/S架构，不过这里的S，指的是被监控的设备，这是一个需要注意的地方。大概的原理就是，在被监控设备，比如Linux服务器A上安装net-snmp，snmpd服务负责搜集本机信息，以MIB(Management Information Base，管理信息库)的形式存储，同时监听UDP端口161，处理来自SNMP客户端的get、set报文。更具体的关于SNMP原理的资料列举如下：</p>
-<ul>
-<li><a href="http://bbs.chinaunix.net/forum.php?mod=viewthread&amp;tid=1289867" target="_blank" rel="external">http://bbs.chinaunix.net/forum.php?mod=viewthread&amp;tid=1289867</a></li>
-<li><a href="http://www.linuxfly.org/post/552/" target="_blank" rel="external">http://www.linuxfly.org/post/552/</a></li>
-<li><a href="http://wenku.baidu.com/view/66d089d63186bceb19e8bb10.html" target="_blank" rel="external">http://wenku.baidu.com/view/66d089d63186bceb19e8bb10.html</a></li>
-<li><a href="http://www.360doc.com/content/06/0826/16/4131_191671.shtml" target="_blank" rel="external">http://www.360doc.com/content/06/0826/16/4131_191671.shtml</a></li>
-</ul>
-<h2 id="2-snmpdconf配置"><a href="#2-snmpd-conf配置" class="headerlink" title="2. snmpd.conf配置"></a>2. snmpd.conf配置</h2><p>SNMP配置看似复杂，实际上常用的配置项并不多。示例：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"># cat /etc/snmp/snmpd.conf</div><div class="line">com2sec winway 127.0.0.1 123456</div><div class="line">group testgroup v2c winway</div><div class="line">view all included .1 80</div><div class="line">access testgroup &quot;&quot; any noauth prefix all none none</div></pre></td></tr></table></figure></p>
-<p>运行snmpd服务：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"># snmpd -c /etc/snmp/snmpd.conf</div></pre></td></tr></table></figure></p>
-<p>测试，获取sysUpTime(The time (in hundredths of a second) since the network management portion of the system was last re-initialized.)：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"># snmpwalk -v 2c -c 123456 localhost 1.3.6.1.2.1.1.3</div><div class="line">DISMAN-EVENT-MIB::sysUpTimeInstance = Timeticks: (246029) 0:41:00.29</div></pre></td></tr></table></figure></p>
-<p>配置文件的具体解析参考一下链接：</p>
-<ul>
-<li><a href="http://blog.csdn.net/fingding/article/details/6122236" target="_blank" rel="external">http://blog.csdn.net/fingding/article/details/6122236</a></li>
-<li><a href="http://magustest.com/blog/linux/setup-snmpd-conf/" target="_blank" rel="external">http://magustest.com/blog/linux/setup-snmpd-conf/</a><br>这里有一个OID(Object Identifier，对象标识符)的概念。MIB 包括了对特定数据变量的说明，数据变量被称为OID（具体参考SNMP原理部分）。可以到这里<a href="http://www.oid-info.com查询OID。" target="_blank" rel="external">http://www.oid-info.com查询OID。</a></li>
-</ul>
-<h2 id="3-snmp开发"><a href="#3-SNMP开发" class="headerlink" title="3. SNMP开发"></a>3. SNMP开发</h2><p>net-snmp提供了支持SNMP开发的C库，你可以开发自己的SNMP程序。然而从python、perl、tcl这样的脚本语言开始SNMP编程更容易，他们都带有SNMP开发支持。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">snmp</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/其他/" class="article-tag-list-link color3">其他</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/07/19/snmp-introduction/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
     <article id="post-salt-master-option-parser" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -281,8 +174,23 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p><img src="http://ot69fbvko.bkt.clouddn.com/master%E9%80%89%E9%A1%B9salt-%E8%A7%A3%E6%9E%90.png" alt="salt-master选项解析"></p>
-<p>每个/类option单独实现成类（元类是MixInMeta，确保存在_mixin_setup方法，_mixin_setup方法用来add option）。<br>每个/类option类中可以定义option的优先级和处理函数，并通过元类OptionParserMeta根据优先级进行组织，并在parse_args（重写optparse）中适时调用。这样设计是为了解耦，方便option的增加、删除和修改。</p>
+        <!-- toc -->
+<ul>
+<li><a href="#1-类图和重要方法说明">1. 类图和重要方法说明</a></li>
+<li><a href="#2-核心设计思想">2. 核心设计思想</a></li>
+</ul>
+<!-- tocstop -->
+<h2 id="1-类图和重要方法说明"><a href="#1-类图和重要方法说明" class="headerlink" title="1. 类图和重要方法说明"></a>1. 类图和重要方法说明</h2><p><img src="http://ot69fbvko.bkt.clouddn.com/master%E9%80%89%E9%A1%B9salt-%E8%A7%A3%E6%9E%90.png" alt="salt-master选项解析"></p>
+<h2 id="2-核心设计思想"><a href="#2-核心设计思想" class="headerlink" title="2. 核心设计思想"></a>2. 核心设计思想</h2><p>每个/类option类中可以定义option的优先级和处理函数，并通过元类OptionParserMeta根据优先级进行组织，并在parse_args（重写optparse）中适时调用。这样设计是为了解耦，方便option的增加、删除和修改。如下，不同的对象通过继承组合不同的MixIn，就能实现选项参数的构建。</p>
+<ul>
+<li><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">MasterOptionParser</span><span class="params">(six.with_metaclass<span class="params">(OptionParserMeta,</span></span></span></div><div class="line">                                            OptionParser,</div><div class="line">                                            ConfigDirMixIn,</div><div class="line">                                            MergeConfigMixIn,</div><div class="line">                                            LogLevelMixIn,</div><div class="line">                                            RunUserMixin,</div><div class="line">                                            DaemonMixIn,</div><div class="line">                                            SaltfileMixIn)):</div></pre></td></tr></table></figure>
+</li>
+<li><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">ProxyMinionOptionParser</span><span class="params">(six.with_metaclass<span class="params">(OptionParserMeta,</span></span></span></div><div class="line">                                                 OptionParser,</div><div class="line">                                                 ProxyIdMixIn,</div><div class="line">                                                 ConfigDirMixIn,</div><div class="line">                                                 MergeConfigMixIn,</div><div class="line">                                                 LogLevelMixIn,</div><div class="line">                                                 RunUserMixin,</div><div class="line">                                                 DaemonMixIn,</div><div class="line">                                                 SaltfileMixIn)):</div></pre></td></tr></table></figure>
+</li>
+<li><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">SyndicOptionParser</span><span class="params">(six.with_metaclass<span class="params">(OptionParserMeta,</span></span></span></div><div class="line">                                            OptionParser,</div><div class="line">                                            ConfigDirMixIn,</div><div class="line">                                            MergeConfigMixIn,</div><div class="line">                                            LogLevelMixIn,</div><div class="line">                                            RunUserMixin,</div><div class="line">                                            DaemonMixIn,</div><div class="line">                                            SaltfileMixIn)):</div></pre></td></tr></table></figure>
+</li>
+<li><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">SaltCMDOptionParser</span><span class="params">(six.with_metaclass<span class="params">(OptionParserMeta,</span></span></span></div><div class="line">                                             OptionParser,</div><div class="line">                                             ConfigDirMixIn,</div><div class="line">                                             MergeConfigMixIn,</div><div class="line">                                             TimeoutMixIn,</div><div class="line">                                             ExtendedTargetOptionsMixIn,</div><div class="line">                                             OutputOptionsMixIn,</div><div class="line">                                             LogLevelMixIn,</div><div class="line">                                             HardCrashMixin,</div><div class="line">                                             SaltfileMixIn,</div><div class="line">                                             ArgsStdinMixIn,</div><div class="line">                                             EAuthMixIn)):</div></pre></td></tr></table></figure></li>
+</ul>
 
       
 
@@ -351,19 +259,19 @@
 
 
   
-    <article id="post-hello-world" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+    <article id="post-hexo-githubpages-blog" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
       <header class="article-header">
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2017/07/15/hello-world/">我的Github博客诞生日记</a>
+      <a class="article-title" href="/2017/07/15/hexo-githubpages-blog/">Hexo+Github Pages搭建个人博客</a>
     </h1>
   
 
         
-        <a href="/2017/07/15/hello-world/" class="archive-article-date">
+        <a href="/2017/07/15/hexo-githubpages-blog/" class="archive-article-date">
   	<time datetime="2017-07-15T06:41:36.821Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-07-15</time>
 </a>
         
@@ -371,7 +279,7 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>第一篇Github博客，先记录一下hexo+github pages的安装、配置过程。过程中主要参考了<a href="https://linghucong.js.org/2016/04/15/2016-04-15-hexo-github-pages-blog/" target="_blank" rel="external">手把手教你使用Hexo + Github Pages搭建个人独立博客</a>。</p>
+        <p>记录一下hexo+github pages的安装、配置过程。过程中主要参考了<a href="https://linghucong.js.org/2016/04/15/2016-04-15-hexo-github-pages-blog/" target="_blank" rel="external">手把手教你使用Hexo + Github Pages搭建个人独立博客</a>。</p>
 <!-- toc -->
 <ul>
 <li><a href="#1-配置hexo运行环境">1. 配置hexo运行环境</a></li>
@@ -446,7 +354,216 @@
 
       
         <p class="article-more-link">
-          <a class="article-more-a" href="/2017/07/15/hello-world/">展开全文 >></a>
+          <a class="article-more-a" href="/2017/07/15/hexo-githubpages-blog/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-server-batch-manage-tool-introduction" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2013/05/11/server-batch-manage-tool-introduction/">服务器批量管理工具小计</a>
+    </h1>
+  
+
+        
+        <a href="/2013/05/11/server-batch-manage-tool-introduction/" class="archive-article-date">
+  	<time datetime="2013-05-11T06:33:35.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-05-11</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>记录几个现成的批量管理工具，留做备用。</p>
+<!-- toc -->
+<ul>
+<li><a href="#1-dsh-dancers-shell-distributed-shell">1. dsh - dancer’s shell / distributed shell</a></li>
+<li><a href="#2-pssh-parallel-ssh">2. pssh - Parallel ssh</a></li>
+<li><a href="#3-pdsh">3. pdsh</a></li>
+<li><a href="#4clusterssh">4.ClusterSSH</a></li>
+<li><a href="#5-mussh">5. mussh</a></li>
+<li><a href="#6-saltstack">6. SaltStack</a></li>
+</ul>
+<!-- tocstop -->
+<h2 id="1-dsh-dancers-shell-distributed-shell"><a href="#1-dsh-dancer’s-shell-distributed-shell" class="headerlink" title="1. dsh - dancer’s shell / distributed shell"></a>1. dsh - dancer’s shell / distributed shell</h2><p>dsh是专为在远程系统上运行shell命令设计的，可以简化对大量计算机的操作。尽管很方便，但是dsh有一个重大的缺陷：它无法复制文件。如果希望把数据部署到多台计算机上，就必须编写一个新脚本，利用发行版的基础设施（比如 rsync），或者考虑使用更健壮的工具（比如 Parallel SSH (pssh)）。<br><a href="http://xukaizijian.blog.163.com/blog/static/17043311920110319301199/" target="_blank" rel="external">http://xukaizijian.blog.163.com/blog/static/17043311920110319301199/</a></p>
+<h2 id="2-pssh-parallel-ssh"><a href="#2-pssh-Parallel-ssh" class="headerlink" title="2. pssh - Parallel ssh"></a>2. pssh - Parallel ssh</h2><p>与dsh一样，pssh的目标也是简化大量计算机的管理。除了具备dsh的所有功能之外，pssh还可以把文件从一组系统复制到中心服务器或反向复制，以及杀死一组系统上的进程。这个 shell 和它的底层库是用 Python 编写的，如果系统上已经安装了 Python 解释器和核心库，就很容易安装它。<br><a href="http://www.ibm.com/developerworks/cn/aix/library/au-spunix_remoteserver/index.html" target="_blank" rel="external">http://www.ibm.com/developerworks/cn/aix/library/au-spunix_remoteserver/index.html</a></p>
+<h2 id="3-pdsh"><a href="#3-pdsh" class="headerlink" title="3. pdsh"></a>3. pdsh</h2><p>pdsh可以在指定的一组机器上执行同一个命令。pdsh软件包还自带了pdcp命令，可以将文件拷贝到一组机器上。<br><a href="http://scmbob.org/parallel-distributed-shell.html" target="_blank" rel="external">http://scmbob.org/parallel-distributed-shell.html</a><br><a href="http://linux.die.net/man/1/pdsh" target="_blank" rel="external">http://linux.die.net/man/1/pdsh</a><br><a href="http://bbs.chinaunix.net/thread-2002080-1-1.html" target="_blank" rel="external">http://bbs.chinaunix.net/thread-2002080-1-1.html</a></p>
+<h2 id="4clusterssh"><a href="#4-ClusterSSH" class="headerlink" title="4.ClusterSSH"></a>4.ClusterSSH</h2><p>Cluster SSH是一个可以用来通过SSH协议同时管理多台远程计算机的工具。它非常适合用来快速配置一个集群中的所有运行相同服务和具备相同配置的计算机节点。<br><a href="http://os.51cto.com/art/201103/250014.htm" target="_blank" rel="external">http://os.51cto.com/art/201103/250014.htm</a></p>
+<h2 id="5-mussh"><a href="#5-mussh" class="headerlink" title="5. mussh"></a>5. mussh</h2><p>mussh是一款管理多主机的ssh软件，mussh可以让你把本地的脚本，在多台ssh目的机器上执行。<br><a href="http://rtxbc.blog.163.com/blog/static/1228936592010825105416832/" target="_blank" rel="external">http://rtxbc.blog.163.com/blog/static/1228936592010825105416832/</a></p>
+<h2 id="6-saltstack"><a href="#6-SaltStack" class="headerlink" title="6. SaltStack"></a>6. SaltStack</h2><p>Saltstack可以看做是func的增强版+Puppet的弱化版，使用Python编写，非常好用，可以快速基于EPEL部署。Salt 是一个开源的工具用来管理你的基础架构，可轻松管理成千上万台服务器。<br><a href="http://zhoulg.blog.51cto.com/48455/1140178" target="_blank" rel="external">http://zhoulg.blog.51cto.com/48455/1140178</a></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">批量管理</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/其他/" class="article-tag-list-link color3">其他</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2013/05/11/server-batch-manage-tool-introduction/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-snmp-introduction" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2013/05/11/snmp-introduction/">SNMP介绍</a>
+    </h1>
+  
+
+        
+        <a href="/2013/05/11/snmp-introduction/" class="archive-article-date">
+  	<time datetime="2013-05-11T05:39:29.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-05-11</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>简单介绍一下SNMP的原理和使用。</p>
+<!-- toc -->
+<ul>
+<li><a href="#1-snmp原理">1. SNMP原理</a></li>
+<li><a href="#2-snmpdconf配置">2. snmpd.conf配置</a></li>
+<li><a href="#3-snmp开发">3. SNMP开发</a></li>
+</ul>
+<!-- tocstop -->
+<h2 id="1-snmp原理"><a href="#1-SNMP原理" class="headerlink" title="1. SNMP原理"></a>1. SNMP原理</h2><p>简单的说，SNMP指的是一套网络协议，主要用在对服务器和网络设备的管理上。要使用SNMP对设备进行管理，需要在设备上部署遵守SNMP协议的软件，例如Linux环境下的net-snmp。SNMP采用C/S架构，不过这里的S，指的是被监控的设备，这是一个需要注意的地方。大概的原理就是，在被监控设备，比如Linux服务器A上安装net-snmp，snmpd服务负责搜集本机信息，以MIB(Management Information Base，管理信息库)的形式存储，同时监听UDP端口161，处理来自SNMP客户端的get、set报文。更具体的关于SNMP原理的资料列举如下：</p>
+<ul>
+<li><a href="http://bbs.chinaunix.net/forum.php?mod=viewthread&amp;tid=1289867" target="_blank" rel="external">http://bbs.chinaunix.net/forum.php?mod=viewthread&amp;tid=1289867</a></li>
+<li><a href="http://www.linuxfly.org/post/552/" target="_blank" rel="external">http://www.linuxfly.org/post/552/</a></li>
+<li><a href="http://wenku.baidu.com/view/66d089d63186bceb19e8bb10.html" target="_blank" rel="external">http://wenku.baidu.com/view/66d089d63186bceb19e8bb10.html</a></li>
+<li><a href="http://www.360doc.com/content/06/0826/16/4131_191671.shtml" target="_blank" rel="external">http://www.360doc.com/content/06/0826/16/4131_191671.shtml</a></li>
+</ul>
+<h2 id="2-snmpdconf配置"><a href="#2-snmpd-conf配置" class="headerlink" title="2. snmpd.conf配置"></a>2. snmpd.conf配置</h2><p>SNMP配置看似复杂，实际上常用的配置项并不多。示例：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"># cat /etc/snmp/snmpd.conf</div><div class="line">com2sec winway 127.0.0.1 123456</div><div class="line">group testgroup v2c winway</div><div class="line">view all included .1 80</div><div class="line">access testgroup &quot;&quot; any noauth prefix all none none</div></pre></td></tr></table></figure></p>
+<p>运行snmpd服务：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"># snmpd -c /etc/snmp/snmpd.conf</div></pre></td></tr></table></figure></p>
+<p>测试，获取sysUpTime(The time (in hundredths of a second) since the network management portion of the system was last re-initialized.)：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"># snmpwalk -v 2c -c 123456 localhost 1.3.6.1.2.1.1.3</div><div class="line">DISMAN-EVENT-MIB::sysUpTimeInstance = Timeticks: (246029) 0:41:00.29</div></pre></td></tr></table></figure></p>
+<p>配置文件的具体解析参考一下链接：</p>
+<ul>
+<li><a href="http://blog.csdn.net/fingding/article/details/6122236" target="_blank" rel="external">http://blog.csdn.net/fingding/article/details/6122236</a></li>
+<li><a href="http://magustest.com/blog/linux/setup-snmpd-conf/" target="_blank" rel="external">http://magustest.com/blog/linux/setup-snmpd-conf/</a><br>这里有一个OID(Object Identifier，对象标识符)的概念。MIB 包括了对特定数据变量的说明，数据变量被称为OID（具体参考SNMP原理部分）。可以到这里<a href="http://www.oid-info.com查询OID。" target="_blank" rel="external">http://www.oid-info.com查询OID。</a></li>
+</ul>
+<h2 id="3-snmp开发"><a href="#3-SNMP开发" class="headerlink" title="3. SNMP开发"></a>3. SNMP开发</h2><p>net-snmp提供了支持SNMP开发的C库，你可以开发自己的SNMP程序。然而从python、perl、tcl这样的脚本语言开始SNMP编程更容易，他们都带有SNMP开发支持。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">snmp</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/其他/" class="article-tag-list-link color3">其他</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2013/05/11/snmp-introduction/">展开全文 >></a>
         </p>
       
 
@@ -574,6 +691,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">github pages</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
               </li>
              
               <li class="article-tag-list-item">

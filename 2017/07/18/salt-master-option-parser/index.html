@@ -8,18 +8,18 @@
   <link rel="dns-prefetch" href="https://winway.github.io">
   <title>saltstack源码阅读之master选项解析-salt.utils.parsers.MasterOptionParser | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="每个/类option单独实现成类（元类是MixInMeta，确保存在_mixin_setup方法，_mixin_setup方法用来add option）。每个/类option类中可以定义option的优先级和处理函数，并通过元类OptionParserMeta根据优先级进行组织，并在parse_args（重写optparse）中适时调用。这样设计是为了解耦，方便option的增加、删除和修改。">
+  <meta name="description" content="1. 类图和重要方法说明 2. 核心设计思想   1. 类图和重要方法说明 2. 核心设计思想每个/类option类中可以定义option的优先级和处理函数，并通过元类OptionParserMeta根据优先级进行组织，并在parse_args（重写optparse）中适时调用。这样设计是为了解耦，方便option的增加、删除和修改。如下，不同的对象通过继承组合不同的MixIn，就能实现选项参">
 <meta name="keywords" content="saltstack,源码分析">
 <meta property="og:type" content="article">
 <meta property="og:title" content="saltstack源码阅读之master选项解析-salt.utils.parsers.MasterOptionParser">
 <meta property="og:url" content="https://winway.github.io/2017/07/18/salt-master-option-parser/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:description" content="每个/类option单独实现成类（元类是MixInMeta，确保存在_mixin_setup方法，_mixin_setup方法用来add option）。每个/类option类中可以定义option的优先级和处理函数，并通过元类OptionParserMeta根据优先级进行组织，并在parse_args（重写optparse）中适时调用。这样设计是为了解耦，方便option的增加、删除和修改。">
+<meta property="og:description" content="1. 类图和重要方法说明 2. 核心设计思想   1. 类图和重要方法说明 2. 核心设计思想每个/类option类中可以定义option的优先级和处理函数，并通过元类OptionParserMeta根据优先级进行组织，并在parse_args（重写optparse）中适时调用。这样设计是为了解耦，方便option的增加、删除和修改。如下，不同的对象通过继承组合不同的MixIn，就能实现选项参">
 <meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/master%E9%80%89%E9%A1%B9salt-%E8%A7%A3%E6%9E%90.png">
-<meta property="og:updated_time" content="2017-07-18T11:09:42.466Z">
+<meta property="og:updated_time" content="2017-07-20T00:48:10.349Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="saltstack源码阅读之master选项解析-salt.utils.parsers.MasterOptionParser">
-<meta name="twitter:description" content="每个/类option单独实现成类（元类是MixInMeta，确保存在_mixin_setup方法，_mixin_setup方法用来add option）。每个/类option类中可以定义option的优先级和处理函数，并通过元类OptionParserMeta根据优先级进行组织，并在parse_args（重写optparse）中适时调用。这样设计是为了解耦，方便option的增加、删除和修改。">
+<meta name="twitter:description" content="1. 类图和重要方法说明 2. 核心设计思想   1. 类图和重要方法说明 2. 核心设计思想每个/类option类中可以定义option的优先级和处理函数，并通过元类OptionParserMeta根据优先级进行组织，并在parse_args（重写optparse）中适时调用。这样设计是为了解耦，方便option的增加、删除和修改。如下，不同的对象通过继承组合不同的MixIn，就能实现选项参">
 <meta name="twitter:image" content="http://ot69fbvko.bkt.clouddn.com/master%E9%80%89%E9%A1%B9salt-%E8%A7%A3%E6%9E%90.png">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
@@ -176,8 +176,23 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p><img src="http://ot69fbvko.bkt.clouddn.com/master%E9%80%89%E9%A1%B9salt-%E8%A7%A3%E6%9E%90.png" alt="salt-master选项解析"></p>
-<p>每个/类option单独实现成类（元类是MixInMeta，确保存在_mixin_setup方法，_mixin_setup方法用来add option）。<br>每个/类option类中可以定义option的优先级和处理函数，并通过元类OptionParserMeta根据优先级进行组织，并在parse_args（重写optparse）中适时调用。这样设计是为了解耦，方便option的增加、删除和修改。</p>
+        <!-- toc -->
+<ul>
+<li><a href="#1-类图和重要方法说明">1. 类图和重要方法说明</a></li>
+<li><a href="#2-核心设计思想">2. 核心设计思想</a></li>
+</ul>
+<!-- tocstop -->
+<h2 id="1-类图和重要方法说明"><a href="#1-类图和重要方法说明" class="headerlink" title="1. 类图和重要方法说明"></a>1. 类图和重要方法说明</h2><p><img src="http://ot69fbvko.bkt.clouddn.com/master%E9%80%89%E9%A1%B9salt-%E8%A7%A3%E6%9E%90.png" alt="salt-master选项解析"></p>
+<h2 id="2-核心设计思想"><a href="#2-核心设计思想" class="headerlink" title="2. 核心设计思想"></a>2. 核心设计思想</h2><p>每个/类option类中可以定义option的优先级和处理函数，并通过元类OptionParserMeta根据优先级进行组织，并在parse_args（重写optparse）中适时调用。这样设计是为了解耦，方便option的增加、删除和修改。如下，不同的对象通过继承组合不同的MixIn，就能实现选项参数的构建。</p>
+<ul>
+<li><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">MasterOptionParser</span><span class="params">(six.with_metaclass<span class="params">(OptionParserMeta,</span></span></span></div><div class="line">                                            OptionParser,</div><div class="line">                                            ConfigDirMixIn,</div><div class="line">                                            MergeConfigMixIn,</div><div class="line">                                            LogLevelMixIn,</div><div class="line">                                            RunUserMixin,</div><div class="line">                                            DaemonMixIn,</div><div class="line">                                            SaltfileMixIn)):</div></pre></td></tr></table></figure>
+</li>
+<li><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">ProxyMinionOptionParser</span><span class="params">(six.with_metaclass<span class="params">(OptionParserMeta,</span></span></span></div><div class="line">                                                 OptionParser,</div><div class="line">                                                 ProxyIdMixIn,</div><div class="line">                                                 ConfigDirMixIn,</div><div class="line">                                                 MergeConfigMixIn,</div><div class="line">                                                 LogLevelMixIn,</div><div class="line">                                                 RunUserMixin,</div><div class="line">                                                 DaemonMixIn,</div><div class="line">                                                 SaltfileMixIn)):</div></pre></td></tr></table></figure>
+</li>
+<li><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">SyndicOptionParser</span><span class="params">(six.with_metaclass<span class="params">(OptionParserMeta,</span></span></span></div><div class="line">                                            OptionParser,</div><div class="line">                                            ConfigDirMixIn,</div><div class="line">                                            MergeConfigMixIn,</div><div class="line">                                            LogLevelMixIn,</div><div class="line">                                            RunUserMixin,</div><div class="line">                                            DaemonMixIn,</div><div class="line">                                            SaltfileMixIn)):</div></pre></td></tr></table></figure>
+</li>
+<li><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">SaltCMDOptionParser</span><span class="params">(six.with_metaclass<span class="params">(OptionParserMeta,</span></span></span></div><div class="line">                                             OptionParser,</div><div class="line">                                             ConfigDirMixIn,</div><div class="line">                                             MergeConfigMixIn,</div><div class="line">                                             TimeoutMixIn,</div><div class="line">                                             ExtendedTargetOptionsMixIn,</div><div class="line">                                             OutputOptionsMixIn,</div><div class="line">                                             LogLevelMixIn,</div><div class="line">                                             HardCrashMixin,</div><div class="line">                                             SaltfileMixIn,</div><div class="line">                                             ArgsStdinMixIn,</div><div class="line">                                             EAuthMixIn)):</div></pre></td></tr></table></figure></li>
+</ul>
 
       
 
@@ -307,18 +322,9 @@
   
 <nav id="article-nav">
   
-    <a href="/2017/07/19/snmp-introduction/" id="article-nav-newer" class="article-nav-link-wrap">
-      <i class="icon-circle-left"></i>
-      <div class="article-nav-title">
-        
-          SNMP介绍
-        
-      </div>
-    </a>
   
-  
-    <a href="/2017/07/15/hello-world/" id="article-nav-older" class="article-nav-link-wrap">
-      <div class="article-nav-title">我的Github博客诞生日记</div>
+    <a href="/2017/07/15/hexo-githubpages-blog/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">Hexo+Github Pages搭建个人博客</div>
       <i class="icon-circle-right"></i>
     </a>
   
@@ -447,6 +453,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">github pages</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
               </li>
              
               <li class="article-tag-list-item">
