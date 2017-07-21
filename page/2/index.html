@@ -6,12 +6,12 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://winway.github.io">
-  <title>Tag: Linux | winway&#39;s blog</title>
+  <title>winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="description" content="python, go, devops, hadoop, MongoDB">
 <meta property="og:type" content="website">
 <meta property="og:title" content="winway&#39;s blog">
-<meta property="og:url" content="https://winway.github.io/tags/Linux/index.html">
+<meta property="og:url" content="https://winway.github.io/page/2/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
 <meta property="og:description" content="python, go, devops, hadoop, MongoDB">
 <meta name="twitter:card" content="summary">
@@ -154,46 +154,70 @@
           <div id="js-content" class="content-ll">
             
   
-  
+    <article id="post-snmp-introduction" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
     
-    
-      
-      
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <a href="/archives/2013" class="archive-year">2013</a>
-        </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2013/05/14/fork-and-shell-inherit-environment-variable/" class="archive-article-date">
-  	<time datetime="2013-05-14T04:00:41.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-05-14</time>
-</a>
-        </div>
-    	 
+      <header class="article-header">
+        
   
     <h1 itemprop="name">
-      <a class="archive-article-title" href="/2013/05/14/fork-and-shell-inherit-environment-variable/">关于fork以及子shell继承环境变量的疑问</a>
+      <a class="article-title" href="/2013/05/11/snmp-introduction/">SNMP介绍</a>
     </h1>
   
 
-        <div class="article-info info-on-right">
-          
+        
+        <a href="/2013/05/11/snmp-introduction/" class="archive-article-date">
+  	<time datetime="2013-05-11T05:39:29.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-05-11</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>简单介绍一下SNMP的原理和使用。</p>
+<!-- toc -->
+<ul>
+<li><a href="#1-snmp原理">1. SNMP原理</a></li>
+<li><a href="#2-snmpdconf配置">2. snmpd.conf配置</a></li>
+<li><a href="#3-snmp开发">3. SNMP开发</a></li>
+</ul>
+<!-- tocstop -->
+<h2 id="1-snmp原理"><a href="#1-SNMP原理" class="headerlink" title="1. SNMP原理"></a>1. SNMP原理</h2><p>简单的说，SNMP指的是一套网络协议，主要用在对服务器和网络设备的管理上。要使用SNMP对设备进行管理，需要在设备上部署遵守SNMP协议的软件，例如Linux环境下的net-snmp。SNMP采用C/S架构，不过这里的S，指的是被监控的设备，这是一个需要注意的地方。大概的原理就是，在被监控设备，比如Linux服务器A上安装net-snmp，snmpd服务负责搜集本机信息，以MIB(Management Information Base，管理信息库)的形式存储，同时监听UDP端口161，处理来自SNMP客户端的get、set报文。更具体的关于SNMP原理的资料列举如下：</p>
+<ul>
+<li><a href="http://bbs.chinaunix.net/forum.php?mod=viewthread&amp;tid=1289867" target="_blank" rel="external">http://bbs.chinaunix.net/forum.php?mod=viewthread&amp;tid=1289867</a></li>
+<li><a href="http://www.linuxfly.org/post/552/" target="_blank" rel="external">http://www.linuxfly.org/post/552/</a></li>
+<li><a href="http://wenku.baidu.com/view/66d089d63186bceb19e8bb10.html" target="_blank" rel="external">http://wenku.baidu.com/view/66d089d63186bceb19e8bb10.html</a></li>
+<li><a href="http://www.360doc.com/content/06/0826/16/4131_191671.shtml" target="_blank" rel="external">http://www.360doc.com/content/06/0826/16/4131_191671.shtml</a></li>
+</ul>
+<h2 id="2-snmpdconf配置"><a href="#2-snmpd-conf配置" class="headerlink" title="2. snmpd.conf配置"></a>2. snmpd.conf配置</h2><p>SNMP配置看似复杂，实际上常用的配置项并不多。示例：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"># cat /etc/snmp/snmpd.conf</div><div class="line">com2sec winway 127.0.0.1 123456</div><div class="line">group testgroup v2c winway</div><div class="line">view all included .1 80</div><div class="line">access testgroup &quot;&quot; any noauth prefix all none none</div></pre></td></tr></table></figure></p>
+<p>运行snmpd服务：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"># snmpd -c /etc/snmp/snmpd.conf</div></pre></td></tr></table></figure></p>
+<p>测试，获取sysUpTime(The time (in hundredths of a second) since the network management portion of the system was last re-initialized.)：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"># snmpwalk -v 2c -c 123456 localhost 1.3.6.1.2.1.1.3</div><div class="line">DISMAN-EVENT-MIB::sysUpTimeInstance = Timeticks: (246029) 0:41:00.29</div></pre></td></tr></table></figure></p>
+<p>配置文件的具体解析参考一下链接：</p>
+<ul>
+<li><a href="http://blog.csdn.net/fingding/article/details/6122236" target="_blank" rel="external">http://blog.csdn.net/fingding/article/details/6122236</a></li>
+<li><a href="http://magustest.com/blog/linux/setup-snmpd-conf/" target="_blank" rel="external">http://magustest.com/blog/linux/setup-snmpd-conf/</a><br>这里有一个OID(Object Identifier，对象标识符)的概念。MIB 包括了对特定数据变量的说明，数据变量被称为OID（具体参考SNMP原理部分）。可以到这里<a href="http://www.oid-info.com查询OID。" target="_blank" rel="external">http://www.oid-info.com查询OID。</a></li>
+</ul>
+<h2 id="3-snmp开发"><a href="#3-SNMP开发" class="headerlink" title="3. SNMP开发"></a>3. SNMP开发</h2><p>net-snmp提供了支持SNMP开发的C库，你可以开发自己的SNMP程序。然而从python、perl、tcl这样的脚本语言开始SNMP编程更容易，他们都带有SNMP开发支持。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
 	<div class="article-tag tagcloud">
 		<i class="icon-price-tags icon"></i>
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Linux</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">snmp</a>
         		</li>
       		
 		</ul>
 	</div>
 
-          
+      
 	<div class="article-category tagcloud">
 		<i class="icon-book icon"></i>
 		<ul class="article-tag-list">
@@ -206,66 +230,43 @@
 	</div>
 
 
-        </div>
-        <div class="clearfix"></div>
-    </header>
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2013/05/11/snmp-introduction/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
   </div>
 </article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2013/05/14/etc-shells-file-usage/" class="archive-article-date">
-  	<time datetime="2013-05-14T00:50:15.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-05-14</time>
-</a>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
         </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2013/05/14/etc-shells-file-usage/">/etc/shells文件用途</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
+        
+        
+    </div>
+</aside>
 
 
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-  
-    </div></section>
-  
 
-    
+
+  
+  
+    <nav id="page-nav">
+      <a class="extend prev" rel="prev" href="/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="page-number current">2</span>
+    </nav>
+  
 
 
           </div>
@@ -287,10 +288,10 @@
     <script>
 	var yiliaConfig = {
 		mathjax: false,
-		isHome: false,
+		isHome: true,
 		isPost: false,
 		isArchive: false,
-		isTag: true,
+		isTag: false,
 		isCategory: false,
 		open_in_new: false,
 		toc_hide_index: true,
