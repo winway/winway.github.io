@@ -507,6 +507,95 @@
 
 
   
+    <article id="post-mutt-send-mail-usage" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2013/07/10/mutt-send-mail-usage/">使用mutt自动发送邮件</a>
+    </h1>
+  
+
+        
+        <a href="/2013/07/10/mutt-send-mail-usage/" class="archive-article-date">
+  	<time datetime="2013-07-10T01:15:17.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-07-10</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<!-- tocstop -->
+<p>使用方法：将要发送的内容以下面的形式组织<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div></pre></td><td class="code"><pre><div class="line"><span class="meta">$</span> tree mails/</div><div class="line">mails/</div><div class="line">|-- mail1</div><div class="line">| |-- attach1</div><div class="line">| |-- attach2</div><div class="line">| |-- attach3</div><div class="line">| |-- attachment.lst</div><div class="line">| |-- body.txt</div><div class="line">| |-- receiver.lst</div><div class="line">| `-- subject.txt</div><div class="line">|-- mail2</div><div class="line">| |-- attach1</div><div class="line">| |-- attach2</div><div class="line">| |-- attach3</div><div class="line">| |-- attachment.lst</div><div class="line">| |-- body.txt</div><div class="line">| |-- receiver.lst</div><div class="line">| `-- subject.txt</div><div class="line">`-- mail3</div><div class="line">|-- attach1</div><div class="line">|-- attach2</div><div class="line">|-- attach3</div><div class="line">|-- attachment.lst</div><div class="line">|-- body.txt</div><div class="line">|-- receiver.lst</div><div class="line">`-- subject.txt</div></pre></td></tr></table></figure></p>
+<p>其中receiver.lst是收件人列表，subject.txt是主题，body.txt是正文，attachment.lst是附件列表，attach1、attach2、attach3是attachment.lst中列出的附件，每个mailN文件夹是一封邮件。</p>
+<p>脚本很简单：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#</span>! /bin/bash</div><div class="line"><span class="meta">#</span> Auto send email</div><div class="line"><span class="meta">#</span></div><div class="line">if [[ $# &lt; 1 ]]</div><div class="line">then</div><div class="line">    echo "Usage: $0 &lt;maildir&gt;"</div><div class="line">    exit</div><div class="line">fi</div><div class="line"></div><div class="line">DIR="$1"</div><div class="line">cd "$DIR" || &#123; echo "Enter $DIR failed"; exit; &#125;</div><div class="line"></div><div class="line">for dir in $(ls -d */)</div><div class="line">do</div><div class="line">    cd "$dir" || &#123; echo "Enter $dir failed"; continue; &#125;</div><div class="line">    receiver=$(cat receiver.lst | sed ':a; $!N; s/\n/ /; ta')</div><div class="line">    subject=$(cat subject.txt)</div><div class="line">    body=$(cat body.txt)</div><div class="line">    attachment=$(cat attachment.lst | sed ':a; $!N; s/\n/ -a /; ta')</div><div class="line">    echo "$body" | mutt -s "$subject" -a $attachment $receiver</div><div class="line">    echo "Send $dir"</div><div class="line">    cd ..</div><div class="line">done</div></pre></td></tr></table></figure></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">mutt</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2013/07/10/mutt-send-mail-usage/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-c-debug-macro" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1142,103 +1231,6 @@
 
 
   
-    <article id="post-python-telnetlib-operate-network-device" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/05/22/python-telnetlib-operate-network-device/">使用telnetlib与网络设备交互</a>
-    </h1>
-  
-
-        
-        <a href="/2013/05/22/python-telnetlib-operate-network-device/" class="archive-article-date">
-  	<time datetime="2013-05-22T08:00:43.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-05-22</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<!-- tocstop -->
-<p>需求：自动登录到交换机或路由器，抓取acl规则命中统计信息。</p>
-<p>Python可以使用telnetlib来方便的完成与网络设备的telnet交互，先看个简单的demo。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">import</span> sys</div><div class="line"><span class="keyword">import</span> telnetlib</div><div class="line"></div><div class="line">HOST = <span class="string">"localhost"</span></div><div class="line">user = raw_input(<span class="string">"Enter your remote account: "</span>)</div><div class="line">password = raw_input(<span class="string">"Enter your password: "</span>)</div><div class="line"></div><div class="line">tn = telnetlib.Telnet(HOST)</div><div class="line"></div><div class="line">tn.read_until(<span class="string">"login: "</span>)</div><div class="line">tn.write(user + <span class="string">"n"</span>)</div><div class="line"><span class="keyword">if</span> password:</div><div class="line">    tn.read_until(<span class="string">"Password: "</span>)</div><div class="line">    tn.write(password + <span class="string">"n"</span>)</div><div class="line"></div><div class="line">tn.write(<span class="string">"lsn"</span>)</div><div class="line">tn.write(<span class="string">"exitn"</span>)</div><div class="line"></div><div class="line"><span class="keyword">print</span> tn.read_all()</div></pre></td></tr></table></figure></p>
-<p>这样就可以获取远程设备上的信息了，很简单。不过这里可能有个问题，就是当输出信息比较多时，如：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#</span>show security acl-group hits global</div><div class="line">Rule Interface Hits Total Percentage</div><div class="line">-------------------------------------------------------------------------</div><div class="line">1 pos192_6/12 0 838241480577 0.00%</div><div class="line">pos192_6/11 155468324 604476632172 0.03%</div><div class="line">pos192_6/10 0 829312701821 0.00%</div><div class="line">pos192_6/9 145907985 559951471369 0.03%</div><div class="line">pos192_5/12 270735061 566305900680 0.05%</div><div class="line">pos192_5/11 0 835172285111 0.00%</div><div class="line">pos192_5/10 129708863 422783963455 0.03%</div><div class="line">pos192_5/9 0 808295923141 0.00%</div><div class="line">pos192_4/12 0 813428777843 0.00%</div><div class="line">pos192_4/11 93424461 458341514305 0.02%</div><div class="line">pos192_4/10 0 0 0.00%</div><div class="line">pos192_4/9 0 0 0.00%</div><div class="line">pos192_3/10 0 698106360004 0.00%</div><div class="line">pos192_3/9 32986094 361399485011 0.01%</div><div class="line">pos192_2/9 0 716388812751 0.00%</div><div class="line">pos192_1/10 0 821077292172 0.00%</div><div class="line">pos192_1/9 1065993977 1235032965369 0.09%</div><div class="line">pos192_2/10 713658786 1560654454583 0.05%</div><div class="line">2 pos192_6/12 0 838241480577 0.00%</div><div class="line">pos192_6/10 0 829312701821 0.00%</div><div class="line">--More—</div></pre></td></tr></table></figure></p>
-<p>这种情况下，输出信息是不完整的，所以需要模拟敲空格的过程。但是我应该模拟敲多少次空格呢？？？先看代码。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">import</span> sys</div><div class="line"><span class="keyword">import</span> time</div><div class="line"><span class="keyword">import</span> telnetlib</div><div class="line"></div><div class="line">user = sys.argv[<span class="number">1</span>]</div><div class="line">passwd = sys.argv[<span class="number">2</span>]</div><div class="line">ip = sys.argv[<span class="number">3</span>]</div><div class="line">cmd = sys.argv[<span class="number">4</span>]</div><div class="line"></div><div class="line">tn = telnetlib.Telnet(ip)</div><div class="line">tn.read_until(<span class="string">'Username:'</span>)</div><div class="line">tn.write(user + <span class="string">"n"</span>)</div><div class="line">tn.read_until(<span class="string">'Password:'</span>)</div><div class="line">tn.write(passwd + <span class="string">"n"</span>)</div><div class="line">tn.read_until(<span class="string">'&gt;'</span>)</div><div class="line">tn.write(<span class="string">"enn"</span>)</div><div class="line">tn.read_until(<span class="string">"Password:"</span>)</div><div class="line">tn.write(passwd + <span class="string">"n"</span>)</div><div class="line">tn.read_until(<span class="string">'#'</span>)</div><div class="line"></div><div class="line">tn.write(cmd + <span class="string">"n"</span>)</div><div class="line"><span class="keyword">while</span> <span class="keyword">True</span>:</div><div class="line">    ret = tn.read_until(<span class="string">'#'</span>, <span class="number">1</span>)</div><div class="line">    <span class="keyword">print</span> ret</div><div class="line">    <span class="keyword">if</span> <span class="string">'#'</span> <span class="keyword">in</span> ret:</div><div class="line">        <span class="keyword">break</span></div><div class="line">    <span class="keyword">else</span>:</div><div class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">10</span>):</div><div class="line">            tn.write(<span class="string">' '</span>)</div><div class="line">            time.sleep(<span class="number">0.1</span>)</div><div class="line"></div><div class="line">tn.close()</div></pre></td></tr></table></figure></p>
-<p>我这里的处理方法是使用read_until方法，每次判断返回的信息是否包含命令行提示符“#”，如果不包含，说明信息还没输出完整，“敲一个空格”；如果包含，则说明信息已经输出完整。read_until是阻塞式的，所以这里加了个超时值。经测试，在输出比较多时，一次输入10个空格可以提高效率。</p>
-<p>另外一个问题是，返回的信息里是含有more以及^H、^M这些额外的字符的，可以借助col和grep命令等自行处理一下，所以最终的使用方法是：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"><span class="meta">$</span>python telnet.py winway 123456 192.168.101.37 'show security acl-group hits global' | col -b</div></pre></td></tr></table></figure></p>
-<p>这样我们就获得了所需要的信息了，接下来就是针对信息进行文本处理了。如果针对这个需求，哪位有更elegant的解决方法，还望不吝赐教^_^</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">python</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">telent</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/python/" class="article-tag-list-link color2">python</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/05/22/python-telnetlib-operate-network-device/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="extend next" rel="next" href="/page/2/">Next &raquo;</a>
@@ -1356,11 +1348,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hexo</a>
+                <a href="javascript:void(0)" class="js-tag color1">mussh</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">github pages</a>
+                <a href="javascript:void(0)" class="js-tag color5">pdsh</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">pssh</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1388,19 +1388,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">mussh</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">pdsh</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">pssh</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">hexo</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">github pages</a>
               </li>
             
             <div class="clearfix"></div>
