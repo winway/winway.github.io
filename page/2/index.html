@@ -154,6 +154,221 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-python-multiprocessing-demo" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2013/06/24/python-multiprocessing-demo/">一个基于multiprocessing的并发模型</a>
+    </h1>
+  
+
+        
+        <a href="/2013/06/24/python-multiprocessing-demo/" class="archive-article-date">
+  	<time datetime="2013-06-24T08:23:44.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-06-24</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<!-- tocstop -->
+<p>需求：</p>
+<ol>
+<li>周期性对一批机器执行某操作；</li>
+<li>该操作执行所需时间不固定，有波动；</li>
+<li>每次操作机器数量较多，需用多进程实现，但又不宜针对每个机器单独开启进程，否则进程太多；</li>
+</ol>
+<p>由于每个周期的操作时间不固定，难免出现两个周期重叠在一起，所以每个周期的操作尽量保持独立，这样不会彼此影响。基于以上考虑，程序的大体思路是：<em>主进程周期性fork一个子进程，子进程使用multiprocessing创建多进程执行具体操作</em>。代码如下：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div></pre></td><td class="code"><pre><div class="line"><span class="comment">#! /usr/bin/env python</span></div><div class="line"><span class="comment"># -*- coding: utf-8 -*-</span></div><div class="line"><span class="comment">#</span></div><div class="line"></div><div class="line"><span class="keyword">import</span> os</div><div class="line"><span class="keyword">import</span> sys</div><div class="line"><span class="keyword">import</span> time</div><div class="line"><span class="keyword">import</span> random</div><div class="line"><span class="keyword">import</span> multiprocessing</div><div class="line"></div><div class="line"><span class="comment"># 目标机器集合，少则几百，多则上千</span></div><div class="line">hosts = [ <span class="string">'192.168.1.1'</span>,</div><div class="line">          <span class="string">'192.168.1.2'</span>,</div><div class="line">          <span class="string">'192.168.1.3'</span>,</div><div class="line">          <span class="string">'192.168.1.4'</span>,</div><div class="line">          <span class="string">'192.168.1.5'</span>,</div><div class="line">          <span class="string">'192.168.1.6'</span>,</div><div class="line">          <span class="string">'192.168.1.7'</span>,</div><div class="line">          <span class="string">'192.168.1.8'</span>,</div><div class="line">          <span class="string">'192.168.1.9'</span>,</div><div class="line">          <span class="string">'192.168.1.10'</span>,</div><div class="line">         ]</div><div class="line"></div><div class="line"><span class="comment"># 针对每个机器的具体操作，这里没有进行任何处理</span></div><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">handle</span><span class="params">(host)</span>:</span></div><div class="line">    <span class="keyword">print</span> <span class="string">'Handling %s'</span> % host</div><div class="line">    time.sleep(random.randint(<span class="number">10</span>, <span class="number">15</span>))</div><div class="line">    <span class="keyword">return</span> host</div><div class="line"></div><div class="line"><span class="comment"># 循环从task_queue取一个待处理的机器进行处理，并将结果放入done_queue，直到遇到'STOP'</span></div><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">grandchild</span><span class="params">(task_queue, done_queue)</span>:</span></div><div class="line">    <span class="keyword">for</span> item <span class="keyword">in</span> iter(task_queue.get, <span class="string">'STOP'</span>):</div><div class="line">        result = handle(item)</div><div class="line">        done_queue.put(result)</div><div class="line"></div><div class="line"><span class="comment"># 每个周期的操作在这个单独的子进程中进行</span></div><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">child</span><span class="params">()</span>:</span></div><div class="line">    <span class="keyword">print</span> <span class="string">'Hi! This is child %d, my father is %d'</span> %\</div><div class="line">                        (os.getpid(), os.getppid())</div><div class="line"></div><div class="line">    task_queue = multiprocessing.Queue()</div><div class="line">    done_queue = multiprocessing.Queue()</div><div class="line"></div><div class="line">    <span class="comment"># 将待处理的机器放入task_queue</span></div><div class="line">    <span class="keyword">for</span> host <span class="keyword">in</span> hosts:</div><div class="line">        <span class="keyword">print</span> <span class="string">'put %s in task_queue'</span> % host</div><div class="line">        task_queue.put(host)</div><div class="line"></div><div class="line">    <span class="comment"># 创建固定数量进程，并发处理</span></div><div class="line">    PN = <span class="number">6</span></div><div class="line">    processes = []</div><div class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> range(PN):</div><div class="line">        process = multiprocessing.Process(target=grandchild, args=(task_queue, done_queue))</div><div class="line">        process.start()</div><div class="line">        processes.append(process)</div><div class="line"></div><div class="line">    <span class="comment"># 打印done_queue中的结果，这里可以针对结果在进行处理，如存数据库</span></div><div class="line">    <span class="keyword">print</span> <span class="string">'Unordered results:'</span></div><div class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> range(len(hosts)):</div><div class="line">        <span class="keyword">print</span> <span class="string">'get %s from done_queue'</span> % done_queue.get()</div><div class="line"></div><div class="line">    <span class="comment"># 结束处理进程</span></div><div class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> range(PN):</div><div class="line">        task_queue.put(<span class="string">'STOP'</span>)</div><div class="line">        <span class="keyword">print</span> <span class="string">'Stopping process #%d'</span> % i</div><div class="line"></div><div class="line">    <span class="comment"># 避免处理进程成为僵尸</span></div><div class="line">    <span class="keyword">print</span> <span class="string">'joining.....'</span></div><div class="line">    <span class="keyword">for</span> process <span class="keyword">in</span> processes:</div><div class="line">        process.join()</div><div class="line">    </div><div class="line">    sys.exit()</div><div class="line"></div><div class="line">children = []</div><div class="line"></div><div class="line"><span class="comment"># 清理僵尸进程</span></div><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">clear_defunct</span><span class="params">()</span>:</span></div><div class="line">    <span class="keyword">for</span> child <span class="keyword">in</span> children:</div><div class="line">        pid, status = os.waitpid(child, os.WNOHANG)</div><div class="line">        <span class="keyword">if</span> pid:</div><div class="line">            children.remove(pid)</div><div class="line">            <span class="keyword">print</span> <span class="string">'clear defunct'</span>, pid</div><div class="line"></div><div class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</div><div class="line">    <span class="comment"># 周期性创建子进程</span></div><div class="line">    <span class="keyword">while</span> <span class="keyword">True</span>:</div><div class="line">        pid = os.fork()</div><div class="line">        <span class="keyword">if</span> pid &lt; <span class="number">0</span>:</div><div class="line">            <span class="keyword">print</span> <span class="string">'fork error'</span></div><div class="line">        <span class="keyword">else</span>:</div><div class="line">            <span class="keyword">if</span> pid == <span class="number">0</span>:</div><div class="line">                child()</div><div class="line">            <span class="keyword">else</span>:</div><div class="line">                children.append(pid)</div><div class="line">                <span class="keyword">print</span> <span class="string">'Hi! This is parent %d'</span> % os.getpid()</div><div class="line"></div><div class="line">        clear_defunct()</div><div class="line"></div><div class="line">        time.sleep(<span class="number">30</span>)</div></pre></td></tr></table></figure></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">python</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">multiprocessing</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/python/" class="article-tag-list-link color2">python</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2013/06/24/python-multiprocessing-demo/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-mussh-pdsh-pssh-usage" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2013/06/24/mussh-pdsh-pssh-usage/">mussh、pdsh、pssh的简单使用</a>
+    </h1>
+  
+
+        
+        <a href="/2013/06/24/mussh-pdsh-pssh-usage/" class="archive-article-date">
+  	<time datetime="2013-06-24T03:16:06.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-06-24</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>在<a href="https://winway.github.io/2013/05/11/server-batch-manage-tool-introduction/">服务器批量管理工具</a>一文中，提到了几款服务器批量管理工具，本文就其中的mussh、pdsh、pssh简单介绍其使用方法。</p>
+<!-- toc -->
+<ul>
+<li><a href="#1-mussh">1. mussh</a></li>
+<li><a href="#2-pdsh">2. pdsh</a></li>
+<li><a href="#3-pssh">3. pssh</a></li>
+<li><a href="#4-总结">4. 总结</a></li>
+</ul>
+<!-- tocstop -->
+<h2 id="1-mussh"><a href="#1-mussh" class="headerlink" title="1. mussh"></a>1. mussh</h2><p>mussh的安装过程不再赘述，要使用mussh要先做好主机间的信任（方法自己查询）。mussh的使用较简单，要查询mussh的使用方法，可以<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">mussh --help</div></pre></td></tr></table></figure></p>
+<p>常用的方法如下：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">mussh -m -u -b -t 6 -h user@x.x.x.x.. -c cmd</div><div class="line">mussh -m -u -b -t 6 -h user@x.x.x.x.. -C scriptfile</div><div class="line">mussh -m -u -b -t 6 -H hostlist -c cmd</div><div class="line">mussh -m -u -b -t 6 -H hostlist -C scriptfile</div></pre></td></tr></table></figure></p>
+<p>其中hostlist的格式为：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">user@x.x.x.x</div><div class="line">user@x.x.x.x</div><div class="line">user@x.x.x.x</div><div class="line">..</div></pre></td></tr></table></figure></p>
+<p>常见命令行参数意义：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">-m [n] Run concurrently on 'n' hosts at a time (asynchronous).</div><div class="line">Use '0' (zero) for infinite. (default if -m)</div><div class="line">-b Print each hosts' output in a block without mingling</div><div class="line">with other hosts' output.</div><div class="line">-B Allow hosts' output to mingle. (default)</div><div class="line">-u Unique. Eliminate duplicate hosts. (default)</div><div class="line">-U Do NOT make host list unique.</div><div class="line">-t &lt;secs&gt; Timeout setting for each session.</div><div class="line">(requires openssh 3.8 or newer)</div></pre></td></tr></table></figure></p>
+<h2 id="2-pdsh"><a href="#2-pdsh" class="headerlink" title="2. pdsh"></a>2. pdsh</h2><p>pdsh的安装过程不再赘述，要使用pdsh有两个前提：</p>
+<ol>
+<li>做好主机间的信任（方法自己查询）</li>
+<li>管理机和目标机均安装pdsh（不然无法使用pdcp和rpdcp）</li>
+</ol>
+<p>可以通过<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">man pdsh 或 pdsh -h</div><div class="line">man pdcp 或 pdcp -h</div><div class="line">man rpdcp 或 rpdcp -h</div></pre></td></tr></table></figure></p>
+<p>来查询使用方法。常用的方法如下:<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">pdsh -R ssh -l root -w x.x.x.x cmd</div><div class="line">pdsh -R ssh -l root -w hostname cmd</div><div class="line">pdsh -R ssh -l root -w ^hostlist cmd</div></pre></td></tr></table></figure></p>
+<p>其中hostlist的格式为：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">x.x.x.x</div><div class="line">hostname</div><div class="line">..</div></pre></td></tr></table></figure></p>
+<p><strong>若不加cmd，则进入交互模式，我觉得这个是pdsh的亮点。</strong></p>
+<h2 id="3-pssh"><a href="#3-pssh" class="headerlink" title="3. pssh"></a>3. pssh</h2><p>pssh的安装不再赘述，要使用pssh要先做好主机间的信任（方法自己查询）。<br>pssh安装完成，会出现一下五个命令：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">pssh parallel-ssh 在多个主机上并行地运行命令。</div><div class="line">pscp parallel-scp 把文件并行地复制到多个主机上。</div><div class="line">prsync parallel-rsync 通过 rsync 协议把文件高效地并行复制到多个主机上。</div><div class="line">pslurp parallel-slurp 把文件并行地从多个远程主机复制到中心主机上。</div><div class="line">pnuke parallel-nuke 并行地在多个远程主机上杀死进程。</div></pre></td></tr></table></figure></p>
+<p>要查各个命令的使用方法，可以不加任何参数运行该命令，这样就会出现各选项的意义。如：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line">[winway@winway test]$ pssh</div><div class="line">Usage: pssh [OPTIONS] -h hosts.txt prog [arg0] ..</div><div class="line">-h --hosts hosts file (each line "host[:port] [user]")</div><div class="line">-l --user username (OPTIONAL)</div><div class="line">-p --par max number of parallel threads (OPTIONAL)</div><div class="line">-o --outdir output directory for stdout files (OPTIONAL)</div><div class="line">-e --errdir output directory for stderr files (OPTIONAL)</div><div class="line">-t --timeout timeout (secs) (-1 = no timeout) per host (OPTIONAL)</div><div class="line">-O --options SSH options (OPTIONAL)</div><div class="line">-v --verbose turn on warning and diagnostic messages (OPTIONAL)</div><div class="line">-P --print print output as we get it (OPTIONAL)</div><div class="line">-i --inline inline aggregated output for each server (OPTIONAL)</div><div class="line">Example: pssh -h nodes.txt -l irb2 -o /tmp/foo uptime</div></pre></td></tr></table></figure></p>
+<p>常用的方法如下：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">pssh -h hostlist -i cmd</div><div class="line">pscp -h hostlist src dest</div><div class="line">pslurp -h hostlist -L . dest src</div></pre></td></tr></table></figure></p>
+<h2 id="4-总结"><a href="#4-总结" class="headerlink" title="4. 总结"></a>4. 总结</h2><p>综上所述，mussh、pdsh、pssh各有优缺点，我的选择是：<br>批量在远程主机上执行比较固定的操作时，用mussh，特别是它支持本机脚本远程执行；<br>批量在远程主机上执行不确定的操作时，用pdsh，因为它支持交互模式；<br>批量在远程主机上上传、下载文件时用pssh的pscp或prsync、pslurp；<br>个人愚见，欢迎指正。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">mussh</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">pdsh</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">pssh</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2013/06/24/mussh-pdsh-pssh-usage/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-python-parse-ini-json-xml-configuration" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -853,6 +1068,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Linux</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
@@ -861,31 +1080,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Linux</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hexo</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">github pages</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
+                <a href="javascript:void(0)" class="js-tag color2">hadoop</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -901,11 +1096,27 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+                <a href="javascript:void(0)" class="js-tag color5">hexo</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">github pages</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -917,7 +1128,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
             
             <div class="clearfix"></div>
