@@ -154,6 +154,131 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-a-simple-Linux-app-monitor-framework-1" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2013/07/01/a-simple-Linux-app-monitor-framework-1/">一个简易的服务器监控框架(1)</a>
+    </h1>
+  
+
+        
+        <a href="/2013/07/01/a-simple-Linux-app-monitor-framework-1/" class="archive-article-date">
+  	<time datetime="2013-07-01T13:14:09.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-07-01</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>花了两天时间写了个监控服务器各项指标的框架，主要功能包括：根据设置产生各指标项的数据报表，并可以根据阈值的设定产生警告信息。<br><a href="https://github.com/winway/a-simple-monitor-framework/tree/v1.0" target="_blank" rel="external">https://github.com/winway/a-simple-monitor-framework/tree/v1.0</a></p>
+<!-- toc -->
+<ul>
+<li><a href="#1-简介">1. 简介</a></li>
+<li><a href="#2-配置">2. 配置</a></li>
+<li><a href="#3-数据存储">3. 数据存储</a></li>
+<li><a href="#4-展示">4. 展示</a></li>
+<li><a href="#5-使用">5. 使用</a></li>
+</ul>
+<!-- tocstop -->
+<h2 id="1-简介"><a href="#1-简介" class="headerlink" title="1. 简介"></a>1. 简介</h2><p>主要功能包括：根据设置产生各指标项的数据报表，并可以根据阈值的设定产生警告信息。程序包括以下文件和文件夹：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line">$ ls -l</div><div class="line">总计 88</div><div class="line">-rwxrw-r-- 1 winway winway 277 06-27 19:30 analyse.sh</div><div class="line">-rwxrw-r-- 1 winway winway 122 06-29 10:18 config.sh</div><div class="line">drwxrwxr-x 5 winway winway 4096 07-01 20:08 data</div><div class="line">drwxrwxr-x 2 winway winway 4096 07-01 20:08 display</div><div class="line">-rwxrw-r-- 1 winway winway 148 06-28 09:39 display.sh</div><div class="line">drwxrwxr-x 5 winway winway 4096 07-01 20:07 etc</div><div class="line">-rwxrw-r-- 1 winway winway 471 06-28 09:33 format.sh</div><div class="line">-rwxrw-r-- 1 winway winway 253 06-27 19:28 monitor.sh</div><div class="line">-rw-rw-r-- 1 winway winway 3036 06-29 15:19 raw2html.py</div><div class="line">-rw-rw-r-- 1 winway winway 2107 06-29 13:44 raw_analyse.py</div><div class="line">-rwxrw-r-- 1 winway winway 849 06-29 10:24 snatch.sh</div></pre></td></tr></table></figure></p>
+<ul>
+<li>monitor.sh<br>主程序，会依次调用snatch.sh、analyse.sh、format.sh、display.sh</li>
+<li>snatch.sh<br>数据采集，基于mussh（不了解的可以参考下这里）实现，周期性抓取各服务器上感兴趣的数据项，存储到data文件夹中</li>
+<li>analyse.sh<br>数据分析，根据etc文件夹中的阈值配置文件，产生需要告警的条目，主要工作由raw_analyse.py完成</li>
+<li>format.sh<br>数据格式化，将原始的纯文本数据格式化为html格式，主要工作由raw2html.py完成</li>
+<li>display.sh<br>数据展示，更新display文件夹下的软连接，指向最新的html文件</li>
+<li>config.sh<br>一些变量的定义</li>
+</ul>
+<h2 id="2-配置"><a href="#2-配置" class="headerlink" title="2. 配置"></a>2. 配置</h2><p>配置文件结构如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">etc/</div><div class="line">|-- lst.d</div><div class="line">| `-- database.lst</div><div class="line">|-- monitor.conf</div><div class="line">|-- sh.d</div><div class="line">| `-- database.sh</div><div class="line">`-- thv.d</div><div class="line">`-- database.thv</div></pre></td></tr></table></figure></p>
+<p>其中monitor.conf是主配置文件<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="meta">$</span> cat monitor.conf</div><div class="line"><span class="meta">#</span> 类型 IP列表文件 检查脚本文件 阈值文件</div><div class="line">database database.lst database.sh database.thv</div></pre></td></tr></table></figure></p>
+<p>类型是指服务器的角色，如数据库服务器，web服务器等；IP列表文件是对应这一角色的服务器的ip集合，格式为<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#</span> 归属地 用户@IP</div><div class="line">哈尔滨 root@x.x.x.x</div><div class="line">哈尔滨 root@x.x.x.x</div></pre></td></tr></table></figure></p>
+<p>这里“root@x.x.x.x”的格式是为了mussh执行起来方便而这么写的。<br>检查脚本文件是获取这个服务器数据应该执行的脚本。在目标机器上执行这个脚本，就可以获得我们关心的各项数据，这个脚本根据需要而定制，且输出信息的格式有要求。demo:<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line"><span class="meta">$</span> cat sh.d/database.sh</div><div class="line"><span class="meta">#</span>! /bin/bash</div><div class="line"><span class="meta">#</span></div><div class="line">echo -n "&lt;hostname&gt;"</div><div class="line">hostname</div><div class="line">echo -n '&lt;time&gt;'</div><div class="line">date '+%Y-%m-%d %H:%M:%S'</div><div class="line">echo -n '&lt;uptime&gt;'</div><div class="line">uptime | sed -r 's/.*up\s*([^,]*).*/\1/'</div><div class="line">echo -n '&lt;interface&gt;'</div><div class="line">/sbin/ifconfig | sed -nr '/^\S/&#123;N;s/\s+.*inet addr:(\S+).*/ \1/;H&#125;;$&#123;x;s/^\s*//g;s/\n/+/g;p&#125;'</div><div class="line">echo -n '&lt;process_number&gt;'</div><div class="line">ps -e | wc -l</div><div class="line">echo -n '&lt;disk_usage&gt;'</div><div class="line">df -h | awk -F'[ %]+' '$NF == "/"&#123;print $(NF-1)&#125;'</div></pre></td></tr></table></figure></p>
+<p>由于mussh具有远程执行本地脚本的能力，所以我们不需要把这个脚本拷贝到远程主机上。<br>阈值文件用来判断某项数据是否超标。比如如下示例，进程数超过180，我们认为要告警；磁盘使用率超过80%，也需要告警。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="meta">$</span> cat etc/thv.d/database.thv</div><div class="line"><span class="meta">#</span>###########################################</div><div class="line"><span class="meta">#</span> 注意!!! #</div><div class="line"><span class="meta">#</span> 指标要与检查脚本里的名字一致 #</div><div class="line"><span class="meta">#</span>###########################################</div><div class="line"><span class="meta">#</span> 指标 最小值 最大值</div><div class="line">process_number 180 300</div><div class="line">disk_usage 0 80</div></pre></td></tr></table></figure></p>
+<p>这里需要注意的是检查脚本中出现的数据项的名字要和这里保持一致，这样程序才能找到关联。<br>所以，如果你想加入对一批相同类型的机器的监控，你需要：</p>
+<ol>
+<li>编辑一个IP列表文件，将他们的IP地址按合法的格式编辑</li>
+<li>根据自己关心的数据项，定制一个检查脚本，脚本的输出信息格式如示例脚本所示</li>
+<li>给你所关心数据项设置告警阈值</li>
+<li>在monitor.conf里添加一条配置</li>
+</ol>
+<h2 id="3-数据存储"><a href="#3-数据存储" class="headerlink" title="3. 数据存储"></a>3. 数据存储</h2><p>所有数据存储在data文件夹中<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line">data/</div><div class="line">|-- all_html</div><div class="line">| `-- 20130701</div><div class="line">| `-- 2008</div><div class="line">| `-- database_all.html</div><div class="line">|-- newest.txt</div><div class="line">|-- raw</div><div class="line">| `-- 20130701</div><div class="line">| `-- 2008</div><div class="line">| |-- database_all.raw</div><div class="line">| `-- database_warn.raw</div><div class="line">`-- warn_html</div><div class="line">`-- 20130701</div><div class="line">`-- 2008</div><div class="line">`-- database_warn.html</div></pre></td></tr></table></figure></p>
+<p>raw文件夹用于存储原始的数据<br>all_html用于存储包含所有数据项的html文件<br>warn_html用于存储只包含警告数据项的html文件<br>newest.txt用于记录最新的数据所在的文件夹<br>执行完snatch.sh，会在相应的日期时间目录下生成<em>_all.raw文件<br>执行完analyse.sh，会在相应的日期时间目录下生成</em>_warn.raw文件<br>执行完format.sh，会在相应的日期时间目录下生成<em>_all.html和</em>_warn.html文件</p>
+<h2 id="4-展示"><a href="#4-展示" class="headerlink" title="4. 展示"></a>4. 展示</h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">display</div><div class="line">|-- new_warning -&gt; ../data/warn_html/20130701/2008</div><div class="line">|-- overall -&gt; ../data/all_html/</div><div class="line">`-- warning -&gt; ../data/warn_html/</div></pre></td></tr></table></figure>
+<p>display文件夹包含三个软连接<br>new_warning指向最新的警告数据<br>overall指向all_html文件夹<br>warning指向warn_html文件夹<br>在display目录下执行<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">nohup python -m SimpleHTTPServer 80 &amp;&gt;/dev/null &amp;</div></pre></td></tr></table></figure></p>
+<p>就可以在浏览器中查看这些数据了。<br><img src="http://ot69fbvko.bkt.clouddn.com/monitor_v1_list.png" alt="monitor_v1_list"><br><img src="http://ot69fbvko.bkt.clouddn.com/monito_v1_demo.bmp" alt="monitor_v1_demo"></p>
+<h2 id="5-使用"><a href="#5-使用" class="headerlink" title="5. 使用"></a>5. 使用</h2><p>运行环境需要需要安装mussh和python的PyH模块。根据需要编辑crontab文件，如<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">*/30 8-16 * * * cd ~winway/monitor &amp;&amp; ./monitor.sh</div><div class="line">0 0-7,17-23 * * * cd ~winway/monitor &amp;&amp; ./monitor.sh</div></pre></td></tr></table></figure></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">shell</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">监控</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/shell/" class="article-tag-list-link color1">shell</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2013/07/01/a-simple-Linux-app-monitor-framework-1/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-python-multiprocessing-demo" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1060,18 +1185,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">shell</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">监控</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Linux</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
@@ -1080,7 +1193,35 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Linux</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">shell</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">监控</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">hadoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">hexo</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">github pages</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1096,22 +1237,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hexo</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">github pages</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
@@ -1124,11 +1249,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">源码分析</a>
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1136,7 +1261,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+                <a href="javascript:void(0)" class="js-tag color5">源码分析</a>
               </li>
             
             <div class="clearfix"></div>
