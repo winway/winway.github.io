@@ -6,19 +6,23 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://winway.github.io">
-  <title>关于fork以及子shell继承环境变量的疑问 | winway&#39;s blog</title>
+  <title>open-falcon源码阅读之hbs | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="在shell里，有这样的说法  在我目前这个shell的情况下，去启用另一个新的shell，新的那个shell 就是子程序啦！在一般的状态下，父程序的自定义变量是无法在子程序内使用的。但是透过export将变量变成环境变量后，就能够在子程序底下应用了  但是在C里，父进程调用fork()创建子进程，子进程成为父进程的副本，复制父进程的所有进程内存到其内存地址空间中。父、子进程的“数据段”，“堆">
-<meta name="keywords" content="Linux">
+  <meta name="description" content="Version：0.2.0   1. 监控配置关系 2. 架构图 3. 流程图 4. 源码解析   1. 监控配置关系 2. 架构图 3. 流程图 4. 源码解析详细代码注释请参考https://github.com/winway/falcon-plus-learn，持续更新中">
+<meta name="keywords" content="open-falcon,open-falcon源码阅读">
 <meta property="og:type" content="article">
-<meta property="og:title" content="关于fork以及子shell继承环境变量的疑问">
-<meta property="og:url" content="https://winway.github.io/2013/05/14/fork-and-shell-inherit-environment-variable/index.html">
+<meta property="og:title" content="open-falcon源码阅读之hbs">
+<meta property="og:url" content="https://winway.github.io/2017/09/04/open-falcon-hbs/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:description" content="在shell里，有这样的说法  在我目前这个shell的情况下，去启用另一个新的shell，新的那个shell 就是子程序啦！在一般的状态下，父程序的自定义变量是无法在子程序内使用的。但是透过export将变量变成环境变量后，就能够在子程序底下应用了  但是在C里，父进程调用fork()创建子进程，子进程成为父进程的副本，复制父进程的所有进程内存到其内存地址空间中。父、子进程的“数据段”，“堆">
-<meta property="og:updated_time" content="2017-07-20T10:39:03.253Z">
+<meta property="og:description" content="Version：0.2.0   1. 监控配置关系 2. 架构图 3. 流程图 4. 源码解析   1. 监控配置关系 2. 架构图 3. 流程图 4. 源码解析详细代码注释请参考https://github.com/winway/falcon-plus-learn，持续更新中">
+<meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/open-falcon-hbs-relation.png">
+<meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/open-falcon-hbs-arch.png">
+<meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/open-falcon-hbs-flow.png">
+<meta property="og:updated_time" content="2017-09-04T11:40:47.893Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="关于fork以及子shell继承环境变量的疑问">
-<meta name="twitter:description" content="在shell里，有这样的说法  在我目前这个shell的情况下，去启用另一个新的shell，新的那个shell 就是子程序啦！在一般的状态下，父程序的自定义变量是无法在子程序内使用的。但是透过export将变量变成环境变量后，就能够在子程序底下应用了  但是在C里，父进程调用fork()创建子进程，子进程成为父进程的副本，复制父进程的所有进程内存到其内存地址空间中。父、子进程的“数据段”，“堆">
+<meta name="twitter:title" content="open-falcon源码阅读之hbs">
+<meta name="twitter:description" content="Version：0.2.0   1. 监控配置关系 2. 架构图 3. 流程图 4. 源码解析   1. 监控配置关系 2. 架构图 3. 流程图 4. 源码解析详细代码注释请参考https://github.com/winway/falcon-plus-learn，持续更新中">
+<meta name="twitter:image" content="http://ot69fbvko.bkt.clouddn.com/open-falcon-hbs-relation.png">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -154,35 +158,39 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-fork-and-shell-inherit-environment-variable" class="article article-type-post " itemscope itemprop="blogPost">
+            <article id="post-open-falcon-hbs" class="article article-type-post " itemscope itemprop="blogPost">
   <div class="article-inner">
     
       <header class="article-header">
         
   
     <h1 class="article-title" itemprop="name">
-      关于fork以及子shell继承环境变量的疑问
+      open-falcon源码阅读之hbs
     </h1>
   
 
         
-        <a href="/2013/05/14/fork-and-shell-inherit-environment-variable/" class="archive-article-date">
-  	<time datetime="2013-05-14T04:00:41.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-05-14</time>
+        <a href="/2017/09/04/open-falcon-hbs/" class="archive-article-date">
+  	<time datetime="2017-09-04T11:26:26.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-09-04</time>
 </a>
         
       </header>
     
     <div class="article-entry" itemprop="articleBody">
       
-        <!-- toc -->
+        <p><em>Version：0.2.0</em></p>
+<!-- toc -->
+<ul>
+<li><a href="#1-监控配置关系">1. 监控配置关系</a></li>
+<li><a href="#2-架构图">2. 架构图</a></li>
+<li><a href="#3-流程图">3. 流程图</a></li>
+<li><a href="#4-源码解析">4. 源码解析</a></li>
+</ul>
 <!-- tocstop -->
-<p>在shell里，有这样的说法</p>
-<blockquote>
-<p>在我目前这个shell的情况下，去启用另一个新的shell，新的那个shell 就是子程序啦！在一般的状态下，父程序的自定义变量是无法在子程序内使用的。但是透过export将变量变成环境变量后，就能够在子程序底下应用了</p>
-</blockquote>
-<p>但是在C里，父进程调用fork()创建子进程，子进程成为父进程的副本，复制父进程的所有进程内存到其内存地址空间中。父、子进程的“数据段”，“堆栈段”和“代码段”完全相同，即子进程中的每一个字节都和父进程一样。fork之后，从 fork 处开始父子进程并行执行，公有变量的值也在 fork 处被复制（当时的值），只不过父子进程分别使用各自的复本（而非共享）。</p>
-<p>我对上面的两段话就有点不理解啦，觉得有点矛盾，应该子shell自动继承父shell的变量啊。直到今天意识到忽略了一点。在开启子shell的时候，是fork+exec的模式，系统调用exec是以新的进程去代替原来的进程，原进程的代码段，数据段，堆栈段被新的进程所代替，所以父进程的变量是不会再存在于子进程了。而且exec可以接受一个指向环境字符串指针数组的指针，意思是把新的环境变量指定到新的进程中去，若不提供该指针则将原来的环境变量（即父进程的）默认为新进程的环境变量。</p>
-<p>这样，子shell只能继承父shell的环境变量，并且子shell对环境变量的修改不会影响到父shell就可以理解了。不知道以上的理解是否合理，还望高手指教！</p>
+<h1 id="1-监控配置关系"><a href="#1-监控配置关系" class="headerlink" title="1. 监控配置关系"></a>1. 监控配置关系</h1><p><img src="http://ot69fbvko.bkt.clouddn.com/open-falcon-hbs-relation.png" alt="open-falcon-hbs-relation"></p>
+<h1 id="2-架构图"><a href="#2-架构图" class="headerlink" title="2. 架构图"></a>2. 架构图</h1><p><img src="http://ot69fbvko.bkt.clouddn.com/open-falcon-hbs-arch.png" alt="open-falcon-hbs-arch"></p>
+<h1 id="3-流程图"><a href="#3-流程图" class="headerlink" title="3. 流程图"></a>3. 流程图</h1><p><img src="http://ot69fbvko.bkt.clouddn.com/open-falcon-hbs-flow.png" alt="open-falcon-hbs-flow"></p>
+<h1 id="4-源码解析"><a href="#4-源码解析" class="headerlink" title="4. 源码解析"></a>4. 源码解析</h1><p>详细代码注释请参考<a href="https://github.com/winway/falcon-plus-learn" target="_blank" rel="external">https://github.com/winway/falcon-plus-learn</a>，持续更新中</p>
 
       
 
@@ -227,7 +235,11 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Linux</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">open-falcon</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">open-falcon源码阅读</a>
         		</li>
       		
 		</ul>
@@ -239,7 +251,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
+        			<a href="/categories/open-falcon/" class="article-tag-list-link color2">open-falcon</a>
         		</li>
       		
 		</ul>
@@ -294,7 +306,7 @@
     <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="http://s.jiathis.com/qrcode.php?url=https://winway.github.io/2013/05/14/fork-and-shell-inherit-environment-variable/" alt="微信分享二维码">
+      <img src="http://s.jiathis.com/qrcode.php?url=https://winway.github.io/2017/09/04/open-falcon-hbs/" alt="微信分享二维码">
     </div>
 </div>
 
@@ -308,18 +320,18 @@
   
 <nav id="article-nav">
   
-    <a href="/2013/05/22/python-telnetlib-operate-network-device/" id="article-nav-newer" class="article-nav-link-wrap">
+    <a href="/2017/09/04/open-falcon-transfer/" id="article-nav-newer" class="article-nav-link-wrap">
       <i class="icon-circle-left"></i>
       <div class="article-nav-title">
         
-          使用telnetlib与网络设备交互
+          open-falcon源码阅读之transfer
         
       </div>
     </a>
   
   
-    <a href="/2013/05/14/etc-shells-file-usage/" id="article-nav-older" class="article-nav-link-wrap">
-      <div class="article-nav-title">/etc/shells文件用途</div>
+    <a href="/2017/08/27/open-falcon-agent/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">open-falcon源码阅读之agent</div>
       <i class="icon-circle-right"></i>
     </a>
   
