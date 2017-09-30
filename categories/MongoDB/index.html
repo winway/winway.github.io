@@ -6,19 +6,17 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://winway.github.io">
-  <title>Nagios部署实践 | winway&#39;s blog</title>
+  <title>Category: MongoDB | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="最近尝试了下Nagios，确实挺灵活，需要监控什么，自己动手写插件就行。什么是Nagios以及Nagios的安装就不再赘述，可以参考这里：  http://netsecurity.51cto.com/art/200706/48728.htm http://tomas.blog.51cto.com/2660202/477956  本文就将部署Nagios的主要过程和遇到的问题总结一下。   1. 在">
-<meta name="keywords" content="Linux,nagios">
-<meta property="og:type" content="article">
-<meta property="og:title" content="Nagios部署实践">
-<meta property="og:url" content="https://winway.github.io/2013/11/16/nagios-deploy-practice/index.html">
+  <meta name="description" content="python, go, devops, hadoop, MongoDB">
+<meta property="og:type" content="website">
+<meta property="og:title" content="winway&#39;s blog">
+<meta property="og:url" content="https://winway.github.io/categories/MongoDB/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:description" content="最近尝试了下Nagios，确实挺灵活，需要监控什么，自己动手写插件就行。什么是Nagios以及Nagios的安装就不再赘述，可以参考这里：  http://netsecurity.51cto.com/art/200706/48728.htm http://tomas.blog.51cto.com/2660202/477956  本文就将部署Nagios的主要过程和遇到的问题总结一下。   1. 在">
-<meta property="og:updated_time" content="2017-08-26T08:18:52.046Z">
+<meta property="og:description" content="python, go, devops, hadoop, MongoDB">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Nagios部署实践">
-<meta name="twitter:description" content="最近尝试了下Nagios，确实挺灵活，需要监控什么，自己动手写插件就行。什么是Nagios以及Nagios的安装就不再赘述，可以参考这里：  http://netsecurity.51cto.com/art/200706/48728.htm http://tomas.blog.51cto.com/2660202/477956  本文就将部署Nagios的主要过程和遇到的问题总结一下。   1. 在">
+<meta name="twitter:title" content="winway&#39;s blog">
+<meta name="twitter:description" content="python, go, devops, hadoop, MongoDB">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -154,266 +152,71 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-nagios-deploy-practice" class="article article-type-post " itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
+            
   
-    <h1 class="article-title" itemprop="name">
-      Nagios部署实践
+  
+    
+    
+      
+      
+      <section class="archives-wrap">
+        <div class="archive-year-wrap">
+          <a href="/archives/2017" class="archive-year">2017</a>
+        </div>
+        <div class="archives">
+    
+    <article class="archive-article archive-type-post">
+  <div class="archive-article-inner">
+    <header class="archive-article-header">
+      	<div class="article-meta">
+	      	<a href="/2017/09/30/mongodb-replicaset-monitoring/" class="archive-article-date">
+  	<time datetime="2017-09-30T07:20:47.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-09-30</time>
+</a>
+        </div>
+    	 
+  
+    <h1 itemprop="name">
+      <a class="archive-article-title" href="/2017/09/30/mongodb-replicaset-monitoring/">MongoDB副本集监控</a>
     </h1>
   
 
-        
-        <a href="/2013/11/16/nagios-deploy-practice/" class="archive-article-date">
-  	<time datetime="2013-11-16T09:35:13.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-11-16</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>最近尝试了下Nagios，确实挺灵活，需要监控什么，自己动手写插件就行。什么是Nagios以及Nagios的安装就不再赘述，可以参考这里：</p>
-<ul>
-<li><a href="http://netsecurity.51cto.com/art/200706/48728.htm" target="_blank" rel="external">http://netsecurity.51cto.com/art/200706/48728.htm</a></li>
-<li><a href="http://tomas.blog.51cto.com/2660202/477956" target="_blank" rel="external">http://tomas.blog.51cto.com/2660202/477956</a></li>
-</ul>
-<p>本文就将部署Nagios的主要过程和遇到的问题总结一下。</p>
-<!-- toc -->
-<ul>
-<li><a href="#1-在被监控机上安装nrpe">1. 在被监控机上安装nrpe</a></li>
-<li><a href="#2-将定制的插件放到被监控机上并在被监控机的nrpecfg里定义command">2. 将定制的插件放到被监控机上，并在被监控机的nrpe.cfg里定义command</a></li>
-<li><a href="#3-针对被监控的主机和服务在监控机上进行配置">3. 针对被监控的主机和服务，在监控机上进行配置</a></li>
-</ul>
-<!-- tocstop -->
-<h2 id="1-在被监控机上安装nrpe"><a href="#1-在被监控机上安装nrpe" class="headerlink" title="1. 在被监控机上安装nrpe"></a>1. 在被监控机上安装nrpe</h2><p>批量安装脚本原理：将安装脚本install_nrpe.sh和安装包 scp到被监控机上（需要建立ssh信任）并执行。执行：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">sh install.sh iplist install_nrpe.sh nrpe-2.15.tar.gz</div></pre></td></tr></table></figure></p>
-<p>便会批量在被监控机上安装并运行nrpe，其中iplist每行是一个ip地址。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div></pre></td><td class="code"><pre><div class="line">[winway@localhost auto_install]$ cat install.sh</div><div class="line"><span class="meta">#</span>! /bin/bash</div><div class="line"><span class="meta">#</span></div><div class="line"></div><div class="line">if [[ "$&#123;#@&#125;" -ne 3 ]]</div><div class="line">then</div><div class="line">    echo "Usage: $0 &lt;iplistfile&gt; &lt;installsh&gt; &lt;tarball&gt;"</div><div class="line">    exit</div><div class="line">fi</div><div class="line"></div><div class="line">iplistfile="$1"</div><div class="line">installsh="$2"</div><div class="line">tarball="$3"</div><div class="line"></div><div class="line">DIR="/usr/local/src"</div><div class="line"></div><div class="line">exec 4&lt;&gt;"$iplistfile"</div><div class="line"></div><div class="line">n=0</div><div class="line">while read -u 4 ip</div><div class="line">do</div><div class="line">    echo "$&#123;ip&#125;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;"</div><div class="line">    ((n++))</div><div class="line">    (</div><div class="line">    scp -o ConnectTimeout=3 "$installsh" "$&#123;ip&#125;:$&#123;DIR&#125;" || &#123; echo "$ip: scp installsh error"; continue; &#125;</div><div class="line">    scp -o ConnectTimeout=3 "$tarball" "$&#123;ip&#125;:$&#123;DIR&#125;" || &#123; echo "$ip: scp tarball error"; continue; &#125;</div><div class="line">    ssh -o ConnectTimeout=3 "$ip" "bash $&#123;DIR&#125;/$(basename $&#123;installsh&#125;) $&#123;DIR&#125;/$(basename $&#123;tarball&#125;)" || &#123; echo "$ip: install error"; &#125;</div><div class="line">    ) &amp;</div><div class="line">done</div><div class="line"><span class="meta"></span></div><div class="line"># wait all background processes to complete</div><div class="line">for ((i=1; i&lt;=n; i++))</div><div class="line">do</div><div class="line">    wait %$i</div><div class="line">done</div><div class="line"></div><div class="line">exec 4&gt;&amp;-</div></pre></td></tr></table></figure>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div></pre></td><td class="code"><pre><div class="line">[winway@localhost auto_install]$ cat install_nrpe.sh</div><div class="line"><span class="meta">#</span>! /bin/bash</div><div class="line"><span class="meta">#</span></div><div class="line"></div><div class="line">if [[ "$&#123;#@&#125;" -ne 1 ]]</div><div class="line">then</div><div class="line">    echo "Usage: $0 &lt;tarball&gt;"</div><div class="line">    exit</div><div class="line">fi</div><div class="line"></div><div class="line">tarball="$1"</div><div class="line"></div><div class="line">PATH=$PATH:/usr/sbin/</div><div class="line">export PATH</div><div class="line"></div><div class="line">groupadd nagios</div><div class="line">useradd -g nagios nagios</div><div class="line"></div><div class="line">if id oracle</div><div class="line">then</div><div class="line">    user=oracle</div><div class="line">    group=oinstall</div><div class="line">elif id admin</div><div class="line">then</div><div class="line">    user=admin</div><div class="line">    group=admin</div><div class="line">elif id smmc</div><div class="line">then</div><div class="line">    user=smmc</div><div class="line">    group=nagios</div><div class="line">else</div><div class="line">    user=nagios</div><div class="line">    group=nagios</div><div class="line">fi</div><div class="line"></div><div class="line">cd "$(dirname $&#123;tarball&#125;)" || &#123; echo "cd error"; exit 1; &#125;</div><div class="line"></div><div class="line">tar -zxvf "$tarball"</div><div class="line"></div><div class="line">cd $&#123;tarball%.tar.gz&#125; || &#123; echo "cd error"; exit 2; &#125;</div><div class="line"><span class="meta"></span></div><div class="line"># --enable-command-args的作用是使nrpe支持传递参数</div><div class="line">./configure --prefix=/usr/local/nagios --enable-command-args --with-nrpe-user=$user --with-nrpe-group=$group || &#123; echo "configure error"; exit 3; &#125;</div><div class="line"></div><div class="line">make all || &#123; echo "make all error"; exit 4; &#125;</div><div class="line"></div><div class="line">make install-plugin || &#123; echo "make install-plugin error"; exit 5; &#125;</div><div class="line"></div><div class="line">make install-daemon || &#123; echo "make install-daemon error"; exit 6; &#125;</div><div class="line"></div><div class="line">make install-daemon-config || &#123; echo "make install-daemon-config error"; exit 7; &#125;</div><div class="line"></div><div class="line">cp -f /usr/local/nagios/etc/nrpe.cfg /usr/local/nagios/etc/nrpe.cfg.bk</div><div class="line"></div><div class="line">if ! grep '^[ \t]*allowed_hosts.*10.208.253.87' /usr/local/nagios/etc/nrpe.cfg &amp;&gt;/dev/null</div><div class="line">then</div><div class="line">    sed 's/^[ \t]*\(allowed_hosts.*\)/\1,10.208.253.87/' /usr/local/nagios/etc/nrpe.cfg.bk | \</div><div class="line">    sed 's/^[ \t]*dont_blame_nrpe=[01]/dont_blame_nrpe=1/' &gt;/usr/local/nagios/etc/nrpe.cfg</div><div class="line">else</div><div class="line">    sed 's/^[ \t]*dont_blame_nrpe=[01]/dont_blame_nrpe=1/' /usr/local/nagios/etc/nrpe.cfg.bk &gt;/usr/local/nagios/etc/nrpe.cfg</div><div class="line">fi</div><div class="line"></div><div class="line">chown -R $user:$group /usr/local/nagios</div><div class="line"></div><div class="line">killall nrpe</div><div class="line"></div><div class="line">sleep 2</div><div class="line"></div><div class="line">nohup /usr/local/nagios/bin/nrpe -c /usr/local/nagios/etc/nrpe.cfg -4 -d &amp;&gt;/dev/null &amp;</div><div class="line"></div><div class="line">sleep 2</div><div class="line"></div><div class="line">if ps -ef | grep nrpe &amp;&gt;/dev/null</div><div class="line">then</div><div class="line">    echo "start successfully"</div><div class="line">else</div><div class="line">    echo "start failed"</div><div class="line">    exit 8</div><div class="line">fi</div><div class="line"></div><div class="line">if [[ -f /etc/rc.d/boot.local ]]</div><div class="line">then</div><div class="line">    if ! grep 'nrpe' /etc/rc.d/boot.local &amp;&gt;/dev/null</div><div class="line">    then</div><div class="line">        echo "nohup /usr/local/nagios/bin/nrpe -c /usr/local/nagios/etc/nrpe.cfg -4 -d &amp;&gt;/dev/null &amp;" &gt;&gt;/etc/rc.d/boot.local</div><div class="line">    fi</div><div class="line">elif [[ -f /etc/rc.local ]]</div><div class="line">then</div><div class="line">    if ! grep 'nrpe' /etc/rc.local &amp;&gt;/dev/null</div><div class="line">    then</div><div class="line">        echo "nohup /usr/local/nagios/bin/nrpe -c /usr/local/nagios/etc/nrpe.cfg -4 -d &amp;&gt;/dev/null &amp;" &gt;&gt;/etc/rc.local</div><div class="line">    fi</div><div class="line">else</div><div class="line">    echo "Did not set self on"</div><div class="line">fi</div></pre></td></tr></table></figure>
-<p>为了验证是否成功在被监控机器上安装了nrpe，编写了验证脚本verify_nrpe.sh。内容如下：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">[winway@localhost auto_install]$ cat verify_nrpe.sh</div><div class="line"><span class="meta">#</span>! /bin/bash</div><div class="line"><span class="meta">#</span></div><div class="line"></div><div class="line">if [[ $&#123;#@&#125; -ne 1 ]]</div><div class="line">then</div><div class="line">    echo "Usage: $0 &lt;iplistfile&gt;"</div><div class="line">fi</div><div class="line"></div><div class="line">iplistfile="$1"</div><div class="line"></div><div class="line">n=0</div><div class="line">while read ip</div><div class="line">do</div><div class="line">    echo "$ip"</div><div class="line">    /usr/local/nagios/libexec/check_nrpe -H $ip -t 3</div><div class="line">    [[ "$?" -ne 0 ]] &amp;&amp; echo "check $ip please"</div><div class="line">done &lt;"$1"</div></pre></td></tr></table></figure></p>
-<p>执行：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">sh verify_nrpe.sh iplist</div></pre></td></tr></table></figure></p>
-<p>便可以查看哪些机器的nrpe在正常运行，哪些机器的nrpe有问题，可以方便的定位安装有问题的机器。</p>
-<p>回顾整个安装过程，还遇到了其他几个问题：</p>
-<ul>
-<li>部分机器没有安装openssl-devel包，导致configure报错找不到SSL libraries，从光盘上取得相应版本的openssl-devel包，使用pscp批量拷贝到目标机上，使用mussh批量安装，解决；</li>
-<li>部分机器的编译环境有问题，configure报错“c preprocessor /lib/cpp fails sanity check”、“no acceptable C compiler found in $PATH”、“C compiler annot create executables”，上网搜索了相关问题，没有找到太好的解决方法（我可不想重装gcc及相关pkg），就采用了一个取巧的方法，从具有相同操作系统的机器上，将成功安装的nrpe的相关文件夹，拷贝到有问题的机器上，解决；</li>
-<li>这个问题算是一个奇怪的问题，至今未解决，最后剩余16台机器死活装不上，原因是无法将安装包scp到被监控机器上。具体现象就是scp文件的时候，一直卡着不动，但是又不是所有文件都scp不成功，上面的install_nrpe.sh能scp成功， 但是nrpe-2.15.tar.gz就是scp不过去。我也尝试了rsync，nc，都不行，现象差不多。实在搞不定了，有空再说吧╮(╯▽╰)╭。<blockquote>
-<p>至此，基本在所有被监控机上成功安装并运行了nrpe。</p>
-</blockquote>
-</li>
-</ul>
-<p><strong>注意：这里在被监控机上只是安装了nrpe，并未安装nagios-plugins，因为所用到的插件都是我自己写的，所以安不安装nagios-plugins无所谓。</strong></p>
-<h2 id="2-将定制的插件放到被监控机上并在被监控机的nrpecfg里定义command"><a href="#2-将定制的插件放到被监控机上，并在被监控机的nrpe-cfg里定义command" class="headerlink" title="2. 将定制的插件放到被监控机上，并在被监控机的nrpe.cfg里定义command"></a>2. 将定制的插件放到被监控机上，并在被监控机的nrpe.cfg里定义command</h2><p>为了监控服务，我总共编写了17个插件。插件的编写很简单，你可以用shell、python，甚至C，只要遵守插件编写的规范即可，具体插件编写的规范可以参考这里：<br><a href="http://www.ibm.com/developerworks/cn/aix/library/au-nagios/" target="_blank" rel="external">http://www.ibm.com/developerworks/cn/aix/library/au-nagios/</a><br>除了将编写的插件拷贝到被监控机上，还需要在被监控机上的nrpe的配置文件nrpe.cfg里定义检查命令，格式为：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">command[check_xxx]=/usr/local/nagios/libexec/check_xxx -a $ARG1$ -b $ARG2$ -c $ARG3$</div></pre></td></tr></table></figure></p>
-<p>可以在监控机上用<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">check_nrpe –H x.x.x.x –c check_xxx –a arg1 arg2 arg3</div></pre></td></tr></table></figure></p>
-<p>来验证是否能成功获取信息。<br>为了批量对被监控机的nrpe进行配置，编写了脚本config_nrpe.sh，内容为：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div></pre></td><td class="code"><pre><div class="line">[winway@localhost auto_install]$ cat config_nrpe.sh</div><div class="line"><span class="meta">#</span>! /bin/bash</div><div class="line"><span class="meta">#</span></div><div class="line"></div><div class="line">if [[ "$&#123;#@&#125;" -ne 1 ]]</div><div class="line">then</div><div class="line">    echo "Usage: $0 &lt;tarball&gt;"</div><div class="line">    exit</div><div class="line">fi</div><div class="line"></div><div class="line">tarball="$1"</div><div class="line"></div><div class="line">if id oracle</div><div class="line">then</div><div class="line">    user=oracle</div><div class="line">    group=oinstall</div><div class="line">elif id admin</div><div class="line">then</div><div class="line">    user=admin</div><div class="line">    group=admin</div><div class="line">elif id smmc</div><div class="line">then</div><div class="line">    user=smmc</div><div class="line">    if id nagios</div><div class="line">    then</div><div class="line">        group=nagios</div><div class="line">    else</div><div class="line">        echo "Did not find valid group"</div><div class="line">    fi</div><div class="line">elif id nagios</div><div class="line">then</div><div class="line">    user=nagios</div><div class="line">    group=nagios</div><div class="line">else</div><div class="line">    echo "Did not find valid user"</div><div class="line">    exit 1</div><div class="line">fi</div><div class="line"></div><div class="line">cd "$(dirname $&#123;tarball&#125;)" || &#123; echo "cd error"; exit 1; &#125;</div><div class="line"></div><div class="line">tar -zxvf "$tarball"</div><div class="line"></div><div class="line">cd $&#123;tarball%.tar.gz&#125; || &#123; echo "cd error"; exit 2; &#125;</div><div class="line"></div><div class="line">if [[ -d /usr/local/nagios/libexec/ ]]</div><div class="line">then</div><div class="line">    cp -f plugins/* /usr/local/nagios/libexec/</div><div class="line">else</div><div class="line">    echo "/usr/local/nagios/libexec/ does not exists"</div><div class="line">    exit 1</div><div class="line">fi</div><div class="line"></div><div class="line">if [[ -f /usr/local/nagios/etc/nrpe.cfg ]]</div><div class="line">then</div><div class="line">    sed '/^command\[.*602/d' /usr/local/nagios/etc/nrpe.cfg &gt;nrpe.cfg.tmp</div><div class="line">    cat nrpe_cmd.cfg &gt;&gt;nrpe.cfg.tmp</div><div class="line">    mv -f nrpe.cfg.tmp /usr/local/nagios/etc/nrpe.cfg</div><div class="line">fi</div><div class="line"></div><div class="line">chown -R $user:$group /usr/local/nagios</div><div class="line"></div><div class="line">killall nrpe</div><div class="line"></div><div class="line">sleep 2</div><div class="line"></div><div class="line">nohup /usr/local/nagios/bin/nrpe -c /usr/local/nagios/etc/nrpe.cfg -4 -d &amp;&gt;/dev/null &amp;</div><div class="line"></div><div class="line">sleep 2</div><div class="line"></div><div class="line">if ps -ef | grep nrpe &amp;&gt;/dev/null</div><div class="line">then</div><div class="line">    echo "start successfully"</div><div class="line">else</div><div class="line">    echo "start failed"</div><div class="line">    exit 8</div><div class="line">fi</div><div class="line"></div><div class="line">if [[ -f /etc/rc.d/boot.local ]]</div><div class="line">then</div><div class="line">    if ! grep 'nrpe' /etc/rc.d/boot.local &amp;&gt;/dev/null</div><div class="line">    then</div><div class="line">        echo "nohup /usr/local/nagios/bin/nrpe -c /usr/local/nagios/etc/nrpe.cfg -4 -d &amp;&gt;/dev/null &amp;" &gt;&gt;/etc/rc.d/boot.local</div><div class="line">    fi</div><div class="line">elif [[ -f /etc/rc.local ]]</div><div class="line">then</div><div class="line">    if ! grep 'nrpe' /etc/rc.local &amp;&gt;/dev/null</div><div class="line">    then</div><div class="line">        echo "nohup /usr/local/nagios/bin/nrpe -c /usr/local/nagios/etc/nrpe.cfg -4 -d &amp;&gt;/dev/null &amp;" &gt;&gt;/etc/rc.local</div><div class="line">    fi</div><div class="line">else</div><div class="line">    echo "Did not set self on"</div><div class="line">fi</div></pre></td></tr></table></figure></p>
-<p>使用方法与批量安装类似：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">sh install.sh iplist config_nrpe.sh nrpe-config.tar.gz</div></pre></td></tr></table></figure></p>
-<p>原理也是将配置用到的文件，如自定义插件，定义的命令以及配置脚本scp到被监控机器上并执行。</p>
-<blockquote>
-<p>至此，被监控机上的nrpe都进行了正确的配置，并正常运行。</p>
-</blockquote>
-<h2 id="3-针对被监控的主机和服务在监控机上进行配置"><a href="#3-针对被监控的主机和服务，在监控机上进行配置" class="headerlink" title="3. 针对被监控的主机和服务，在监控机上进行配置"></a>3. 针对被监控的主机和服务，在监控机上进行配置</h2><p>需要将被监控机及其上的服务信息配置到Nagios中，由于机器较多所以需要自动生成hosts.cfg。自动生成hosts.cfg的脚本spawn_hosts.sh，内容如下：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div></pre></td><td class="code"><pre><div class="line">[winway@localhost auto_install]$ cat spawn_hosts.sh</div><div class="line"><span class="meta">#</span>! /bin/bash</div><div class="line"><span class="meta">#</span></div><div class="line"></div><div class="line">if [[ $&#123;#@&#125; -ne 1 ]]</div><div class="line">then</div><div class="line">    echo "Usage: $0 &lt;dir&gt;"</div><div class="line">    exit</div><div class="line">fi</div><div class="line"></div><div class="line">DIR="$1"</div><div class="line">cd $DIR || &#123; echo "Enter $DIR failed"; exit; &#125;</div><div class="line"></div><div class="line">for f in *.lst</div><div class="line">do</div><div class="line">    type=$(basename $f)</div><div class="line">    type=$&#123;type%.*&#125;</div><div class="line">    members=""</div><div class="line">    echo "$f"</div><div class="line">    &#123;</div><div class="line">        while read address ip comment</div><div class="line">        do</div><div class="line">            echo -e "define host&#123;"</div><div class="line">            echo -e "\tuse\tlinux-server"</div><div class="line">            echo -e "\thost_name\t$&#123;type&#125;-$&#123;ip&#125;"</div><div class="line">            echo -e "\talias\t$address($comment)"</div><div class="line">            echo -e "\taddress\t$ip"</div><div class="line">            echo -e "&#125;"</div><div class="line">            members="$&#123;members&#125;,$&#123;type&#125;-$&#123;ip&#125;"</div><div class="line">        done &lt;"$f"</div><div class="line">        echo -e "\n###############################################################################\n"</div><div class="line">        echo -e "define hostgroup&#123;"</div><div class="line">        echo -e "\thostgroup_name\t$type"</div><div class="line">        echo -e "\talias\t$type"</div><div class="line">        echo -e "\tmembers\t$members"</div><div class="line">        echo -e "&#125;"</div><div class="line">    &#125; &gt;/usr/local/nagios/etc/objects/hosts/"$&#123;type&#125;.cfg"</div><div class="line">done</div></pre></td></tr></table></figure></p>
-<p>使用方法<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">sh spawn_hosts.sh dir</div></pre></td></tr></table></figure></p>
-<p>其中dir中含有若干xxx.lst文件，xxx代表机器的类别，如web，db等，分类依据是，同类别机器需要监控的服务是相同的，这些机器会被放到一个hostgroup组内。xxx.lst文件每一行的格式为：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">address ip comment</div></pre></td></tr></table></figure></p>
-<p>address可以用来标明该机器的位置信息，如在哪个机房；comment相当于备注，这两项没有严格要求，目的在于更清楚的辨别机器。<br>执行结果是在/usr/local/nagios/etc/objects/hosts/目录下生成若干*.cfg文件，如web.cfg的 文件内容大致为：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line">define host&#123;</div><div class="line">use   linux-server</div><div class="line">host_name      web-192.168.100.37</div><div class="line">alias 北京(这是一台web服务器)</div><div class="line">address    192.168.100.37</div><div class="line">&#125;</div><div class="line"><span class="meta">#</span>##############################################################################</div><div class="line">define hostgroup&#123;</div><div class="line">hostgroup_name     web</div><div class="line">alias web</div><div class="line">members , web-192.168.100.37</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>在services.cfg中进行如下配置<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">define service&#123;</div><div class="line">use   generic-service</div><div class="line">hostgroup_name     web</div><div class="line">service_description disk_usage</div><div class="line">check_command     check_nrpe!check_web_disk_usage!80%</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>如果有其他服务需要监控，依此添加。最后在nagios.cfg中添加<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">cfg_file=/usr/local/nagios/etc/objects/services.cfg</div><div class="line">cfg_dir=/usr/local/nagios/etc/objects/hosts</div></pre></td></tr></table></figure></p>
-<blockquote>
-<p>至此，nagios部署完毕O(∩_∩)O。</p>
-</blockquote>
-
-      
-
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢你请我吃糖果<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    <div class="reward-box-item">
-                      <img class="reward-img" src="/img/alipay.jpg">
-                      <span class="reward-type">支付宝</span>
-                    </div>
-                    
-                    
-                    <div class="reward-box-item">
-                      <img class="reward-img" src="/img/weixinpay.png">
-                      <span class="reward-type">微信</span>
-                    </div>
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
+        <div class="article-info info-on-right">
+          
 	<div class="article-tag tagcloud">
 		<i class="icon-price-tags icon"></i>
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Linux</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">nagios</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
         		</li>
       		
 		</ul>
 	</div>
 
-      
+          
 	<div class="article-category tagcloud">
 		<i class="icon-book icon"></i>
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
+        			<a href="/categories/MongoDB/" class="article-tag-list-link color3">MongoDB</a>
         		</li>
       		
 		</ul>
 	</div>
 
 
-      
-
-      
-        
-<div class="share-btn share-icons tooltip-left">
-  <div class="tooltip tooltip-east">
-    <span class="tooltip-item">
-      <a href="javascript:;" class="share-sns share-outer">
-        <i class="icon icon-share"></i>
-      </a>
-    </span>
-    <span class="tooltip-content">
-      <div class="share-wrap">
-        <div class="share-icons">
-          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
-            <i class="icon icon-weibo"></i>
-          </a>
-          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
-            <i class="icon icon-weixin"></i>
-          </a>
-          <a class="qq share-sns" href="javascript:;" data-type="qq">
-            <i class="icon icon-qq"></i>
-          </a>
-          <a class="douban share-sns" href="javascript:;" data-type="douban">
-            <i class="icon icon-douban"></i>
-          </a>
-          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
-            <i class="icon icon-qzone"></i>
-          </a>
-          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
-            <i class="icon icon-facebook"></i>
-          </a>
-          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
-            <i class="icon icon-twitter"></i>
-          </a>
-          <a class="google share-sns" href="javascript:;" data-type="google">
-            <i class="icon icon-google"></i>
-          </a>
         </div>
-      </div>
-    </span>
-  </div>
-</div>
-
-<div class="page-modal wx-share js-wx-box">
-    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
-    <p>扫一扫，分享到微信</p>
-    <div class="wx-qrcode">
-      <img src="http://s.jiathis.com/qrcode.php?url=https://winway.github.io/2013/11/16/nagios-deploy-practice/" alt="微信分享二维码">
-    </div>
-</div>
-
-<div class="mask js-mask"></div>
-      
-      <div class="clearfix"></div>
-    </div>
+        <div class="clearfix"></div>
+    </header>
   </div>
 </article>
-
-  
-<nav id="article-nav">
-  
-    <a href="/2017/07/15/hexo-githubpages-blog/" id="article-nav-newer" class="article-nav-link-wrap">
-      <i class="icon-circle-left"></i>
-      <div class="article-nav-title">
-        
-          Hexo+Github Pages搭建个人博客
-        
-      </div>
-    </a>
   
   
-    <a href="/2013/09/12/a-simple-Linux-app-monitor-framework-2/" id="article-nav-older" class="article-nav-link-wrap">
-      <div class="article-nav-title">一个简易的服务器监控框架(2)</div>
-      <i class="icon-circle-right"></i>
-    </a>
-  
-</nav>
-
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-  
-  
+    </div></section>
   
 
-  
-
-  
-
-  
-  
-<section class="comments" id="comments">
-    <div id="gitment_thread"></div>
-    <link rel="stylesheet" href="https://imsun.github.io/gitment/style/default.css">
-    <script src="https://imsun.github.io/gitment/dist/gitment.browser.js"></script>
-    <script>
-        var gitment = new Gitment({
-            owner: 'winway',
-            repo: 'winway.github.io',
-            oauth: {
-                client_id: 'ac205f1362174ccbdb1d',
-                client_secret: '42779eaec04b4f1765b777df3fa1c73e24b96943',
-            },
-        })
-        gitment.render('comments')
-    </script>
-</section>
-
-  
+    
 
 
           </div>
@@ -438,10 +241,10 @@
 	var yiliaConfig = {
 		mathjax: false,
 		isHome: false,
-		isPost: true,
+		isPost: false,
 		isArchive: false,
 		isTag: false,
-		isCategory: false,
+		isCategory: true,
 		open_in_new: false,
 		toc_hide_index: true,
 		root: "/",
