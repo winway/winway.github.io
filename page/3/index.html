@@ -154,6 +154,116 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-mongodb-replicaset-monitoring" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2016/07/12/mongodb-replicaset-monitoring/">MongoDB副本集监控</a>
+    </h1>
+  
+
+        
+        <a href="/2016/07/12/mongodb-replicaset-monitoring/" class="archive-article-date">
+  	<time datetime="2016-07-12T08:19:33.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-07-12</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#1-副本集简介">1. 副本集简介</a></li>
+<li><a href="#2-常用监控介绍">2. 常用监控介绍</a><ul>
+<li><a href="#副本集状态">副本集状态</a></li>
+<li><a href="#主从复制延迟">主从复制延迟</a></li>
+<li><a href="#oplog长度">Oplog长度</a></li>
+<li><a href="#namespace的使用率">Namespace的使用率</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h2 id="1-副本集简介"><a href="#1-副本集简介" class="headerlink" title="1. 副本集简介"></a>1. 副本集简介</h2><p>MongoDB复本集由一组Mongod实例（进程）组成，包含一个Primary节点和多个Secondary节点，MongoDB Driver（客户端）的所有数据都写入Primary，Secondary从Primary同步写入的数据，以保持复制集内所有成员存储相同的数据集，提供数据的高可用。<br>下图（图片源于MongoDB官方文档）是一个典型的MongoDB复制集，包含一个Primary节点和2个Secondary节点。<br><img src="https://docs.mongodb.com/manual/_images/replica-set-read-write-operations-primary.bakedsvg.svg" alt="MongoDB-arch"></p>
+<p>副本集特征：</p>
+<ul>
+<li>N 个节点的集群</li>
+<li>任何节点可作为主节点</li>
+<li>所有写入操作都在主节点上</li>
+<li>自动故障转移</li>
+<li>自动恢复</li>
+</ul>
+<h2 id="2-常用监控介绍"><a href="#2-常用监控介绍" class="headerlink" title="2. 常用监控介绍"></a>2. 常用监控介绍</h2><h3 id="副本集状态"><a href="#副本集状态" class="headerlink" title="副本集状态"></a>副本集状态</h3><p>MongoDB副本集节点包括若干状态，其中PRIMARY、SECONDARY、ARBITER属于正常状态，如果出现其他状态，则意味着有节点存在异常。可以使用rs.status()获取集群各节点状态，依此判断集群运行是否正常。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval 'var a = rs.status(); a.members.forEach(function(e)&#123;print(e.name, e.stateStr)&#125;)'</div><div class="line">demo01.mongodb:1988 PRIMARY</div><div class="line">demo02.mongodb:1988 SECONDARY</div><div class="line">demo03.mongodb:1988 SECONDARY</div><div class="line">demo04.mongodb:1988 SECONDARY</div></pre></td></tr></table></figure></p>
+<h3 id="主从复制延迟"><a href="#主从复制延迟" class="headerlink" title="主从复制延迟"></a>主从复制延迟</h3><p>MongoDB副本集使用Oplog进行主从同步，类似于Mysql的binlog。可以比较SECONDARY节点同步到的Oplog event和最新的Oplog event的时间，计算出主从延迟。<br>获取最新的Oplog event时间<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval 'db.printReplicationInfo()'</div><div class="line">configured oplog size:   45000MB</div><div class="line">log length start to end: 5270894secs (1464.14hrs)</div><div class="line">oplog first event time:  Mon Jul 31 2017 02:35:34 GMT+0800 (CST)</div><div class="line">oplog last event time:   Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</div><div class="line">now:                     Sat Sep 30 2017 15:56:33 GMT+0800 (CST)</div><div class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval 'db.printReplicationInfo()' | awk 'BEGIN&#123;FS = "time:"&#125;/oplog last event time/&#123;print $2&#125;'</div><div class="line">Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</div></pre></td></tr></table></figure></p>
+<p>获取SECONDARY同步到的Oplog event时间<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval 'db.printSlaveReplicationInfo()'</div><div class="line">source: demo02.mongodb:1988</div><div class="line">        syncedTo: Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</div><div class="line">        0 secs (0 hrs) behind the primary</div><div class="line">source: demo03.mongodb:1988</div><div class="line">        syncedTo: Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</div><div class="line">        0 secs (0 hrs) behind the primary</div><div class="line">source: demo04.mongodb:1988</div><div class="line">        syncedTo: Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</div><div class="line">        0 secs (0 hrs) behind the primary</div><div class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval 'db.printSlaveReplicationInfo()' | awk 'BEGIN&#123;FS = "syncedTo:"&#125;/syncedTo/&#123;print $2&#125;'</div><div class="line"> Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</div><div class="line"> Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</div><div class="line"> Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</div></pre></td></tr></table></figure></p>
+<h3 id="oplog长度"><a href="#Oplog长度" class="headerlink" title="Oplog长度"></a>Oplog长度</h3><p>Oplog是一个capped collection，新写入的Oplog会将最旧的Oplog覆盖掉，Oplog的时间跨度越小，SECONDARY复制跟不上PRIMARY的风险就越大，允许SECONDARY暂停维护的时间窗口就越短，所以Oplog长度太小是有问题的。<br>获取Oplog的时间跨度<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval 'db.printReplicationInfo()'</div><div class="line">configured oplog size:   45000MB</div><div class="line">log length start to end: 5270894secs (1464.14hrs)</div><div class="line">oplog first event time:  Mon Jul 31 2017 02:35:34 GMT+0800 (CST)</div><div class="line">oplog last event time:   Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</div><div class="line">now:                     Sat Sep 30 2017 16:20:21 GMT+0800 (CST)</div><div class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval 'db.printReplicationInfo()' | sed -n '/log length start to end:/s/.*(\([0-9][0-9]*\).*/\1/p'</div><div class="line">1464</div></pre></td></tr></table></figure></p>
+<h3 id="namespace的使用率"><a href="#Namespace的使用率" class="headerlink" title="Namespace的使用率"></a>Namespace的使用率</h3><p>MongoDB（MMAPV1引擎）可支持的collection数量是由nssize参数指定的，它指定了dbname.ns磁盘文件的大小，也就指定了DB可支持的最大collection数目，ns为namespace缩写，默认nssize为16MB。<br>如果Namespace满了，就无法创建新的collection，所以需要关注一下<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval '</div><div class="line"><span class="meta">&gt;</span> var dbs = db.adminCommand("listDatabases");</div><div class="line"><span class="meta">&gt;</span> dbs.databases.forEach(function(e) &#123;</div><div class="line"><span class="meta">&gt;</span>     db.getMongo().setSlaveOk();</div><div class="line"><span class="meta">&gt;</span>     db = db.getMongo().getDB(e.name);</div><div class="line"><span class="meta">&gt;</span>     var used = db.system.namespaces.count();</div><div class="line"><span class="meta">&gt;</span>     var stat = db.stats();</div><div class="line"><span class="meta">&gt;</span>     var max = Math.floor(stat.nsSizeMB*1024*1024/700);</div><div class="line"><span class="meta">&gt;</span>     if (max &gt; 0) &#123;</div><div class="line"><span class="meta">&gt;</span>         print(e.name, used, max, Math.floor(used*100/max));</div><div class="line"><span class="meta">&gt;</span>     &#125; else &#123;</div><div class="line"><span class="meta">&gt;</span>         print(e.name, used, max, 0);</div><div class="line"><span class="meta">&gt;</span>     &#125;</div><div class="line"><span class="meta">&gt;</span> &#125;)'</div><div class="line">local 7 23967 0</div><div class="line">admin 3 23967 0</div><div class="line">testdb 3 23967 0</div><div class="line">default 15 23967 0</div></pre></td></tr></table></figure></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/MongoDB/" class="article-tag-list-link color3">MongoDB</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2016/07/12/mongodb-replicaset-monitoring/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-mongo-php-driver-not-support-different-replicasets-with-the-same-name" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1134,106 +1244,6 @@
 
 
   
-    <article id="post-python-parse-ini-json-xml-configuration" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/06/03/python-parse-ini-json-xml-configuration/">python解析ini、json、xml格式配置文件</a>
-    </h1>
-  
-
-        
-        <a href="/2013/06/03/python-parse-ini-json-xml-configuration/" class="archive-article-date">
-  	<time datetime="2013-06-03T12:18:06.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-06-03</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>最近借做项目的机会，了解了几个常用的配置文件类型，包括ini、json、xml。<br>我所需要的配置文件大概是这样，包括属性id、port等，以及若干个ip、pwd对，以下尝试了ini、json、xml三种配置文件。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">id = 6</div><div class="line">port = 22</div><div class="line">ip = 1.1.1.1</div><div class="line">pwd = 123456</div><div class="line">ip = 1.1.1.2</div><div class="line">pwd = 123456</div><div class="line">ip = 2.2.2.1</div><div class="line">pwd = 123456</div></pre></td></tr></table></figure></p>
-<!-- toc -->
-<ul>
-<li><a href="#1-使用ini格式">1. 使用ini格式</a></li>
-<li><a href="#2-使用json格式">2. 使用json格式</a></li>
-<li><a href="#3-使用xml格式">3. 使用xml格式</a></li>
-</ul>
-<!-- tocstop -->
-<h2 id="1-使用ini格式"><a href="#1-使用ini格式" class="headerlink" title="1. 使用ini格式"></a>1. 使用ini格式</h2><figure class="highlight ini"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line"><span class="section">[common]</span></div><div class="line"><span class="attr">id</span> = <span class="string">'5'</span></div><div class="line"><span class="attr">port</span> = <span class="number">22</span></div><div class="line"><span class="section">[node]</span></div><div class="line"><span class="attr">ip</span> = <span class="number">1.1</span>.<span class="number">1.1</span></div><div class="line"><span class="attr">pwd</span> = <span class="number">123456</span></div><div class="line"><span class="section">[node]</span></div><div class="line"><span class="attr">ip</span> = <span class="number">1.1</span>.<span class="number">1.2</span></div><div class="line"><span class="attr">pwd</span> = <span class="number">123456</span></div><div class="line"><span class="section">[node]</span></div><div class="line"><span class="attr">ip</span> = <span class="number">2.2</span>.<span class="number">2.1</span></div><div class="line"><span class="attr">pwd</span> = <span class="number">123456</span></div></pre></td></tr></table></figure>
-<p>配置文件格式简洁明了，但是很遗憾，这不是合法的ini格式，python的ConfigParser无法正确处理。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">In [<span class="number">12</span>]: <span class="keyword">import</span> ConfigParser</div><div class="line">In [<span class="number">13</span>]: cf = ConfigParser.ConfigParser()</div><div class="line">In [<span class="number">14</span>]: cf.read(<span class="string">'config.ini'</span>)</div><div class="line">Out[<span class="number">14</span>]: [<span class="string">'config.ini'</span>]</div><div class="line">In [<span class="number">15</span>]: cf.sections()</div><div class="line">Out[<span class="number">15</span>]: [<span class="string">'common'</span>, <span class="string">'node'</span>]</div><div class="line">In [<span class="number">16</span>]: cf.options(<span class="string">'node'</span>)</div><div class="line">Out[<span class="number">16</span>]: [<span class="string">'ip'</span>, <span class="string">'pwd'</span>]</div><div class="line">In [<span class="number">17</span>]: cf.get(<span class="string">'node'</span>, <span class="string">'ip'</span>)</div><div class="line">Out[<span class="number">17</span>]: <span class="string">'2.2.2.1'</span></div></pre></td></tr></table></figure></p>
-<h2 id="2-使用json格式"><a href="#2-使用json格式" class="headerlink" title="2. 使用json格式"></a>2. 使用json格式</h2><figure class="highlight json"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">[</div><div class="line">  &#123;<span class="attr">"id"</span> : <span class="string">"5"</span>&#125;,</div><div class="line">  &#123;<span class="attr">"port"</span> : <span class="number">22</span>&#125;,</div><div class="line">  &#123;<span class="attr">"node"</span> : [</div><div class="line">    &#123;<span class="attr">"ip"</span> : <span class="string">"1.1.1.1"</span>, <span class="attr">"pwd"</span> : <span class="string">"123456"</span>&#125;,</div><div class="line">    &#123;<span class="attr">"ip"</span> : <span class="string">"1.1.1.2"</span>, <span class="attr">"pwd"</span> : <span class="string">"123456"</span>&#125;,</div><div class="line">    &#123;<span class="attr">"ip"</span> : <span class="string">"2.2.2.1"</span>, <span class="attr">"pwd"</span> : <span class="string">"123456"</span>&#125;</div><div class="line">	]</div><div class="line">  &#125;</div><div class="line">]</div></pre></td></tr></table></figure>
-<p>这不就是标准的python变量吗？<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">In [<span class="number">20</span>]: <span class="keyword">import</span> json</div><div class="line">In [<span class="number">21</span>]: v = json.load(file(<span class="string">'config.json'</span>))</div><div class="line">In [<span class="number">22</span>]: v</div><div class="line">Out[<span class="number">22</span>]:</div><div class="line">[&#123;<span class="string">u'id'</span>: <span class="string">u'5'</span>&#125;,</div><div class="line">&#123;<span class="string">u'port'</span>: <span class="number">22</span>&#125;,</div><div class="line">&#123;<span class="string">u'node'</span>: [&#123;<span class="string">u'ip'</span>: <span class="string">u'1.1.1.1'</span>, <span class="string">u'pwd'</span>: <span class="string">u'123456'</span>&#125;,</div><div class="line">&#123;<span class="string">u'ip'</span>: <span class="string">u'1.1.1.2'</span>, <span class="string">u'pwd'</span>: <span class="string">u'123456'</span>&#125;,</div><div class="line">&#123;<span class="string">u'ip'</span>: <span class="string">u'2.2.2.1'</span>, <span class="string">u'pwd'</span>: <span class="string">u'123456'</span>&#125;]&#125;]</div></pre></td></tr></table></figure></p>
-<p>这个虽然能满足需求，但是感觉读取的时候不够灵活。比如我想直接获取id的值吗，前提是我必须知道配置文件各项的准确顺序。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">In [<span class="number">31</span>]: v[<span class="number">0</span>][<span class="string">'id'</span>]</div><div class="line">Out[<span class="number">31</span>]: <span class="string">u'5'</span></div></pre></td></tr></table></figure></p>
-<h2 id="3-使用xml格式"><a href="#3-使用xml格式" class="headerlink" title="3. 使用xml格式"></a>3. 使用xml格式</h2><figure class="highlight xml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line"><span class="php"><span class="meta">&lt;?</span>xml version=<span class="string">"1.0"</span> encoding=<span class="string">"utf-8"</span><span class="meta">?&gt;</span></span></div><div class="line"><span class="tag">&lt;<span class="name">config</span>&gt;</span></div><div class="line">    <span class="tag">&lt;<span class="name">id</span>&gt;</span>5<span class="tag">&lt;/<span class="name">id</span>&gt;</span></div><div class="line">    <span class="tag">&lt;<span class="name">port</span>&gt;</span>22<span class="tag">&lt;/<span class="name">port</span>&gt;</span></div><div class="line">    <span class="tag">&lt;<span class="name">node</span>&gt;</span></div><div class="line">        <span class="tag">&lt;<span class="name">ip</span>&gt;</span>1.1.1.1<span class="tag">&lt;/<span class="name">ip</span>&gt;</span></div><div class="line">        <span class="tag">&lt;<span class="name">pwd</span>&gt;</span>123456<span class="tag">&lt;/<span class="name">pwd</span>&gt;</span></div><div class="line">    <span class="tag">&lt;/<span class="name">node</span>&gt;</span></div><div class="line">    <span class="tag">&lt;<span class="name">node</span>&gt;</span></div><div class="line">        <span class="tag">&lt;<span class="name">ip</span>&gt;</span>1.1.1.2<span class="tag">&lt;/<span class="name">ip</span>&gt;</span></div><div class="line">        <span class="tag">&lt;<span class="name">pwd</span>&gt;</span>123456<span class="tag">&lt;/<span class="name">pwd</span>&gt;</span></div><div class="line">    <span class="tag">&lt;/<span class="name">node</span>&gt;</span></div><div class="line">    <span class="tag">&lt;<span class="name">node</span>&gt;</span></div><div class="line">        <span class="tag">&lt;<span class="name">ip</span>&gt;</span>2.2.2.1<span class="tag">&lt;/<span class="name">ip</span>&gt;</span></div><div class="line">        <span class="tag">&lt;<span class="name">pwd</span>&gt;</span>123456<span class="tag">&lt;/<span class="name">pwd</span>&gt;</span></div><div class="line">    <span class="tag">&lt;/<span class="name">node</span>&gt;</span></div><div class="line"><span class="tag">&lt;/<span class="name">config</span>&gt;</span></div></pre></td></tr></table></figure>
-<p>可以满足需求，但是比起前两种稍显臃肿。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div></pre></td><td class="code"><pre><div class="line">$ cat config.py</div><div class="line"><span class="comment">#! /usr/bin/env python</span></div><div class="line"><span class="comment"># -*- coding: utf-8 -*-</span></div><div class="line"><span class="comment">#</span></div><div class="line"></div><div class="line"><span class="keyword">import</span> xml.etree.ElementTree <span class="keyword">as</span> ET</div><div class="line"></div><div class="line">id = <span class="keyword">None</span></div><div class="line">port = <span class="keyword">None</span></div><div class="line">ipset = []</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">load_config</span><span class="params">(file)</span>:</span></div><div class="line">    root = ET.parse(file).getroot()</div><div class="line"></div><div class="line">    <span class="keyword">global</span> id, port</div><div class="line">    id = root.find(<span class="string">'id'</span>).text</div><div class="line">    port = root.find(<span class="string">'port'</span>).text</div><div class="line"></div><div class="line">    nodes = root.findall(<span class="string">'node'</span>)</div><div class="line">    <span class="keyword">for</span> node <span class="keyword">in</span> nodes:</div><div class="line">        d = &#123;&#125;</div><div class="line">        d[<span class="string">'ip'</span>] = node.find(<span class="string">'ip'</span>).text</div><div class="line">        d[<span class="string">'pwd'</span>] = node.find(<span class="string">'pwd'</span>).text</div><div class="line">        ipset.append(d)</div><div class="line"></div><div class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</div><div class="line">    <span class="keyword">print</span> id</div><div class="line">    <span class="keyword">print</span> port</div><div class="line">    <span class="keyword">print</span> ipset</div><div class="line">    load_config(<span class="string">'config.xml'</span>)</div><div class="line">    <span class="keyword">print</span> id</div><div class="line">    <span class="keyword">print</span> port</div><div class="line">    <span class="keyword">print</span> ipset</div><div class="line"></div><div class="line">$ ./config.py</div><div class="line"><span class="keyword">None</span></div><div class="line"><span class="keyword">None</span></div><div class="line">[]</div><div class="line"><span class="number">5</span></div><div class="line"><span class="number">22</span></div><div class="line">[&#123;<span class="string">'ip'</span>: <span class="string">'1.1.1.1'</span>, <span class="string">'pwd'</span>: <span class="string">'123456'</span>&#125;, &#123;<span class="string">'ip'</span>: <span class="string">'1.1.1.2'</span>, <span class="string">'pwd'</span>: <span class="string">'123456'</span>&#125;, &#123;<span class="string">'ip'</span>: <span class="string">'2.2.2.1'</span>, <span class="string">'pwd'</span>: <span class="string">'123456'</span>&#125;]</div></pre></td></tr></table></figure></p>
-<p>以上是本人自己理解，不知是否有误，如果针对这个问题还有更好的选择，还望大家多多指教！！</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">python</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/python/" class="article-tag-list-link color2">python</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/06/03/python-parse-ini-json-xml-configuration/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/2/">&laquo; Prev</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><a class="extend next" rel="next" href="/page/4/">Next &raquo;</a>
@@ -1345,10 +1355,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">arp欺骗</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Linux</a>
               </li>
              
@@ -1377,11 +1383,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1393,15 +1399,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1414,6 +1420,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">salt源码解析</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">arp欺骗</a>
               </li>
             
             <div class="clearfix"></div>
