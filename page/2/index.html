@@ -1335,20 +1335,20 @@
 
 
   
-    <article id="post-namenode-ha-sshfence-hang" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+    <article id="post-namenode-failover-by-hand" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
       <header class="article-header">
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2016/09/12/namenode-ha-sshfence-hang/">NameNode主从切换sshfence阶段无法完成问题</a>
+      <a class="article-title" href="/2017/05/15/namenode-failover-by-hand/">NameNode主/备滚动重启步骤</a>
     </h1>
   
 
         
-        <a href="/2016/09/12/namenode-ha-sshfence-hang/" class="archive-article-date">
-  	<time datetime="2016-09-12T07:13:00.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-09-12</time>
+        <a href="/2017/05/15/namenode-failover-by-hand/" class="archive-article-date">
+  	<time datetime="2017-05-15T06:36:00.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-05-15</time>
 </a>
         
       </header>
@@ -1356,12 +1356,19 @@
     <div class="article-entry" itemprop="articleBody">
       
         <!-- toc -->
+<ul>
+<li><a href="#1-判断主从关系">1. 判断主从关系</a></li>
+<li><a href="#2-重启备机">2. 重启备机</a></li>
+<li><a href="#3-failover">3. failover</a></li>
+<li><a href="#4-判断主从关系">4. 判断主从关系</a></li>
+<li><a href="#5-重启备机">5. 重启备机</a></li>
+</ul>
 <!-- tocstop -->
-<p>NameNode采用HA架构部署，在Standby切换为Active的过程中存在一个fence阶段，如果该阶段不返回true，则无法继续往下进行，即无法完成failover。<br><img src="https://www.ibm.com/developerworks/cn/opensource/os-cn-hadoop-name-node/img001.png" alt="nn-ha-arch"></p>
-<p>该行为由<a href="https://hadoop.apache.org/docs/r2.7.1/hadoop-project-dist/hadoop-hdfs/HDFSHighAvailabilityWithQJM.html#Deployment" target="_blank" rel="external">dfs.ha.fencing.methods</a>决定，默认为sshfence。<br><figure class="highlight xml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="tag">&lt;<span class="name">property</span>&gt;</span></div><div class="line">  <span class="tag">&lt;<span class="name">name</span>&gt;</span>dfs.ha.fencing.methods<span class="tag">&lt;/<span class="name">name</span>&gt;</span></div><div class="line">  <span class="tag">&lt;<span class="name">value</span>&gt;</span>sshfence<span class="tag">&lt;/<span class="name">value</span>&gt;</span></div><div class="line"><span class="tag">&lt;/<span class="name">property</span>&gt;</span></div></pre></td></tr></table></figure></p>
-<p>但是这样配置存在问题，当Active宕机，ssh无法完成，sshfence阶段实际上会循环重试，始终无法完成failover。</p>
-<p>由于没有直接关于fence retry次数的参数配置，采取如下变通方案：配置4个fence method，3次sshfence，1次shell(/bin/true)，可以保证在3次sshfence失败之后结束fence阶段，完成failover。<br><img src="http://ot69fbvko.bkt.clouddn.com/sshfence.bmp" alt="sshfence"></p>
-
+<h3 id="1-判断主从关系"><a href="#1-判断主从关系" class="headerlink" title="1. 判断主从关系"></a>1. 判断主从关系</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">hdfs haadmin -getServiceState nn1</div><div class="line"></div><div class="line">hdfs haadmin -getServiceState nn2</div></pre></td></tr></table></figure>
+<h3 id="2-重启备机"><a href="#2-重启备机" class="headerlink" title="2. 重启备机"></a>2. 重启备机</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">sh hadoop-daemon.sh stop namenode</div><div class="line"></div><div class="line">sh hadoop-daemon.sh start namenode</div></pre></td></tr></table></figure>
+<h3 id="3-failover"><a href="#3-failover" class="headerlink" title="3. failover"></a>3. failover</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">hdfs haadmin -failover nn1 nn2</div></pre></td></tr></table></figure>
+<h3 id="4-判断主从关系"><a href="#4-判断主从关系" class="headerlink" title="4. 判断主从关系"></a>4. 判断主从关系</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">hdfs haadmin -getServiceState nn1</div><div class="line"></div><div class="line">hdfs haadmin -getServiceState nn2</div></pre></td></tr></table></figure>
+<h3 id="5-重启备机"><a href="#5-重启备机" class="headerlink" title="5. 重启备机"></a>5. 重启备机</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">sh hadoop-daemon.sh stop namenode</div><div class="line"></div><div class="line">sh hadoop-daemon.sh start namenode</div></pre></td></tr></table></figure>
       
 
       
@@ -1395,7 +1402,7 @@
 
       
         <p class="article-more-link">
-          <a class="article-more-a" href="/2016/09/12/namenode-ha-sshfence-hang/">展开全文 >></a>
+          <a class="article-more-a" href="/2017/05/15/namenode-failover-by-hand/">展开全文 >></a>
         </p>
       
 
@@ -1524,15 +1531,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">C</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">arp欺骗</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">shell</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">监控</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1544,14 +1555,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">hadoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">机架感知</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hexo</a>
               </li>
              
@@ -1560,15 +1563,27 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">hadoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">机架感知</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1580,19 +1595,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1604,7 +1611,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">arp欺骗</a>
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
             
             <div class="clearfix"></div>
