@@ -6,24 +6,19 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://winway.github.io">
-  <title>Hadoop监控方案总结 | winway&#39;s blog</title>
+  <title>Hadoop备份与恢复方案介绍 | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="本文结合自己在Hadoop运维工作中的经验，对Hadoop的监控指标和可用的监控手段进行总结。   一、 监控类别 1. 基础监控 2. 应用监控 3. 监控图形展现   二、 可用的监控方法 1. ganglia 2. zabbix 3. 网页分析（结合第三方监控系统） 4. jmx（结合第三方监控系统） 5. Ganglia数据源（结合第三方监控系统） 6. hadoop cmd（结合第三方监">
+  <meta name="description" content="Namenode Journal Zookeeper Kerberos 方案一 方案二     Namenode备份策略：周期性备份namenode、standby namenode的dfs.namenode.name.dir因为主从切换可能导致edits log分散在两台机器上，需要两台机器共同提供完整的edits log恢复步骤：  删除journalnode数据文件，启动服务（所有jn均">
 <meta name="keywords" content="hadoop">
 <meta property="og:type" content="article">
-<meta property="og:title" content="Hadoop监控方案总结">
-<meta property="og:url" content="https://winway.github.io/2016/01/22/hadoop-moniting-strategy/index.html">
+<meta property="og:title" content="Hadoop备份与恢复方案介绍">
+<meta property="og:url" content="https://winway.github.io/2016/08/09/hadoop-backup-restore/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:description" content="本文结合自己在Hadoop运维工作中的经验，对Hadoop的监控指标和可用的监控手段进行总结。   一、 监控类别 1. 基础监控 2. 应用监控 3. 监控图形展现   二、 可用的监控方法 1. ganglia 2. zabbix 3. 网页分析（结合第三方监控系统） 4. jmx（结合第三方监控系统） 5. Ganglia数据源（结合第三方监控系统） 6. hadoop cmd（结合第三方监">
-<meta property="og:image" content="http://www.rocksclusters.org/rocks-documentation/4.1/images/ivdgl-ganglia.png">
-<meta property="og:image" content="http://hakunamapdata.com/wp-content/uploads/2012/08/ganglia-icm.png">
-<meta property="og:image" content="https://upload.wikimedia.org/wikipedia/commons/9/99/Zabbix.png">
-<meta property="og:image" content="http://lecluster.delaurent.com/wp-content/uploads/2015/08/Screen-Shot-2015-08-17-at-13.41.27.png">
-<meta property="og:updated_time" content="2017-10-16T07:43:55.622Z">
+<meta property="og:description" content="Namenode Journal Zookeeper Kerberos 方案一 方案二     Namenode备份策略：周期性备份namenode、standby namenode的dfs.namenode.name.dir因为主从切换可能导致edits log分散在两台机器上，需要两台机器共同提供完整的edits log恢复步骤：  删除journalnode数据文件，启动服务（所有jn均">
+<meta property="og:updated_time" content="2017-10-16T10:04:18.785Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Hadoop监控方案总结">
-<meta name="twitter:description" content="本文结合自己在Hadoop运维工作中的经验，对Hadoop的监控指标和可用的监控手段进行总结。   一、 监控类别 1. 基础监控 2. 应用监控 3. 监控图形展现   二、 可用的监控方法 1. ganglia 2. zabbix 3. 网页分析（结合第三方监控系统） 4. jmx（结合第三方监控系统） 5. Ganglia数据源（结合第三方监控系统） 6. hadoop cmd（结合第三方监">
-<meta name="twitter:image" content="http://www.rocksclusters.org/rocks-documentation/4.1/images/ivdgl-ganglia.png">
+<meta name="twitter:title" content="Hadoop备份与恢复方案介绍">
+<meta name="twitter:description" content="Namenode Journal Zookeeper Kerberos 方案一 方案二     Namenode备份策略：周期性备份namenode、standby namenode的dfs.namenode.name.dir因为主从切换可能导致edits log分散在两台机器上，需要两台机器共同提供完整的edits log恢复步骤：  删除journalnode数据文件，启动服务（所有jn均">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -159,332 +154,77 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-hadoop-moniting-strategy" class="article article-type-post " itemscope itemprop="blogPost">
+            <article id="post-hadoop-backup-restore" class="article article-type-post " itemscope itemprop="blogPost">
   <div class="article-inner">
     
       <header class="article-header">
         
   
     <h1 class="article-title" itemprop="name">
-      Hadoop监控方案总结
+      Hadoop备份与恢复方案介绍
     </h1>
   
 
         
-        <a href="/2016/01/22/hadoop-moniting-strategy/" class="archive-article-date">
-  	<time datetime="2016-01-22T03:28:57.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-01-22</time>
+        <a href="/2016/08/09/hadoop-backup-restore/" class="archive-article-date">
+  	<time datetime="2016-08-09T11:42:46.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-08-09</time>
 </a>
         
       </header>
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>本文结合自己在Hadoop运维工作中的经验，对Hadoop的监控指标和可用的监控手段进行总结。</p>
-<!-- toc -->
+        <!-- toc -->
 <ul>
-<li><a href="#一-监控类别">一、 监控类别</a><ul>
-<li><a href="#1-基础监控">1. 基础监控</a></li>
-<li><a href="#2-应用监控">2. 应用监控</a></li>
-<li><a href="#3-监控图形展现">3. 监控图形展现</a></li>
-</ul>
-</li>
-<li><a href="#二-可用的监控方法">二、 可用的监控方法</a><ul>
-<li><a href="#1-ganglia">1. ganglia</a></li>
-<li><a href="#2-zabbix">2. zabbix</a></li>
-<li><a href="#3-网页分析结合第三方监控系统">3. 网页分析（结合第三方监控系统）</a></li>
-<li><a href="#4-jmx结合第三方监控系统">4. jmx（结合第三方监控系统）</a></li>
-<li><a href="#5-ganglia数据源结合第三方监控系统">5. Ganglia数据源（结合第三方监控系统）</a></li>
-<li><a href="#6-hadoop-cmd结合第三方监控系统">6. hadoop cmd（结合第三方监控系统）</a></li>
+<li><a href="#namenode">Namenode</a></li>
+<li><a href="#journal">Journal</a></li>
+<li><a href="#zookeeper">Zookeeper</a></li>
+<li><a href="#kerberos">Kerberos</a><ul>
+<li><a href="#方案一">方案一</a></li>
+<li><a href="#方案二">方案二</a></li>
 </ul>
 </li>
 </ul>
 <!-- tocstop -->
-<h2 id="一-监控类别"><a href="#一、-监控类别" class="headerlink" title="一、 监控类别"></a>一、 监控类别</h2><h3 id="1-基础监控"><a href="#1-基础监控" class="headerlink" title="1. 基础监控"></a>1. 基础监控</h3><p>（1）机器可用性监控（单机粒度，针对Hadoop集群的所有机器）</p>
-<ul>
-<li>机器存活PING</li>
-<li>远程登录SSH</li>
-</ul>
-<p>建议报警方式：短信<br>（2）机器资源占用监控（单机粒度，针对Master；集群粒度，针对所有Slave）</p>
-<ul>
-<li>CPU. % CPU Utilization and periodic (1, 5, 15 minutes) CPU load averages</li>
-<li>DISK. Average Disk data transfer rates (I/O bandwidth) and Number of disk I/O operations per second</li>
-<li>DISK USAGE(%)</li>
-<li>NETWORK. Average data transfer rate and network latency</li>
-<li>MEMORY. Average Memory and Swap space utilization</li>
-</ul>
-<p>建议报警方式：根据阈值进行邮件或短信报警。</p>
-<h3 id="2-应用监控"><a href="#2-应用监控" class="headerlink" title="2. 应用监控"></a>2. 应用监控</h3><p>（1）存活类：进程监控（单机粒度）<br>监控namenode、datanode等程序的进程是否存在。</p>
-<p>建议报警方式：主节点短信，从节点邮件<br>（2）存活类：端口监控（单机粒度）</p>
-<table>
-<thead>
-<tr>
-<th>组件</th>
-<th>Daemon</th>
-<th>端口</th>
-<th>配置</th>
-<th>说明</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>HDFS</td>
-<td>DataNode</td>
-<td>50010</td>
-<td>dfs.datanode.address</td>
-<td>datanode服务端口，用于数据传输</td>
-</tr>
-<tr>
-<td>HDFS</td>
-<td>DataNode</td>
-<td>50075</td>
-<td>dfs.datanode.http.address</td>
-<td>http服务的端口</td>
-</tr>
-<tr>
-<td>HDFS</td>
-<td>DataNode</td>
-<td>50475</td>
-<td>dfs.datanode.https.address</td>
-<td>https服务的端口</td>
-</tr>
-<tr>
-<td>HDFS</td>
-<td>DataNode</td>
-<td>50020</td>
-<td>dfs.datanode.ipc.address</td>
-<td>ipc服务的端口</td>
-</tr>
-<tr>
-<td>HDFS</td>
-<td>NameNode</td>
-<td>50070</td>
-<td>dfs.namenode.http-address</td>
-<td>http服务的端口</td>
-</tr>
-<tr>
-<td>HDFS</td>
-<td>NameNode</td>
-<td>50470</td>
-<td>dfs.namenode.https-address</td>
-<td>https服务的端口</td>
-</tr>
-<tr>
-<td>HDFS</td>
-<td>NameNode</td>
-<td>8020</td>
-<td>fs.defaultFS</td>
-<td>接收Client连接的RPC端口，用于获取文件系统metadata信息。</td>
-</tr>
-<tr>
-<td>HDFS</td>
-<td>journalnode</td>
-<td>8485</td>
-<td>dfs.journalnode.rpc-address</td>
-<td>RPC服务</td>
-</tr>
-<tr>
-<td>HDFS</td>
-<td>journalnode</td>
-<td>8480</td>
-<td>dfs.journalnode.http-address</td>
-<td>HTTP服务</td>
-</tr>
-<tr>
-<td>HDFS</td>
-<td>ZKFC</td>
-<td>8019</td>
-<td>dfs.ha.zkfc.port</td>
-<td>ZooKeeper FailoverController，用于NN HA</td>
-</tr>
-<tr>
-<td>YARN</td>
-<td>ResourceManager</td>
-<td>8032</td>
-<td>yarn.resourcemanager.address</td>
-<td>RM的applications manager(ASM)端口</td>
-</tr>
-<tr>
-<td>YARN</td>
-<td>ResourceManager</td>
-<td>8030</td>
-<td>yarn.resourcemanager.scheduler.address</td>
-<td>scheduler组件的IPC端口</td>
-</tr>
-<tr>
-<td>YARN</td>
-<td>ResourceManager</td>
-<td>8031</td>
-<td>yarn.resourcemanager.resource-tracker.address</td>
-<td>IPC</td>
-</tr>
-<tr>
-<td>YARN</td>
-<td>ResourceManager</td>
-<td>8033</td>
-<td>yarn.resourcemanager.admin.address</td>
-<td>IPC</td>
-</tr>
-<tr>
-<td>YARN</td>
-<td>ResourceManager</td>
-<td>8088</td>
-<td>yarn.resourcemanager.webapp.address</td>
-<td>http服务端口</td>
-</tr>
-<tr>
-<td>YARN</td>
-<td>NodeManager</td>
-<td>8040</td>
-<td>yarn.nodemanager.localizer.address</td>
-<td>localizer IPC</td>
-</tr>
-<tr>
-<td>YARN</td>
-<td>NodeManager</td>
-<td>8042</td>
-<td>yarn.nodemanager.webapp.address</td>
-<td>http服务端口</td>
-</tr>
-<tr>
-<td>YARN</td>
-<td>NodeManager</td>
-<td>8041</td>
-<td>yarn.nodemanager.address</td>
-<td>NM中container manager的端口</td>
-</tr>
-<tr>
-<td>YARN</td>
-<td>JobHistory Server</td>
-<td>10020</td>
-<td>mapreduce.jobhistory.address</td>
-<td>IPC</td>
-</tr>
-<tr>
-<td>YARN</td>
-<td>JobHistory Server</td>
-<td>19888</td>
-<td>mapreduce.jobhistory.webapp.address</td>
-<td>http服务端口</td>
-</tr>
-<tr>
-<td>HBase</td>
-<td>Master</td>
-<td>60000</td>
-<td>hbase.master.port</td>
-<td>IPC</td>
-</tr>
-<tr>
-<td>HBase</td>
-<td>Master</td>
-<td>60010</td>
-<td>hbase.master.info.port</td>
-<td>http服务端口</td>
-</tr>
-<tr>
-<td>HBase</td>
-<td>RegionServer</td>
-<td>60020</td>
-<td>hbase.regionserver.port</td>
-<td>IPC</td>
-</tr>
-<tr>
-<td>HBase</td>
-<td>RegionServer</td>
-<td>60030</td>
-<td>hbase.regionserver.info.port</td>
-<td>http服务端口</td>
-</tr>
-<tr>
-<td>Hive</td>
-<td>Metastore</td>
-<td>9083</td>
-<td>/etc/default/hive-metastore中export PORT=<port>来更新默认端口</port></td>
-<td>　</td>
-</tr>
-<tr>
-<td>Hive</td>
-<td>HiveServer</td>
-<td>10000</td>
-<td>/etc/hive/conf/hive-env.sh中export HIVE_SERVER2_THRIFT_PORT=<port>来更新默认端口</port></td>
-<td>　</td>
-</tr>
-<tr>
-<td>Kerberos</td>
-<td>Kadmin</td>
-<td>749</td>
-<td></td>
-<td></td>
-</tr>
-<tr>
-<td>Kerberos</td>
-<td>KDC</td>
-<td>88</td>
-<td></td>
-<td></td>
-</tr>
-<tr>
-<td>ZooKeeper</td>
-<td>Server</td>
-<td>2181</td>
-<td>/etc/zookeeper/conf/zoo.cfg中clientPort=<port></port></td>
-<td>对客户端提供服务的端口</td>
-</tr>
-<tr>
-<td>ZooKeeper</td>
-<td>Server</td>
-<td>2888</td>
-<td>/etc/zookeeper/conf/zoo.cfg中server.x=[hostname]:nnnnn[:nnnnn]，标蓝部分</td>
-<td>follower用来连接到leader，只在leader上监听该端口。</td>
-</tr>
-<tr>
-<td>ZooKeeper</td>
-<td>Server</td>
-<td>3888</td>
-<td>/etc/zookeeper/conf/zoo.cfg中server.x=[hostname]:nnnnn[:nnnnn]，标蓝部分</td>
-<td>用于leader选举的。只在electionAlg是1,2或3(默认)时需要。</td>
-</tr>
-</tbody>
-</table>
-<p>建议报警方式：主节点短信，从节点邮件<br>（3）可用性监控</p>
-<ul>
-<li>HDFS Safe Mode Status</li>
-<li>NameNode edit logs directory status</li>
-<li>通过执行有代表性的操作确保服务响应正常。如创建目录、上传文件、下载文件、删除文件、执行m/r等</li>
-</ul>
-<p>建议报警方式：短信<br>（4）容量监控</p>
-<ul>
-<li>HDFS capacity utilization</li>
-<li>HDFS blocks utilization</li>
-</ul>
-<p>建议报警方式：根据阈值进行邮件或短信报警<br>（5）集群节点状态监控</p>
-<ul>
-<li>dataNodes (live, dead, and decom)</li>
-<li>nodeManager (active, lost, and decom)</li>
-<li>regionServers (live, dead, in transition)</li>
-</ul>
-<p>建议报警方式：根据阈值进行邮件或短信报警<br>（6）数据完整性监控<br>Monitor nodes with potential of corrupted data (number of under-replicated blocks).<br>建议报警方式：邮件<br>（7）访问延时监控</p>
-<ul>
-<li>NameNode RPC latency alert. This alert is triggered if the NameNode operations (RPC) latency exceeds the configured critical threshold. Typically an increase in the RPC processing time increases the RPC queue length, causing the average queue wait time to increase for NameNode operations.</li>
-<li>HBase RegionServers average read latency. the HDFS read latency for the Region Servers aggregated across all the region servers (slaves)</li>
-<li>HBase RegionServers average write latency. the HDFS write latency for the Region Servers aggregated across all the region servers (slaves)</li>
-<li>HBase RegionServers RPC Average Waiting Time. the average wait time aggregated across all the region servers (slaves)</li>
-</ul>
-<p>建议报警方式：邮件<br>（8）日志监控<br>对每个服务的错误日志进行监控，日志格式通过log4j配置，邮件报警。<br>建议报警方式：邮件</p>
-<h3 id="3-监控图形展现"><a href="#3-监控图形展现" class="headerlink" title="3. 监控图形展现"></a>3. 监控图形展现</h3><p>通过图表方式对整个集群的CPU、内存、磁盘、网络、I/O等信息进行展现。<br><img src="http://www.rocksclusters.org/rocks-documentation/4.1/images/ivdgl-ganglia.png" alt="ganglia"></p>
-<h2 id="二-可用的监控方法"><a href="#二、-可用的监控方法" class="headerlink" title="二、 可用的监控方法"></a>二、 可用的监控方法</h2><h3 id="1-ganglia"><a href="#1-ganglia" class="headerlink" title="1. ganglia"></a>1. ganglia</h3><p>能够采集系统级别和Hadoop集群的度量信息，支持聚合。</p>
-<ul>
-<li>通过gmond获取机器的CPU、内存、磁盘等系统相关信息。</li>
-<li>Hadoop原生支持ganglia（hadoop-metrics2.properties，hadoop-metrics2-hbase.properties），直接通过nodemanager、datanode、regionserver等节点发送的数据获取hadoop自身的度量信息。</li>
-</ul>
-<p>不支持报警邮件和短信，解决方案：ganglia-alert、gangila + nagios<br><img src="http://hakunamapdata.com/wp-content/uploads/2012/08/ganglia-icm.png" alt="ganglia"></p>
-<h3 id="2-zabbix"><a href="#2-zabbix" class="headerlink" title="2. zabbix"></a>2. zabbix</h3><p>采集系统级别、hadoop本身的度量信息（需要插件Apache Hadoop Plugin、Apache HBase Plugin）<br>不支持聚合<br><img src="https://upload.wikimedia.org/wikipedia/commons/9/99/Zabbix.png" alt="zabbix"></p>
-<h3 id="3-网页分析结合第三方监控系统"><a href="#3-网页分析（结合第三方监控系统）" class="headerlink" title="3. 网页分析（结合第三方监控系统）"></a>3. 网页分析（结合第三方监控系统）</h3><p>通过访问以下页面，获取各节点信息，以插件方式集成到第三方监控该系统中。<br><a href="http://master:50030" target="_blank" rel="external">http://master:50030</a>    查看MapReduce上的resourcemanager<br><a href="http://master:50060" target="_blank" rel="external">http://master:50060</a>    查看MapReduce上的node manager<br><a href="http://master:50070" target="_blank" rel="external">http://master:50070</a>    查看HDFS上的节点信息namenode<br><a href="http://master:60010/master.jsp" target="_blank" rel="external">http://master:60010/master.jsp</a>    查看master节点信息 hmaster<br><a href="http://master:60030/regionserver.jsp" target="_blank" rel="external">http://master:60030/regionserver.jsp</a>    查看regionserver信息<br><a href="http://master:60010/zk.jsp" target="_blank" rel="external">http://master:60010/zk.jsp</a>    查看zookeeper信息</p>
-<h3 id="4-jmx结合第三方监控系统"><a href="#4-jmx（结合第三方监控系统）" class="headerlink" title="4. jmx（结合第三方监控系统）"></a>4. jmx（结合第三方监控系统）</h3><p>Java Management Extensions (JMX)，Hadoop自带的监控接口。<br>NameNode的信息：<a href="http://namenode:50070/jmx" target="_blank" rel="external">http://namenode:50070/jmx</a><br>DataNode的信息：<a href="http://datanode:50075/jmx" target="_blank" rel="external">http://datanode:50075/jmx</a><br><a href="http://your_namenode:50070/jmx?qry=Hadoop:service=NameNode,name=NameNodeInfo" target="_blank" rel="external">http://your_namenode:50070/jmx?qry=Hadoop:service=NameNode,name=NameNodeInfo</a><br>返回值全部是JSON，非常便于自己进行处理。返回的信息（hadoop+jvm）也非常详细，内存状态，java堆信息等等。甚至还有操作系统信息，版本，JVM版本信息等等，很全面。<br><img src="http://lecluster.delaurent.com/wp-content/uploads/2015/08/Screen-Shot-2015-08-17-at-13.41.27.png" alt="hadoop-jmx"></p>
-<h3 id="5-ganglia数据源结合第三方监控系统"><a href="#5-Ganglia数据源（结合第三方监控系统）" class="headerlink" title="5. Ganglia数据源（结合第三方监控系统）"></a>5. Ganglia数据源（结合第三方监控系统）</h3><p>可以直接调用gmeta接口获取ganglia所采集的Hadoop集群的度量数据<br>curl ‘<a href="http://127.0.0.1:8652/hadoop?filter=summary" target="_blank" rel="external">http://127.0.0.1:8652/hadoop?filter=summary</a>‘<br>curl ‘<a href="http://127.0.0.1:8652/hadoop/yf3493.sogou-in.domain/disk_free" target="_blank" rel="external">http://127.0.0.1:8652/hadoop/yf3493.sogou-in.domain/disk_free</a>‘</p>
-<blockquote>
-<p>Ganglia API<br>The Ganglia API is a small standalone python application that takes XML data from a number of Ganglia gmetad processes and presents a RESTful JSON API of the most recently received data.</p>
-</blockquote>
-<h3 id="6-hadoop-cmd结合第三方监控系统"><a href="#6-hadoop-cmd（结合第三方监控系统）" class="headerlink" title="6. hadoop cmd（结合第三方监控系统）"></a>6. hadoop cmd（结合第三方监控系统）</h3><p>hadoop dfsadmin -report<br>用这个命令可以快速定位出哪些节点down掉了，HDFS的容量以及使用了多少，以及每个节点的硬盘使用情况。当然NameNode有个http页面也可以查询，但是这个命令的输出更适合我们的脚本监控dfs的使用状况<br>hadoop fsck /<br>用这个命令可以检查整个文件系统的健康状况，但是要注意它不会主动恢复备份缺失的block，这个是由NameNode单独的线程异步处理的。</p>
+<h2 id="namenode"><a href="#Namenode" class="headerlink" title="Namenode"></a>Namenode</h2><p><strong>备份策略：</strong><br>周期性备份namenode、standby namenode的dfs.namenode.name.dir<br>因为主从切换可能导致edits log分散在两台机器上，需要两台机器共同提供完整的edits log<br><strong>恢复步骤：</strong></p>
+<ol>
+<li>删除journalnode数据文件，启动服务（所有jn均执行）</li>
+<li>登陆namenode</li>
+<li>下载最新的备份文件</li>
+<li>解压，移至dfs.namenode.name.dir</li>
+<li>执行hdfs namenode –initializeSharedEdits（hdfs namenode -initializeSharedEdits will initialize the shared edits directory with the edits data from the local NameNode edits directories）</li>
+<li>启动zkfc</li>
+<li>启动namenode</li>
+<li>登陆standby namenode</li>
+<li>执行hdfs namenode -bootstrapStandby（The bootstrapStandby command will download the most recent fsimage from the active NameNode into the $dfs.name.dir directory of the standby NameNode.）</li>
+<li>启动zkfc</li>
+<li>启动namenode</li>
+</ol>
+<p><strong>适用场景：</strong><br>namenode、standby namenode全部故障<br>如果只是一台namenode故障，可以清空name文件夹，执行hdfs namenode -bootstrapStandby</p>
+<h2 id="journal"><a href="#Journal" class="headerlink" title="Journal"></a>Journal</h2><p><strong>备份策略：</strong><br>无<br><strong>恢复方法：</strong><br>从正常的jn节点拷贝数据，启动，即可。<br>无需停止正常节点再拷贝，直接拷贝即可。这样拷贝会有部分缺失数据，故障节点启动后，不会补齐这些缺失数据，但不影响新数据的写入。对于缺失的edits，只要有一台机器上有，namenode就可以启动。<br><strong>适用场景：</strong><br>单个节点故障</p>
+<h2 id="zookeeper"><a href="#Zookeeper" class="headerlink" title="Zookeeper"></a>Zookeeper</h2><p><strong>备份策略：</strong><br>周期性备份<br>&lt; dataDir &gt;/version-2/acceptedEpoch<br>&lt; dataDir &gt;/version-2/currentEpoch<br>&lt; dataDir &gt;/version-2/snapshot.<em><br>&lt; dataLogDir &gt;/version-2/log.</em><br>其中snapshot、log备份最近的几份就行<br><strong>恢复步骤：</strong></p>
+<ol>
+<li>登陆一台zookeeper服务器</li>
+<li>下载最新的备份文件</li>
+<li>解压，将data、datalog移至&lt; dataDir &gt;，并创建data/myid文件（与配置文件一致）</li>
+<li>启动服务</li>
+<li>其余节点配置data/myid文件，启动即可</li>
+</ol>
+<p><strong>试用场景：</strong><br>部分或全部数据丢失<br>如果只是单个节点故障，清空故障节点的data、datalog文件夹，启动后会自动从正常节点复制数据，无需人工恢复</p>
+<h2 id="kerberos"><a href="#Kerberos" class="headerlink" title="Kerberos"></a>Kerberos</h2><h3 id="方案一"><a href="#方案一" class="headerlink" title="方案一"></a>方案一</h3><p><strong>备份策略：</strong><br>周期性备份/var/kerberos/krb5kdc<br><strong>恢复步骤：</strong></p>
+<ol>
+<li>陆kerberos服务器</li>
+<li>下载最新的备份文件</li>
+<li>解压，将krb5kdc移至/var/kerberos/</li>
+</ol>
+<p><strong>适用场景：</strong><br>部分或全部数据丢失</p>
+<h3 id="方案二"><a href="#方案二" class="headerlink" title="方案二"></a>方案二</h3><p><strong>备份策略：</strong><br>周期性导出kdb5_util dump kerberos.kdump<br><strong>恢复步骤：</strong></p>
+<ol>
+<li>登陆kerberos服务器</li>
+<li>下载最新的备份文件</li>
+<li>解压，执行kdb5_util load -update kerberos.kdump</li>
+</ol>
+<p><strong>适用场景：</strong><br>部分数据丢失</p>
 
       
 
@@ -596,7 +336,7 @@
     <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="http://s.jiathis.com/qrcode.php?url=https://winway.github.io/2016/01/22/hadoop-moniting-strategy/" alt="微信分享二维码">
+      <img src="http://s.jiathis.com/qrcode.php?url=https://winway.github.io/2016/08/09/hadoop-backup-restore/" alt="微信分享二维码">
     </div>
 </div>
 
@@ -610,18 +350,18 @@
   
 <nav id="article-nav">
   
-    <a href="/2016/07/12/mongodb-replicaset-monitoring/" id="article-nav-newer" class="article-nav-link-wrap">
+    <a href="/2016/09/12/namenode-ha-sshfence-hang/" id="article-nav-newer" class="article-nav-link-wrap">
       <i class="icon-circle-left"></i>
       <div class="article-nav-title">
         
-          MongoDB副本集监控
+          NameNode主从切换sshfence阶段无法完成问题
         
       </div>
     </a>
   
   
-    <a href="/2015/10/21/mongo-php-driver-not-support-different-replicasets-with-the-same-name/" id="article-nav-older" class="article-nav-link-wrap">
-      <div class="article-nav-title">RockMongo管理多个名字相同的副本集问题</div>
+    <a href="/2016/07/12/mongodb-replicaset-monitoring/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">MongoDB副本集监控</div>
       <i class="icon-circle-right"></i>
     </a>
   

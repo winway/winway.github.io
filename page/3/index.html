@@ -350,6 +350,141 @@
 
 
   
+    <article id="post-hadoop-backup-restore" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2016/08/09/hadoop-backup-restore/">Hadoop备份与恢复方案介绍</a>
+    </h1>
+  
+
+        
+        <a href="/2016/08/09/hadoop-backup-restore/" class="archive-article-date">
+  	<time datetime="2016-08-09T11:42:46.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-08-09</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#namenode">Namenode</a></li>
+<li><a href="#journal">Journal</a></li>
+<li><a href="#zookeeper">Zookeeper</a></li>
+<li><a href="#kerberos">Kerberos</a><ul>
+<li><a href="#方案一">方案一</a></li>
+<li><a href="#方案二">方案二</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h2 id="namenode"><a href="#Namenode" class="headerlink" title="Namenode"></a>Namenode</h2><p><strong>备份策略：</strong><br>周期性备份namenode、standby namenode的dfs.namenode.name.dir<br>因为主从切换可能导致edits log分散在两台机器上，需要两台机器共同提供完整的edits log<br><strong>恢复步骤：</strong></p>
+<ol>
+<li>删除journalnode数据文件，启动服务（所有jn均执行）</li>
+<li>登陆namenode</li>
+<li>下载最新的备份文件</li>
+<li>解压，移至dfs.namenode.name.dir</li>
+<li>执行hdfs namenode –initializeSharedEdits（hdfs namenode -initializeSharedEdits will initialize the shared edits directory with the edits data from the local NameNode edits directories）</li>
+<li>启动zkfc</li>
+<li>启动namenode</li>
+<li>登陆standby namenode</li>
+<li>执行hdfs namenode -bootstrapStandby（The bootstrapStandby command will download the most recent fsimage from the active NameNode into the $dfs.name.dir directory of the standby NameNode.）</li>
+<li>启动zkfc</li>
+<li>启动namenode</li>
+</ol>
+<p><strong>适用场景：</strong><br>namenode、standby namenode全部故障<br>如果只是一台namenode故障，可以清空name文件夹，执行hdfs namenode -bootstrapStandby</p>
+<h2 id="journal"><a href="#Journal" class="headerlink" title="Journal"></a>Journal</h2><p><strong>备份策略：</strong><br>无<br><strong>恢复方法：</strong><br>从正常的jn节点拷贝数据，启动，即可。<br>无需停止正常节点再拷贝，直接拷贝即可。这样拷贝会有部分缺失数据，故障节点启动后，不会补齐这些缺失数据，但不影响新数据的写入。对于缺失的edits，只要有一台机器上有，namenode就可以启动。<br><strong>适用场景：</strong><br>单个节点故障</p>
+<h2 id="zookeeper"><a href="#Zookeeper" class="headerlink" title="Zookeeper"></a>Zookeeper</h2><p><strong>备份策略：</strong><br>周期性备份<br>&lt; dataDir &gt;/version-2/acceptedEpoch<br>&lt; dataDir &gt;/version-2/currentEpoch<br>&lt; dataDir &gt;/version-2/snapshot.<em><br>&lt; dataLogDir &gt;/version-2/log.</em><br>其中snapshot、log备份最近的几份就行<br><strong>恢复步骤：</strong></p>
+<ol>
+<li>登陆一台zookeeper服务器</li>
+<li>下载最新的备份文件</li>
+<li>解压，将data、datalog移至&lt; dataDir &gt;，并创建data/myid文件（与配置文件一致）</li>
+<li>启动服务</li>
+<li>其余节点配置data/myid文件，启动即可</li>
+</ol>
+<p><strong>试用场景：</strong><br>部分或全部数据丢失<br>如果只是单个节点故障，清空故障节点的data、datalog文件夹，启动后会自动从正常节点复制数据，无需人工恢复</p>
+<h2 id="kerberos"><a href="#Kerberos" class="headerlink" title="Kerberos"></a>Kerberos</h2><h3 id="方案一"><a href="#方案一" class="headerlink" title="方案一"></a>方案一</h3><p><strong>备份策略：</strong><br>周期性备份/var/kerberos/krb5kdc<br><strong>恢复步骤：</strong></p>
+<ol>
+<li>陆kerberos服务器</li>
+<li>下载最新的备份文件</li>
+<li>解压，将krb5kdc移至/var/kerberos/</li>
+</ol>
+<p><strong>适用场景：</strong><br>部分或全部数据丢失</p>
+<h3 id="方案二"><a href="#方案二" class="headerlink" title="方案二"></a>方案二</h3><p><strong>备份策略：</strong><br>周期性导出kdb5_util dump kerberos.kdump<br><strong>恢复步骤：</strong></p>
+<ol>
+<li>登陆kerberos服务器</li>
+<li>下载最新的备份文件</li>
+<li>解压，执行kdb5_util load -update kerberos.kdump</li>
+</ol>
+<p><strong>适用场景：</strong><br>部分数据丢失</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">hadoop</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/hadoop/" class="article-tag-list-link color2">hadoop</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2016/08/09/hadoop-backup-restore/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-mongodb-replicaset-monitoring" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1389,111 +1524,6 @@
 
 
   
-    <article id="post-a-LAN-arp-attacker" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/07/09/a-LAN-arp-attacker/">局域网ARP欺骗程序</a>
-    </h1>
-  
-
-        
-        <a href="/2013/07/09/a-LAN-arp-attacker/" class="archive-article-date">
-  	<time datetime="2013-07-09T10:29:46.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-07-09</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p><a href="https://github.com/winway/a-LAN-arp-attacker" target="_blank" rel="external">https://github.com/winway/a-LAN-arp-attacker</a></p>
-<!-- toc -->
-<ul>
-<li><a href="#1-工作原理">1. 工作原理</a></li>
-<li><a href="#2-使用方法">2. 使用方法</a></li>
-</ul>
-<!-- tocstop -->
-<h2 id="1-工作原理"><a href="#1-工作原理" class="headerlink" title="1. 工作原理"></a>1. 工作原理</h2><ol>
-<li>构造ARP请求包（广播）给目的主机，并分析返回的ARP应答包，获取目的主机的MAC地址。</li>
-<li>构造ARP应答包（单播）给目的主机，其中携带虚假的IP - MAC映射关系。</li>
-<li>目的主机的ARP缓存中多了一条错误的IP - MAC映射关系。</li>
-</ol>
-<h2 id="2-使用方法"><a href="#2-使用方法" class="headerlink" title="2. 使用方法"></a>2. 使用方法</h2><ol>
-<li>make，生成arp_attacker</li>
-<li>./arp_attacker [dst ip] 针对单一主机进行攻击</li>
-<li>./arp_attacker 发送广播，影响局域网所有主机</li>
-</ol>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">C</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">arp欺骗</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/C/" class="article-tag-list-link color2">C</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/07/09/a-LAN-arp-attacker/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/2/">&laquo; Prev</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><a class="extend next" rel="next" href="/page/4/">Next &raquo;</a>
@@ -1613,6 +1643,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">hadoop</a>
               </li>
              
@@ -1629,19 +1663,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1653,7 +1687,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
+                <a href="javascript:void(0)" class="js-tag color5">saltstack</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">salt源码解析</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1661,19 +1699,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">saltstack</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">salt源码解析</a>
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
             
             <div class="clearfix"></div>
