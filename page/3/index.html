@@ -893,21 +893,25 @@
 <ul>
 <li><a href="#目的">目的</a></li>
 <li><a href="#原理">原理</a></li>
-<li><a href="#步骤">步骤</a></li>
+<li><a href="#步骤">步骤</a><ul>
+<li><a href="#1-部署新的hidden节点">1. 部署新的hidden节点</a></li>
+<li><a href="#2-添加hidden节点">2. 添加hidden节点</a></li>
+<li><a href="#3-等待hidden节点完成initial-sync">3. 等待hidden节点完成initial sync</a></li>
+<li><a href="#4-检查集群状态确认一切正常继续">4. 检查集群状态，确认一切正常，继续</a></li>
+<li><a href="#5-将hidden节点的新数据逐个拷贝到集群中的其他secondary节点并使用新的数据文件启动mongod原始数据文件进行备份-对于primary节点先使用rsstepdown待新的primary节点产生后再进行操作">5. 将hidden节点的新数据，逐个拷贝到集群中的其他secondary节点，并使用新的数据文件启动mongod（原始数据文件进行备份）。对于primary节点，先使用rs.stepdown()，待新的primary节点产生后再进行操作。</a></li>
+<li><a href="#6-移除hidden节点">6. 移除hidden节点</a></li>
+<li><a href="#7-清理线上关于hidden节点的hosts-iptables配置">7. 清理线上关于hidden节点的hosts、iptables配置</a></li>
+</ul>
+</li>
 <li><a href="#回滚">回滚</a></li>
 </ul>
 <!-- tocstop -->
 <h2 id="目的"><a href="#目的" class="headerlink" title="目的"></a>目的</h2><p>阐述一种风险较低，耗时较少的MongoDB硬盘空间紧缩方案。<br>适用于MongoDB2.x副本集。</p>
 <h2 id="原理"><a href="#原理" class="headerlink" title="原理"></a>原理</h2><p>MongoDB2.2只有在dropdatabase时才会释放硬盘空间，删除document和collection不会释放硬盘空间，而是重复利用。而且随着数据库数据的增、删、改，会产生大量碎片，导致100G的数据可能占用300G的空间，数据紧缩的需求应运而生。<br>数据紧缩实际是通过MongoDB的initial sync数据重建来实现的。<br>通过在副本集中临时添加hidden节点，通过hidden节点的initial sync获得一份紧缩后的全量数据，然后将这份数据依次拷贝到集群中的其他节点，实现整个集群的硬盘空间紧缩。</p>
 <p>参考资料：<br><a href="https://docs.mongodb.org/v2.2/administration/replica-sets/#resyncing-a-member-of-a-replica-set" target="_blank" rel="external">https://docs.mongodb.org/v2.2/administration/replica-sets/#resyncing-a-member-of-a-replica-set</a></p>
-<h2 id="步骤"><a href="#步骤" class="headerlink" title="步骤"></a>步骤</h2><ol>
-<li>部署新的hidden节点<ul>
+<h2 id="步骤"><a href="#步骤" class="headerlink" title="步骤"></a>步骤</h2><h3 id="1-部署新的hidden节点"><a href="#1-部署新的hidden节点" class="headerlink" title="1. 部署新的hidden节点"></a>1. 部署新的hidden节点</h3><ul>
 <li>配置hosts、iptables，保证新节点可以顺利与集群其他节点通信</li>
-<li>配置mongodb并启动，配置文件参考集群其他节点</li>
-</ul>
-</li>
-<li><p>添加hidden节点</p>
-<ul>
+<li>配置mongodb并启动，配置文件参考集群其他节点<h3 id="2-添加hidden节点"><a href="#2-添加hidden节点" class="headerlink" title="2. 添加hidden节点"></a>2. 添加hidden节点</h3></li>
 <li><p>登陆到集群的primary，执行</p>
 <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">rs.add(&#123;_id: 3, host: &quot;hidden.Test.mongodb:6681&quot;, priority: 0, hidden: true&#125;)</div></pre></td></tr></table></figure>
 </li>
@@ -915,25 +919,13 @@
 <figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">rs.conf()</div><div class="line">rs.status()</div></pre></td></tr></table></figure>
 </li>
 </ul>
-</li>
-<li><p>等待hidden节点完成initial sync</p>
-</li>
-<li><p>检查集群状态，确认一切正常，继续</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">rs.conf()</div><div class="line">rs.status()</div></pre></td></tr></table></figure>
-</li>
-<li><p>将hidden节点的新数据，逐个拷贝到集群中的其他secondary节点，并使用新的数据文件启动mongod（原始数据文件进行备份）。对于primary节点，先使用rs.stepdown()，待新的primary节点产生后再进行操作。</p>
-</li>
-<li><p>移除hidden节点</p>
-<ul>
+<h3 id="3-等待hidden节点完成initial-sync"><a href="#3-等待hidden节点完成initial-sync" class="headerlink" title="3. 等待hidden节点完成initial sync"></a>3. 等待hidden节点完成initial sync</h3><h3 id="4-检查集群状态确认一切正常继续"><a href="#4-检查集群状态，确认一切正常，继续" class="headerlink" title="4. 检查集群状态，确认一切正常，继续"></a>4. 检查集群状态，确认一切正常，继续</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">rs.conf()</div><div class="line">rs.status()</div></pre></td></tr></table></figure>
+<h3 id="5-将hidden节点的新数据逐个拷贝到集群中的其他secondary节点并使用新的数据文件启动mongod原始数据文件进行备份-对于primary节点先使用rsstepdown待新的primary节点产生后再进行操作"><a href="#5-将hidden节点的新数据，逐个拷贝到集群中的其他secondary节点，并使用新的数据文件启动mongod（原始数据文件进行备份）。对于primary节点，先使用rs-stepdown-，待新的primary节点产生后再进行操作。" class="headerlink" title="5. 将hidden节点的新数据，逐个拷贝到集群中的其他secondary节点，并使用新的数据文件启动mongod（原始数据文件进行备份）。对于primary节点，先使用rs.stepdown()，待新的primary节点产生后再进行操作。"></a>5. 将hidden节点的新数据，逐个拷贝到集群中的其他secondary节点，并使用新的数据文件启动mongod（原始数据文件进行备份）。对于primary节点，先使用rs.stepdown()，待新的primary节点产生后再进行操作。</h3><h3 id="6-移除hidden节点"><a href="#6-移除hidden节点" class="headerlink" title="6. 移除hidden节点"></a>6. 移除hidden节点</h3><ul>
 <li>关闭hidden节点的mongod</li>
 <li>登陆primary节点执行<figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">rs.remove("hidden.Test.mongodb:6681")</div></pre></td></tr></table></figure>
 </li>
 </ul>
-</li>
-<li><p>清理线上关于hidden节点的hosts、iptables配置</p>
-</li>
-</ol>
-<p>至此，完成整个集群的硬盘空间压缩</p>
+<h3 id="7-清理线上关于hidden节点的hosts-iptables配置"><a href="#7-清理线上关于hidden节点的hosts、iptables配置" class="headerlink" title="7. 清理线上关于hidden节点的hosts、iptables配置"></a>7. 清理线上关于hidden节点的hosts、iptables配置</h3><p>至此，完成整个集群的硬盘空间压缩</p>
 <h2 id="回滚"><a href="#回滚" class="headerlink" title="回滚"></a>回滚</h2><p>由于原始数据会进行备份，所以回滚只需替换回原来的数据启动。</p>
 
       
