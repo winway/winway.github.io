@@ -595,6 +595,119 @@
 
 
   
+    <article id="post-mongodb-diskspace-reclaim" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2016/06/25/mongodb-diskspace-reclaim/">MongoDB磁盘空间回收</a>
+    </h1>
+  
+
+        
+        <a href="/2016/06/25/mongodb-diskspace-reclaim/" class="archive-article-date">
+  	<time datetime="2016-06-25T01:52:17.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-06-25</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#背景">背景</a></li>
+<li><a href="#可用方案">可用方案</a><ul>
+<li><a href="#一-repairdatabase">一、 repairDatabase</a></li>
+<li><a href="#二-copydatabase">二、 copyDatabase</a></li>
+<li><a href="#三-mongodumpmongorestore">三、 mongodump/mongorestore</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>MongoDB-2.2版本只有在dropDatabase的时候才会释放磁盘空间，drop collection并不会减少磁盘占用。如果需要回收磁盘空间，需要采取一些措施。</p>
+<h2 id="可用方案"><a href="#可用方案" class="headerlink" title="可用方案"></a>可用方案</h2><h3 id="一-repairdatabase"><a href="#一、-repairDatabase" class="headerlink" title="一、 repairDatabase"></a>一、 repairDatabase</h3><p>repairDatabase是官方给出的唯一可以释放磁盘空间的方法。repairDatabase只能在master或者primary上执行，对于secondary只能以standalone的方式启动，然后执行repairDatabase。<br>repairDatabase对剩余可用磁盘空间有要求，必须大于等于原库的大小才能执行。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="meta">&gt;</span> db.repairDatabase()</div><div class="line">&#123;</div><div class="line">        "errmsg" : "Cannot repair database test having size: 691102810112 (bytes) because free disk space is: 479286095872 (bytes)",</div><div class="line">        "ok" : 0</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<p>数据量大的话耗时会比较长，而且会阻塞所有操作，所以不能在线上提供服务的节点上直接执行。</p>
+<h3 id="二-copydatabase"><a href="#二、-copyDatabase" class="headerlink" title="二、 copyDatabase"></a>二、 copyDatabase</h3><p>为了绕过方案一对空间的要求，可以采用copyDatabase。因为copyDatabase只需要占用实际data set的空间，一般在删除collection后，剩余数据会比较小。由于copyDatabase支持远程拷贝，如果空间实在不足，可以使用一个临时的mongod中转。copyDatabase不会阻塞操作。大致步骤：</p>
+<ol>
+<li>删除不需要的collection</li>
+<li>db.copyDatabase(‘databasename’, ‘databasename_tmp’)</li>
+<li>use databasename; db.dropDatabase()</li>
+<li>db.copyDatabase(‘databasename_tmp’, ‘databasename’)</li>
+</ol>
+<h3 id="三-mongodumpmongorestore"><a href="#三、-mongodump-mongorestore" class="headerlink" title="三、 mongodump/mongorestore"></a>三、 mongodump/mongorestore</h3><p>解决思路与方案二相同。大致步骤：</p>
+<ol>
+<li>删除不需要的collection</li>
+<li>mongodump –port 1988 -uread -pread -d databasename -o tmp</li>
+<li>echo ‘db.dropDatabase()’ | mongo databasename</li>
+<li>mongorestore –port 1988 -u’write’ -p’write’ -d databasename tmp/databasename/</li>
+</ol>
+<p>四、    使用副本集的initial sync<br>需要重建所有库，耗时较长</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/MongoDB/" class="article-tag-list-link color3">MongoDB</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2016/06/25/mongodb-diskspace-reclaim/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-mongodb-ops-introduce" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1502,99 +1615,6 @@
 
 
   
-    <article id="post-mutt-send-mail-usage" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/07/10/mutt-send-mail-usage/">使用mutt自动发送邮件</a>
-    </h1>
-  
-
-        
-        <a href="/2013/07/10/mutt-send-mail-usage/" class="archive-article-date">
-  	<time datetime="2013-07-10T01:15:17.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-07-10</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<!-- tocstop -->
-<p>使用方法：将要发送的内容以下面的形式组织<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div></pre></td><td class="code"><pre><div class="line"><span class="meta">$</span> tree mails/</div><div class="line">mails/</div><div class="line">|-- mail1</div><div class="line">| |-- attach1</div><div class="line">| |-- attach2</div><div class="line">| |-- attach3</div><div class="line">| |-- attachment.lst</div><div class="line">| |-- body.txt</div><div class="line">| |-- receiver.lst</div><div class="line">| `-- subject.txt</div><div class="line">|-- mail2</div><div class="line">| |-- attach1</div><div class="line">| |-- attach2</div><div class="line">| |-- attach3</div><div class="line">| |-- attachment.lst</div><div class="line">| |-- body.txt</div><div class="line">| |-- receiver.lst</div><div class="line">| `-- subject.txt</div><div class="line">`-- mail3</div><div class="line">|-- attach1</div><div class="line">|-- attach2</div><div class="line">|-- attach3</div><div class="line">|-- attachment.lst</div><div class="line">|-- body.txt</div><div class="line">|-- receiver.lst</div><div class="line">`-- subject.txt</div></pre></td></tr></table></figure></p>
-<p>其中receiver.lst是收件人列表，subject.txt是主题，body.txt是正文，attachment.lst是附件列表，attach1、attach2、attach3是attachment.lst中列出的附件，每个mailN文件夹是一封邮件。</p>
-<p>脚本很简单：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#</span>! /bin/bash</div><div class="line"><span class="meta">#</span> Auto send email</div><div class="line"><span class="meta">#</span></div><div class="line">if [[ $# &lt; 1 ]]</div><div class="line">then</div><div class="line">    echo "Usage: $0 &lt;maildir&gt;"</div><div class="line">    exit</div><div class="line">fi</div><div class="line"></div><div class="line">DIR="$1"</div><div class="line">cd "$DIR" || &#123; echo "Enter $DIR failed"; exit; &#125;</div><div class="line"></div><div class="line">for dir in $(ls -d */)</div><div class="line">do</div><div class="line">    cd "$dir" || &#123; echo "Enter $dir failed"; continue; &#125;</div><div class="line">    receiver=$(cat receiver.lst | sed ':a; $!N; s/\n/ /; ta')</div><div class="line">    subject=$(cat subject.txt)</div><div class="line">    body=$(cat body.txt)</div><div class="line">    attachment=$(cat attachment.lst | sed ':a; $!N; s/\n/ -a /; ta')</div><div class="line">    echo "$body" | mutt -s "$subject" -a $attachment $receiver</div><div class="line">    echo "Send $dir"</div><div class="line">    cd ..</div><div class="line">done</div></pre></td></tr></table></figure></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Linux</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">mutt</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/07/10/mutt-send-mail-usage/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/2/">&laquo; Prev</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><a class="page-number" href="/page/5/">5</a><a class="extend next" rel="next" href="/page/4/">Next &raquo;</a>
@@ -1694,14 +1714,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">C</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">arp欺骗</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">shell</a>
               </li>
              
@@ -1710,11 +1722,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Linux</a>
+                <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">hadoop</a>
+                <a href="javascript:void(0)" class="js-tag color1">Linux</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1722,7 +1734,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">hadoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">机架感知</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">hexo</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">github pages</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1750,19 +1774,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hexo</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">github pages</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1774,7 +1794,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
+                <a href="javascript:void(0)" class="js-tag color1">arp欺骗</a>
               </li>
             
             <div class="clearfix"></div>
