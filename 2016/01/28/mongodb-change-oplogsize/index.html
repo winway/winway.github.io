@@ -6,17 +6,19 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://winway.github.io">
-  <title>Tag: Linux | winway&#39;s blog</title>
+  <title>MongoDB在线修改oplogSize | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="python, go, devops, hadoop, MongoDB">
-<meta property="og:type" content="website">
-<meta property="og:title" content="winway&#39;s blog">
-<meta property="og:url" content="https://winway.github.io/tags/Linux/index.html">
+  <meta name="description" content="oplog简介 修改oplogSize大小 回滚   oplog简介oplog（operations log）是一个特殊的固定集合（capped collection），用来记录所有的“写”（insert、update、delete以及修改索引等）操作纪录。MongoDB将数据库操作应用到primary然后记录到primary的oplog。secondary从primary复制oplog并将操">
+<meta name="keywords" content="MongoDB">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MongoDB在线修改oplogSize">
+<meta property="og:url" content="https://winway.github.io/2016/01/28/mongodb-change-oplogsize/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:description" content="python, go, devops, hadoop, MongoDB">
+<meta property="og:description" content="oplog简介 修改oplogSize大小 回滚   oplog简介oplog（operations log）是一个特殊的固定集合（capped collection），用来记录所有的“写”（insert、update、delete以及修改索引等）操作纪录。MongoDB将数据库操作应用到primary然后记录到primary的oplog。secondary从primary复制oplog并将操">
+<meta property="og:updated_time" content="2017-10-18T07:38:11.012Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="winway&#39;s blog">
-<meta name="twitter:description" content="python, go, devops, hadoop, MongoDB">
+<meta name="twitter:title" content="MongoDB在线修改oplogSize">
+<meta name="twitter:description" content="oplog简介 修改oplogSize大小 回滚   oplog简介oplog（operations log）是一个特殊的固定集合（capped collection），用来记录所有的“写”（insert、update、delete以及修改索引等）操作纪录。MongoDB将数据库操作应用到primary然后记录到primary的oplog。secondary从primary复制oplog并将操">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -152,497 +154,267 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            
-  
-  
+            <article id="post-mongodb-change-oplogsize" class="article article-type-post " itemscope itemprop="blogPost">
+  <div class="article-inner">
     
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      MongoDB在线修改oplogSize
+    </h1>
+  
+
+        
+        <a href="/2016/01/28/mongodb-change-oplogsize/" class="archive-article-date">
+  	<time datetime="2016-01-28T06:27:30.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-01-28</time>
+</a>
+        
+      </header>
     
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#oplog简介">oplog简介</a></li>
+<li><a href="#修改oplogsize大小">修改oplogSize大小</a></li>
+<li><a href="#回滚">回滚</a></li>
+</ul>
+<!-- tocstop -->
+<h2 id="oplog简介"><a href="#oplog简介" class="headerlink" title="oplog简介"></a>oplog简介</h2><p>oplog（operations log）是一个特殊的固定集合（capped collection），用来记录所有的“写”（insert、update、delete以及修改索引等）操作纪录。MongoDB将数据库操作应用到primary然后记录到primary的oplog。secondary从primary复制oplog并将操作应用到自己（异步，有一定延迟，如果oplog大小不当，可能出现oplog溢出，从节点不可用）。所有的副本集成员维持一个oplog的副本来维持数据库的当前状态。<br>对于64位的Linux, Solaris, FreeBSD和Windows, MongoDB默认分配可用磁盘空间的5%作为oplog。如果这个值小于1G，则分配1G作为oplog。<br>oplog是一个固定集合（capped collection）,所以在正常操作期间不能修改他的大小。在集群初始化的时候最好考虑好该值的大小，因为后续修改起来比较麻烦。<br>在大多数情况下默认的oplog大小是可接受的。Oplog的大小由应用的操作行为决定。如果应用经常在短时间内执行大量的批量update、delete操作，从而产生大量的“写”操作纪录，则应该适当增大oplog的大小，避免primary的旧的oplog记录在被secondary同步走之前被新产生的oplog纪录覆盖掉。</p>
+<h2 id="修改oplogsize大小"><a href="#修改oplogSize大小" class="headerlink" title="修改oplogSize大小"></a>修改oplogSize大小</h2><p><strong>注意：尽量选择集群较空闲的时间段进行，减少单节点的操作时间，确保重启后的节点能够跟得上集群的oplog。最好先操作所有的secondary节点再操作primary节点。操作primary时，先使用stepdown降级，待集群选举出新的primary后再shutdown。</strong></p>
+<p>对副本集中所有的节点执行以下操作：</p>
+<ol>
+<li><p>查看当前oplogsize大小</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">demo:SECONDARY&gt; db.printReplicationInfo()</div><div class="line">configured oplog size:   25000MB</div><div class="line">log length start to end: 1290396secs (358.44hrs)</div><div class="line">oplog first event time:  Tue Dec 09 2014 15:33:05 GMT+0800 (CST)</div><div class="line">oplog last event time:   Wed Dec 24 2014 13:59:41 GMT+0800 (CST)</div><div class="line">now:                     Mon Jan 26 2015 15:28:44 GMT+0800 (CST)</div></pre></td></tr></table></figure>
+</li>
+<li><p>关闭当前节点，登陆其他节点查看集群状态是否正常</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">demo:SECONDARY&gt; use admin</div><div class="line">switched to db admin</div><div class="line">demo:SECONDARY&gt; db.shutdownServer()</div><div class="line">Mon Jan 26 15:30:46 DBClientCursor::init call() failed</div><div class="line">Mon Jan 26 15:30:46 query failed : admin.$cmd &#123; shutdown: 1.0 &#125; to: 127.0.0.1:4422</div><div class="line">server should be down...</div><div class="line">Mon Jan 26 15:30:46 trying reconnect to 127.0.0.1:4422</div><div class="line">Mon Jan 26 15:30:46 reconnect 127.0.0.1:4422 ok</div><div class="line">Mon Jan 26 15:30:46 Socket recv() errno:104 Connection reset by peer 127.0.0.1:4422</div><div class="line">Mon Jan 26 15:30:46 SocketException: remote: 127.0.0.1:4422 error: 9001 socket exception [1] server [127.0.0.1:4422]</div><div class="line">Mon Jan 26 15:30:46 DBClientCursor::init call() failed</div></pre></td></tr></table></figure>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div></pre></td><td class="code"><pre><div class="line">demo:PRIMARY&gt; rs.status()</div><div class="line">&#123;</div><div class="line">        &quot;set&quot; : &quot;demo&quot;,</div><div class="line">        &quot;date&quot; : ISODate(&quot;2015-01-26T07:30:58Z&quot;),</div><div class="line">        &quot;myState&quot; : 1,</div><div class="line">        &quot;members&quot; : [</div><div class="line">                &#123;</div><div class="line">                        &quot;_id&quot; : 0,</div><div class="line">                        &quot;name&quot; : &quot;demo01.mongodb:4422&quot;,</div><div class="line">                        &quot;health&quot; : 1,</div><div class="line">                        &quot;state&quot; : 1,</div><div class="line">                        &quot;stateStr&quot; : &quot;PRIMARY&quot;,</div><div class="line">                        &quot;uptime&quot; : 4147819,</div><div class="line">                        &quot;optime&quot; : Timestamp(1419400781000, 2),</div><div class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2014-12-24T05:59:41Z&quot;),</div><div class="line">                        &quot;self&quot; : true</div><div class="line">                &#125;,</div><div class="line">                &#123;</div><div class="line">                        &quot;_id&quot; : 1,</div><div class="line">                        &quot;name&quot; : &quot;demo02.mongodb:4422&quot;,</div><div class="line">                        &quot;health&quot; : 0,</div><div class="line">                        &quot;state&quot; : 8,</div><div class="line">                        &quot;stateStr&quot; : &quot;(not reachable/healthy)&quot;,</div><div class="line">                        &quot;uptime&quot; : 0,</div><div class="line">                        &quot;optime&quot; : Timestamp(1419400781000, 2),</div><div class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2014-12-24T05:59:41Z&quot;),</div><div class="line">                        &quot;lastHeartbeat&quot; : ISODate(&quot;2015-01-26T07:30:45Z&quot;),</div><div class="line">                        &quot;pingMs&quot; : 0,</div><div class="line">                        &quot;errmsg&quot; : &quot;socket exception [CONNECT_ERROR] for demo02.mongodb:4422&quot;</div><div class="line">                &#125;,</div><div class="line">                &#123;</div><div class="line">                        &quot;_id&quot; : 2,</div><div class="line">                        &quot;name&quot; : &quot;demo03.mongodb:4422&quot;,</div><div class="line">                        &quot;health&quot; : 1,</div><div class="line">                        &quot;state&quot; : 2,</div><div class="line">                        &quot;stateStr&quot; : &quot;SECONDARY&quot;,</div><div class="line">                        &quot;uptime&quot; : 4147071,</div><div class="line">                        &quot;optime&quot; : Timestamp(1419400781000, 2),</div><div class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2014-12-24T05:59:41Z&quot;),</div><div class="line">                        &quot;lastHeartbeat&quot; : ISODate(&quot;2015-01-26T07:30:58Z&quot;),</div><div class="line">                        &quot;pingMs&quot; : 1</div><div class="line">                &#125;</div><div class="line">        ],</div><div class="line">        &quot;ok&quot; : 1</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+<li><p>以standalone的方式用另外的端口（确保端口空闲）启动</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">mongod --port 1988 --dbpath /data/mongodb/demo-data/</div></pre></td></tr></table></figure>
+</li>
+<li><p>备份当前的oplog</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">mongodump --db local --collection &apos;oplog.rs&apos; --port 1988</div></pre></td></tr></table></figure>
+</li>
+<li><p>连接mongd</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">mongo --port 1988</div></pre></td></tr></table></figure>
+</li>
+<li><p>保存oplog的最后一条纪录</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line">&gt; use local</div><div class="line">switched to db local</div><div class="line">&gt; db.temp.drop()</div><div class="line">false</div><div class="line">&gt; db.temp.save( db.oplog.rs.find( &#123; &#125;, &#123; ts: 1, h: 1 &#125; ).sort( &#123;$natural : -1&#125; ).limit(1).next() )</div><div class="line">&gt; db.temp.find()</div><div class="line">&#123; &quot;_id&quot; : ObjectId(&quot;54c5efb26833f799aead55f8&quot;), &quot;ts&quot; : Timestamp(1419400781000, 2), &quot;h&quot; : NumberLong(&quot;-6774720947739689692&quot;) &#125;</div></pre></td></tr></table></figure>
+</li>
+<li><p>删除oplog.rs</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">&gt; db.oplog.rs.drop()</div><div class="line">true</div></pre></td></tr></table></figure>
+</li>
+<li><p>创建新的oplog，并指定大小，如1073741824 = 1GB</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">&gt; db.runCommand( &#123; create : &quot;oplog.rs&quot;, capped : true, size : 1073741824 &#125; )</div><div class="line">&#123; &quot;ok&quot; : 1 &#125;</div></pre></td></tr></table></figure>
+</li>
+<li><p>插入之前保存的旧oplog的最后一条纪录</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">&gt; db.oplog.rs.save( db.temp.findOne() )</div><div class="line">&gt; db.oplog.rs.find()</div><div class="line">&#123; &quot;_id&quot; : ObjectId(&quot;54c5efb26833f799aead55f8&quot;), &quot;ts&quot; : Timestamp(1419400781000, 2), &quot;h&quot; : NumberLong(&quot;-6774720947739689692&quot;) &#125;</div><div class="line">&gt; db.temp.drop()</div><div class="line">true</div></pre></td></tr></table></figure>
+</li>
+<li><p>关闭该节点</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">&gt; use admin</div><div class="line">switched to db admin</div><div class="line">&gt; db.shutdownServer()</div><div class="line">Mon Jan 26 15:49:46 DBClientCursor::init call() failed</div><div class="line">Mon Jan 26 15:49:46 query failed : admin.$cmd &#123; shutdown: 1.0 &#125; to: 127.0.0.1:1988</div><div class="line">server should be down...</div><div class="line">Mon Jan 26 15:49:46 trying reconnect to 127.0.0.1:1988</div><div class="line">Mon Jan 26 15:49:46 reconnect 127.0.0.1:1988 ok</div><div class="line">Mon Jan 26 15:49:46 Socket recv() errno:104 Connection reset by peer 127.0.0.1:1988</div><div class="line">Mon Jan 26 15:49:46 SocketException: remote: 127.0.0.1:1988 error: 9001 socket exception [1] server [127.0.0.1:1988] </div><div class="line">Mon Jan 26 15:49:46 DBClientCursor::init call() failed</div></pre></td></tr></table></figure>
+</li>
+<li><p>修改配置文件中的oplogSize大小（不是必须）</p>
+</li>
+<li><p>以副本集的形式重启该节点</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">mongod -f /data/mongodb/conf/demo-mongo-conf</div></pre></td></tr></table></figure>
+</li>
+<li><p>查看oplogsize大小和集群状态</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div></pre></td><td class="code"><pre><div class="line">demo:SECONDARY&gt; db.printReplicationInfo()</div><div class="line">configured oplog size:   1024MB</div><div class="line">log length start to end: 0secs (0hrs)</div><div class="line">oplog first event time:  Wed Dec 24 2014 13:59:41 GMT+0800 (CST)</div><div class="line">oplog last event time:   Wed Dec 24 2014 13:59:41 GMT+0800 (CST)</div><div class="line">now:                     Mon Jan 26 2015 15:53:54 GMT+0800 (CST)</div><div class="line">demo:SECONDARY&gt; rs.status()</div><div class="line">&#123;</div><div class="line">        &quot;set&quot; : &quot;demo&quot;,</div><div class="line">        &quot;date&quot; : ISODate(&quot;2015-01-26T08:09:43Z&quot;),</div><div class="line">        &quot;myState&quot; : 2,</div><div class="line">        &quot;syncingTo&quot; : &quot;demo01.mongodb:4422&quot;,</div><div class="line">        &quot;members&quot; : [</div><div class="line">                &#123;</div><div class="line">                        &quot;_id&quot; : 0,</div><div class="line">                        &quot;name&quot; : &quot;demo01.mongodb:4422&quot;,</div><div class="line">                        &quot;health&quot; : 1,</div><div class="line">                        &quot;state&quot; : 1,</div><div class="line">                        &quot;stateStr&quot; : &quot;PRIMARY&quot;,</div><div class="line">                        &quot;uptime&quot; : 492,</div><div class="line">                        &quot;optime&quot; : Timestamp(1422259325000, 1),</div><div class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2015-01-26T08:02:05Z&quot;),</div><div class="line">                        &quot;lastHeartbeat&quot; : ISODate(&quot;2015-01-26T08:09:43Z&quot;),</div><div class="line">                        &quot;pingMs&quot; : 1</div><div class="line">                &#125;,</div><div class="line">                &#123;</div><div class="line">                        &quot;_id&quot; : 1,</div><div class="line">                        &quot;name&quot; : &quot;demo02.mongodb:4422&quot;,</div><div class="line">                        &quot;health&quot; : 1,</div><div class="line">                        &quot;state&quot; : 2,</div><div class="line">                        &quot;stateStr&quot; : &quot;SECONDARY&quot;,</div><div class="line">                        &quot;uptime&quot; : 490,</div><div class="line">                        &quot;optime&quot; : Timestamp(1422259325000, 1),</div><div class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2015-01-26T08:02:05Z&quot;),</div><div class="line">                        &quot;lastHeartbeat&quot; : ISODate(&quot;2015-01-26T08:09:43Z&quot;),</div><div class="line">                        &quot;pingMs&quot; : 1</div><div class="line">                &#125;,</div><div class="line">                &#123;</div><div class="line">                        &quot;_id&quot; : 2,</div><div class="line">                        &quot;name&quot; : &quot;demo03.mongodb:4422&quot;,</div><div class="line">                        &quot;health&quot; : 1,</div><div class="line">                        &quot;state&quot; : 2,</div><div class="line">                        &quot;stateStr&quot; : &quot;SECONDARY&quot;,</div><div class="line">                        &quot;uptime&quot; : 493,</div><div class="line">                        &quot;optime&quot; : Timestamp(1422259325000, 1),</div><div class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2015-01-26T08:02:05Z&quot;),</div><div class="line">                        &quot;self&quot; : true</div><div class="line">                &#125;</div><div class="line">        ],</div><div class="line">        &quot;ok&quot; : 1</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<h2 id="回滚"><a href="#回滚" class="headerlink" title="回滚"></a>回滚</h2><p>使用mongorestore恢复oplog.rs<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line">mongorestore --port 1988 --db local --collection &apos;oplog.rs&apos; --drop dump/local/oplog.rs.bson</div><div class="line">connected to: 127.0.0.1:1988</div><div class="line">Mon Jan 26 16:25:09 dump/local/oplog.rs.bson</div><div class="line">Mon Jan 26 16:25:09     going into namespace [local.oplog.rs]</div><div class="line">Mon Jan 26 16:25:09      dropping</div><div class="line">Mon Jan 26 16:25:53     Created collection local.oplog.rs with options: &#123; &quot;create&quot; : &quot;oplog.rs&quot;, &quot;size&quot; : 26214400000, &quot;capped&quot; : true, &quot;autoIndexId&quot; : false &#125;</div><div class="line">Mon Jan 26 16:25:56             47602202/1453381602     3%      (bytes)</div><div class="line">Mon Jan 26 16:26:00             87000058/1453381602     5%      (bytes)</div><div class="line">Mon Jan 26 16:26:03             129556190/1453381602    8%      (bytes)</div><div class="line">Mon Jan 26 16:26:06             193797635/1453381602    13%     (bytes)</div><div class="line">Mon Jan 26 16:26:09             386061413/1453381602    26%     (bytes)</div><div class="line">Mon Jan 26 16:26:12             526376708/1453381602    36%     (bytes)</div><div class="line">Mon Jan 26 16:26:15             697955917/1453381602    48%     (bytes)</div><div class="line">Mon Jan 26 16:26:18             867686914/1453381602    59%     (bytes)</div><div class="line">Mon Jan 26 16:26:21             930218947/1453381602    64%     (bytes)</div><div class="line">Mon Jan 26 16:26:24             990493767/1453381602    68%     (bytes)</div><div class="line">Mon Jan 26 16:26:27             1037063408/1453381602   71%     (bytes)</div><div class="line">Mon Jan 26 16:26:30             1092791895/1453381602   75%     (bytes)</div><div class="line">Mon Jan 26 16:26:33             1130693201/1453381602   77%     (bytes)</div><div class="line">Mon Jan 26 16:26:36             1204092371/1453381602   82%     (bytes)</div><div class="line">Mon Jan 26 16:26:39             1378685459/1453381602   94%     (bytes)</div><div class="line">1427593 objects found</div></pre></td></tr></table></figure></p>
+
+      
+
+      
+        <div class="page-reward">
+          <a href="javascript:;" class="page-reward-btn tooltip-top">
+            <div class="tooltip tooltip-east">
+            <span class="tooltip-item">
+              赏
+            </span>
+            <span class="tooltip-content">
+              <span class="tooltip-text">
+                <span class="tooltip-inner">
+                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢你请我吃糖果<i class="icon icon-quo-right"></i></p>
+                  <div class="reward-box">
+                    
+                    <div class="reward-box-item">
+                      <img class="reward-img" src="/img/alipay.jpg">
+                      <span class="reward-type">支付宝</span>
+                    </div>
+                    
+                    
+                    <div class="reward-box-item">
+                      <img class="reward-img" src="/img/weixinpay.png">
+                      <span class="reward-type">微信</span>
+                    </div>
+                    
+                  </div>
+                </span>
+              </span>
+            </span>
+          </div>
+          </a>
+        </div>
+      
+    </div>
+    <div class="article-info article-info-index">
       
       
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <a href="/archives/2017" class="archive-year">2017</a>
-        </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2017/09/25/extend-snmpd-using-shell-scripts/" class="archive-article-date">
-  	<time datetime="2017-09-25T11:56:07.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-09-25</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2017/09/25/extend-snmpd-using-shell-scripts/">使用shell脚本扩展snmp</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
 	<div class="article-tag tagcloud">
 		<i class="icon-price-tags icon"></i>
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Linux</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">snmp</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
         		</li>
       		
 		</ul>
 	</div>
 
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2017/08/01/centos-7-tmp-file-removed-when-logout/" class="archive-article-date">
-  	<time datetime="2017-08-01T09:48:21.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-01</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2017/08/01/centos-7-tmp-file-removed-when-logout/">systemd-logind.service的RemoveIPC参数影响</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
       
-        </div></section>
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/MongoDB/" class="article-tag-list-link color3">MongoDB</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
       
+
       
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <a href="/archives/2013" class="archive-year">2013</a>
+        
+<div class="share-btn share-icons tooltip-left">
+  <div class="tooltip tooltip-east">
+    <span class="tooltip-item">
+      <a href="javascript:;" class="share-sns share-outer">
+        <i class="icon icon-share"></i>
+      </a>
+    </span>
+    <span class="tooltip-content">
+      <div class="share-wrap">
+        <div class="share-icons">
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="icon icon-weibo"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="icon icon-weixin"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="icon icon-qq"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="icon icon-douban"></i>
+          </a>
+          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a>
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="icon icon-facebook"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="icon icon-twitter"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="icon icon-google"></i>
+          </a>
         </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2013/11/16/nagios-deploy-practice/" class="archive-article-date">
-  	<time datetime="2013-11-16T09:35:13.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-11-16</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2013/11/16/nagios-deploy-practice/">Nagios部署实践</a>
-    </h1>
-  
+      </div>
+    </span>
+  </div>
+</div>
 
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Linux</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">nagios</a>
-        		</li>
-      		
-		</ul>
-	</div>
+<div class="page-modal wx-share js-wx-box">
+    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="http://s.jiathis.com/qrcode.php?url=https://winway.github.io/2016/01/28/mongodb-change-oplogsize/" alt="微信分享二维码">
+    </div>
+</div>
 
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
+<div class="mask js-mask"></div>
+      
+      <div class="clearfix"></div>
+    </div>
   </div>
 </article>
+
   
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2013/07/10/mutt-send-mail-usage/" class="archive-article-date">
-  	<time datetime="2013-07-10T01:15:17.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-07-10</time>
-</a>
+<nav id="article-nav">
+  
+    <a href="/2016/06/25/mongodb-diskspace-reclaim/" id="article-nav-newer" class="article-nav-link-wrap">
+      <i class="icon-circle-left"></i>
+      <div class="article-nav-title">
+        
+          MongoDB磁盘空间回收
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2016/01/28/mongodb-ops-introduce/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">MongoDB OPS Manager介绍</div>
+      <i class="icon-circle-right"></i>
+    </a>
+  
+</nav>
+
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
         </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2013/07/10/mutt-send-mail-usage/">使用mutt自动发送邮件</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Linux</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">mutt</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
+        
+        
+    </div>
+</aside>
 
 
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2013/06/24/mussh-pdsh-pssh-usage/" class="archive-article-date">
-  	<time datetime="2013-06-24T03:16:06.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-06-24</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2013/06/24/mussh-pdsh-pssh-usage/">mussh、pdsh、pssh的简单使用</a>
-    </h1>
-  
 
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Linux</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">批量管理</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2013/05/14/fork-and-shell-inherit-environment-variable/" class="archive-article-date">
-  	<time datetime="2013-05-14T04:00:41.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-05-14</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2013/05/14/fork-and-shell-inherit-environment-variable/">关于fork以及子shell继承环境变量的疑问</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2013/05/14/etc-shells-file-usage/" class="archive-article-date">
-  	<time datetime="2013-05-14T00:50:15.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-05-14</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2013/05/14/etc-shells-file-usage/">/etc/shells文件用途</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2013/05/11/server-batch-manage-tool-introduction/" class="archive-article-date">
-  	<time datetime="2013-05-11T06:33:35.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-05-11</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2013/05/11/server-batch-manage-tool-introduction/">服务器批量管理工具</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Linux</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">批量管理</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2013/05/11/snmp-introduction/" class="archive-article-date">
-  	<time datetime="2013-05-11T05:39:29.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-05-11</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2013/05/11/snmp-introduction/">SNMP介绍</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Linux</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">snmp</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
   
   
-    </div></section>
   
 
-    
+  
+
+  
+
+  
+  
+<section class="comments" id="comments">
+    <div id="gitment_thread"></div>
+    <link rel="stylesheet" href="https://imsun.github.io/gitment/style/default.css">
+    <script src="https://imsun.github.io/gitment/dist/gitment.browser.js"></script>
+    <script>
+        var gitment = new Gitment({
+            owner: 'winway',
+            repo: 'winway.github.io',
+            oauth: {
+                client_id: 'ac205f1362174ccbdb1d',
+                client_secret: '42779eaec04b4f1765b777df3fa1c73e24b96943',
+            },
+        })
+        gitment.render('comments')
+    </script>
+</section>
+
+  
 
 
           </div>
@@ -667,9 +439,9 @@
 	var yiliaConfig = {
 		mathjax: false,
 		isHome: false,
-		isPost: false,
+		isPost: true,
 		isArchive: false,
-		isTag: true,
+		isTag: false,
 		isCategory: false,
 		open_in_new: false,
 		toc_hide_index: true,
