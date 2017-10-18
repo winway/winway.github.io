@@ -6,17 +6,19 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://winway.github.io">
-  <title>Category: C | winway&#39;s blog</title>
+  <title>MongoDB在线修改nsSize | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="python, go, devops, hadoop, MongoDB">
-<meta property="og:type" content="website">
-<meta property="og:title" content="winway&#39;s blog">
-<meta property="og:url" content="https://winway.github.io/categories/C/index.html">
+  <meta name="description" content="简介 修改nssize大小 回滚   简介默认情况下，MongoDB(MMAP)的每个数据库的命名空间保存在一个 16MB 的 .ns 文件中，平均每个命名占用约 628 字节，也即整个数据库的命名空间的上限约为 24000。每一个集合、索引都将占用一个命名。所以，如果每个集合有一个索引（比如默认的 _id 索引），那么最多可以创建 12000 个集合。如果索引数更多，则可创建的集合数就更少了">
+<meta name="keywords" content="MongoDB">
+<meta property="og:type" content="article">
+<meta property="og:title" content="MongoDB在线修改nsSize">
+<meta property="og:url" content="https://winway.github.io/2016/01/28/mongodb-change-nssize/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:description" content="python, go, devops, hadoop, MongoDB">
+<meta property="og:description" content="简介 修改nssize大小 回滚   简介默认情况下，MongoDB(MMAP)的每个数据库的命名空间保存在一个 16MB 的 .ns 文件中，平均每个命名占用约 628 字节，也即整个数据库的命名空间的上限约为 24000。每一个集合、索引都将占用一个命名。所以，如果每个集合有一个索引（比如默认的 _id 索引），那么最多可以创建 12000 个集合。如果索引数更多，则可创建的集合数就更少了">
+<meta property="og:updated_time" content="2017-10-18T07:49:15.590Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="winway&#39;s blog">
-<meta name="twitter:description" content="python, go, devops, hadoop, MongoDB">
+<meta name="twitter:title" content="MongoDB在线修改nsSize">
+<meta name="twitter:description" content="简介 修改nssize大小 回滚   简介默认情况下，MongoDB(MMAP)的每个数据库的命名空间保存在一个 16MB 的 .ns 文件中，平均每个命名占用约 628 字节，也即整个数据库的命名空间的上限约为 24000。每一个集合、索引都将占用一个命名。所以，如果每个集合有一个索引（比如默认的 _id 索引），那么最多可以创建 12000 个集合。如果索引数更多，则可创建的集合数就更少了">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -152,124 +154,256 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            
-  
-  
+            <article id="post-mongodb-change-nssize" class="article article-type-post " itemscope itemprop="blogPost">
+  <div class="article-inner">
     
-    
-      
-      
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <a href="/archives/2013" class="archive-year">2013</a>
-        </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2013/07/09/c-debug-macro/" class="archive-article-date">
-  	<time datetime="2013-07-09T12:24:25.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-07-09</time>
-</a>
-        </div>
-    	 
+      <header class="article-header">
+        
   
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2013/07/09/c-debug-macro/">一个方便打印C程序调试信息的宏</a>
+    <h1 class="article-title" itemprop="name">
+      MongoDB在线修改nsSize
     </h1>
   
 
-        <div class="article-info info-on-right">
-          
+        
+        <a href="/2016/01/28/mongodb-change-nssize/" class="archive-article-date">
+  	<time datetime="2016-01-28T06:27:31.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-01-28</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#简介">简介</a></li>
+<li><a href="#修改nssize大小">修改nssize大小</a></li>
+<li><a href="#回滚">回滚</a></li>
+</ul>
+<!-- tocstop -->
+<h2 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h2><p>默认情况下，MongoDB(MMAP)的每个数据库的命名空间保存在一个 16MB 的 .ns 文件中，平均每个命名占用约 628 字节，也即整个数据库的命名空间的上限约为 24000。<br>每一个集合、索引都将占用一个命名。所以，如果每个集合有一个索引（比如默认的 _id 索引），那么最多可以创建 12000 个集合。如果索引数更多，则可创建的集合数就更少了。同时，如果集合数太多，一些操作也会变慢。<br>不过，如果真的需要建立更多的集合的话，MongoDB 也是支持的，只需要在启动时加上“–nssize”参数，这样对应数据库的命名空间文件就可以变得更大以便保存更多的命名。这个命名空间文件（.ns 文件）最大可以为 2G，也就是说最大可以支持约 340 万个命名，如果每个集合有一个索引的话，最多可创建约 170 万个集合。<br>还需要注意，–nssize 只设置新创建的 .ns 文件的大小，如果想改变已经存在的数据库的命名空间，在使用这个参数启动后，还需要运行 db.repairDatabase() 命令来调整尺寸。</p>
+<h2 id="修改nssize大小"><a href="#修改nssize大小" class="headerlink" title="修改nssize大小"></a>修改nssize大小</h2><p><strong>注意：尽量选择集群较空闲的时间段进行，减少单节点的操作时间，确保重启后的节点能够跟得上集群的oplog。最好先操作所有的secondary节点再操作primary节点。操作primary时，先使用stepdown降级，待集群选举出新的primary后再shutdown。</strong></p>
+<p>对副本集中所有的节点执行以下操作：</p>
+<ol>
+<li><p>查看当前库的nssize大小</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line">winway:SECONDARY&gt; use test</div><div class="line">winway:SECONDARY&gt; db.stats()</div><div class="line">&#123;</div><div class="line">        &quot;db&quot; : &quot;admin&quot;,</div><div class="line">        &quot;collections&quot; : 3,</div><div class="line">        &quot;objects&quot; : 6,</div><div class="line">        &quot;avgObjSize&quot; : 62,</div><div class="line">        &quot;dataSize&quot; : 372,</div><div class="line">        &quot;storageSize&quot; : 16384,</div><div class="line">        &quot;numExtents&quot; : 3,</div><div class="line">        &quot;indexes&quot; : 1,</div><div class="line">        &quot;indexSize&quot; : 8176,</div><div class="line">        &quot;fileSize&quot; : 201326592,</div><div class="line">        &quot;nsSizeMB&quot; : 16,</div><div class="line">        &quot;ok&quot; : 1</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+<li><p>关闭当前节点，同时登陆其他节点查看集群状态是否正常</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">winway:SECONDARY&gt; use admin</div><div class="line">switched to db admin</div><div class="line">winway:SECONDARY &gt; db.shutdownServer()</div><div class="line">Mon Jan 26 15:30:46 DBClientCursor::init call() failed</div><div class="line">Mon Jan 26 15:30:46 query failed : admin.$cmd &#123; shutdown: 1.0 &#125; to: 127.0.0.1:4422</div><div class="line">server should be down...</div><div class="line">Mon Jan 26 15:30:46 trying reconnect to 127.0.0.1:4422</div><div class="line">Mon Jan 26 15:30:46 reconnect 127.0.0.1:4422 ok</div><div class="line">Mon Jan 26 15:30:46 Socket recv() errno:104 Connection reset by peer 127.0.0.1:4422</div><div class="line">Mon Jan 26 15:30:46 SocketException: remote: 127.0.0.1:4422 error: 9001 socket exception [1] server [127.0.0.1:4422]</div><div class="line">Mon Jan 26 15:30:46 DBClientCursor::init call() failed</div></pre></td></tr></table></figure>
+</li>
+<li><p>以standalone的方式用另外的端口（确保端口空闲）启动</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">mongod --dbpath /data/mongodb/winway-data/ --port 1988 --nssize 32</div></pre></td></tr></table></figure>
+<p> nssize是要修改成为的值</p>
+</li>
+<li><p>连接mongd</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">mongo --port 1988</div></pre></td></tr></table></figure>
+</li>
+<li><p>使用repairDatabase修改现存库的nssize</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div></pre></td><td class="code"><pre><div class="line">&gt; use test</div><div class="line">switched to db test</div><div class="line">&gt; db.stats()</div><div class="line">&#123;</div><div class="line">        &quot;db&quot; : &quot;test&quot;,</div><div class="line">        &quot;collections&quot; : 11,</div><div class="line">        &quot;objects&quot; : 348,</div><div class="line">        &quot;avgObjSize&quot; : 272.7241379310345,</div><div class="line">        &quot;dataSize&quot; : 94908,</div><div class="line">        &quot;storageSize&quot; : 446464,</div><div class="line">        &quot;numExtents&quot; : 13,</div><div class="line">        &quot;indexes&quot; : 10,</div><div class="line">        &quot;indexSize&quot; : 98112,</div><div class="line">        &quot;fileSize&quot; : 201326592,</div><div class="line">        &quot;nsSizeMB&quot; : 16,</div><div class="line">        &quot;ok&quot; : 1</div><div class="line">&#125;</div><div class="line">&gt; db.repairDatabase()</div><div class="line">&#123; &quot;ok&quot; : 1 &#125;</div><div class="line">&gt; db.stats()</div><div class="line">&#123;</div><div class="line">        &quot;db&quot; : &quot;test&quot;,</div><div class="line">        &quot;collections&quot; : 11,</div><div class="line">        &quot;objects&quot; : 348,</div><div class="line">        &quot;avgObjSize&quot; : 272.8045977011494,</div><div class="line">        &quot;dataSize&quot; : 94936,</div><div class="line">        &quot;storageSize&quot; : 245760,</div><div class="line">        &quot;numExtents&quot; : 13,</div><div class="line">        &quot;indexes&quot; : 10,</div><div class="line">        &quot;indexSize&quot; : 98112,</div><div class="line">        &quot;fileSize&quot; : 201326592,</div><div class="line">        &quot;nsSizeMB&quot; : 32,</div><div class="line">        &quot;ok&quot; : 1</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+<li><p>关闭该节点</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">&gt; use admin</div><div class="line">switched to db admin</div><div class="line">&gt; db.shutdownServer()</div><div class="line">Mon Jan 26 15:49:46 DBClientCursor::init call() failed</div><div class="line">Mon Jan 26 15:49:46 query failed : admin.$cmd &#123; shutdown: 1.0 &#125; to: 127.0.0.1:1988</div><div class="line">server should be down...</div><div class="line">Mon Jan 26 15:49:46 trying reconnect to 127.0.0.1:1988</div><div class="line">Mon Jan 26 15:49:46 reconnect 127.0.0.1:1988 ok</div><div class="line">Mon Jan 26 15:49:46 Socket recv() errno:104 Connection reset by peer 127.0.0.1:1988</div><div class="line">Mon Jan 26 15:49:46 SocketException: remote: 127.0.0.1:1988 error: 9001 socket exception [1] server [127.0.0.1:1988]</div><div class="line">Mon Jan 26 15:49:46 DBClientCursor::init call() failed</div></pre></td></tr></table></figure>
+</li>
+<li><p>修改配置文件中的nssize大小</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">nssize=32</div></pre></td></tr></table></figure>
+</li>
+<li><p>以副本集的形式重启该节点</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">mongod -f /data/mongodb/conf/winway-mongo-conf</div></pre></td></tr></table></figure>
+</li>
+<li><p>查看nssize大小和集群状态</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">&gt; use test</div><div class="line">switched to db test</div><div class="line">&gt; db.stats()</div><div class="line">&#123;</div><div class="line">        &quot;db&quot; : &quot;test&quot;,</div><div class="line">        &quot;collections&quot; : 11,</div><div class="line">        &quot;objects&quot; : 348,</div><div class="line">        &quot;avgObjSize&quot; : 272.8045977011494,</div><div class="line">        &quot;dataSize&quot; : 94936,</div><div class="line">        &quot;storageSize&quot; : 245760,</div><div class="line">        &quot;numExtents&quot; : 13,</div><div class="line">        &quot;indexes&quot; : 10,</div><div class="line">        &quot;indexSize&quot; : 98112,</div><div class="line">        &quot;fileSize&quot; : 201326592,</div><div class="line">        &quot;nsSizeMB&quot; : 32,</div><div class="line">        &quot;ok&quot; : 1</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<h2 id="回滚"><a href="#回滚" class="headerlink" title="回滚"></a>回滚</h2><p>本操作逐个节点进行，如果在某个节点失败则重新初始化该节点即可，不影响集群对外服务</p>
+
+      
+
+      
+        <div class="page-reward">
+          <a href="javascript:;" class="page-reward-btn tooltip-top">
+            <div class="tooltip tooltip-east">
+            <span class="tooltip-item">
+              赏
+            </span>
+            <span class="tooltip-content">
+              <span class="tooltip-text">
+                <span class="tooltip-inner">
+                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢你请我吃糖果<i class="icon icon-quo-right"></i></p>
+                  <div class="reward-box">
+                    
+                    <div class="reward-box-item">
+                      <img class="reward-img" src="/img/alipay.jpg">
+                      <span class="reward-type">支付宝</span>
+                    </div>
+                    
+                    
+                    <div class="reward-box-item">
+                      <img class="reward-img" src="/img/weixinpay.png">
+                      <span class="reward-type">微信</span>
+                    </div>
+                    
+                  </div>
+                </span>
+              </span>
+            </span>
+          </div>
+          </a>
+        </div>
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
 	<div class="article-tag tagcloud">
 		<i class="icon-price-tags icon"></i>
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">C</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
         		</li>
       		
 		</ul>
 	</div>
 
-          
+      
 	<div class="article-category tagcloud">
 		<i class="icon-book icon"></i>
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="/categories/C/" class="article-tag-list-link color2">C</a>
+        			<a href="/categories/MongoDB/" class="article-tag-list-link color3">MongoDB</a>
         		</li>
       		
 		</ul>
 	</div>
 
 
+      
+
+      
+        
+<div class="share-btn share-icons tooltip-left">
+  <div class="tooltip tooltip-east">
+    <span class="tooltip-item">
+      <a href="javascript:;" class="share-sns share-outer">
+        <i class="icon icon-share"></i>
+      </a>
+    </span>
+    <span class="tooltip-content">
+      <div class="share-wrap">
+        <div class="share-icons">
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="icon icon-weibo"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="icon icon-weixin"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="icon icon-qq"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="icon icon-douban"></i>
+          </a>
+          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a>
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="icon icon-facebook"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="icon icon-twitter"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="icon icon-google"></i>
+          </a>
         </div>
-        <div class="clearfix"></div>
-    </header>
+      </div>
+    </span>
+  </div>
+</div>
+
+<div class="page-modal wx-share js-wx-box">
+    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="http://s.jiathis.com/qrcode.php?url=https://winway.github.io/2016/01/28/mongodb-change-nssize/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div class="mask js-mask"></div>
+      
+      <div class="clearfix"></div>
+    </div>
   </div>
 </article>
+
   
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2013/07/09/a-LAN-arp-attacker/" class="archive-article-date">
-  	<time datetime="2013-07-09T10:29:46.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-07-09</time>
-</a>
+<nav id="article-nav">
+  
+    <a href="/2016/06/25/mongodb-diskspace-reclaim/" id="article-nav-newer" class="article-nav-link-wrap">
+      <i class="icon-circle-left"></i>
+      <div class="article-nav-title">
+        
+          MongoDB磁盘空间回收
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2016/01/28/mongodb-change-oplogsize/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">MongoDB在线修改oplogSize</div>
+      <i class="icon-circle-right"></i>
+    </a>
+  
+</nav>
+
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
         </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2013/07/09/a-LAN-arp-attacker/">局域网ARP欺骗程序</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">C</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">arp欺骗</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/C/" class="article-tag-list-link color2">C</a>
-        		</li>
-      		
-		</ul>
-	</div>
+        
+        
+    </div>
+</aside>
 
 
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
+
   
   
-    </div></section>
   
 
-    
+  
+
+  
+
+  
+  
+<section class="comments" id="comments">
+    <div id="gitment_thread"></div>
+    <link rel="stylesheet" href="https://imsun.github.io/gitment/style/default.css">
+    <script src="https://imsun.github.io/gitment/dist/gitment.browser.js"></script>
+    <script>
+        var gitment = new Gitment({
+            owner: 'winway',
+            repo: 'winway.github.io',
+            oauth: {
+                client_id: 'ac205f1362174ccbdb1d',
+                client_secret: '42779eaec04b4f1765b777df3fa1c73e24b96943',
+            },
+        })
+        gitment.render('comments')
+    </script>
+</section>
+
+  
 
 
           </div>
@@ -294,10 +428,10 @@
 	var yiliaConfig = {
 		mathjax: false,
 		isHome: false,
-		isPost: false,
+		isPost: true,
 		isArchive: false,
 		isTag: false,
-		isCategory: true,
+		isCategory: false,
 		open_in_new: false,
 		toc_hide_index: true,
 		root: "/",
