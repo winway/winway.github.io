@@ -377,6 +377,117 @@
 
 
   
+    <article id="post-fuse-dfs" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/04/13/fuse-dfs/">使用fuse_dfs挂载hdfs</a>
+    </h1>
+  
+
+        
+        <a href="/2017/04/13/fuse-dfs/" class="archive-article-date">
+  	<time datetime="2017-04-13T03:13:06.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-04-13</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#介绍">介绍</a></li>
+<li><a href="#安装配置">安装配置</a></li>
+<li><a href="#使用">使用</a></li>
+</ul>
+<!-- tocstop -->
+<h2 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h2><p>用户空间文件系统（Filesystem in Userspace，简称FUSE）是一个面向类Unix计算机操作系统的软件接口，它使无特权的用户能够无需编辑内核代码而创建自己的文件系统。目前Linux通过内核模块对此进行支持。一些文件系统如ZFS、glusterfs和lustre使用FUSE实现。Linux用于支持用户空间文件系统的内核模块名叫FUSE，FUSE一词有时特指Linux下的用户空间文件系统。<br>通过使用Hadoop的Fuse-DFS分类模块，任意一个Hadoop文件系统(不过一般为HDFS)都可以作为一个标准文件系统进行挂载。我们随后便可以使用Unix的工具(如ls和cat)与这个文件系统交互，还可以通过任意一种编程语言使用POSIX库来访问文件系统。Fuse-DFS是用C语言实现的，使用libhdfs作为与HDFS的接口。</p>
+<h2 id="安装配置"><a href="#安装配置" class="headerlink" title="安装配置"></a>安装配置</h2><p>fuse的安装比较复杂，具体包括：</p>
+<ol>
+<li><p>安装 fuse，挂载内核模块modprobe fuse</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">yum install fuse</div><div class="line">yum install fuse-devel</div><div class="line">yum install fuse-libs</div><div class="line">modprobe fuse</div></pre></td></tr></table></figure>
+</li>
+<li><p>配置fuse</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">groupadd fuse</div><div class="line">chgrp fuse /dev/fuse</div><div class="line">usermod -a -G fuse root</div><div class="line">add &quot;user_allow_other&quot; to /etc/fuse.conf</div></pre></td></tr></table></figure>
+</li>
+<li><p>编译hadoop源码，生成fuse_dfs可执行文件和libhdfs.so，因为 hadoop 的二进制发布包中不包含 fuse_dfs。hadoop源码编译可参考：<br><a href="https://svn.apache.org/repos/asf/hadoop/common/branches/MR-4327/BUILDING.txt" target="_blank" rel="external">https://svn.apache.org/repos/asf/hadoop/common/branches/MR-4327/BUILDING.txt</a><br><a href="https://pravinchavan.wordpress.com/2013/04/14/building-apache-hadoop-from-source/" target="_blank" rel="external">https://pravinchavan.wordpress.com/2013/04/14/building-apache-hadoop-from-source/</a><br><a href="http://www.aboutyun.com/thread-12183-1-1.html" target="_blank" rel="external">http://www.aboutyun.com/thread-12183-1-1.html</a></p>
+</li>
+<li>修改fuse_dfs_wrapper.sh（从hadoop源码包中获取），指定hadoop客户端信息</li>
+</ol>
+<p>最终需要的文件如下：<br><img src="http://ot69fbvko.bkt.clouddn.com/fuse-dfs.bmp" alt=""></p>
+<h2 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h2><ol>
+<li>mkdir -p ./mnt/hdfs/</li>
+<li>sh fuse_dfs_wrapper.sh -o uid=$(id root -u) -o gid=$(id root -g) hdfs://democluster/ ./mnt/hdfs</li>
+<li>开始使用</li>
+<li>卸载fusermount -u  ./mnt/hdfs</li>
+</ol>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">hadoop</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/hadoop/" class="article-tag-list-link color2">hadoop</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/04/13/fuse-dfs/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-hbase-rolling-restart" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1194,142 +1305,6 @@
 
 
   
-    <article id="post-mongodb-change-oplogsize" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2016/01/28/mongodb-change-oplogsize/">MongoDB在线修改oplogSize</a>
-    </h1>
-  
-
-        
-        <a href="/2016/01/28/mongodb-change-oplogsize/" class="archive-article-date">
-  	<time datetime="2016-01-28T06:27:30.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-01-28</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#oplog简介">oplog简介</a></li>
-<li><a href="#修改oplogsize大小">修改oplogSize大小</a></li>
-<li><a href="#回滚">回滚</a></li>
-</ul>
-<!-- tocstop -->
-<h2 id="oplog简介"><a href="#oplog简介" class="headerlink" title="oplog简介"></a>oplog简介</h2><p>oplog（operations log）是一个特殊的固定集合（capped collection），用来记录所有的“写”（insert、update、delete以及修改索引等）操作纪录。MongoDB将数据库操作应用到primary然后记录到primary的oplog。secondary从primary复制oplog并将操作应用到自己（异步，有一定延迟，如果oplog大小不当，可能出现oplog溢出，从节点不可用）。所有的副本集成员维持一个oplog的副本来维持数据库的当前状态。<br>对于64位的Linux, Solaris, FreeBSD和Windows, MongoDB默认分配可用磁盘空间的5%作为oplog。如果这个值小于1G，则分配1G作为oplog。<br>oplog是一个固定集合（capped collection）,所以在正常操作期间不能修改他的大小。在集群初始化的时候最好考虑好该值的大小，因为后续修改起来比较麻烦。<br>在大多数情况下默认的oplog大小是可接受的。Oplog的大小由应用的操作行为决定。如果应用经常在短时间内执行大量的批量update、delete操作，从而产生大量的“写”操作纪录，则应该适当增大oplog的大小，避免primary的旧的oplog记录在被secondary同步走之前被新产生的oplog纪录覆盖掉。</p>
-<h2 id="修改oplogsize大小"><a href="#修改oplogSize大小" class="headerlink" title="修改oplogSize大小"></a>修改oplogSize大小</h2><p><strong>注意：尽量选择集群较空闲的时间段进行，减少单节点的操作时间，确保重启后的节点能够跟得上集群的oplog。最好先操作所有的secondary节点再操作primary节点。操作primary时，先使用stepdown降级，待集群选举出新的primary后再shutdown。</strong></p>
-<p>对副本集中所有的节点执行以下操作：</p>
-<ol>
-<li><p>查看当前oplogsize大小</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">demo:SECONDARY&gt; db.printReplicationInfo()</div><div class="line">configured oplog size:   25000MB</div><div class="line">log length start to end: 1290396secs (358.44hrs)</div><div class="line">oplog first event time:  Tue Dec 09 2014 15:33:05 GMT+0800 (CST)</div><div class="line">oplog last event time:   Wed Dec 24 2014 13:59:41 GMT+0800 (CST)</div><div class="line">now:                     Mon Jan 26 2015 15:28:44 GMT+0800 (CST)</div></pre></td></tr></table></figure>
-</li>
-<li><p>关闭当前节点，登陆其他节点查看集群状态是否正常</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">demo:SECONDARY&gt; use admin</div><div class="line">switched to db admin</div><div class="line">demo:SECONDARY&gt; db.shutdownServer()</div><div class="line">Mon Jan 26 15:30:46 DBClientCursor::init call() failed</div><div class="line">Mon Jan 26 15:30:46 query failed : admin.$cmd &#123; shutdown: 1.0 &#125; to: 127.0.0.1:4422</div><div class="line">server should be down...</div><div class="line">Mon Jan 26 15:30:46 trying reconnect to 127.0.0.1:4422</div><div class="line">Mon Jan 26 15:30:46 reconnect 127.0.0.1:4422 ok</div><div class="line">Mon Jan 26 15:30:46 Socket recv() errno:104 Connection reset by peer 127.0.0.1:4422</div><div class="line">Mon Jan 26 15:30:46 SocketException: remote: 127.0.0.1:4422 error: 9001 socket exception [1] server [127.0.0.1:4422]</div><div class="line">Mon Jan 26 15:30:46 DBClientCursor::init call() failed</div></pre></td></tr></table></figure>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div></pre></td><td class="code"><pre><div class="line">demo:PRIMARY&gt; rs.status()</div><div class="line">&#123;</div><div class="line">        &quot;set&quot; : &quot;demo&quot;,</div><div class="line">        &quot;date&quot; : ISODate(&quot;2015-01-26T07:30:58Z&quot;),</div><div class="line">        &quot;myState&quot; : 1,</div><div class="line">        &quot;members&quot; : [</div><div class="line">                &#123;</div><div class="line">                        &quot;_id&quot; : 0,</div><div class="line">                        &quot;name&quot; : &quot;demo01.mongodb:4422&quot;,</div><div class="line">                        &quot;health&quot; : 1,</div><div class="line">                        &quot;state&quot; : 1,</div><div class="line">                        &quot;stateStr&quot; : &quot;PRIMARY&quot;,</div><div class="line">                        &quot;uptime&quot; : 4147819,</div><div class="line">                        &quot;optime&quot; : Timestamp(1419400781000, 2),</div><div class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2014-12-24T05:59:41Z&quot;),</div><div class="line">                        &quot;self&quot; : true</div><div class="line">                &#125;,</div><div class="line">                &#123;</div><div class="line">                        &quot;_id&quot; : 1,</div><div class="line">                        &quot;name&quot; : &quot;demo02.mongodb:4422&quot;,</div><div class="line">                        &quot;health&quot; : 0,</div><div class="line">                        &quot;state&quot; : 8,</div><div class="line">                        &quot;stateStr&quot; : &quot;(not reachable/healthy)&quot;,</div><div class="line">                        &quot;uptime&quot; : 0,</div><div class="line">                        &quot;optime&quot; : Timestamp(1419400781000, 2),</div><div class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2014-12-24T05:59:41Z&quot;),</div><div class="line">                        &quot;lastHeartbeat&quot; : ISODate(&quot;2015-01-26T07:30:45Z&quot;),</div><div class="line">                        &quot;pingMs&quot; : 0,</div><div class="line">                        &quot;errmsg&quot; : &quot;socket exception [CONNECT_ERROR] for demo02.mongodb:4422&quot;</div><div class="line">                &#125;,</div><div class="line">                &#123;</div><div class="line">                        &quot;_id&quot; : 2,</div><div class="line">                        &quot;name&quot; : &quot;demo03.mongodb:4422&quot;,</div><div class="line">                        &quot;health&quot; : 1,</div><div class="line">                        &quot;state&quot; : 2,</div><div class="line">                        &quot;stateStr&quot; : &quot;SECONDARY&quot;,</div><div class="line">                        &quot;uptime&quot; : 4147071,</div><div class="line">                        &quot;optime&quot; : Timestamp(1419400781000, 2),</div><div class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2014-12-24T05:59:41Z&quot;),</div><div class="line">                        &quot;lastHeartbeat&quot; : ISODate(&quot;2015-01-26T07:30:58Z&quot;),</div><div class="line">                        &quot;pingMs&quot; : 1</div><div class="line">                &#125;</div><div class="line">        ],</div><div class="line">        &quot;ok&quot; : 1</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-<li><p>以standalone的方式用另外的端口（确保端口空闲）启动</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">mongod --port 1988 --dbpath /data/mongodb/demo-data/</div></pre></td></tr></table></figure>
-</li>
-<li><p>备份当前的oplog</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">mongodump --db local --collection &apos;oplog.rs&apos; --port 1988</div></pre></td></tr></table></figure>
-</li>
-<li><p>连接mongd</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">mongo --port 1988</div></pre></td></tr></table></figure>
-</li>
-<li><p>保存oplog的最后一条纪录</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line">&gt; use local</div><div class="line">switched to db local</div><div class="line">&gt; db.temp.drop()</div><div class="line">false</div><div class="line">&gt; db.temp.save( db.oplog.rs.find( &#123; &#125;, &#123; ts: 1, h: 1 &#125; ).sort( &#123;$natural : -1&#125; ).limit(1).next() )</div><div class="line">&gt; db.temp.find()</div><div class="line">&#123; &quot;_id&quot; : ObjectId(&quot;54c5efb26833f799aead55f8&quot;), &quot;ts&quot; : Timestamp(1419400781000, 2), &quot;h&quot; : NumberLong(&quot;-6774720947739689692&quot;) &#125;</div></pre></td></tr></table></figure>
-</li>
-<li><p>删除oplog.rs</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">&gt; db.oplog.rs.drop()</div><div class="line">true</div></pre></td></tr></table></figure>
-</li>
-<li><p>创建新的oplog，并指定大小，如1073741824 = 1GB</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">&gt; db.runCommand( &#123; create : &quot;oplog.rs&quot;, capped : true, size : 1073741824 &#125; )</div><div class="line">&#123; &quot;ok&quot; : 1 &#125;</div></pre></td></tr></table></figure>
-</li>
-<li><p>插入之前保存的旧oplog的最后一条纪录</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">&gt; db.oplog.rs.save( db.temp.findOne() )</div><div class="line">&gt; db.oplog.rs.find()</div><div class="line">&#123; &quot;_id&quot; : ObjectId(&quot;54c5efb26833f799aead55f8&quot;), &quot;ts&quot; : Timestamp(1419400781000, 2), &quot;h&quot; : NumberLong(&quot;-6774720947739689692&quot;) &#125;</div><div class="line">&gt; db.temp.drop()</div><div class="line">true</div></pre></td></tr></table></figure>
-</li>
-<li><p>关闭该节点</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">&gt; use admin</div><div class="line">switched to db admin</div><div class="line">&gt; db.shutdownServer()</div><div class="line">Mon Jan 26 15:49:46 DBClientCursor::init call() failed</div><div class="line">Mon Jan 26 15:49:46 query failed : admin.$cmd &#123; shutdown: 1.0 &#125; to: 127.0.0.1:1988</div><div class="line">server should be down...</div><div class="line">Mon Jan 26 15:49:46 trying reconnect to 127.0.0.1:1988</div><div class="line">Mon Jan 26 15:49:46 reconnect 127.0.0.1:1988 ok</div><div class="line">Mon Jan 26 15:49:46 Socket recv() errno:104 Connection reset by peer 127.0.0.1:1988</div><div class="line">Mon Jan 26 15:49:46 SocketException: remote: 127.0.0.1:1988 error: 9001 socket exception [1] server [127.0.0.1:1988] </div><div class="line">Mon Jan 26 15:49:46 DBClientCursor::init call() failed</div></pre></td></tr></table></figure>
-</li>
-<li><p>修改配置文件中的oplogSize大小（不是必须）</p>
-</li>
-<li><p>以副本集的形式重启该节点</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">mongod -f /data/mongodb/conf/demo-mongo-conf</div></pre></td></tr></table></figure>
-</li>
-<li><p>查看oplogsize大小和集群状态</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div></pre></td><td class="code"><pre><div class="line">demo:SECONDARY&gt; db.printReplicationInfo()</div><div class="line">configured oplog size:   1024MB</div><div class="line">log length start to end: 0secs (0hrs)</div><div class="line">oplog first event time:  Wed Dec 24 2014 13:59:41 GMT+0800 (CST)</div><div class="line">oplog last event time:   Wed Dec 24 2014 13:59:41 GMT+0800 (CST)</div><div class="line">now:                     Mon Jan 26 2015 15:53:54 GMT+0800 (CST)</div><div class="line">demo:SECONDARY&gt; rs.status()</div><div class="line">&#123;</div><div class="line">        &quot;set&quot; : &quot;demo&quot;,</div><div class="line">        &quot;date&quot; : ISODate(&quot;2015-01-26T08:09:43Z&quot;),</div><div class="line">        &quot;myState&quot; : 2,</div><div class="line">        &quot;syncingTo&quot; : &quot;demo01.mongodb:4422&quot;,</div><div class="line">        &quot;members&quot; : [</div><div class="line">                &#123;</div><div class="line">                        &quot;_id&quot; : 0,</div><div class="line">                        &quot;name&quot; : &quot;demo01.mongodb:4422&quot;,</div><div class="line">                        &quot;health&quot; : 1,</div><div class="line">                        &quot;state&quot; : 1,</div><div class="line">                        &quot;stateStr&quot; : &quot;PRIMARY&quot;,</div><div class="line">                        &quot;uptime&quot; : 492,</div><div class="line">                        &quot;optime&quot; : Timestamp(1422259325000, 1),</div><div class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2015-01-26T08:02:05Z&quot;),</div><div class="line">                        &quot;lastHeartbeat&quot; : ISODate(&quot;2015-01-26T08:09:43Z&quot;),</div><div class="line">                        &quot;pingMs&quot; : 1</div><div class="line">                &#125;,</div><div class="line">                &#123;</div><div class="line">                        &quot;_id&quot; : 1,</div><div class="line">                        &quot;name&quot; : &quot;demo02.mongodb:4422&quot;,</div><div class="line">                        &quot;health&quot; : 1,</div><div class="line">                        &quot;state&quot; : 2,</div><div class="line">                        &quot;stateStr&quot; : &quot;SECONDARY&quot;,</div><div class="line">                        &quot;uptime&quot; : 490,</div><div class="line">                        &quot;optime&quot; : Timestamp(1422259325000, 1),</div><div class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2015-01-26T08:02:05Z&quot;),</div><div class="line">                        &quot;lastHeartbeat&quot; : ISODate(&quot;2015-01-26T08:09:43Z&quot;),</div><div class="line">                        &quot;pingMs&quot; : 1</div><div class="line">                &#125;,</div><div class="line">                &#123;</div><div class="line">                        &quot;_id&quot; : 2,</div><div class="line">                        &quot;name&quot; : &quot;demo03.mongodb:4422&quot;,</div><div class="line">                        &quot;health&quot; : 1,</div><div class="line">                        &quot;state&quot; : 2,</div><div class="line">                        &quot;stateStr&quot; : &quot;SECONDARY&quot;,</div><div class="line">                        &quot;uptime&quot; : 493,</div><div class="line">                        &quot;optime&quot; : Timestamp(1422259325000, 1),</div><div class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2015-01-26T08:02:05Z&quot;),</div><div class="line">                        &quot;self&quot; : true</div><div class="line">                &#125;</div><div class="line">        ],</div><div class="line">        &quot;ok&quot; : 1</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-</ol>
-<h2 id="回滚"><a href="#回滚" class="headerlink" title="回滚"></a>回滚</h2><p>使用mongorestore恢复oplog.rs<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div></pre></td><td class="code"><pre><div class="line">mongorestore --port 1988 --db local --collection &apos;oplog.rs&apos; --drop dump/local/oplog.rs.bson</div><div class="line">connected to: 127.0.0.1:1988</div><div class="line">Mon Jan 26 16:25:09 dump/local/oplog.rs.bson</div><div class="line">Mon Jan 26 16:25:09     going into namespace [local.oplog.rs]</div><div class="line">Mon Jan 26 16:25:09      dropping</div><div class="line">Mon Jan 26 16:25:53     Created collection local.oplog.rs with options: &#123; &quot;create&quot; : &quot;oplog.rs&quot;, &quot;size&quot; : 26214400000, &quot;capped&quot; : true, &quot;autoIndexId&quot; : false &#125;</div><div class="line">Mon Jan 26 16:25:56             47602202/1453381602     3%      (bytes)</div><div class="line">Mon Jan 26 16:26:00             87000058/1453381602     5%      (bytes)</div><div class="line">Mon Jan 26 16:26:03             129556190/1453381602    8%      (bytes)</div><div class="line">Mon Jan 26 16:26:06             193797635/1453381602    13%     (bytes)</div><div class="line">Mon Jan 26 16:26:09             386061413/1453381602    26%     (bytes)</div><div class="line">Mon Jan 26 16:26:12             526376708/1453381602    36%     (bytes)</div><div class="line">Mon Jan 26 16:26:15             697955917/1453381602    48%     (bytes)</div><div class="line">Mon Jan 26 16:26:18             867686914/1453381602    59%     (bytes)</div><div class="line">Mon Jan 26 16:26:21             930218947/1453381602    64%     (bytes)</div><div class="line">Mon Jan 26 16:26:24             990493767/1453381602    68%     (bytes)</div><div class="line">Mon Jan 26 16:26:27             1037063408/1453381602   71%     (bytes)</div><div class="line">Mon Jan 26 16:26:30             1092791895/1453381602   75%     (bytes)</div><div class="line">Mon Jan 26 16:26:33             1130693201/1453381602   77%     (bytes)</div><div class="line">Mon Jan 26 16:26:36             1204092371/1453381602   82%     (bytes)</div><div class="line">Mon Jan 26 16:26:39             1378685459/1453381602   94%     (bytes)</div><div class="line">1427593 objects found</div></pre></td></tr></table></figure></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/MongoDB/" class="article-tag-list-link color3">MongoDB</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2016/01/28/mongodb-change-oplogsize/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/2/">&laquo; Prev</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><a class="page-number" href="/page/5/">5</a><a class="extend next" rel="next" href="/page/4/">Next &raquo;</a>
@@ -1461,15 +1436,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hexo</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">github pages</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1482,10 +1457,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">mutt</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1514,6 +1485,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">salt源码解析</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
               </li>
              
               <li class="article-tag-list-item">

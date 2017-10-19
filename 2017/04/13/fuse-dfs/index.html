@@ -6,15 +6,21 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://winway.github.io">
-  <title>winway&#39;s blog</title>
+  <title>使用fuse_dfs挂载hdfs | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta property="og:type" content="website">
-<meta property="og:title" content="winway&#39;s blog">
-<meta property="og:url" content="https://winway.github.io/404.html">
+  <meta name="description" content="介绍 安装配置 使用   介绍用户空间文件系统（Filesystem in Userspace，简称FUSE）是一个面向类Unix计算机操作系统的软件接口，它使无特权的用户能够无需编辑内核代码而创建自己的文件系统。目前Linux通过内核模块对此进行支持。一些文件系统如ZFS、glusterfs和lustre使用FUSE实现。Linux用于支持用户空间文件系统的内核模块名叫FUSE，FUSE一词">
+<meta name="keywords" content="hadoop">
+<meta property="og:type" content="article">
+<meta property="og:title" content="使用fuse_dfs挂载hdfs">
+<meta property="og:url" content="https://winway.github.io/2017/04/13/fuse-dfs/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:updated_time" content="2017-07-17T10:40:00.100Z">
+<meta property="og:description" content="介绍 安装配置 使用   介绍用户空间文件系统（Filesystem in Userspace，简称FUSE）是一个面向类Unix计算机操作系统的软件接口，它使无特权的用户能够无需编辑内核代码而创建自己的文件系统。目前Linux通过内核模块对此进行支持。一些文件系统如ZFS、glusterfs和lustre使用FUSE实现。Linux用于支持用户空间文件系统的内核模块名叫FUSE，FUSE一词">
+<meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/fuse-dfs.bmp">
+<meta property="og:updated_time" content="2017-10-19T01:06:14.624Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="winway&#39;s blog">
+<meta name="twitter:title" content="使用fuse_dfs挂载hdfs">
+<meta name="twitter:description" content="介绍 安装配置 使用   介绍用户空间文件系统（Filesystem in Userspace，简称FUSE）是一个面向类Unix计算机操作系统的软件接口，它使无特权的用户能够无需编辑内核代码而创建自己的文件系统。目前Linux通过内核模块对此进行支持。一些文件系统如ZFS、glusterfs和lustre使用FUSE实现。Linux用于支持用户空间文件系统的内核模块名叫FUSE，FUSE一词">
+<meta name="twitter:image" content="http://ot69fbvko.bkt.clouddn.com/fuse-dfs.bmp">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -150,12 +156,54 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="page-undefined" class="article article-type-page " itemscope itemprop="blogPost">
+            <article id="post-fuse-dfs" class="article article-type-post " itemscope itemprop="blogPost">
   <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      使用fuse_dfs挂载hdfs
+    </h1>
+  
+
+        
+        <a href="/2017/04/13/fuse-dfs/" class="archive-article-date">
+  	<time datetime="2017-04-13T03:13:06.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-04-13</time>
+</a>
+        
+      </header>
     
     <div class="article-entry" itemprop="articleBody">
       
-        <script type="text/javascript" src="//qzonestyle.gtimg.cn/qzone/hybrid/app/404/search_children.js" charset="utf-8"></script>
+        <!-- toc -->
+<ul>
+<li><a href="#介绍">介绍</a></li>
+<li><a href="#安装配置">安装配置</a></li>
+<li><a href="#使用">使用</a></li>
+</ul>
+<!-- tocstop -->
+<h2 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h2><p>用户空间文件系统（Filesystem in Userspace，简称FUSE）是一个面向类Unix计算机操作系统的软件接口，它使无特权的用户能够无需编辑内核代码而创建自己的文件系统。目前Linux通过内核模块对此进行支持。一些文件系统如ZFS、glusterfs和lustre使用FUSE实现。Linux用于支持用户空间文件系统的内核模块名叫FUSE，FUSE一词有时特指Linux下的用户空间文件系统。<br>通过使用Hadoop的Fuse-DFS分类模块，任意一个Hadoop文件系统(不过一般为HDFS)都可以作为一个标准文件系统进行挂载。我们随后便可以使用Unix的工具(如ls和cat)与这个文件系统交互，还可以通过任意一种编程语言使用POSIX库来访问文件系统。Fuse-DFS是用C语言实现的，使用libhdfs作为与HDFS的接口。</p>
+<h2 id="安装配置"><a href="#安装配置" class="headerlink" title="安装配置"></a>安装配置</h2><p>fuse的安装比较复杂，具体包括：</p>
+<ol>
+<li><p>安装 fuse，挂载内核模块modprobe fuse</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">yum install fuse</div><div class="line">yum install fuse-devel</div><div class="line">yum install fuse-libs</div><div class="line">modprobe fuse</div></pre></td></tr></table></figure>
+</li>
+<li><p>配置fuse</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">groupadd fuse</div><div class="line">chgrp fuse /dev/fuse</div><div class="line">usermod -a -G fuse root</div><div class="line">add &quot;user_allow_other&quot; to /etc/fuse.conf</div></pre></td></tr></table></figure>
+</li>
+<li><p>编译hadoop源码，生成fuse_dfs可执行文件和libhdfs.so，因为 hadoop 的二进制发布包中不包含 fuse_dfs。hadoop源码编译可参考：<br><a href="https://svn.apache.org/repos/asf/hadoop/common/branches/MR-4327/BUILDING.txt" target="_blank" rel="external">https://svn.apache.org/repos/asf/hadoop/common/branches/MR-4327/BUILDING.txt</a><br><a href="https://pravinchavan.wordpress.com/2013/04/14/building-apache-hadoop-from-source/" target="_blank" rel="external">https://pravinchavan.wordpress.com/2013/04/14/building-apache-hadoop-from-source/</a><br><a href="http://www.aboutyun.com/thread-12183-1-1.html" target="_blank" rel="external">http://www.aboutyun.com/thread-12183-1-1.html</a></p>
+</li>
+<li>修改fuse_dfs_wrapper.sh（从hadoop源码包中获取），指定hadoop客户端信息</li>
+</ol>
+<p>最终需要的文件如下：<br><img src="http://ot69fbvko.bkt.clouddn.com/fuse-dfs.bmp" alt=""></p>
+<h2 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h2><ol>
+<li>mkdir -p ./mnt/hdfs/</li>
+<li>sh fuse_dfs_wrapper.sh -o uid=$(id root -u) -o gid=$(id root -g) hdfs://democluster/ ./mnt/hdfs</li>
+<li>开始使用</li>
+<li>卸载fusermount -u  ./mnt/hdfs</li>
+</ol>
+
       
 
       
@@ -194,7 +242,29 @@
     <div class="article-info article-info-index">
       
       
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">hadoop</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
       
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/hadoop/" class="article-tag-list-link color2">hadoop</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
 
       
 
@@ -244,7 +314,7 @@
     <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="http://s.jiathis.com/qrcode.php?url=https://winway.github.io/404.html" alt="微信分享二维码">
+      <img src="http://s.jiathis.com/qrcode.php?url=https://winway.github.io/2017/04/13/fuse-dfs/" alt="微信分享二维码">
     </div>
 </div>
 
@@ -256,6 +326,25 @@
 </article>
 
   
+<nav id="article-nav">
+  
+    <a href="/2017/05/15/namenode-failover-by-hand/" id="article-nav-newer" class="article-nav-link-wrap">
+      <i class="icon-circle-left"></i>
+      <div class="article-nav-title">
+        
+          NameNode主/备滚动重启步骤
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2017/02/22/hbase-rolling-restart/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">HBASE滚动重启</div>
+      <i class="icon-circle-right"></i>
+    </a>
+  
+</nav>
+
 
 <aside class="wrap-side-operation">
     <div class="mod-side-operation">
@@ -327,7 +416,7 @@
 	var yiliaConfig = {
 		mathjax: false,
 		isHome: false,
-		isPost: false,
+		isPost: true,
 		isArchive: false,
 		isTag: false,
 		isCategory: false,
