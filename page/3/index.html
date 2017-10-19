@@ -731,6 +731,144 @@
 
 
   
+    <article id="post-k8s-apiserver-privilege-intro" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2016/09/24/k8s-apiserver-privilege-intro/">Kubernetes apiserver权限控制介绍</a>
+    </h1>
+  
+
+        
+        <a href="/2016/09/24/k8s-apiserver-privilege-intro/" class="archive-article-date">
+  	<time datetime="2016-09-24T04:11:41.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-09-24</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#认证">认证</a><ul>
+<li><a href="#1-认证方案">1. 认证方案</a></li>
+<li><a href="#2-修改配置重启">2. 修改配置，重启</a></li>
+<li><a href="#3-客户端访问">3. 客户端访问</a></li>
+<li><a href="#4-比较">4. 比较</a></li>
+</ul>
+</li>
+<li><a href="#授权">授权</a><ul>
+<li><a href="#1-授权方案">1. 授权方案</a></li>
+<li><a href="#2-修改配置重启-1">2. 修改配置，重启</a></li>
+<li><a href="#3-访问">3. 访问</a></li>
+<li><a href="#4-比较-1">4. 比较</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h2 id="认证"><a href="#认证" class="headerlink" title="认证"></a>认证</h2><h3 id="1-认证方案"><a href="#1-认证方案" class="headerlink" title="1. 认证方案"></a>1. 认证方案</h3><ul>
+<li><p>Client certificate</p>
+  <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">openssl genrsa -out ca.key 2048</div><div class="line">openssl req -x509 -new -nodes -key ca.key -subj &quot;/CN=k8stest&quot; -days 10000 -out ca.crt</div><div class="line"></div><div class="line">openssl x509 -noout -text -in ca.crt</div><div class="line"></div><div class="line">openssl genrsa -out server.key 2048</div><div class="line">openssl req -new -key server.key -subj &quot;/CN=master.k8stest&quot; -out server.csr</div><div class="line">openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 10000</div><div class="line"></div><div class="line">openssl x509 -noout -text -in server.crt</div><div class="line"></div><div class="line">openssl genrsa -out winway.key 2048</div><div class="line">openssl req -new -key winway.key -subj &quot;/CN=winway&quot; -out winway.csr</div><div class="line">openssl x509 -req -in winway.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out winway.crt -days 10000</div></pre></td></tr></table></figure>
+</li>
+<li><p>Static Token File</p>
+  <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">$ cat tokens.csv</div><div class="line">abcdTOKEN1234,winway,winway</div></pre></td></tr></table></figure>
+</li>
+<li><p>Static Password File</p>
+  <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">$ cat password.csv</div><div class="line">123456,winway,winway</div><div class="line">$ echo -n &quot;winway:123456&quot; | base64</div><div class="line">d2FuZ3dlaToxMjM0NTY=</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<h3 id="2-修改配置重启"><a href="#2-修改配置，重启" class="headerlink" title="2. 修改配置，重启"></a>2. 修改配置，重启</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">$ vim /etc/kubernetes/apiserver</div><div class="line">KUBE_API_ARGS=&quot;--client-ca-file=/home/winway/ca.crt --tls-cert-file=/home/winway/server.crt --tls-private-key-file=/home/winway/server.key --token_auth_file=/home/winway/tokens.csv --basic-auth-file=/home/winway/password.csv&quot;</div><div class="line"></div><div class="line">systemctl restart kube-apiserver</div></pre></td></tr></table></figure>
+<h3 id="3-客户端访问"><a href="#3-客户端访问" class="headerlink" title="3. 客户端访问"></a>3. 客户端访问</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">curl --cacert ./ca.crt --key ./winway.key --cert ./winway.crt &apos;https://master.k8stest:6443&apos;</div><div class="line"></div><div class="line">curl --cacert ./ca.crt  -H &quot;Authorization: Bearer abcdTOKEN1234&quot; &apos;https://master.k8stest:6443&apos;</div><div class="line"></div><div class="line">curl --cacert ./ca.crt  -H &quot;Authorization: Basic d2FuZ3dlaToxMjM0NTY=&quot; &apos;https://master.k8stest:6443&apos;</div></pre></td></tr></table></figure>
+<h3 id="4-比较"><a href="#4-比较" class="headerlink" title="4. 比较"></a>4. 比较</h3><ul>
+<li>3种认证方案可以共存</li>
+<li>方案2、3使用上比1简单</li>
+<li>新增、删除用户时，方案1不需要重启服务，2、3需要重启，从这一点考虑，1更有优势</li>
+</ul>
+<h2 id="授权"><a href="#授权" class="headerlink" title="授权"></a>授权</h2><h3 id="1-授权方案"><a href="#1-授权方案" class="headerlink" title="1. 授权方案"></a>1. 授权方案</h3><ul>
+<li><p>ABAC Mode</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">$ cat abac.txt</div><div class="line">&#123;&quot;apiVersion&quot;: &quot;abac.authorization.kubernetes.io/v1beta1&quot;, &quot;kind&quot;: &quot;Policy&quot;, &quot;spec&quot;: &#123;&quot;user&quot;:&quot;winway&quot;, &quot;namespace&quot;: &quot;*&quot;, &quot;resource&quot;: &quot;pods&quot;, &quot;apiGroup&quot;: &quot;*&quot;, &quot;readonly&quot;: true &#125;&#125;</div></pre></td></tr></table></figure>
+</li>
+<li><p>RBAC Mode</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">When specified “RBAC” (Role-Based Access Control) uses the “rbac.authorization.k8s.io” API group to drive authorization decisions, allowing admins to dynamically configure permission policies through the Kubernetes API.</div><div class="line">As of 1.3 RBAC mode is in alpha and considered experimental.</div></pre></td></tr></table></figure>
+</li>
+<li><p>Webhook Mode</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">When specified, mode Webhook causes Kubernetes to query an outside REST service when determining user privileges.</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<h3 id="2-修改配置重启"><a href="#2-修改配置，重启-1" class="headerlink" title="2. 修改配置，重启"></a>2. 修改配置，重启</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">$ vim /etc/kubernetes/apiserver</div><div class="line">KUBE_API_ARGS=&quot;--client-ca-file=/home/winway/ca.crt --tls-cert-file=/home/winway/server.crt --tls-private-key-file=/home/winway/server.key --token_auth_file=/home/winway/tokens.csv --basic-auth-file=/home/winway/password.csv --authorization-mode=ABAC --authorization-policy-file=/home/winway/abac.txt&quot;</div><div class="line"></div><div class="line">systemctl restart kube-apiserver</div></pre></td></tr></table></figure>
+<h3 id="3-访问"><a href="#3-访问" class="headerlink" title="3. 访问"></a>3. 访问</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line"># curl --cacert ./ca.crt  -H &quot;Authorization: Bearer abcdTOKEN1234&quot; &apos;https://master.k8stest:6443/api/v1/version&apos;</div><div class="line">Forbidden: &quot;/api/v1/version&quot;</div><div class="line"></div><div class="line"># curl --cacert ./ca.crt  -H &quot;Authorization: Bearer abcdTOKEN1234&quot; &apos;https://master.k8stest:6443/api/v1/pods&apos;</div><div class="line">&#123;</div><div class="line">  &quot;kind&quot;: &quot;PodList&quot;,</div><div class="line">  &quot;apiVersion&quot;: &quot;v1&quot;,</div><div class="line">  &quot;metadata&quot;: &#123;</div><div class="line">    &quot;selfLink&quot;: &quot;/api/v1/pods&quot;,</div><div class="line">    &quot;resourceVersion&quot;: &quot;1228398&quot;</div><div class="line">  &#125;,</div><div class="line">……</div></pre></td></tr></table></figure>
+<h3 id="4-比较"><a href="#4-比较-1" class="headerlink" title="4. 比较"></a>4. 比较</h3><ul>
+<li>修改授权，方案1需要重启，2不需要</li>
+<li>方按2在1.3才引入</li>
+<li>方案3需要额外的服务</li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">k8s</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/k8s/" class="article-tag-list-link color4">k8s</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2016/09/24/k8s-apiserver-privilege-intro/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-namenode-ha-sshfence-hang" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1231,119 +1369,6 @@
 
 
   
-    <article id="post-mongodb-diskspace-reclaim" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2016/06/25/mongodb-diskspace-reclaim/">MongoDB磁盘空间回收</a>
-    </h1>
-  
-
-        
-        <a href="/2016/06/25/mongodb-diskspace-reclaim/" class="archive-article-date">
-  	<time datetime="2016-06-25T01:52:17.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-06-25</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#背景">背景</a></li>
-<li><a href="#可用方案">可用方案</a><ul>
-<li><a href="#一-repairdatabase">一、 repairDatabase</a></li>
-<li><a href="#二-copydatabase">二、 copyDatabase</a></li>
-<li><a href="#三-mongodumpmongorestore">三、 mongodump/mongorestore</a></li>
-</ul>
-</li>
-</ul>
-<!-- tocstop -->
-<h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>MongoDB-2.2版本只有在dropDatabase的时候才会释放磁盘空间，drop collection并不会减少磁盘占用。如果需要回收磁盘空间，需要采取一些措施。</p>
-<h2 id="可用方案"><a href="#可用方案" class="headerlink" title="可用方案"></a>可用方案</h2><h3 id="一-repairdatabase"><a href="#一、-repairDatabase" class="headerlink" title="一、 repairDatabase"></a>一、 repairDatabase</h3><p>repairDatabase是官方给出的唯一可以释放磁盘空间的方法。repairDatabase只能在master或者primary上执行，对于secondary只能以standalone的方式启动，然后执行repairDatabase。<br>repairDatabase对剩余可用磁盘空间有要求，必须大于等于原库的大小才能执行。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="meta">&gt;</span> db.repairDatabase()</div><div class="line">&#123;</div><div class="line">        "errmsg" : "Cannot repair database test having size: 691102810112 (bytes) because free disk space is: 479286095872 (bytes)",</div><div class="line">        "ok" : 0</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<p>数据量大的话耗时会比较长，而且会阻塞所有操作，所以不能在线上提供服务的节点上直接执行。</p>
-<h3 id="二-copydatabase"><a href="#二、-copyDatabase" class="headerlink" title="二、 copyDatabase"></a>二、 copyDatabase</h3><p>为了绕过方案一对空间的要求，可以采用copyDatabase。因为copyDatabase只需要占用实际data set的空间，一般在删除collection后，剩余数据会比较小。由于copyDatabase支持远程拷贝，如果空间实在不足，可以使用一个临时的mongod中转。copyDatabase不会阻塞操作。大致步骤：</p>
-<ol>
-<li>删除不需要的collection</li>
-<li>db.copyDatabase(‘databasename’, ‘databasename_tmp’)</li>
-<li>use databasename; db.dropDatabase()</li>
-<li>db.copyDatabase(‘databasename_tmp’, ‘databasename’)</li>
-</ol>
-<h3 id="三-mongodumpmongorestore"><a href="#三、-mongodump-mongorestore" class="headerlink" title="三、 mongodump/mongorestore"></a>三、 mongodump/mongorestore</h3><p>解决思路与方案二相同。大致步骤：</p>
-<ol>
-<li>删除不需要的collection</li>
-<li>mongodump –port 1988 -uread -pread -d databasename -o tmp</li>
-<li>echo ‘db.dropDatabase()’ | mongo databasename</li>
-<li>mongorestore –port 1988 -u’write’ -p’write’ -d databasename tmp/databasename/</li>
-</ol>
-<p>四、    使用副本集的initial sync<br>需要重建所有库，耗时较长</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/MongoDB/" class="article-tag-list-link color3">MongoDB</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2016/06/25/mongodb-diskspace-reclaim/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/2/">&laquo; Prev</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><a class="page-number" href="/page/5/">5</a><a class="page-number" href="/page/6/">6</a><a class="extend next" rel="next" href="/page/4/">Next &raquo;</a>
@@ -1459,19 +1484,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Linux</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">hadoop</a>
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">机架感知</a>
+                <a href="javascript:void(0)" class="js-tag color2">hadoop</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1483,6 +1504,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">机架感知</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">k8s</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
               </li>
              
@@ -1491,11 +1520,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1504,10 +1533,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">open-falcon源码阅读</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1528,6 +1553,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">salt源码解析</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
               </li>
              
               <li class="article-tag-list-item">

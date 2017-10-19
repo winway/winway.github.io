@@ -6,17 +6,19 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://winway.github.io">
-  <title>Tag: hexo | winway&#39;s blog</title>
+  <title>Kubernetes apiserver权限控制介绍 | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="python, go, devops, hadoop, MongoDB">
-<meta property="og:type" content="website">
-<meta property="og:title" content="winway&#39;s blog">
-<meta property="og:url" content="https://winway.github.io/tags/hexo/index.html">
+  <meta name="description" content="认证 1. 认证方案 2. 修改配置，重启 3. 客户端访问 4. 比较   授权 1. 授权方案 2. 修改配置，重启 3. 访问 4. 比较     认证1. 认证方案 Client certificate   1234567891011121314openssl genrsa -out ca.key 2048openssl req -x509 -new -nodes -key ca.ke">
+<meta name="keywords" content="k8s">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Kubernetes apiserver权限控制介绍">
+<meta property="og:url" content="https://winway.github.io/2016/09/24/k8s-apiserver-privilege-intro/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:description" content="python, go, devops, hadoop, MongoDB">
+<meta property="og:description" content="认证 1. 认证方案 2. 修改配置，重启 3. 客户端访问 4. 比较   授权 1. 授权方案 2. 修改配置，重启 3. 访问 4. 比较     认证1. 认证方案 Client certificate   1234567891011121314openssl genrsa -out ca.key 2048openssl req -x509 -new -nodes -key ca.ke">
+<meta property="og:updated_time" content="2017-10-19T02:12:33.945Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="winway&#39;s blog">
-<meta name="twitter:description" content="python, go, devops, hadoop, MongoDB">
+<meta name="twitter:title" content="Kubernetes apiserver权限控制介绍">
+<meta name="twitter:description" content="认证 1. 认证方案 2. 修改配置，重启 3. 客户端访问 4. 比较   授权 1. 授权方案 2. 修改配置，重启 3. 访问 4. 比较     认证1. 认证方案 Client certificate   1234567891011121314openssl genrsa -out ca.key 2048openssl req -x509 -new -nodes -key ca.ke">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -152,75 +154,269 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            
-  
-  
+            <article id="post-k8s-apiserver-privilege-intro" class="article article-type-post " itemscope itemprop="blogPost">
+  <div class="article-inner">
     
-    
-      
-      
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <a href="/archives/2017" class="archive-year">2017</a>
-        </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2017/07/15/hexo-githubpages-blog/" class="archive-article-date">
-  	<time datetime="2017-07-15T06:41:36.821Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-07-15</time>
-</a>
-        </div>
-    	 
+      <header class="article-header">
+        
   
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2017/07/15/hexo-githubpages-blog/">Hexo+Github Pages搭建个人博客</a>
+    <h1 class="article-title" itemprop="name">
+      Kubernetes apiserver权限控制介绍
     </h1>
   
 
-        <div class="article-info info-on-right">
-          
+        
+        <a href="/2016/09/24/k8s-apiserver-privilege-intro/" class="archive-article-date">
+  	<time datetime="2016-09-24T04:11:41.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-09-24</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#认证">认证</a><ul>
+<li><a href="#1-认证方案">1. 认证方案</a></li>
+<li><a href="#2-修改配置重启">2. 修改配置，重启</a></li>
+<li><a href="#3-客户端访问">3. 客户端访问</a></li>
+<li><a href="#4-比较">4. 比较</a></li>
+</ul>
+</li>
+<li><a href="#授权">授权</a><ul>
+<li><a href="#1-授权方案">1. 授权方案</a></li>
+<li><a href="#2-修改配置重启-1">2. 修改配置，重启</a></li>
+<li><a href="#3-访问">3. 访问</a></li>
+<li><a href="#4-比较-1">4. 比较</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h2 id="认证"><a href="#认证" class="headerlink" title="认证"></a>认证</h2><h3 id="1-认证方案"><a href="#1-认证方案" class="headerlink" title="1. 认证方案"></a>1. 认证方案</h3><ul>
+<li><p>Client certificate</p>
+  <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">openssl genrsa -out ca.key 2048</div><div class="line">openssl req -x509 -new -nodes -key ca.key -subj &quot;/CN=k8stest&quot; -days 10000 -out ca.crt</div><div class="line"></div><div class="line">openssl x509 -noout -text -in ca.crt</div><div class="line"></div><div class="line">openssl genrsa -out server.key 2048</div><div class="line">openssl req -new -key server.key -subj &quot;/CN=master.k8stest&quot; -out server.csr</div><div class="line">openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 10000</div><div class="line"></div><div class="line">openssl x509 -noout -text -in server.crt</div><div class="line"></div><div class="line">openssl genrsa -out winway.key 2048</div><div class="line">openssl req -new -key winway.key -subj &quot;/CN=winway&quot; -out winway.csr</div><div class="line">openssl x509 -req -in winway.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out winway.crt -days 10000</div></pre></td></tr></table></figure>
+</li>
+<li><p>Static Token File</p>
+  <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">$ cat tokens.csv</div><div class="line">abcdTOKEN1234,winway,winway</div></pre></td></tr></table></figure>
+</li>
+<li><p>Static Password File</p>
+  <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">$ cat password.csv</div><div class="line">123456,winway,winway</div><div class="line">$ echo -n &quot;winway:123456&quot; | base64</div><div class="line">d2FuZ3dlaToxMjM0NTY=</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<h3 id="2-修改配置重启"><a href="#2-修改配置，重启" class="headerlink" title="2. 修改配置，重启"></a>2. 修改配置，重启</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">$ vim /etc/kubernetes/apiserver</div><div class="line">KUBE_API_ARGS=&quot;--client-ca-file=/home/winway/ca.crt --tls-cert-file=/home/winway/server.crt --tls-private-key-file=/home/winway/server.key --token_auth_file=/home/winway/tokens.csv --basic-auth-file=/home/winway/password.csv&quot;</div><div class="line"></div><div class="line">systemctl restart kube-apiserver</div></pre></td></tr></table></figure>
+<h3 id="3-客户端访问"><a href="#3-客户端访问" class="headerlink" title="3. 客户端访问"></a>3. 客户端访问</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">curl --cacert ./ca.crt --key ./winway.key --cert ./winway.crt &apos;https://master.k8stest:6443&apos;</div><div class="line"></div><div class="line">curl --cacert ./ca.crt  -H &quot;Authorization: Bearer abcdTOKEN1234&quot; &apos;https://master.k8stest:6443&apos;</div><div class="line"></div><div class="line">curl --cacert ./ca.crt  -H &quot;Authorization: Basic d2FuZ3dlaToxMjM0NTY=&quot; &apos;https://master.k8stest:6443&apos;</div></pre></td></tr></table></figure>
+<h3 id="4-比较"><a href="#4-比较" class="headerlink" title="4. 比较"></a>4. 比较</h3><ul>
+<li>3种认证方案可以共存</li>
+<li>方案2、3使用上比1简单</li>
+<li>新增、删除用户时，方案1不需要重启服务，2、3需要重启，从这一点考虑，1更有优势</li>
+</ul>
+<h2 id="授权"><a href="#授权" class="headerlink" title="授权"></a>授权</h2><h3 id="1-授权方案"><a href="#1-授权方案" class="headerlink" title="1. 授权方案"></a>1. 授权方案</h3><ul>
+<li><p>ABAC Mode</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">$ cat abac.txt</div><div class="line">&#123;&quot;apiVersion&quot;: &quot;abac.authorization.kubernetes.io/v1beta1&quot;, &quot;kind&quot;: &quot;Policy&quot;, &quot;spec&quot;: &#123;&quot;user&quot;:&quot;winway&quot;, &quot;namespace&quot;: &quot;*&quot;, &quot;resource&quot;: &quot;pods&quot;, &quot;apiGroup&quot;: &quot;*&quot;, &quot;readonly&quot;: true &#125;&#125;</div></pre></td></tr></table></figure>
+</li>
+<li><p>RBAC Mode</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">When specified “RBAC” (Role-Based Access Control) uses the “rbac.authorization.k8s.io” API group to drive authorization decisions, allowing admins to dynamically configure permission policies through the Kubernetes API.</div><div class="line">As of 1.3 RBAC mode is in alpha and considered experimental.</div></pre></td></tr></table></figure>
+</li>
+<li><p>Webhook Mode</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">When specified, mode Webhook causes Kubernetes to query an outside REST service when determining user privileges.</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<h3 id="2-修改配置重启"><a href="#2-修改配置，重启-1" class="headerlink" title="2. 修改配置，重启"></a>2. 修改配置，重启</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">$ vim /etc/kubernetes/apiserver</div><div class="line">KUBE_API_ARGS=&quot;--client-ca-file=/home/winway/ca.crt --tls-cert-file=/home/winway/server.crt --tls-private-key-file=/home/winway/server.key --token_auth_file=/home/winway/tokens.csv --basic-auth-file=/home/winway/password.csv --authorization-mode=ABAC --authorization-policy-file=/home/winway/abac.txt&quot;</div><div class="line"></div><div class="line">systemctl restart kube-apiserver</div></pre></td></tr></table></figure>
+<h3 id="3-访问"><a href="#3-访问" class="headerlink" title="3. 访问"></a>3. 访问</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line"># curl --cacert ./ca.crt  -H &quot;Authorization: Bearer abcdTOKEN1234&quot; &apos;https://master.k8stest:6443/api/v1/version&apos;</div><div class="line">Forbidden: &quot;/api/v1/version&quot;</div><div class="line"></div><div class="line"># curl --cacert ./ca.crt  -H &quot;Authorization: Bearer abcdTOKEN1234&quot; &apos;https://master.k8stest:6443/api/v1/pods&apos;</div><div class="line">&#123;</div><div class="line">  &quot;kind&quot;: &quot;PodList&quot;,</div><div class="line">  &quot;apiVersion&quot;: &quot;v1&quot;,</div><div class="line">  &quot;metadata&quot;: &#123;</div><div class="line">    &quot;selfLink&quot;: &quot;/api/v1/pods&quot;,</div><div class="line">    &quot;resourceVersion&quot;: &quot;1228398&quot;</div><div class="line">  &#125;,</div><div class="line">……</div></pre></td></tr></table></figure>
+<h3 id="4-比较"><a href="#4-比较-1" class="headerlink" title="4. 比较"></a>4. 比较</h3><ul>
+<li>修改授权，方案1需要重启，2不需要</li>
+<li>方按2在1.3才引入</li>
+<li>方案3需要额外的服务</li>
+</ul>
+
+      
+
+      
+        <div class="page-reward">
+          <a href="javascript:;" class="page-reward-btn tooltip-top">
+            <div class="tooltip tooltip-east">
+            <span class="tooltip-item">
+              赏
+            </span>
+            <span class="tooltip-content">
+              <span class="tooltip-text">
+                <span class="tooltip-inner">
+                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢你请我吃糖果<i class="icon icon-quo-right"></i></p>
+                  <div class="reward-box">
+                    
+                    <div class="reward-box-item">
+                      <img class="reward-img" src="/img/alipay.jpg">
+                      <span class="reward-type">支付宝</span>
+                    </div>
+                    
+                    
+                    <div class="reward-box-item">
+                      <img class="reward-img" src="/img/weixinpay.png">
+                      <span class="reward-type">微信</span>
+                    </div>
+                    
+                  </div>
+                </span>
+              </span>
+            </span>
+          </div>
+          </a>
+        </div>
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
 	<div class="article-tag tagcloud">
 		<i class="icon-price-tags icon"></i>
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">hexo</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">github pages</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">k8s</a>
         		</li>
       		
 		</ul>
 	</div>
 
-          
+      
 	<div class="article-category tagcloud">
 		<i class="icon-book icon"></i>
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="/categories/其他/" class="article-tag-list-link color3">其他</a>
+        			<a href="/categories/k8s/" class="article-tag-list-link color4">k8s</a>
         		</li>
       		
 		</ul>
 	</div>
 
 
+      
+
+      
+        
+<div class="share-btn share-icons tooltip-left">
+  <div class="tooltip tooltip-east">
+    <span class="tooltip-item">
+      <a href="javascript:;" class="share-sns share-outer">
+        <i class="icon icon-share"></i>
+      </a>
+    </span>
+    <span class="tooltip-content">
+      <div class="share-wrap">
+        <div class="share-icons">
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="icon icon-weibo"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="icon icon-weixin"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="icon icon-qq"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="icon icon-douban"></i>
+          </a>
+          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a>
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="icon icon-facebook"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="icon icon-twitter"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="icon icon-google"></i>
+          </a>
         </div>
-        <div class="clearfix"></div>
-    </header>
+      </div>
+    </span>
+  </div>
+</div>
+
+<div class="page-modal wx-share js-wx-box">
+    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="http://s.jiathis.com/qrcode.php?url=https://winway.github.io/2016/09/24/k8s-apiserver-privilege-intro/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div class="mask js-mask"></div>
+      
+      <div class="clearfix"></div>
+    </div>
   </div>
 </article>
+
+  
+<nav id="article-nav">
+  
+    <a href="/2017/02/22/hbase-rolling-restart/" id="article-nav-newer" class="article-nav-link-wrap">
+      <i class="icon-circle-left"></i>
+      <div class="article-nav-title">
+        
+          HBASE滚动重启
+        
+      </div>
+    </a>
   
   
-    </div></section>
+    <a href="/2016/09/12/namenode-ha-sshfence-hang/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">NameNode主从切换sshfence阶段无法完成问题</div>
+      <i class="icon-circle-right"></i>
+    </a>
+  
+</nav>
+
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+  
+  
   
 
-    
+  
+
+  
+
+  
+  
+<section class="comments" id="comments">
+    <div id="gitment_thread"></div>
+    <link rel="stylesheet" href="https://imsun.github.io/gitment/style/default.css">
+    <script src="https://imsun.github.io/gitment/dist/gitment.browser.js"></script>
+    <script>
+        var gitment = new Gitment({
+            owner: 'winway',
+            repo: 'winway.github.io',
+            oauth: {
+                client_id: 'ac205f1362174ccbdb1d',
+                client_secret: '42779eaec04b4f1765b777df3fa1c73e24b96943',
+            },
+        })
+        gitment.render('comments')
+    </script>
+</section>
+
+  
 
 
           </div>
@@ -245,9 +441,9 @@
 	var yiliaConfig = {
 		mathjax: false,
 		isHome: false,
-		isPost: false,
+		isPost: true,
 		isArchive: false,
-		isTag: true,
+		isTag: false,
 		isCategory: false,
 		open_in_new: false,
 		toc_hide_index: true,

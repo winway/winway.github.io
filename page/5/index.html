@@ -154,6 +154,129 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-a-simple-Linux-app-monitor-framework-2" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2013/09/12/a-simple-Linux-app-monitor-framework-2/">一个简易的服务器监控框架(2)</a>
+    </h1>
+  
+
+        
+        <a href="/2013/09/12/a-simple-Linux-app-monitor-framework-2/" class="archive-article-date">
+  	<time datetime="2013-09-12T12:53:44.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-09-12</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>在<a href="https://winway.github.io/2013/07/01/a-simple-Linux-app-monitor-framework-1/">一个简易的服务器监控框架(1)</a>一文中，我们介绍了一个简单的服务器监控框架，可以监控服务器的某些状态，但是有一个前提，必须将关心的状态量化，比如磁盘空间使用率定义在一个数值范围内。但是有些信息很难量化，或者如果量化，就显得很繁琐。这里在一个简易的服务器监控框架(1)的基础上，稍作修改，将状态正常与否的判断放到脚本里面完成。<br><a href="https://github.com/winway/a-simple-monitor-framework/tree/v2.0" target="_blank" rel="external">https://github.com/winway/a-simple-monitor-framework/tree/v2.0</a></p>
+<!-- toc -->
+<ul>
+<li><a href="#1-简介">1. 简介</a></li>
+<li><a href="#2-配置">2. 配置</a></li>
+<li><a href="#3-数据存储">3. 数据存储</a></li>
+<li><a href="#4-展示">4. 展示</a></li>
+<li><a href="#5-使用">5. 使用</a></li>
+</ul>
+<!-- tocstop -->
+<h2 id="1-简介"><a href="#1-简介" class="headerlink" title="1. 简介"></a>1. 简介</h2><p>程序包括以下文件和文件夹<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">$ ls -l</div><div class="line">总计 140</div><div class="line">-rwxrw-r-- 1 winway winway 976 07-28 21:22 analyse.sh</div><div class="line">-rwxrw-r-- 1 winway winway 122 07-28 14:04 config.sh</div><div class="line">drwxrwxr-x 4 winway winway 4096 08-09 23:40 data</div><div class="line">-rwxr--r-- 1 winway winway 411 08-09 18:54 data_clear.sh</div><div class="line">drwxrwxr-x 2 winway winway 4096 08-15 16:08 display</div><div class="line">-rwxrw-r-- 1 winway winway 499 07-28 21:27 display.sh</div><div class="line">drwxrwxr-x 4 winway winway 4096 08-09 19:37 etc</div><div class="line">-rwxrw-r-- 1 winway winway 1377 07-28 21:25 format.sh</div><div class="line">-rwxrw-r-- 1 winway winway 527 07-31 21:18 monitor.sh</div><div class="line">-rwxrwxr-x 1 winway winway 20815 06-30 11:57 mussh</div><div class="line">-rw-rw-r-- 1 winway winway 3718 08-04 17:10 raw2html.py</div><div class="line">-rw-rw-r-- 1 winway winway 1684 07-30 19:19 raw_analyse.py</div><div class="line">-rwxrw-r-- 1 winway winway 1796 08-09 19:37 snatch.sh</div><div class="line">-rwxr--r-- 1 winway winway 1059 08-09 19:40 time_sync.sh</div><div class="line">-rwxr--r-- 1 winway winway 584 08-09 19:21 verify.sh</div></pre></td></tr></table></figure></p>
+<ul>
+<li>monitor.sh<br>主程序，会依次调用snatch.sh、analyse.sh、format.sh、verify.sh、display.sh</li>
+<li>snatch.sh<br>数据采集，基于mussh（不了解的可以参考下<a href="https://winway.github.io/2013/06/24/mussh-pdsh-pssh-usage/">这里</a>）实现，周期性抓取各服务器上感兴趣的数据项，存储到data文件夹中</li>
+<li>analyse.sh<br>数据分析，根据etc文件夹中的阈值配置文件，产生需要告警的条目，主要工作由raw_analyse.py完成</li>
+<li>format.sh<br>数据格式化，将原始的纯文本数据格式化为html格式，主要工作由raw2html.py完成</li>
+<li>verify.sh<br>数据完整性检查，将抓取的数据与配置文件进行对比，确定有误漏掉的监控对象</li>
+<li>display.sh<br>数据展示，更新display文件夹下的软连接，指向最新的html文件</li>
+<li>time_sync.sh<br>时间同步，由于某种原因，无法使用ntp，所以使用脚本设置被监控服务器的时间</li>
+<li>data_clear.sh<br>数据清理，清除data目录下的旧文件</li>
+<li>config.sh<br>一些变量的定义<h2 id="2-配置"><a href="#2-配置" class="headerlink" title="2. 配置"></a>2. 配置</h2>配置文件结构如下：<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">etc/</div><div class="line">|-- lst.d</div><div class="line">|-- monitor.conf</div><div class="line">`-- sh.d</div></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>其中monitor.conf是主配置文件<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="meta">$</span> cat monitor.conf</div><div class="line"><span class="meta">#</span> 类型 IP列表文件 检查脚本文件</div><div class="line">database database.lst database.sh</div></pre></td></tr></table></figure></p>
+<p>类型是指服务器的角色，如数据库服务器，web服务器等；IP列表文件是对应这一角色的服务器的ip集合，格式为<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#</span> 归属地 用户@IP</div><div class="line">哈尔滨 root@x.x.x.x</div><div class="line">哈尔滨 root@x.x.x.x</div></pre></td></tr></table></figure></p>
+<p>这里“root@x.x.x.x”的格式是为了mussh执行起来方便而这么写的。<br>检查脚本文件是获取这个服务器数据应该执行的脚本。在目标机器上执行这个脚本，就可以获得我们关心的各项数据，这个脚本根据需要而定制，且对输出信息的格式有要求。示例脚本如下，其中有问题的数据条目以“**”结尾，而这个条目中真正有问题的项被“^^^^”和“&amp;&amp;&amp;&amp;”包裹,同一项数据组织成一行，行与行之间用“+”连接。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#</span>! /bin/bash</div><div class="line"><span class="meta">#</span></div><div class="line"></div><div class="line">echo -n '&lt;app1&gt;'</div><div class="line">n=$(pgrep app1 | wc -l)</div><div class="line">if [[ n -ge 1 ]] &amp;&amp; [[ n -le 4 ]]</div><div class="line">then</div><div class="line">    echo "$n"</div><div class="line">else</div><div class="line">    echo "$&#123;n&#125;**"</div><div class="line">fi</div><div class="line"></div><div class="line">echo -n '&lt;app2&gt;'</div><div class="line">n=$(pgrep app2 | wc -l)</div><div class="line">if [[ n -ge 1 ]] &amp;&amp; [[ n -le 4 ]]</div><div class="line">then</div><div class="line">    echo "$n"</div><div class="line">else</div><div class="line">    echo "$&#123;n&#125;**"</div><div class="line">fi</div><div class="line"></div><div class="line">echo -n '&lt;monitor&gt;'</div><div class="line">n=$(pgrep monitor | wc -l)</div><div class="line">if [[ n -ge 1 ]]</div><div class="line">then</div><div class="line">    echo "$n"</div><div class="line">else</div><div class="line">    echo "$&#123;n&#125;**"</div><div class="line">fi</div><div class="line"></div><div class="line">echo -n '&lt;links_to_db&gt;'</div><div class="line">n=$(netstat -ant | grep -c '1521.*ESTABLISHED')</div><div class="line">if [[ $n -ge 1 ]]</div><div class="line">then</div><div class="line">    echo "$&#123;n&#125;"</div><div class="line">else</div><div class="line">    echo "$&#123;n&#125;**"</div><div class="line">fi</div><div class="line"></div><div class="line">echo -n '&lt;backup&gt;'</div><div class="line">du -sm /backup/* | \</div><div class="line">awk -F'[ \t/]+' '&#123;pref = suff = ""; if($1 &gt;= 7168)&#123;warn = "**"; pref = "^^^^"; suff = "&amp;&amp;&amp;&amp;"&#125;;res = res ? res "+" pref $1 "M" OFS $NF suff : pref $1 "M" OFS $NF suff&#125;END&#123;print res warn&#125;'</div><div class="line"></div><div class="line">echo -n '&lt;ORA_ERROR&gt;'</div><div class="line">start=$(date -d '5min ago' '+%s')</div><div class="line">export start</div><div class="line">tail -1500 /var/log/messages | while read a b c d; do e=$(date -d "$a $b $c" '+%s'); [[ $e -ge $start ]] &amp;&amp; echo "$a $b $c $d"; done | \</div><div class="line">LANG="C" sed -n '/ORA/s/.*\(ORA-[^:]*\):.*$/\1/p' | \</div><div class="line">awk '&#123;a[$0]; warn = "**"&#125;END&#123;for(i in a)res = res ? res "+" i : i; if(res)print res warn; else print "OK"&#125;'</div><div class="line">unset start</div><div class="line"></div><div class="line">echo -n '&lt;disk_usage&gt;'</div><div class="line">df -h | awk 'NR &gt; 1&#123;pref = suff = ""; if(int($(NF-1)) &gt;= 80)&#123;warn = "**"; pref = "^^^^"; suff = "&amp;&amp;&amp;&amp;"&#125;;res = res ? res "+" pref $(NF-1) OFS $NF suff : pref $(NF-1) OFS $NF suff&#125;END&#123;print res warn&#125;'</div><div class="line"></div><div class="line">echo -n '&lt;sys_time&gt;'</div><div class="line">date '+%Y-%m-%d %H:%M:%S'</div><div class="line"></div><div class="line">echo -n '&lt;uptime&gt;'</div><div class="line">uptime 2&gt;/dev/null | sed -n '/up/s/^.*up[ \t]*\([^,]*\),.*$/\1/p'</div></pre></td></tr></table></figure></p>
+<p>由于mussh具有远程执行本地脚本的能力，所以我们不需要把这个脚本拷贝到远程主机上。<br>所以，如果你想加入对一批相同类型的机器的监控，你需要：</p>
+<ol>
+<li>编辑一个IP列表文件，将他们的IP地址按合法的格式编辑</li>
+<li>根据自己关心的数据项，定制一个检查脚本，脚本的输出信息格式如示例脚本所示</li>
+<li>在monitor.conf里添加一条配置</li>
+</ol>
+<h2 id="3-数据存储"><a href="#3-数据存储" class="headerlink" title="3. 数据存储"></a>3. 数据存储</h2><p>数据存储类似于一个<a href="https://winway.github.io/2013/07/01/a-simple-Linux-app-monitor-framework-1/">简易的服务器监控框架(1)</a>中描述的。</p>
+<h2 id="4-展示"><a href="#4-展示" class="headerlink" title="4. 展示"></a>4. 展示</h2><p>展示类似于<a href="https://winway.github.io/2013/07/01/a-simple-Linux-app-monitor-framework-1/">简易的服务器监控框架(1)</a>中描述的。<br><img src="http://ot69fbvko.bkt.clouddn.com/monito_v2_demo.bmp" alt="monitor_v2_demo"></p>
+<h2 id="5-使用"><a href="#5-使用" class="headerlink" title="5. 使用"></a>5. 使用</h2><p>需要安装mussh和python的PyH模块。根据需要编辑crontab文件。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">shell</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">监控</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/shell/" class="article-tag-list-link color1">shell</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2013/09/12/a-simple-Linux-app-monitor-framework-2/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-mutt-send-mail-usage" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1068,99 +1191,6 @@
 
 
   
-    <article id="post-etc-shells-file-usage" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/05/14/etc-shells-file-usage/">/etc/shells文件用途</a>
-    </h1>
-  
-
-        
-        <a href="/2013/05/14/etc-shells-file-usage/" class="archive-article-date">
-  	<time datetime="2013-05-14T00:50:15.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-05-14</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>一直对/etc/shells这个文件的作用不是太清楚，最近抽时间查了查，总结如下。</p>
-<!-- toc -->
-<!-- tocstop -->
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line"><span class="meta">$</span> man shells</div><div class="line">SHELLS(5) Linux Programmer’s Manual SHELLS(5)</div><div class="line">NAME</div><div class="line">shells - pathnames of valid login shells</div><div class="line">DESCRIPTION</div><div class="line">/etc/shells is a text file which contains the full pathnames of valid login shells.</div><div class="line">This file is consulted by chsh(1) and available to be queried by other programs.</div><div class="line">Be aware that there are programs which consult this file to find out if a user is a</div><div class="line">normal user. E.g.: ftp daemons traditionally disallow access to users with shells</div><div class="line">not included in this file.</div><div class="line">EXAMPLE</div><div class="line">/etc/shells may contain the following paths:</div><div class="line">/bin/sh</div><div class="line">/bin/csh</div><div class="line">FILES</div><div class="line">/etc/shells</div><div class="line">SEE ALSO</div><div class="line">chsh(1), getusershell(3)</div><div class="line">1993-11-21 SHELLS(5)</div></pre></td></tr></table></figure>
-<p>/etc/shells是一个有效登陆shell的列表，在调用chsh改变登陆shell时，会查询这个文件。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line">[root@winway ~]# cat /etc/shells</div><div class="line">/bin/sh</div><div class="line">/bin/bash</div><div class="line">/sbin/nologin</div><div class="line">/bin/tcsh</div><div class="line">/bin/csh</div><div class="line">/bin/ksh</div></pre></td></tr></table></figure></p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div></pre></td><td class="code"><pre><div class="line">[winway@winway ~]$ chsh</div><div class="line">Changing shell for winway.</div><div class="line">口令：</div><div class="line">New shell [/bin/bash]: /bin/date</div><div class="line">chsh: "/bin/date" is not listed in /etc/shells.</div><div class="line">chsh: use -l option to see list</div></pre></td></tr></table></figure>
-<p>由于/bin/date/不在/etc/shells里，所以普通用户调用chsh失败。root调用会出现warning。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">[root@winway ~]# echo '/bin/date' &gt;&gt;/etc/shells</div><div class="line"></div><div class="line">[winway@winway ~]$ chsh -l</div><div class="line">/bin/sh</div><div class="line">/bin/bash</div><div class="line">/sbin/nologin</div><div class="line">/bin/tcsh</div><div class="line">/bin/csh</div><div class="line">/bin/ksh</div><div class="line">/bin/date</div><div class="line">[winway@winway ~]$ chsh</div><div class="line">Changing shell for winway.</div><div class="line">口令：</div><div class="line">New shell [/bin/bash]: /bin/date</div><div class="line">Shell changed.</div><div class="line">[winway@winway ~]$ grep 'winway' /etc/passwd</div><div class="line">winway:x:500:500:ww,isrc,no,no:/home/winway:/bin/date</div></pre></td></tr></table></figure>
-<p>另外一些程序会根据这个文件来判断一个用户是否是有效用户，例如FTP服务会阻止那些shell不在/etc/shells里的用户登陆。详见<a href="http://bbs.chinaunix.net/thread-1200421-1-1.html" target="_blank" rel="external">http://bbs.chinaunix.net/thread-1200421-1-1.html</a></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/05/14/etc-shells-file-usage/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/4/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><a class="page-number" href="/page/4/">4</a><span class="page-number current">5</span><a class="page-number" href="/page/6/">6</a><a class="extend next" rel="next" href="/page/6/">Next &raquo;</a>
@@ -1276,19 +1306,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Linux</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">hadoop</a>
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">机架感知</a>
+                <a href="javascript:void(0)" class="js-tag color2">hadoop</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1300,6 +1326,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">机架感知</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">k8s</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
               </li>
              
@@ -1308,11 +1342,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1321,10 +1355,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">open-falcon源码阅读</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1345,6 +1375,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">salt源码解析</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
               </li>
              
               <li class="article-tag-list-item">
