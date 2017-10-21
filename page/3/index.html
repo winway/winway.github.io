@@ -731,6 +731,216 @@
 
 
   
+    <article id="post-big-data-intro" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/01/07/big-data-intro/">Hadoop生态系统介绍-概览</a>
+    </h1>
+  
+
+        
+        <a href="/2017/01/07/big-data-intro/" class="archive-article-date">
+  	<time datetime="2017-01-07T02:15:05.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-01-07</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#前言">前言</a></li>
+<li><a href="#kerberos">Kerberos</a></li>
+<li><a href="#zookeeper">Zookeeper</a></li>
+<li><a href="#hdfs">HDFS</a></li>
+<li><a href="#yarn">YARN</a></li>
+<li><a href="#mapreduce">MapReduce</a></li>
+<li><a href="#hive">Hive</a></li>
+<li><a href="#pig">Pig</a></li>
+<li><a href="#storm">Storm</a></li>
+<li><a href="#hbase">Hbase</a></li>
+<li><a href="#phoenix">Phoenix</a></li>
+</ul>
+<!-- tocstop -->
+<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。</p>
+<ol>
+<li><a href="">Hadoop生态系统介绍-概览</a></li>
+<li><a href="">Hadoop生态系统介绍-Kerberos</a></li>
+</ol>
+<p>Hadoop生态系统包括如下组件（新的组件还在不断出现），本文对常见组件进行简要介绍。<br><img src="http://static.oschina.net/uploads/space/2015/0730/081518_Hno6_865233.jpg" alt=""></p>
+<h2 id="kerberos"><a href="#Kerberos" class="headerlink" title="Kerberos"></a>Kerberos</h2><p><strong>什么是Kerberos？</strong><br><img src="http://www.daoyouz.com/picture/35f9ddd556cd7e0c73155e1d0ef8d900.jpg" alt=""></p>
+<blockquote>
+<p>Kerberos is a network authentication protocol. It is designed to provide strong authentication for client/server applications by using secret-key cryptography.</p>
+</blockquote>
+<p>简单地说，Kerberos是一种认证机制，通过密钥系统为客户端/服务器应用程序提供强大的认证服务。</p>
+<p><strong>Kerberos存在的意义</strong><br>在Hadoop1.0.0或者CDH3 版本之前，并不存在安全认证一说。默认集群内所有的节点都是可靠的，值得信赖的。用户与HDFS或者M/R进行交互时并不需要进行验证。导致存在恶意用户伪装成真正的用户或者服务器入侵到hadoop集群上，恶意的提交作业，修改JobTracker状态，篡改HDFS上的数据，伪装成NameNode 或者TaskTracker接受任务等。尽管在版本0.16以后， HDFS增加了文件和目录的权限，但是并没有强认证的保障，这些权限只能对偶然的数据丢失起保护作用。恶意的用户可以轻易的伪装成其他用户来篡改权限，致使权限设置形同虚设，不能够对Hadoop集群起到安全保障。</p>
+<p>在Hadoop1.0.0或者CDH3版本后，加入了Kerberos认证机制。使得集群中的节点就是它们所宣称的，是信赖的。Kerberos可以将认证的密钥在集群部署时事先放到可靠的节点上。集群运行时，集群内的节点使用密钥得到认证。只有被认证过节点才能正常使用。企图冒充的节点由于没有事先得到的密钥信息，无法与集群内部的节点通信。防止了恶意的使用或篡改Hadoop集群的问题，确保了Hadoop集群的可靠安全。</p>
+<p><strong>Kerberos的工作原理</strong><br><img src="http://img.educity.cn/img_16/333/2014031814/139118145948.jpg" alt=""></p>
+<ul>
+<li>Client向KDC发送自己的身份信息，完成认证，获取TGT(ticket-granting ticket)</li>
+<li>Client利用之前获得的TGT向KDC请求其他Service的Ticket，从而通过其他Service的身份鉴别<ul>
+<li>① Client将之前获得的TGT和要请求的服务信息发送给KDC</li>
+<li>② KDC生成用于访问该服务的Session Ticket发给Client。 Session Ticket使用KDC与Service之间的密钥加密</li>
+<li>③ Client将刚才收到的Ticket转发到Service。由于Client不知道KDC与Service之间的密钥，所以它无法篡改Ticket中的信息</li>
+<li>④ Service 收到Ticket后利用它与KDC之间的密钥将Ticket中的信息解密出来，验证Client的身份。<br><img src="http://img.educity.cn/img_16/333/2014031814/139119145948.jpg" alt=""></li>
+</ul>
+</li>
+</ul>
+<h2 id="zookeeper"><a href="#Zookeeper" class="headerlink" title="Zookeeper"></a>Zookeeper</h2><p><strong>Zookeeper：用于分布式应用程序的分布式协调服务</strong><br><img src="http://www.thebigdata.cn/upload/2015-12/151223112314961.png" alt=""></p>
+<p>ZooKeeper是一种开源的用于构建分布式应用程序的分布式协调服务。它提供了一组简单的基元，分布式应用程序可以基于这些基元来实现同步、配置维护以及分组和命名等更高级的服务。ZooKeeper易于编程，并且使用类似于传统文件系统的目录树结构来组织数据。</p>
+<p>由于协调服务实现起来比较困难，很容易出现竞态和死锁等问题。ZooKeeper的目标是<em>将分布式应用程序从实现协调服务的工作中解放出来。</em></p>
+<p><strong>Zookeeper的特点</strong></p>
+<ul>
+<li><p>简单<br>ZooKeeper允许分布式程序通过共享的层次结构命名空间相互协调。命名空间由ZooKeeper中的数据寄存器（znode）组成，结构类似于标准的文件系统。<br><img src="http://images2015.cnblogs.com/blog/126867/201602/126867-20160209232509667-1334974111.png" alt=""></p>
+</li>
+<li><p>高性能<br>与为存储设计的典型文件系统不同，ZooKeeper用于存储配置、状态等少量数据，可以将数据保存在内存中，这意味着ZooKeeper可以实现高吞吐和低延迟。</p>
+</li>
+<li><p>有序<br>ZooKeeper采用递增的事务id号（zxid）来标识事务，严格有序意味着客户端可以实现复杂的同步原语。</p>
+</li>
+<li><p>高可用<br>ZooKeeper由一组机器组成，只要有一半以上的机器存活，集群就可以正常提供服务。<br>每个ZooKeeper服务器都提供服务。客户端只连接到一个服务器提交请求。读请求由当前服务器响应。写请求被转发至leader并广播到其他机器，一致性使用<a href="http://thesecretlivesofdata.com/raft/" target="_blank" rel="external">Zab</a>协议保证。<br><img src="http://img.mukewang.com/5761fa0b0001dac909550388.jpg" alt=""></p>
+</li>
+</ul>
+<h2 id="hdfs"><a href="#HDFS" class="headerlink" title="HDFS"></a>HDFS</h2><p><strong>什么是HDFS？</strong><br><img src="http://www.thebigdata.cn/upload/2015-02/150227103663925.jpg" alt=""></p>
+<blockquote>
+<p>A distributed Java-based file system for storing large volumes of data provides the scalable, fault-tolerant, cost-efficient storage for big data</p>
+</blockquote>
+<p>Hadoop Distributed File System (HDFS)是一个高度容错性的系统，适合部署在廉价的机器上，能提供高吞吐量的数据访问，非常适合大规模数据集上的应用。</p>
+<p>HDFS是Hadoop应用用到的一个最主要的分布式存储系统。</p>
+<p>HDFS采用master/slave架构。一个HDFS集群是由一个Namenode和一定数目的Datanode组成。Namenode是一个中心服务器，负责管理文件系统的名字空间(namespace)以及客户端对文件的访问。集群中的Datanode一般是一个节点一个，负责管理它所在节点上的存储。</p>
+<p>HDFS暴露了文件系统的名字空间，用户能够以文件的形式在上面存储数据。从内部看，一个文件其实被分成一个或多个数据块，这些块存储在一组Datanode上。Namenode执行文件系统的名字空间操作，比如打开、关闭、重命名文件或目录。它也负责确定数据块到具体Datanode节点的映射。Datanode负责处理文件系统客户端的读写请求。在Namenode的统一调度下进行数据块的创建、删除和复制。</p>
+<p><strong>HDFS架构</strong><br>HDFS集群由管理集群元数据的NameNode和存储数据的DataNode组成。文件和目录通过inode在NameNode上表示。Inode记录属性，如权限，修改和访问时间，命名空间和磁盘空间配额。<br><img src="http://www.51wendang.com/pic/37c135ca81991f562ceb0964/1-408-png_6_0_0_0_0_0_0_892.83_1263-622-0-76-622.jpg" alt=""><br>文件内容被切分成块（通常为128兆字节），并且文件的每个块独立存储在多个DataNode的本地文件系统上。<br>Namenode主动监视一个块的副本数。当由于DataNode故障或磁盘故障而导致块的副本丢失时，NameNode将创建该块的另一个副本。<br>NameNode维护命名空间树和块到DataNode的映射，将整个命名空间映像保存在RAM中。</p>
+<p>NameNode不直接向DataNode发送请求。它通过回复DataNode周期发送的心跳来向DataNode发送指令。指令包括以下命令：</p>
+<ul>
+<li>将块复制到其他节点</li>
+<li>删除本地块副本</li>
+<li>重新注册并立即发送数据块报告</li>
+<li>关闭节点</li>
+</ul>
+<h2 id="yarn"><a href="#YARN" class="headerlink" title="YARN"></a>YARN</h2><p><strong>什么是YARN？</strong><br><img src="http://ot69fbvko.bkt.clouddn.com/hadoop-yarn.png" alt=""><br>YARN是开源项目Hadoop的一个<strong>资源管理系统</strong>，最初设计是为了解决Hadoop中MapReduce计算框架中的资源管理问题，但是现在它已经是一个更加通用的资源管理系统，可以把MapReduce计算框架作为一个应用程序运行在YARN系统之上，通过YARN来管理资源。<br>如果你的应用程序也需要借助YARN的资源管理功能，你也可以实现YARN提供的编程API，将你的应用程序运行于YARN之上，将资源的分配与回收统一交给YARN去管理，可以大大简化资源管理功能的开发。<br>当前，也有很多应用程序已经可以构建于YARN之上，如Storm、Spark等计算框架。</p>
+<p><strong>YARN架构</strong><br><img src="http://attachbak.dataguru.cn/attachments/forum/201305/25/203300mzpkwvczvhpimvpk.gif" alt=""></p>
+<ul>
+<li>YARN Client<br>YARN Client提交Application到RM，它会首先创建一个Application上下文件对象，并设置AM必需的资源请求信息，然后提交到RM。YARN Client也可以与RM通信，获取到一个已经提交并运行的Application的状态信息等</li>
+<li>ResourceManager（RM）<br>RM是YARN集群的Master，负责管理整个集群的资源和资源分配。RM作为集群资源的管理和调度的角色，如果存在单点故障，则整个集群的资源都无法使用。在2.4.0版本才新增了RM HA的特性，这样就增加了RM的可用性。</li>
+<li>NodeManager（NM）<br>NM是YARN集群的Slave，是集群中实际拥有计算资源的工作节点。我们提交Job以后，会将组成Job的多个Task调度到对应的NM上进行执行。Hadoop集群中，为了获得分布式计算中的Locality特性，会将DN和NM在同一个节点上运行，这样对应的HDFS上的Block可能就在本地，而无需在网络间进行数据的传输。</li>
+<li>Container<br>Container是YARN集群中资源的抽象，将NM上的资源进行量化，根据需要组装成一个个Container，然后服务于已授权资源的计算任务。计算任务在完成计算后，系统会回收资源，以供后续计算任务申请使用。Container包含两种资源：内存和CPU，后续Hadoop版本可能会增加硬盘、网络等资源。</li>
+<li>ApplicationMaster（AM）<br>AM主要管理和监控部署在YARN集群上的Application，以MapReduce为例，MapReduce Application是一个用来处理MapReduce计算的服务框架程序，为用户编写的MapReduce程序提供运行时支持。通常我们在编写的一个MapReduce程序可能包含多个Map Task或Reduce Task，而各个Task的运行管理与监控都是由这个MapReduce Application来负责，比如运行Task的资源申请，由AM向RM申请；启动/停止NM上某Task的对应的Container，由AM向NM请求来完成。</li>
+</ul>
+<h2 id="mapreduce"><a href="#MapReduce" class="headerlink" title="MapReduce"></a>MapReduce</h2><p><strong>什么是MapReduce？</strong><br><img src="http://img.mp.itc.cn/upload/20160512/66fe4ae04e6044e7ac0e84f84e91b82d.jpg" alt=""><br>Hadoop Map/Reduce是一个使用简易的<strong>软件框架</strong>，基于它写出来的应用程序能够运行在由上千个商用机器组成的大型集群上，并以一种可靠容错的方式并行处理上T级别的数据集。</p>
+<p><strong>MapReduce原理</strong><br>一个Map/Reduce 作业（job） 通常会把输入的数据集切分为若干独立的数据块，由 map任务以完全并行的方式处理它们。框架会对map的输出先进行排序， 然后把结果输入给reduce任务。通常作业的输入和输出都会被存储在文件系统中。 整个框架负责任务的调度和监控，以及重新执行已经失败的任务。<br><img src="http://www.36dsj.com/wp-content/uploads/2015/03/174.jpg" alt=""><br>通常，Map/Reduce框架和hdfs是运行在一组相同的节点上的，也就是说，计算节点和存储节点通常在一起。这种配置允许框架在那些已经存好数据的节点上高效地调度任务，这可以使整个集群的网络带宽被非常高效地利用。</p>
+<h2 id="hive"><a href="#Hive" class="headerlink" title="Hive"></a>Hive</h2><p><strong>什么是Hive？</strong><br><img src="http://n1.itc.cn/img8/wb/recom/2016/08/10/147082220481677593.JPEG" alt=""></p>
+<blockquote>
+<p>The Apache Hive ™ data warehouse software facilitates reading, writing, and managing large datasets residing in distributed storage using SQL. Structure can be projected onto data already in storage. A command line tool and JDBC driver are provided to connect users to Hive.</p>
+</blockquote>
+<p>Apache Hive是一个建立Hadoop架构之上的数据仓库。它能够提供数据的精炼，查询和分析。</p>
+<h2 id="pig"><a href="#Pig" class="headerlink" title="Pig"></a>Pig</h2><p><strong>什么是Pig？</strong><br><img src="http://ot69fbvko.bkt.clouddn.com/hadoop-pig.png" alt=""></p>
+<blockquote>
+<p>Apache Pig is a platform for analyzing large data sets that consists of a high-level language for expressing data analysis programs, coupled with infrastructure for evaluating these programs. The salient property of Pig programs is that their structure is amenable to substantial parallelization, which in turns enables them to handle very large data sets.</p>
+</blockquote>
+<p>Apache Pig 是一个高级过程语言，适合于使用 Hadoop 和 MapReduce 平台来查询大型半结构化数据集。通过允许对分布式数据集进行类似 SQL 的查询，Pig 可以简化 Hadoop 的使用。</p>
+<h2 id="storm"><a href="#Storm" class="headerlink" title="Storm"></a>Storm</h2><p><strong>什么是Storm？</strong><br><img src="http://static.oschina.net/uploads/img/201410/14080822_ia5p.png" alt=""></p>
+<blockquote>
+<p>Apache Storm is a free and open source distributed realtime computation system.<br>Storm makes it easy to reliably process unbounded streams of data, doing for realtime processing what Hadoop did for batch processing.<br>Storm is simple, can be used with any programming language, and is a lot of fun to use!</p>
+</blockquote>
+<p><strong>Storm与传统的大数据</strong><br><img src="http://static.oschina.net/uploads/img/201410/01065722_3geS.png" alt=""><br>Storm 与其他大数据解决方案的不同之处在于它的处理方式。Hadoop 在本质上是一个批处理系统。数据被引入 Hadoop 文件系统 (HDFS) 并分发到各个节点进行处理。当处理完成时，结果数据返回到 HDFS 供任务提交者使用。Storm 支持创建拓扑结构来转换没有终点的数据流。不同于 Hadoop 作业，这些转换从不停止，它们会持续处理到达的数据。</p>
+<h2 id="hbase"><a href="#Hbase" class="headerlink" title="Hbase"></a>Hbase</h2><p><strong>什么是Hbase？</strong></p>
+<blockquote>
+<p>Apache HBase™ is the Hadoop database, a distributed, scalable, big data store. Use Apache HBase™ when you need random, realtime read/write access to your Big Data.</p>
+</blockquote>
+<p><img src="http://www.thebigdata.cn/upload/2016-07/160725110131012.jpg" alt=""><br>HBase – Hadoop Database，是一个<strong>高可靠性、高性能、面向列、可伸缩</strong>的分布式存储系统，利用HBase技术可在廉价PC Server上搭建起大规模结构化存储集群。<br>HBase是Google Bigtable的开源实现，类似Google Bigtable利用GFS作为其文件存储系统，HBase利用Hadoop HDFS作为其文件存储系统；Google运行MapReduce来处理Bigtable中的海量数据，HBase同样可以利用Hadoop MapReduce来处理HBase中的海量数据；Google Bigtable利用 Chubby作为协同服务，HBase利用Zookeeper作为对应。</p>
+<p><strong>Hadoop EcoSystem中的关系</strong><br><img src="http://www.dedecms.com/uploads/allimg/c120609/13391S6405DZ-12458.png" alt=""><br>其中HBase位于结构化存储层，Hadoop HDFS为HBase提供了高可靠性的底层存储支持，Hadoop MapReduce为HBase提供了高性能的计算能力，Zookeeper为HBase提供了稳定服务和failover机制。<br>此外，Pig和Hive还为HBase提供了高层语言支持，使得在HBase上进行数据统计处理变的非常简单。 Sqoop则为HBase提供了方便的RDBMS数据导入功能，使得传统数据库数据向HBase中迁移变的非常方便。</p>
+<p><strong>HBase系统架构</strong><br><img src="http://p2.sanwen8.com/97/2016/05/2408/72471608_14.jpg" alt=""></p>
+<ul>
+<li>Client<br>HBase Client使用HBase的RPC机制与HMaster和HRegionServer进行通信，对于管理类操作，Client与HMaster进行RPC；对于数据读写类操作，Client与HRegionServer进行RPC</li>
+<li>Zookeeper<br>Zookeeper中除了存储了META表的地址和HMaster的地址，HRegionServer也会把自己以Ephemeral方式注册到Zookeeper中，使得HMaster可以随时感知到各个HRegionServer的健康状态。</li>
+<li>HMaster<br>HMaster没有单点问题，HBase中可以启动多个HMaster，通过Zookeeper的Master Election机制保证总有一个Master运行，HMaster在功能上主要负责Table和Region的管理工作：<ul>
+<li>管理用户对Table的增、删、改、查操作</li>
+<li>管理HRegionServer的负载均衡，调整Region分布</li>
+<li>在Region Split后，负责新Region的分配</li>
+<li>在HRegionServer停机后，负责失效HRegionServer 上的Regions迁移</li>
+</ul>
+</li>
+</ul>
+<p><img src="http://p2.sanwen8.com/97/2016/05/2408/72471608_16.jpg" alt=""></p>
+<ul>
+<li>HRegionServer<br>HRegionServer主要负责响应用户I/O请求，向HDFS文件系统中读写数据，是HBase中最核心的模块。<br>HRegionServer内部管理了一系列HRegion对象，每个HRegion对应了Table中的一个Region，HRegion中由多个HStore组成。每个HStore对应了Table中的一个Column Family的存储，可以看出每个Column Family其实就是一个集中的存储单元，因此最好将具备共同IO特性的column放在一个Column Family中，这样最高效。</li>
+</ul>
+<h2 id="phoenix"><a href="#Phoenix" class="headerlink" title="Phoenix"></a>Phoenix</h2><p><strong>什么是Phoenix？</strong><br><img src="http://phoenix.apache.org/images/phoenix-logo-small.png" alt=""></p>
+<blockquote>
+<p>Apache Phoenix enables OLTP and operational analytics in Hadoop for low latency applications by combining the best of both worlds:</p>
+<ul>
+<li>the power of standard SQL and JDBC APIs with full ACID transaction capabilities</li>
+<li>the flexibility of late-bound, schema-on-read capabilities from the NoSQL world by leveraging HBase as its backing store</li>
+</ul>
+</blockquote>
+<p>HBase，一个NoSQL数据库，可存储大量非关系型数据。<br>HBase，可以用HBase shell进行操作，也可以用HBase Java api进行操作。HBase虽然是一个数据库，但是它的查询语句，很不好用。有没有一种方法可以把 sql 语句转换成 Hbase的原生API呢？<br>Phoenix，由saleforce.com开源的一个项目，后捐给了Apache。它相当于一个Java中间件，帮助开发者，像使用jdbc访问关系型数据库一样，访问NoSql数据库HBase。它还提供了二级索引功能。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">hadoop</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/hadoop/" class="article-tag-list-link color2">hadoop</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/01/07/big-data-intro/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-k8s-apiserver-privilege-intro" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1259,116 +1469,6 @@
 
 
   
-    <article id="post-mongodb-replicaset-monitoring" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2016/07/12/mongodb-replicaset-monitoring/">MongoDB副本集监控</a>
-    </h1>
-  
-
-        
-        <a href="/2016/07/12/mongodb-replicaset-monitoring/" class="archive-article-date">
-  	<time datetime="2016-07-12T08:19:33.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-07-12</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#1-副本集简介">1. 副本集简介</a></li>
-<li><a href="#2-常用监控介绍">2. 常用监控介绍</a><ul>
-<li><a href="#副本集状态">副本集状态</a></li>
-<li><a href="#主从复制延迟">主从复制延迟</a></li>
-<li><a href="#oplog长度">Oplog长度</a></li>
-<li><a href="#namespace的使用率">Namespace的使用率</a></li>
-</ul>
-</li>
-</ul>
-<!-- tocstop -->
-<h2 id="1-副本集简介"><a href="#1-副本集简介" class="headerlink" title="1. 副本集简介"></a>1. 副本集简介</h2><p>MongoDB复本集由一组Mongod实例（进程）组成，包含一个Primary节点和多个Secondary节点，MongoDB Driver（客户端）的所有数据都写入Primary，Secondary从Primary同步写入的数据，以保持复制集内所有成员存储相同的数据集，提供数据的高可用。<br>下图（图片源于MongoDB官方文档）是一个典型的MongoDB复制集，包含一个Primary节点和2个Secondary节点。<br><img src="https://docs.mongodb.com/manual/_images/replica-set-read-write-operations-primary.bakedsvg.svg" alt="MongoDB-arch"></p>
-<p>副本集特征：</p>
-<ul>
-<li>N 个节点的集群</li>
-<li>任何节点可作为主节点</li>
-<li>所有写入操作都在主节点上</li>
-<li>自动故障转移</li>
-<li>自动恢复</li>
-</ul>
-<h2 id="2-常用监控介绍"><a href="#2-常用监控介绍" class="headerlink" title="2. 常用监控介绍"></a>2. 常用监控介绍</h2><h3 id="副本集状态"><a href="#副本集状态" class="headerlink" title="副本集状态"></a>副本集状态</h3><p>MongoDB副本集节点包括若干状态，其中PRIMARY、SECONDARY、ARBITER属于正常状态，如果出现其他状态，则意味着有节点存在异常。可以使用rs.status()获取集群各节点状态，依此判断集群运行是否正常。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval 'var a = rs.status(); a.members.forEach(function(e)&#123;print(e.name, e.stateStr)&#125;)'</div><div class="line">demo01.mongodb:1988 PRIMARY</div><div class="line">demo02.mongodb:1988 SECONDARY</div><div class="line">demo03.mongodb:1988 SECONDARY</div><div class="line">demo04.mongodb:1988 SECONDARY</div></pre></td></tr></table></figure></p>
-<h3 id="主从复制延迟"><a href="#主从复制延迟" class="headerlink" title="主从复制延迟"></a>主从复制延迟</h3><p>MongoDB副本集使用Oplog进行主从同步，类似于Mysql的binlog。可以比较SECONDARY节点同步到的Oplog event和最新的Oplog event的时间，计算出主从延迟。<br>获取最新的Oplog event时间<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval 'db.printReplicationInfo()'</div><div class="line">configured oplog size:   45000MB</div><div class="line">log length start to end: 5270894secs (1464.14hrs)</div><div class="line">oplog first event time:  Mon Jul 31 2017 02:35:34 GMT+0800 (CST)</div><div class="line">oplog last event time:   Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</div><div class="line">now:                     Sat Sep 30 2017 15:56:33 GMT+0800 (CST)</div><div class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval 'db.printReplicationInfo()' | awk 'BEGIN&#123;FS = "time:"&#125;/oplog last event time/&#123;print $2&#125;'</div><div class="line">Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</div></pre></td></tr></table></figure></p>
-<p>获取SECONDARY同步到的Oplog event时间<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval 'db.printSlaveReplicationInfo()'</div><div class="line">source: demo02.mongodb:1988</div><div class="line">        syncedTo: Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</div><div class="line">        0 secs (0 hrs) behind the primary</div><div class="line">source: demo03.mongodb:1988</div><div class="line">        syncedTo: Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</div><div class="line">        0 secs (0 hrs) behind the primary</div><div class="line">source: demo04.mongodb:1988</div><div class="line">        syncedTo: Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</div><div class="line">        0 secs (0 hrs) behind the primary</div><div class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval 'db.printSlaveReplicationInfo()' | awk 'BEGIN&#123;FS = "syncedTo:"&#125;/syncedTo/&#123;print $2&#125;'</div><div class="line"> Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</div><div class="line"> Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</div><div class="line"> Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</div></pre></td></tr></table></figure></p>
-<h3 id="oplog长度"><a href="#Oplog长度" class="headerlink" title="Oplog长度"></a>Oplog长度</h3><p>Oplog是一个capped collection，新写入的Oplog会将最旧的Oplog覆盖掉，Oplog的时间跨度越小，SECONDARY复制跟不上PRIMARY的风险就越大，允许SECONDARY暂停维护的时间窗口就越短，所以Oplog长度太小是有问题的。<br>获取Oplog的时间跨度<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval 'db.printReplicationInfo()'</div><div class="line">configured oplog size:   45000MB</div><div class="line">log length start to end: 5270894secs (1464.14hrs)</div><div class="line">oplog first event time:  Mon Jul 31 2017 02:35:34 GMT+0800 (CST)</div><div class="line">oplog last event time:   Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</div><div class="line">now:                     Sat Sep 30 2017 16:20:21 GMT+0800 (CST)</div><div class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval 'db.printReplicationInfo()' | sed -n '/log length start to end:/s/.*(\([0-9][0-9]*\).*/\1/p'</div><div class="line">1464</div></pre></td></tr></table></figure></p>
-<h3 id="namespace的使用率"><a href="#Namespace的使用率" class="headerlink" title="Namespace的使用率"></a>Namespace的使用率</h3><p>MongoDB（MMAPV1引擎）可支持的collection数量是由nssize参数指定的，它指定了dbname.ns磁盘文件的大小，也就指定了DB可支持的最大collection数目，ns为namespace缩写，默认nssize为16MB。<br>如果Namespace满了，就无法创建新的collection，所以需要关注一下<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval '</div><div class="line"><span class="meta">&gt;</span> var dbs = db.adminCommand("listDatabases");</div><div class="line"><span class="meta">&gt;</span> dbs.databases.forEach(function(e) &#123;</div><div class="line"><span class="meta">&gt;</span>     db.getMongo().setSlaveOk();</div><div class="line"><span class="meta">&gt;</span>     db = db.getMongo().getDB(e.name);</div><div class="line"><span class="meta">&gt;</span>     var used = db.system.namespaces.count();</div><div class="line"><span class="meta">&gt;</span>     var stat = db.stats();</div><div class="line"><span class="meta">&gt;</span>     var max = Math.floor(stat.nsSizeMB*1024*1024/700);</div><div class="line"><span class="meta">&gt;</span>     if (max &gt; 0) &#123;</div><div class="line"><span class="meta">&gt;</span>         print(e.name, used, max, Math.floor(used*100/max));</div><div class="line"><span class="meta">&gt;</span>     &#125; else &#123;</div><div class="line"><span class="meta">&gt;</span>         print(e.name, used, max, 0);</div><div class="line"><span class="meta">&gt;</span>     &#125;</div><div class="line"><span class="meta">&gt;</span> &#125;)'</div><div class="line">local 7 23967 0</div><div class="line">admin 3 23967 0</div><div class="line">testdb 3 23967 0</div><div class="line">default 15 23967 0</div></pre></td></tr></table></figure></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/MongoDB/" class="article-tag-list-link color3">MongoDB</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2016/07/12/mongodb-replicaset-monitoring/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/2/">&laquo; Prev</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><a class="page-number" href="/page/5/">5</a><a class="page-number" href="/page/6/">6</a><a class="extend next" rel="next" href="/page/4/">Next &raquo;</a>
@@ -1468,14 +1568,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">shell</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">监控</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
@@ -1484,15 +1576,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">shell</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">监控</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">hadoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">Linux</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">snmp</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">hadoop</a>
               </li>
              
               <li class="article-tag-list-item">
