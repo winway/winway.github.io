@@ -154,6 +154,141 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-hadoop-backup-restore" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2016/08/09/hadoop-backup-restore/">Hadoop备份与恢复方案介绍</a>
+    </h1>
+  
+
+        
+        <a href="/2016/08/09/hadoop-backup-restore/" class="archive-article-date">
+  	<time datetime="2016-08-09T11:42:46.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-08-09</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#namenode">Namenode</a></li>
+<li><a href="#journalnode">Journalnode</a></li>
+<li><a href="#zookeeper">Zookeeper</a></li>
+<li><a href="#kerberos">Kerberos</a><ul>
+<li><a href="#方案一">方案一</a></li>
+<li><a href="#方案二">方案二</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h2 id="namenode"><a href="#Namenode" class="headerlink" title="Namenode"></a>Namenode</h2><p><strong>备份策略：</strong><br>周期性备份namenode、standby namenode的dfs.namenode.name.dir<br>因为主从切换可能导致edits log分散在两台机器上，需要两台机器共同提供完整的edits log<br><strong>恢复步骤：</strong></p>
+<ol>
+<li>删除journalnode数据文件，启动服务（所有jn均执行）</li>
+<li>登陆namenode</li>
+<li>下载最新的备份文件</li>
+<li>解压，移至dfs.namenode.name.dir</li>
+<li>执行hdfs namenode –initializeSharedEdits（hdfs namenode -initializeSharedEdits will initialize the shared edits directory with the edits data from the local NameNode edits directories）</li>
+<li>启动zkfc</li>
+<li>启动namenode</li>
+<li>登陆standby namenode</li>
+<li>执行hdfs namenode -bootstrapStandby（The bootstrapStandby command will download the most recent fsimage from the active NameNode into the $dfs.name.dir directory of the standby NameNode.）</li>
+<li>启动zkfc</li>
+<li>启动namenode</li>
+</ol>
+<p><strong>适用场景：</strong><br>namenode、standby namenode全部故障<br>如果只是一台namenode故障，可以清空name文件夹，执行hdfs namenode -bootstrapStandby</p>
+<h2 id="journalnode"><a href="#Journalnode" class="headerlink" title="Journalnode"></a>Journalnode</h2><p><strong>备份策略：</strong><br>无<br><strong>恢复方法：</strong><br>从正常的jn节点拷贝数据，启动，即可。<br>无需停止正常节点再拷贝，直接拷贝即可。这样拷贝会有部分缺失数据，故障节点启动后，不会补齐这些缺失数据，但不影响新数据的写入。对于缺失的edits，只要有一台机器上有，namenode就可以启动。<br><strong>适用场景：</strong><br>单个节点故障</p>
+<h2 id="zookeeper"><a href="#Zookeeper" class="headerlink" title="Zookeeper"></a>Zookeeper</h2><p><strong>备份策略：</strong><br>周期性备份<br>&lt; dataDir &gt;/version-2/acceptedEpoch<br>&lt; dataDir &gt;/version-2/currentEpoch<br>&lt; dataDir &gt;/version-2/snapshot.<em><br>&lt; dataLogDir &gt;/version-2/log.</em><br>其中snapshot、log备份最近的几份就行<br><strong>恢复步骤：</strong></p>
+<ol>
+<li>登陆一台zookeeper服务器</li>
+<li>下载最新的备份文件</li>
+<li>解压，将data、datalog移至&lt; dataDir &gt;，并创建data/myid文件（与配置文件一致）</li>
+<li>启动服务</li>
+<li>其余节点配置data/myid文件，启动即可</li>
+</ol>
+<p><strong>试用场景：</strong><br>部分或全部数据丢失<br>如果只是单个节点故障，清空故障节点的data、datalog文件夹，启动后会自动从正常节点复制数据，无需人工恢复</p>
+<h2 id="kerberos"><a href="#Kerberos" class="headerlink" title="Kerberos"></a>Kerberos</h2><h3 id="方案一"><a href="#方案一" class="headerlink" title="方案一"></a>方案一</h3><p><strong>备份策略：</strong><br>周期性备份/var/kerberos/krb5kdc<br><strong>恢复步骤：</strong></p>
+<ol>
+<li>陆kerberos服务器</li>
+<li>下载最新的备份文件</li>
+<li>解压，将krb5kdc移至/var/kerberos/</li>
+</ol>
+<p><strong>适用场景：</strong><br>部分或全部数据丢失</p>
+<h3 id="方案二"><a href="#方案二" class="headerlink" title="方案二"></a>方案二</h3><p><strong>备份策略：</strong><br>周期性导出kdb5_util dump kerberos.kdump<br><strong>恢复步骤：</strong></p>
+<ol>
+<li>登陆kerberos服务器</li>
+<li>下载最新的备份文件</li>
+<li>解压，执行kdb5_util load -update kerberos.kdump</li>
+</ol>
+<p><strong>适用场景：</strong><br>部分数据丢失</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">hadoop</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/hadoop/" class="article-tag-list-link color2">hadoop</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2016/08/09/hadoop-backup-restore/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-mongodb-replicaset-monitoring" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1555,104 +1690,6 @@
       
         <p class="article-more-link">
           <a class="article-more-a" href="/2016/01/22/hadoop-moniting-strategy/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-mongo-php-driver-not-support-different-replicasets-with-the-same-name" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2015/10/21/mongo-php-driver-not-support-different-replicasets-with-the-same-name/">RockMongo管理多个名字相同的副本集问题</a>
-    </h1>
-  
-
-        
-        <a href="/2015/10/21/mongo-php-driver-not-support-different-replicasets-with-the-same-name/" class="archive-article-date">
-  	<time datetime="2015-10-21T12:23:26.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2015-10-21</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#1-缘起">1. 缘起</a></li>
-<li><a href="#2-解决方法">2. 解决方法</a></li>
-</ul>
-<!-- tocstop -->
-<h2 id="1-缘起"><a href="#1-缘起" class="headerlink" title="1. 缘起"></a>1. 缘起</h2><p>使用<a href="https://github.com/iwind/rockmongo" target="_blank" rel="external">RockMongo</a>管理MongoDB集群，发现对于不同的副本集，如果配置了相同的名字，则RockMongo无法正确处理。原因在于RockMongo连接MongoDB使用的mongo-php-driver不支持这种情况。<br>以下摘自<a href="http://php.net/manual/en/mongo.connecting.rs.php" target="_blank" rel="external">http://php.net/manual/en/mongo.connecting.rs.php</a></p>
-<blockquote>
-<p>Warning<br>The driver does not support connecting to different replica sets with the same name. This extends beyond one script so make sure to have separate names for each of your replica sets. That also means that you can not do this:</p>
-<p>Example #2 Wrong replica set name duplication<br><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="meta">&lt;?php</span></div><div class="line">$m = <span class="keyword">new</span> MongoClient(<span class="string">"mongodb://devserver1,devserver2,devserver3/?replicaSet=repset"</span>);</div><div class="line">$m = <span class="keyword">new</span> MongoClient(<span class="string">"mongodb://prodserver1,prodserver2,prodserver3/?replicaSet=repset"</span>);</div><div class="line"><span class="meta">?&gt;</span></div></pre></td></tr></table></figure></p>
-<p>Instead, you need to have two different names for your replica sets:</p>
-<p>Example #3 Correct use of two replica set names<br><figure class="highlight php"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="meta">&lt;?php</span></div><div class="line">$m = <span class="keyword">new</span> MongoClient(<span class="string">"mongodb://devserver1,devserver2,devserver3/?replicaSet=devset"</span>);</div><div class="line">$m = <span class="keyword">new</span> MongoClient(<span class="string">"mongodb://prodserver1,prodserver2,prodserver3/?replicaSet=prodset"</span>);</div><div class="line"><span class="meta">?&gt;</span></div></pre></td></tr></table></figure></p>
-</blockquote>
-<h2 id="2-解决方法"><a href="#2-解决方法" class="headerlink" title="2. 解决方法"></a>2. 解决方法</h2><p>在阅读了mongo-php-driver的代码后，发现mongo-php-driver使用副本集名称作为哈希键值，保存副本集各节点的信息。所以如果不同的副本集具有相同的名字，则集群信息发生混乱，对代码进行了简单修改，绕过了该问题，详见<a href="https://github.com/winway/mongo-php-driver-legacy/tree/v1.6.10.1" target="_blank" rel="external">https://github.com/winway/mongo-php-driver-legacy/tree/v1.6.10.1</a></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/MongoDB/" class="article-tag-list-link color3">MongoDB</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2015/10/21/mongo-php-driver-not-support-different-replicasets-with-the-same-name/">展开全文 >></a>
         </p>
       
 
