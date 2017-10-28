@@ -6,21 +6,17 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://winway.github.io">
-  <title>saltstack源码解析之master启动流程 | winway&#39;s blog</title>
+  <title>winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="ENV: Version: 2016.11.0, Transport: tcp, Multi-Master   1. 类图和重要方法说明 2. 源码解析 2.1 初始化（salt.master.Master.__init__） 2.2 启动（salt.master.Master.start）     1. 类图和重要方法说明 2. 源码解析2.1 初始化（salt.master.Master.__">
-<meta name="keywords" content="saltstack,salt源码解析">
-<meta property="og:type" content="article">
-<meta property="og:title" content="saltstack源码解析之master启动流程">
-<meta property="og:url" content="https://winway.github.io/2017/07/25/salt-master-startup-procedure/index.html">
+  <meta name="description" content="python, go, devops, hadoop, MongoDB">
+<meta property="og:type" content="website">
+<meta property="og:title" content="winway&#39;s blog">
+<meta property="og:url" content="https://winway.github.io/page/7/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:description" content="ENV: Version: 2016.11.0, Transport: tcp, Multi-Master   1. 类图和重要方法说明 2. 源码解析 2.1 初始化（salt.master.Master.__init__） 2.2 启动（salt.master.Master.start）     1. 类图和重要方法说明 2. 源码解析2.1 初始化（salt.master.Master.__">
-<meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/master%E5%90%AF%E5%8A%A8%E6%B5%81%E7%A8%8B.png">
-<meta property="og:updated_time" content="2017-08-26T07:57:02.117Z">
+<meta property="og:description" content="python, go, devops, hadoop, MongoDB">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="saltstack源码解析之master启动流程">
-<meta name="twitter:description" content="ENV: Version: 2016.11.0, Transport: tcp, Multi-Master   1. 类图和重要方法说明 2. 源码解析 2.1 初始化（salt.master.Master.__init__） 2.2 启动（salt.master.Master.start）     1. 类图和重要方法说明 2. 源码解析2.1 初始化（salt.master.Master.__">
-<meta name="twitter:image" content="http://ot69fbvko.bkt.clouddn.com/master%E5%90%AF%E5%8A%A8%E6%B5%81%E7%A8%8B.png">
+<meta name="twitter:title" content="winway&#39;s blog">
+<meta name="twitter:description" content="python, go, devops, hadoop, MongoDB">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -156,129 +152,55 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-salt-master-startup-procedure" class="article article-type-post " itemscope itemprop="blogPost">
+            
+  
+    <article id="post-snmp-introduction" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
       <header class="article-header">
         
   
-    <h1 class="article-title" itemprop="name">
-      saltstack源码解析之master启动流程
+    <h1 itemprop="name">
+      <a class="article-title" href="/2013/05/11/snmp-introduction/">SNMP介绍</a>
     </h1>
   
 
         
-        <a href="/2017/07/25/salt-master-startup-procedure/" class="archive-article-date">
-  	<time datetime="2017-07-25T12:37:27.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-07-25</time>
+        <a href="/2013/05/11/snmp-introduction/" class="archive-article-date">
+  	<time datetime="2013-05-11T05:39:29.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-05-11</time>
 </a>
         
       </header>
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p><em>ENV: Version: 2016.11.0, Transport: tcp, Multi-Master</em></p>
+        <p>简单介绍一下SNMP的原理和使用。</p>
 <!-- toc -->
 <ul>
-<li><a href="#1-类图和重要方法说明">1. 类图和重要方法说明</a></li>
-<li><a href="#2-源码解析">2. 源码解析</a><ul>
-<li><a href="#21-初始化saltmastermaster__init__">2.1 初始化（salt.master.Master.__init__）</a></li>
-<li><a href="#22-启动saltmastermasterstart">2.2 启动（salt.master.Master.start）</a></li>
-</ul>
-</li>
+<li><a href="#1-snmp原理">1. SNMP原理</a></li>
+<li><a href="#2-snmpdconf配置">2. snmpd.conf配置</a></li>
+<li><a href="#3-snmp开发">3. SNMP开发</a></li>
 </ul>
 <!-- tocstop -->
-<h2 id="1-类图和重要方法说明"><a href="#1-类图和重要方法说明" class="headerlink" title="1. 类图和重要方法说明"></a>1. 类图和重要方法说明</h2><p><img src="http://ot69fbvko.bkt.clouddn.com/master%E5%90%AF%E5%8A%A8%E6%B5%81%E7%A8%8B.png" alt="salt-master启动流程"></p>
-<h2 id="2-源码解析"><a href="#2-源码解析" class="headerlink" title="2. 源码解析"></a>2. 源码解析</h2><h3 id="21-初始化saltmastermaster__init__"><a href="#2-1-初始化（salt-master-Master-init-）" class="headerlink" title="2.1 初始化（salt.master.Master.__init__）"></a>2.1 初始化（salt.master.Master.__init__）</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">Master</span><span class="params">(SMaster)</span>:</span></div><div class="line">    <span class="string">'''</span></div><div class="line">    The salt master server</div><div class="line">    '''</div><div class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, opts)</span>:</span></div><div class="line">        <span class="string">'''</span></div><div class="line">        Create a salt master server instance</div><div class="line"></div><div class="line">        :param dict: The salt options</div><div class="line">        '''</div><div class="line">        <span class="keyword">if</span> HAS_ZMQ:</div><div class="line">            <span class="comment"># Warn if ZMQ &lt; 3.2</span></div><div class="line">            <span class="keyword">try</span>:</div><div class="line">                zmq_version_info = zmq.zmq_version_info()</div><div class="line">            <span class="keyword">except</span> AttributeError:</div><div class="line">                <span class="comment"># PyZMQ &lt;= 2.1.9 does not have zmq_version_info, fall back to</span></div><div class="line">                <span class="comment"># using zmq.zmq_version() and build a version info tuple.</span></div><div class="line">                zmq_version_info = tuple(</div><div class="line">                    [int(x) <span class="keyword">for</span> x <span class="keyword">in</span> zmq.zmq_version().split(<span class="string">'.'</span>)]</div><div class="line">                )</div><div class="line">            <span class="keyword">if</span> zmq_version_info &lt; (<span class="number">3</span>, <span class="number">2</span>):</div><div class="line">                log.warning(</div><div class="line">                    <span class="string">'You have a version of ZMQ less than ZMQ 3.2! There are '</span></div><div class="line">                    <span class="string">'known connection keep-alive issues with ZMQ &lt; 3.2 which '</span></div><div class="line">                    <span class="string">'may result in loss of contact with minions. Please '</span></div><div class="line">                    <span class="string">'upgrade your ZMQ!'</span></div><div class="line">                )</div><div class="line">        SMaster.__init__(self, opts)</div></pre></td></tr></table></figure>
+<h2 id="1-snmp原理"><a href="#1-SNMP原理" class="headerlink" title="1. SNMP原理"></a>1. SNMP原理</h2><p>简单的说，SNMP指的是一套网络协议，主要用在对服务器和网络设备的管理上。要使用SNMP对设备进行管理，需要在设备上部署遵守SNMP协议的软件，例如Linux环境下的net-snmp。SNMP采用C/S架构，不过这里的S，指的是被监控的设备，这是一个需要注意的地方。大概的原理就是，在被监控设备，比如Linux服务器A上安装net-snmp，snmpd服务负责搜集本机信息，以MIB(Management Information Base，管理信息库)的形式存储，同时监听UDP端口161，处理来自SNMP客户端的get、set报文。更具体的关于SNMP原理的资料列举如下：</p>
 <ul>
-<li>检查zmq版本</li>
-<li>调用SMaster.<strong>init</strong>(self, opts)，进行opts、master_key和key的初始化<figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">SMaster</span><span class="params">(object)</span>:</span></div><div class="line">    <span class="string">'''</span></div><div class="line">    Create a simple salt-master, this will generate the top-level master</div><div class="line">    '''</div><div class="line">    secrets = &#123;&#125;  <span class="comment"># mapping of key -&gt; &#123;'secret': multiprocessing type, 'reload': FUNCTION&#125;</span></div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, opts)</span>:</span></div><div class="line">        <span class="string">'''</span></div><div class="line">        Create a salt master server instance</div><div class="line"></div><div class="line">        :param dict opts: The salt options dictionary</div><div class="line">        '''</div><div class="line">        self.opts = opts</div><div class="line">        self.master_key = salt.crypt.MasterKeys(self.opts)</div><div class="line">        self.key = self.__prep_key()</div></pre></td></tr></table></figure>
-</li>
+<li><a href="http://bbs.chinaunix.net/forum.php?mod=viewthread&amp;tid=1289867" target="_blank" rel="external">http://bbs.chinaunix.net/forum.php?mod=viewthread&amp;tid=1289867</a></li>
+<li><a href="http://www.linuxfly.org/post/552/" target="_blank" rel="external">http://www.linuxfly.org/post/552/</a></li>
+<li><a href="http://wenku.baidu.com/view/66d089d63186bceb19e8bb10.html" target="_blank" rel="external">http://wenku.baidu.com/view/66d089d63186bceb19e8bb10.html</a></li>
+<li><a href="http://www.360doc.com/content/06/0826/16/4131_191671.shtml" target="_blank" rel="external">http://www.360doc.com/content/06/0826/16/4131_191671.shtml</a></li>
 </ul>
-<h3 id="22-启动saltmastermasterstart"><a href="#2-2-启动（salt-master-Master-start）" class="headerlink" title="2.2 启动（salt.master.Master.start）"></a>2.2 启动（salt.master.Master.start）</h3><p>1.启动前检查，Master._pre_flight</p>
+<h2 id="2-snmpdconf配置"><a href="#2-snmpd-conf配置" class="headerlink" title="2. snmpd.conf配置"></a>2. snmpd.conf配置</h2><p>SNMP配置看似复杂，实际上常用的配置项并不多。示例：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"># cat /etc/snmp/snmpd.conf</div><div class="line">com2sec winway 127.0.0.1 123456</div><div class="line">group testgroup v2c winway</div><div class="line">view all included .1 80</div><div class="line">access testgroup &quot;&quot; any noauth prefix all none none</div></pre></td></tr></table></figure></p>
+<p>运行snmpd服务：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"># snmpd -c /etc/snmp/snmpd.conf</div></pre></td></tr></table></figure></p>
+<p>测试，获取sysUpTime(The time (in hundredths of a second) since the network management portion of the system was last re-initialized.)：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line"># snmpwalk -v 2c -c 123456 localhost 1.3.6.1.2.1.1.3</div><div class="line">DISMAN-EVENT-MIB::sysUpTimeInstance = Timeticks: (246029) 0:41:00.29</div></pre></td></tr></table></figure></p>
+<p>配置文件的具体解析参考一下链接：</p>
 <ul>
-<li>os.chdir(‘/‘)</li>
-<li>根据fileserver_backend配置，创建Fileserver。这里用到了LazyLoader，先创建空的module，在实际调用的时候才进行加载，而不是在启动时全部import<figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/loader.py</span></div><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">LazyLoader</span><span class="params">(salt.utils.lazy.LazyDict)</span>:</span></div><div class="line">    <span class="string">'''</span></div><div class="line">    A pseduo-dictionary which has a set of keys which are the</div><div class="line">    name of the module and function, delimited by a dot. When</div><div class="line">    the value of the key is accessed, the function is then loaded</div><div class="line">    from disk and into memory.</div></pre></td></tr></table></figure>
-</li>
+<li><a href="http://blog.csdn.net/fingding/article/details/6122236" target="_blank" rel="external">http://blog.csdn.net/fingding/article/details/6122236</a></li>
+<li><a href="http://magustest.com/blog/linux/setup-snmpd-conf/" target="_blank" rel="external">http://magustest.com/blog/linux/setup-snmpd-conf/</a><br>这里有一个OID(Object Identifier，对象标识符)的概念。MIB 包括了对特定数据变量的说明，数据变量被称为OID（具体参考SNMP原理部分）。可以到这里<a href="http://www.oid-info.com查询OID。" target="_blank" rel="external">http://www.oid-info.com查询OID。</a></li>
 </ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/loader.py</span></div><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">_generate_module</span><span class="params">(name)</span>:</span></div><div class="line">    <span class="keyword">if</span> name <span class="keyword">in</span> sys.modules:</div><div class="line">        <span class="keyword">return</span></div><div class="line"></div><div class="line">    code = <span class="string">"'''Salt loaded &#123;0&#125; parent module'''"</span>.format(name.split(<span class="string">'.'</span>)[<span class="number">-1</span>])</div><div class="line">    module = imp.new_module(name)</div><div class="line">    exec(code, module.__dict__)</div><div class="line">    sys.modules[name] = module</div></pre></td></tr></table></figure>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">__getattr__</span><span class="params">(self, mod_name)</span>:</span></div><div class="line">    <span class="string">'''</span></div><div class="line">    Allow for "direct" attribute access-- this allows jinja templates to</div><div class="line">    access things like `salt.test.ping()`</div><div class="line">    '''</div><div class="line">    <span class="comment"># if we have an attribute named that, lets return it.</span></div><div class="line">    <span class="keyword">try</span>:</div><div class="line">        <span class="keyword">return</span> object.__getattr__(self, mod_name)  <span class="comment"># pylint: disable=no-member</span></div><div class="line">    <span class="keyword">except</span> AttributeError:</div><div class="line">        <span class="keyword">pass</span></div><div class="line"></div><div class="line">    <span class="comment"># otherwise we assume its jinja template access</span></div><div class="line">    <span class="keyword">if</span> mod_name <span class="keyword">not</span> <span class="keyword">in</span> self.loaded_modules <span class="keyword">and</span> <span class="keyword">not</span> self.loaded:</div><div class="line">        <span class="keyword">for</span> name <span class="keyword">in</span> self._iter_files(mod_name):</div><div class="line">            <span class="keyword">if</span> name <span class="keyword">in</span> self.loaded_files:</div><div class="line">                <span class="keyword">continue</span></div><div class="line">            <span class="comment"># if we got what we wanted, we are done</span></div><div class="line">            <span class="keyword">if</span> self._load_module(name) <span class="keyword">and</span> mod_name <span class="keyword">in</span> self.loaded_modules:</div><div class="line">                <span class="keyword">break</span></div><div class="line">    <span class="keyword">if</span> mod_name <span class="keyword">in</span> self.loaded_modules:</div><div class="line">        <span class="keyword">return</span> self.loaded_modules[mod_name]</div><div class="line">    <span class="keyword">else</span>:</div><div class="line">        <span class="keyword">raise</span> AttributeError(mod_name)</div></pre></td></tr></table></figure>
-<ul>
-<li>创建pillar_cache文件夹</li>
-<li>检查git_pillar<blockquote>
-<p>This external pillar allows for a Pillar top file and Pillar SLS files to be sourced from a git repository.</p>
-</blockquote>
-</li>
-</ul>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="attr">ext_pillar:</span></div><div class="line"><span class="attr">  - git:</span> <span class="string">master</span> <span class="attr">https://gitserver/git-pillar.git</span></div><div class="line"><span class="attr">  - git:</span> <span class="string">dev</span> <span class="attr">https://gitserver/git-pillar.git</span></div></pre></td></tr></table></figure>
-<p>2.注册信号处理程序</p>
-<ul>
-<li><p>enable_sigusr1_handler。打印stack trace</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/utils/debug.py</span></div><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">_handle_sigusr1</span><span class="params">(sig, stack)</span>:</span></div><div class="line">    <span class="string">'''</span></div><div class="line">    Signal handler for SIGUSR1, only available on Unix-like systems</div><div class="line">    '''</div><div class="line">    <span class="comment"># When running in the foreground, do the right  thing</span></div><div class="line">    <span class="comment"># and spit out the debug info straight to the console</span></div><div class="line">    <span class="keyword">if</span> sys.stderr.isatty():</div><div class="line">        output = sys.stderr</div><div class="line">        _makepretty(output, stack)</div><div class="line">    <span class="keyword">else</span>:</div><div class="line">        filename = <span class="string">'salt-debug-&#123;0&#125;.log'</span>.format(int(time.time()))</div><div class="line">        destfile = os.path.join(tempfile.gettempdir(), filename)</div><div class="line">        <span class="keyword">with</span> salt.utils.fopen(destfile, <span class="string">'w'</span>) <span class="keyword">as</span> output:</div><div class="line">            _makepretty(output, stack)</div></pre></td></tr></table></figure>
-</li>
-<li><p>enable_sigusr2_handler。YAPPI开关</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/utils/debug.py</span></div><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">_handle_sigusr2</span><span class="params">(sig, stack)</span>:</span></div><div class="line">    <span class="string">'''</span></div><div class="line">    Signal handler for SIGUSR2, only available on Unix-like systems</div><div class="line">    '''</div><div class="line">    <span class="keyword">try</span>:</div><div class="line">        <span class="keyword">import</span> yappi</div><div class="line">    <span class="keyword">except</span> ImportError:</div><div class="line">        <span class="keyword">return</span></div><div class="line">    <span class="keyword">if</span> yappi.is_running():</div><div class="line">        yappi.stop()</div><div class="line">        filename = <span class="string">'callgrind.salt-&#123;0&#125;-&#123;1&#125;'</span>.format(int(time.time()), os.getpid())</div><div class="line">        destfile = os.path.join(tempfile.gettempdir(), filename)</div><div class="line">        yappi.get_func_stats().save(destfile, type=<span class="string">'CALLGRIND'</span>)</div><div class="line">        <span class="keyword">if</span> sys.stderr.isatty():</div><div class="line">            sys.stderr.write(<span class="string">'Saved profiling data to: &#123;0&#125;\n'</span>.format(destfile))</div><div class="line">        yappi.clear_stats()</div><div class="line">    <span class="keyword">else</span>:</div><div class="line">        <span class="keyword">if</span> sys.stderr.isatty():</div><div class="line">            sys.stderr.write(<span class="string">'Profiling started\n'</span>)</div><div class="line">        yappi.start()</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>3.设置max open files，Master.__set_max_open_files<br>4.初始化SMaster.secrets[‘aes’]，在进行消息的发送时加密使用<br>5.创建ProcessManager，后续创建的各组件进程都会添加进来<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line">            log.info(<span class="string">'Creating master process manager'</span>)</div><div class="line">            <span class="comment"># Since there are children having their own ProcessManager we should wait for kill more time.</span></div><div class="line">            self.process_manager = salt.utils.process.ProcessManager(wait_for_kill=<span class="number">5</span>)</div></pre></td></tr></table></figure></p>
-<p>6.创建publisher process。用于分发消息给minion<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line">            pub_channels = []</div><div class="line">            log.info(<span class="string">'Creating master publisher process'</span>)</div><div class="line">            <span class="keyword">for</span> transport, opts <span class="keyword">in</span> iter_transport_opts(self.opts):</div><div class="line">                chan = salt.transport.server.PubServerChannel.factory(opts)</div><div class="line">                chan.pre_fork(self.process_manager)</div><div class="line">                pub_channels.append(chan)</div></pre></td></tr></table></figure></p>
-<p>7.创建event publisher process。Master内部的消息总线，进行信息交换<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line">            log.info(<span class="string">'Creating master event publisher process'</span>)</div><div class="line">            self.process_manager.add_process(salt.utils.event.EventPublisher, args=(self.opts,))</div></pre></td></tr></table></figure></p>
-<p>8.创建reactor。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line">            <span class="keyword">if</span> self.opts.get(<span class="string">'reactor'</span>):</div><div class="line">                <span class="keyword">if</span> isinstance(self.opts[<span class="string">'engines'</span>], list):</div><div class="line">                    rine = <span class="keyword">False</span></div><div class="line">                    <span class="keyword">for</span> item <span class="keyword">in</span> self.opts[<span class="string">'engines'</span>]:</div><div class="line">                        <span class="keyword">if</span> <span class="string">'reactor'</span> <span class="keyword">in</span> item:</div><div class="line">                            rine = <span class="keyword">True</span></div><div class="line">                            <span class="keyword">break</span></div><div class="line">                    <span class="keyword">if</span> <span class="keyword">not</span> rine:</div><div class="line">                        self.opts[<span class="string">'engines'</span>].append(&#123;<span class="string">'reactor'</span>: &#123;&#125;&#125;)</div><div class="line">                <span class="keyword">else</span>:</div><div class="line">                    <span class="keyword">if</span> <span class="string">'reactor'</span> <span class="keyword">not</span> <span class="keyword">in</span> self.opts[<span class="string">'engines'</span>]:</div><div class="line">                        log.info(<span class="string">'Enabling the reactor engine'</span>)</div><div class="line">                        self.opts[<span class="string">'engines'</span>][<span class="string">'reactor'</span>] = &#123;&#125;</div><div class="line"></div><div class="line">            salt.engines.start_engines(self.opts, self.process_manager)</div></pre></td></tr></table></figure></p>
-<blockquote>
-<p>Salt’s Reactor system gives Salt the ability to trigger actions in response to an event. It is a simple interface to watching Salt’s event bus for event tags that match a given pattern and then running one or more commands in response.<br>This system binds sls files to event tags on the master. These sls files then define reactions. This means that the reactor system has two parts. First, the reactor option needs to be set in the master configuration file. The reactor option allows for event tags to be associated with sls reaction files. Second, these reaction files use highdata (like the state system) to define reactions to be executed.</p>
-</blockquote>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="attr">engines:</span></div><div class="line"><span class="attr">  - reactor:</span></div><div class="line"><span class="attr">      refresh_interval:</span> <span class="number">60</span></div><div class="line"><span class="attr">      worker_threads:</span> <span class="number">10</span></div><div class="line"><span class="attr">      worker_hwm:</span> <span class="number">10000</span></div><div class="line"></div><div class="line"><span class="attr">reactor:</span></div><div class="line"><span class="bullet">  -</span> <span class="string">'salt/cloud/*/destroyed'</span><span class="string">:</span></div><div class="line"><span class="bullet">    -</span> <span class="string">/srv/reactor/destroy/*.sls</span></div></pre></td></tr></table></figure>
-<p>9.创建maintenance process。A generalized maintenance process which performs maintenance routines.<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line">            <span class="comment"># must be after channels</span></div><div class="line">            log.info(<span class="string">'Creating master maintenance process'</span>)</div><div class="line">            self.process_manager.add_process(Maintenance, args=(self.opts,))</div></pre></td></tr></table></figure></p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line">    <span class="function"><span class="keyword">def</span> <span class="title">run</span><span class="params">(self)</span>:</span></div><div class="line">        <span class="string">'''</span></div><div class="line">        This is the general passive maintenance process controller for the Salt</div><div class="line">        master.</div><div class="line"></div><div class="line">        This is where any data that needs to be cleanly maintained from the</div><div class="line">        master is maintained.</div><div class="line">        '''</div><div class="line">        salt.utils.appendproctitle(<span class="string">'Maintenance'</span>)</div><div class="line"></div><div class="line">        <span class="comment"># init things that need to be done after the process is forked</span></div><div class="line">        self._post_fork_init()</div><div class="line"></div><div class="line">        <span class="comment"># Make Start Times</span></div><div class="line">        last = int(time.time())</div><div class="line">        <span class="comment"># Clean out the fileserver backend cache</span></div><div class="line">        salt.daemons.masterapi.clean_fsbackend(self.opts)</div><div class="line">        <span class="comment"># Clean out pub auth</span></div><div class="line">        salt.daemons.masterapi.clean_pub_auth(self.opts)</div><div class="line"></div><div class="line">        old_present = set()</div><div class="line">        <span class="keyword">while</span> <span class="keyword">True</span>:</div><div class="line">            now = int(time.time())</div><div class="line">            <span class="keyword">if</span> (now - last) &gt;= self.loop_interval:</div><div class="line">                salt.daemons.masterapi.clean_old_jobs(self.opts)</div><div class="line">                salt.daemons.masterapi.clean_expired_tokens(self.opts)</div><div class="line">            self.handle_search(now, last)</div><div class="line">            self.handle_git_pillar()</div><div class="line">            self.handle_schedule()</div><div class="line">            self.handle_key_cache()</div><div class="line">            self.handle_presence(old_present)</div><div class="line">            self.handle_key_rotate(now)</div><div class="line">            salt.daemons.masterapi.fileserver_update(self.fileserver)</div><div class="line">            salt.utils.verify.check_max_open_files(self.opts)</div><div class="line">            last = now</div><div class="line">            time.sleep(self.loop_interval)</div></pre></td></tr></table></figure>
-<p>10.创建event return process。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line">            <span class="keyword">if</span> self.opts.get(<span class="string">'event_return'</span>):</div><div class="line">                log.info(<span class="string">'Creating master event return process'</span>)</div><div class="line">                self.process_manager.add_process(salt.utils.event.EventReturn, args=(self.opts,))</div></pre></td></tr></table></figure></p>
-<blockquote>
-<p>All Salt commands will return the command data back to the master. Specifying returners will ensure that the data is <em>also</em> sent to the specified returner interfaces.</p>
-</blockquote>
-<p>11.创建ext_processes process<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line">            ext_procs = self.opts.get(<span class="string">'ext_processes'</span>, [])</div><div class="line">            <span class="keyword">for</span> proc <span class="keyword">in</span> ext_procs:</div><div class="line">                log.info(<span class="string">'Creating ext_processes process: &#123;0&#125;'</span>.format(proc))</div><div class="line">                <span class="keyword">try</span>:</div><div class="line">                    mod = <span class="string">'.'</span>.join(proc.split(<span class="string">'.'</span>)[:<span class="number">-1</span>])</div><div class="line">                    cls = proc.split(<span class="string">'.'</span>)[<span class="number">-1</span>]</div><div class="line">                    _tmp = __import__(mod, globals(), locals(), [cls], <span class="number">-1</span>)</div><div class="line">                    cls = _tmp.__getattribute__(cls)</div><div class="line">                    self.process_manager.add_process(cls, args=(self.opts,))</div><div class="line">                <span class="keyword">except</span> Exception:</div><div class="line">                    log.error((<span class="string">'Error creating ext_processes '</span></div><div class="line">                            <span class="string">'process: &#123;0&#125;'</span>).format(proc))</div></pre></td></tr></table></figure></p>
-<blockquote>
-<p>In addition to the processes that the Salt master automatically spawns, it is possible to configure it to start additional custom processes.<br>This is useful if a dedicated process is needed that should run throughout the life of the Salt master. For periodic independent tasks, a scheduled runner may be more appropriate.<br>Processes started in this way will be restarted if they die and will be killed when the Salt master is shut down.</p>
-</blockquote>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="attr">ext_processes:</span></div><div class="line"><span class="bullet">  -</span> <span class="string">mymodule.TestProcess</span></div><div class="line"><span class="bullet">  -</span> <span class="string">mymodule.AnotherProcess</span></div></pre></td></tr></table></figure>
-<p>12.创建halite process。DEPRECATED: A client-side web application interface to a running Salt infrastructure<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line">            <span class="keyword">if</span> HAS_HALITE <span class="keyword">and</span> <span class="string">'halite'</span> <span class="keyword">in</span> self.opts:</div><div class="line">                log.info(<span class="string">'Creating master halite process'</span>)</div><div class="line">                self.process_manager.add_process(Halite, args=(self.opts[<span class="string">'halite'</span>],))</div></pre></td></tr></table></figure></p>
-<p>13.创建concache process<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line">            <span class="comment"># <span class="doctag">TODO:</span> remove, or at least push into the transport stuff (pre-fork probably makes sense there)</span></div><div class="line">            <span class="keyword">if</span> self.opts[<span class="string">'con_cache'</span>]:</div><div class="line">                log.info(<span class="string">'Creating master concache process'</span>)</div><div class="line">                self.process_manager.add_process(ConnectedCache, args=(self.opts,))</div><div class="line">                <span class="comment"># workaround for issue #16315, race condition</span></div><div class="line">                log.debug(<span class="string">'Sleeping for two seconds to let concache rest'</span>)</div><div class="line">                time.sleep(<span class="number">2</span>)</div></pre></td></tr></table></figure></p>
-<blockquote>
-<p><strong>con_cache</strong><br>Default: False<br>If max_minions is used in large installations, the master might experience high-load situations because of having to check the number of connected minions for every authentication. This cache provides the minion-ids of all connected minions to all MWorker-processes and greatly improves the performance of max_minions.</p>
-</blockquote>
-<p>14.创建request server process。处理salt命令和minion处理结果<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line">            log.info(<span class="string">'Creating master request server process'</span>)</div><div class="line">            kwargs = &#123;&#125;</div><div class="line">            <span class="keyword">if</span> salt.utils.is_windows():</div><div class="line">                kwargs[<span class="string">'log_queue'</span>] = salt.log.setup.get_multiprocessing_logging_queue()</div><div class="line">                kwargs[<span class="string">'secrets'</span>] = SMaster.secrets</div><div class="line"></div><div class="line">            self.process_manager.add_process(</div><div class="line">                ReqServer,</div><div class="line">                args=(self.opts, self.key, self.master_key),</div><div class="line">                kwargs=kwargs,</div><div class="line">                name=<span class="string">'ReqServer'</span>)</div></pre></td></tr></table></figure></p>
-<p>创建ReqServerChannel和MWorker</p>
+<h2 id="3-snmp开发"><a href="#3-SNMP开发" class="headerlink" title="3. SNMP开发"></a>3. SNMP开发</h2><p>net-snmp提供了支持SNMP开发的C库，你可以开发自己的SNMP程序。然而从python、perl、tcl这样的脚本语言开始SNMP编程更容易，他们都带有SNMP开发支持。</p>
 
       
 
-      
-        <div class="page-reward">
-          <a href="javascript:;" class="page-reward-btn tooltip-top">
-            <div class="tooltip tooltip-east">
-            <span class="tooltip-item">
-              赏
-            </span>
-            <span class="tooltip-content">
-              <span class="tooltip-text">
-                <span class="tooltip-inner">
-                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢你请我吃糖果<i class="icon icon-quo-right"></i></p>
-                  <div class="reward-box">
-                    
-                    <div class="reward-box-item">
-                      <img class="reward-img" src="/img/alipay.jpg">
-                      <span class="reward-type">支付宝</span>
-                    </div>
-                    
-                    
-                    <div class="reward-box-item">
-                      <img class="reward-img" src="/img/weixinpay.png">
-                      <span class="reward-type">微信</span>
-                    </div>
-                    
-                  </div>
-                </span>
-              </span>
-            </span>
-          </div>
-          </a>
-        </div>
       
     </div>
     <div class="article-info article-info-index">
@@ -289,11 +211,11 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">saltstack</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Linux</a>
         		</li>
       		 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">salt源码解析</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">snmp</a>
         		</li>
       		
 		</ul>
@@ -305,7 +227,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="/categories/saltstack/" class="article-tag-list-link color5">saltstack</a>
+        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
         		</li>
       		
 		</ul>
@@ -313,84 +235,16 @@
 
 
       
-
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2013/05/11/snmp-introduction/">展开全文 >></a>
+        </p>
       
-        
-<div class="share-btn share-icons tooltip-left">
-  <div class="tooltip tooltip-east">
-    <span class="tooltip-item">
-      <a href="javascript:;" class="share-sns share-outer">
-        <i class="icon icon-share"></i>
-      </a>
-    </span>
-    <span class="tooltip-content">
-      <div class="share-wrap">
-        <div class="share-icons">
-          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
-            <i class="icon icon-weibo"></i>
-          </a>
-          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
-            <i class="icon icon-weixin"></i>
-          </a>
-          <a class="qq share-sns" href="javascript:;" data-type="qq">
-            <i class="icon icon-qq"></i>
-          </a>
-          <a class="douban share-sns" href="javascript:;" data-type="douban">
-            <i class="icon icon-douban"></i>
-          </a>
-          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
-            <i class="icon icon-qzone"></i>
-          </a>
-          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
-            <i class="icon icon-facebook"></i>
-          </a>
-          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
-            <i class="icon icon-twitter"></i>
-          </a>
-          <a class="google share-sns" href="javascript:;" data-type="google">
-            <i class="icon icon-google"></i>
-          </a>
-        </div>
-      </div>
-    </span>
-  </div>
-</div>
 
-<div class="page-modal wx-share js-wx-box">
-    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
-    <p>扫一扫，分享到微信</p>
-    <div class="wx-qrcode">
-      <img src="http://s.jiathis.com/qrcode.php?url=https://winway.github.io/2017/07/25/salt-master-startup-procedure/" alt="微信分享二维码">
-    </div>
-</div>
-
-<div class="mask js-mask"></div>
       
       <div class="clearfix"></div>
     </div>
   </div>
 </article>
-
-  
-<nav id="article-nav">
-  
-    <a href="/2017/07/27/salt-master-publisher/" id="article-nav-newer" class="article-nav-link-wrap">
-      <i class="icon-circle-left"></i>
-      <div class="article-nav-title">
-        
-          saltstack源码解析之master.publisher
-        
-      </div>
-    </a>
-  
-  
-    <a href="/2017/07/25/hdfs-rack-awareness/" id="article-nav-older" class="article-nav-link-wrap">
-      <div class="article-nav-title">HDFS机架感知</div>
-      <i class="icon-circle-right"></i>
-    </a>
-  
-</nav>
-
 
 <aside class="wrap-side-operation">
     <div class="mod-side-operation">
@@ -410,33 +264,12 @@
 
 
 
-  
-  
-  
-
-  
-
-  
 
   
   
-<section class="comments" id="comments">
-    <div id="gitment_thread"></div>
-    <link rel="stylesheet" href="https://imsun.github.io/gitment/style/default.css">
-    <script src="https://imsun.github.io/gitment/dist/gitment.browser.js"></script>
-    <script>
-        var gitment = new Gitment({
-            owner: 'winway',
-            repo: 'winway.github.io',
-            oauth: {
-                client_id: 'ac205f1362174ccbdb1d',
-                client_secret: '42779eaec04b4f1765b777df3fa1c73e24b96943',
-            },
-        })
-        gitment.render('comments')
-    </script>
-</section>
-
+    <nav id="page-nav">
+      <a class="extend prev" rel="prev" href="/page/6/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/5/">5</a><a class="page-number" href="/page/6/">6</a><span class="page-number current">7</span>
+    </nav>
   
 
 
@@ -461,8 +294,8 @@
     <script>
 	var yiliaConfig = {
 		mathjax: false,
-		isHome: false,
-		isPost: true,
+		isHome: true,
+		isPost: false,
 		isArchive: false,
 		isTag: false,
 		isCategory: false,

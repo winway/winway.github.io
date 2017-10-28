@@ -6,21 +6,31 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://winway.github.io">
-  <title>saltstack源码解析之master启动流程 | winway&#39;s blog</title>
+  <title>Hadoop生态系统介绍-Storm | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="ENV: Version: 2016.11.0, Transport: tcp, Multi-Master   1. 类图和重要方法说明 2. 源码解析 2.1 初始化（salt.master.Master.__init__） 2.2 启动（salt.master.Master.start）     1. 类图和重要方法说明 2. 源码解析2.1 初始化（salt.master.Master.__">
-<meta name="keywords" content="saltstack,salt源码解析">
+  <meta name="description" content="前言 工作原理   前言提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。  Hadoop生态系统介绍-概览 Hadoop生态系统介绍-Kerberos Hadoop生态系统介绍-Zookeeper Hadoop生态系统介绍-HDFS Hadoop生态系统介绍-YARN Hadoop生态系统">
+<meta name="keywords" content="Hadoop">
 <meta property="og:type" content="article">
-<meta property="og:title" content="saltstack源码解析之master启动流程">
-<meta property="og:url" content="https://winway.github.io/2017/07/25/salt-master-startup-procedure/index.html">
+<meta property="og:title" content="Hadoop生态系统介绍-Storm">
+<meta property="og:url" content="https://winway.github.io/2017/01/21/big-data-storm/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:description" content="ENV: Version: 2016.11.0, Transport: tcp, Multi-Master   1. 类图和重要方法说明 2. 源码解析 2.1 初始化（salt.master.Master.__init__） 2.2 启动（salt.master.Master.start）     1. 类图和重要方法说明 2. 源码解析2.1 初始化（salt.master.Master.__">
-<meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/master%E5%90%AF%E5%8A%A8%E6%B5%81%E7%A8%8B.png">
-<meta property="og:updated_time" content="2017-08-26T07:57:02.117Z">
+<meta property="og:description" content="前言 工作原理   前言提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。  Hadoop生态系统介绍-概览 Hadoop生态系统介绍-Kerberos Hadoop生态系统介绍-Zookeeper Hadoop生态系统介绍-HDFS Hadoop生态系统介绍-YARN Hadoop生态系统">
+<meta property="og:image" content="http://www.uml.org.cn/yunjisuan/images/2015101231.jpg">
+<meta property="og:image" content="http://www.uml.org.cn/yunjisuan/images/2016102621.png">
+<meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/storm1.png">
+<meta property="og:image" content="http://www.uml.org.cn/yunjisuan/images/2016102624.png">
+<meta property="og:image" content="http://www.uml.org.cn/yunjisuan/images/2016102625.png">
+<meta property="og:image" content="http://www.uml.org.cn/yunjisuan/images/2016102626.png">
+<meta property="og:image" content="http://www.uml.org.cn/sjjm/images/2014092851.png">
+<meta property="og:image" content="http://static.oschina.net/uploads/space/2016/0125/181043_eKPq_2000675.jpg">
+<meta property="og:image" content="http://static.oschina.net/uploads/space/2016/0126/150057_Hsa2_2000675.jpg">
+<meta property="og:image" content="http://static.oschina.net/uploads/space/2016/0125/181207_baaW_2000675.jpg">
+<meta property="og:image" content="http://static.oschina.net/uploads/space/2016/0125/181243_xKy0_2000675.jpg">
+<meta property="og:updated_time" content="2017-10-28T06:41:41.423Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="saltstack源码解析之master启动流程">
-<meta name="twitter:description" content="ENV: Version: 2016.11.0, Transport: tcp, Multi-Master   1. 类图和重要方法说明 2. 源码解析 2.1 初始化（salt.master.Master.__init__） 2.2 启动（salt.master.Master.start）     1. 类图和重要方法说明 2. 源码解析2.1 初始化（salt.master.Master.__">
-<meta name="twitter:image" content="http://ot69fbvko.bkt.clouddn.com/master%E5%90%AF%E5%8A%A8%E6%B5%81%E7%A8%8B.png">
+<meta name="twitter:title" content="Hadoop生态系统介绍-Storm">
+<meta name="twitter:description" content="前言 工作原理   前言提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。  Hadoop生态系统介绍-概览 Hadoop生态系统介绍-Kerberos Hadoop生态系统介绍-Zookeeper Hadoop生态系统介绍-HDFS Hadoop生态系统介绍-YARN Hadoop生态系统">
+<meta name="twitter:image" content="http://www.uml.org.cn/yunjisuan/images/2015101231.jpg">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -156,95 +166,106 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-salt-master-startup-procedure" class="article article-type-post " itemscope itemprop="blogPost">
+            <article id="post-big-data-storm" class="article article-type-post " itemscope itemprop="blogPost">
   <div class="article-inner">
     
       <header class="article-header">
         
   
     <h1 class="article-title" itemprop="name">
-      saltstack源码解析之master启动流程
+      Hadoop生态系统介绍-Storm
     </h1>
   
 
         
-        <a href="/2017/07/25/salt-master-startup-procedure/" class="archive-article-date">
-  	<time datetime="2017-07-25T12:37:27.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-07-25</time>
+        <a href="/2017/01/21/big-data-storm/" class="archive-article-date">
+  	<time datetime="2017-01-21T06:00:12.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-01-21</time>
 </a>
         
       </header>
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p><em>ENV: Version: 2016.11.0, Transport: tcp, Multi-Master</em></p>
-<!-- toc -->
+        <!-- toc -->
 <ul>
-<li><a href="#1-类图和重要方法说明">1. 类图和重要方法说明</a></li>
-<li><a href="#2-源码解析">2. 源码解析</a><ul>
-<li><a href="#21-初始化saltmastermaster__init__">2.1 初始化（salt.master.Master.__init__）</a></li>
-<li><a href="#22-启动saltmastermasterstart">2.2 启动（salt.master.Master.start）</a></li>
-</ul>
-</li>
+<li><a href="#前言">前言</a></li>
+<li><a href="#工作原理">工作原理</a></li>
 </ul>
 <!-- tocstop -->
-<h2 id="1-类图和重要方法说明"><a href="#1-类图和重要方法说明" class="headerlink" title="1. 类图和重要方法说明"></a>1. 类图和重要方法说明</h2><p><img src="http://ot69fbvko.bkt.clouddn.com/master%E5%90%AF%E5%8A%A8%E6%B5%81%E7%A8%8B.png" alt="salt-master启动流程"></p>
-<h2 id="2-源码解析"><a href="#2-源码解析" class="headerlink" title="2. 源码解析"></a>2. 源码解析</h2><h3 id="21-初始化saltmastermaster__init__"><a href="#2-1-初始化（salt-master-Master-init-）" class="headerlink" title="2.1 初始化（salt.master.Master.__init__）"></a>2.1 初始化（salt.master.Master.__init__）</h3><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">Master</span><span class="params">(SMaster)</span>:</span></div><div class="line">    <span class="string">'''</span></div><div class="line">    The salt master server</div><div class="line">    '''</div><div class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, opts)</span>:</span></div><div class="line">        <span class="string">'''</span></div><div class="line">        Create a salt master server instance</div><div class="line"></div><div class="line">        :param dict: The salt options</div><div class="line">        '''</div><div class="line">        <span class="keyword">if</span> HAS_ZMQ:</div><div class="line">            <span class="comment"># Warn if ZMQ &lt; 3.2</span></div><div class="line">            <span class="keyword">try</span>:</div><div class="line">                zmq_version_info = zmq.zmq_version_info()</div><div class="line">            <span class="keyword">except</span> AttributeError:</div><div class="line">                <span class="comment"># PyZMQ &lt;= 2.1.9 does not have zmq_version_info, fall back to</span></div><div class="line">                <span class="comment"># using zmq.zmq_version() and build a version info tuple.</span></div><div class="line">                zmq_version_info = tuple(</div><div class="line">                    [int(x) <span class="keyword">for</span> x <span class="keyword">in</span> zmq.zmq_version().split(<span class="string">'.'</span>)]</div><div class="line">                )</div><div class="line">            <span class="keyword">if</span> zmq_version_info &lt; (<span class="number">3</span>, <span class="number">2</span>):</div><div class="line">                log.warning(</div><div class="line">                    <span class="string">'You have a version of ZMQ less than ZMQ 3.2! There are '</span></div><div class="line">                    <span class="string">'known connection keep-alive issues with ZMQ &lt; 3.2 which '</span></div><div class="line">                    <span class="string">'may result in loss of contact with minions. Please '</span></div><div class="line">                    <span class="string">'upgrade your ZMQ!'</span></div><div class="line">                )</div><div class="line">        SMaster.__init__(self, opts)</div></pre></td></tr></table></figure>
+<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。</p>
+<ol>
+<li><a href="https://winway.github.io/2017/01/07/big-data-intro/">Hadoop生态系统介绍-概览</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-kerberos/">Hadoop生态系统介绍-Kerberos</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-zookeeper/">Hadoop生态系统介绍-Zookeeper</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-hdfs/">Hadoop生态系统介绍-HDFS</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-yarn/">Hadoop生态系统介绍-YARN</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-mapreduce/">Hadoop生态系统介绍-MapReduce</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-hive/">Hadoop生态系统介绍-Hive</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-pig/">Hadoop生态系统介绍-Pig</a></li>
+<li><strong><a href="https://winway.github.io/2017/01/07/big-data-storm/">Hadoop生态系统介绍-Storm</a></strong></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-hbase/">Hadoop生态系统介绍-Hbase</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-phoenix/">Hadoop生态系统介绍-Phoenix</a></li>
+</ol>
+<p>本文对流式处理框架Storm的工作原理进行介绍。</p>
+<h2 id="工作原理"><a href="#工作原理" class="headerlink" title="工作原理"></a>工作原理</h2><p><strong>Storm计算模型</strong><br><img src="http://www.uml.org.cn/yunjisuan/images/2015101231.jpg" alt=""><br>Storm 实现了一种数据流模型，其中数据持续地流经一个拓扑结构。一个数据流是一个无限的元组序列。元组就像一种使用一些附加的序列化代码来表示标准数据类型（比如整数、浮点和字节数组）或用户定义类型的结构。每个流由一个惟一 ID 定义，这个 ID 可用于构建数据源和接收器 (sink) 的拓扑结构。流起源于spout，spout将数据从外部来源流入 Storm 拓扑结构中。</p>
+<p>bolt实现了一个流上的单一转换和一个 Storm 拓扑结构中的所有处理。bolt既可以实现 MapReduce 之类的传统功能，也可以实现更复杂的操作），比如过滤、聚合或与数据库等外部实体通信。典型的 Storm 拓扑结构会实现多个转换，因此需要多个具有独立元组流的bolt。</p>
+<p><strong>Storm集群架构</strong><br><img src="http://www.uml.org.cn/yunjisuan/images/2016102621.png" alt=""><br>Storm集群采用主从架构，主节点是Nimbus，从节点是Supervisor，有关调度相关的信息存储到ZooKeeper集群中</p>
 <ul>
-<li>检查zmq版本</li>
-<li>调用SMaster.<strong>init</strong>(self, opts)，进行opts、master_key和key的初始化<figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">SMaster</span><span class="params">(object)</span>:</span></div><div class="line">    <span class="string">'''</span></div><div class="line">    Create a simple salt-master, this will generate the top-level master</div><div class="line">    '''</div><div class="line">    secrets = &#123;&#125;  <span class="comment"># mapping of key -&gt; &#123;'secret': multiprocessing type, 'reload': FUNCTION&#125;</span></div><div class="line"></div><div class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, opts)</span>:</span></div><div class="line">        <span class="string">'''</span></div><div class="line">        Create a salt master server instance</div><div class="line"></div><div class="line">        :param dict opts: The salt options dictionary</div><div class="line">        '''</div><div class="line">        self.opts = opts</div><div class="line">        self.master_key = salt.crypt.MasterKeys(self.opts)</div><div class="line">        self.key = self.__prep_key()</div></pre></td></tr></table></figure>
-</li>
+<li>Nimbus<br>Storm集群的Master节点，负责分发用户代码，指派给具体的Supervisor节点上的Worker进程，去运行Topology对应的组件（Spout/Bolt）的Task</li>
+<li>Supervisor<br>Storm集群的从节点，负责管理运行在Supervisor节点上的每一个Worker进程的启动和终止。通过Storm的配置文件中的supervisor.slots.ports配置项，可以指定在一个Supervisor上最大允许多少个Slot，每个Slot通过端口号来唯一标识，一个端口号对应一个Worker进程</li>
+<li>ZooKeeper<br>用来协调Nimbus和Supervisor，如果Supervisor因故障出现问题而无法运行Topology，Nimbus会第一时间感知到，并重新分配Topology到其它可用的Supervisor上运行。</li>
 </ul>
-<h3 id="22-启动saltmastermasterstart"><a href="#2-2-启动（salt-master-Master-start）" class="headerlink" title="2.2 启动（salt.master.Master.start）"></a>2.2 启动（salt.master.Master.start）</h3><p>1.启动前检查，Master._pre_flight</p>
+<p><strong>术语</strong></p>
 <ul>
-<li>os.chdir(‘/‘)</li>
-<li>根据fileserver_backend配置，创建Fileserver。这里用到了LazyLoader，先创建空的module，在实际调用的时候才进行加载，而不是在启动时全部import<figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/loader.py</span></div><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">LazyLoader</span><span class="params">(salt.utils.lazy.LazyDict)</span>:</span></div><div class="line">    <span class="string">'''</span></div><div class="line">    A pseduo-dictionary which has a set of keys which are the</div><div class="line">    name of the module and function, delimited by a dot. When</div><div class="line">    the value of the key is accessed, the function is then loaded</div><div class="line">    from disk and into memory.</div></pre></td></tr></table></figure>
-</li>
+<li>Nimbus：负责资源分配和任务调度的主节点。</li>
+<li>Supervisor：负责接受nimbus分配的任务，启动和停止属于自己管理的worker进程。</li>
+<li>Worker：运行具体处理组件逻辑的进程。</li>
+<li>Task：worker中每一个spout/bolt的线程称为一个task. 在storm0.8之后，task不再与物理线程对应，同一个spout/bolt的task可能会共享一个物理线程，该线程称为executor。</li>
+<li>Topology：storm中运行的一个实时应用程序，因为各个组件间的消息流动形成逻辑上的一个拓扑结构。</li>
+<li>Spout：在一个topology中产生源数据流的组件。通常情况下spout会从外部数据源中读取数据，然后转换为topology内部的源数据。Spout是一个主动的角色，其接口中有个nextTuple()函数，storm框架会不停地调用此函数，用户只要在其中生成源数据即可。</li>
+<li>Bolt：在一个topology中接受数据然后执行处理的组件。Bolt可以执行过滤、转换、合并、写数据库等操作。Bolt是一个被动的角色，其接口中有个execute(Tuple input)函数,在接受到消息后会调用此函数，用户可以在其中执行自己想要的操作。</li>
+<li>Tuple：一次消息传递的基本单元。本来应该是一个key-value的map，但是由于各个组件间传递的tuple的字段名称已经事先定义好，所以tuple中只要按序填入各个value就行了，所以就是一个value list.</li>
+<li>Stream：源源不断传递的tuple就组成了stream。</li>
 </ul>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/loader.py</span></div><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">_generate_module</span><span class="params">(name)</span>:</span></div><div class="line">    <span class="keyword">if</span> name <span class="keyword">in</span> sys.modules:</div><div class="line">        <span class="keyword">return</span></div><div class="line"></div><div class="line">    code = <span class="string">"'''Salt loaded &#123;0&#125; parent module'''"</span>.format(name.split(<span class="string">'.'</span>)[<span class="number">-1</span>])</div><div class="line">    module = imp.new_module(name)</div><div class="line">    exec(code, module.__dict__)</div><div class="line">    sys.modules[name] = module</div></pre></td></tr></table></figure>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">__getattr__</span><span class="params">(self, mod_name)</span>:</span></div><div class="line">    <span class="string">'''</span></div><div class="line">    Allow for "direct" attribute access-- this allows jinja templates to</div><div class="line">    access things like `salt.test.ping()`</div><div class="line">    '''</div><div class="line">    <span class="comment"># if we have an attribute named that, lets return it.</span></div><div class="line">    <span class="keyword">try</span>:</div><div class="line">        <span class="keyword">return</span> object.__getattr__(self, mod_name)  <span class="comment"># pylint: disable=no-member</span></div><div class="line">    <span class="keyword">except</span> AttributeError:</div><div class="line">        <span class="keyword">pass</span></div><div class="line"></div><div class="line">    <span class="comment"># otherwise we assume its jinja template access</span></div><div class="line">    <span class="keyword">if</span> mod_name <span class="keyword">not</span> <span class="keyword">in</span> self.loaded_modules <span class="keyword">and</span> <span class="keyword">not</span> self.loaded:</div><div class="line">        <span class="keyword">for</span> name <span class="keyword">in</span> self._iter_files(mod_name):</div><div class="line">            <span class="keyword">if</span> name <span class="keyword">in</span> self.loaded_files:</div><div class="line">                <span class="keyword">continue</span></div><div class="line">            <span class="comment"># if we got what we wanted, we are done</span></div><div class="line">            <span class="keyword">if</span> self._load_module(name) <span class="keyword">and</span> mod_name <span class="keyword">in</span> self.loaded_modules:</div><div class="line">                <span class="keyword">break</span></div><div class="line">    <span class="keyword">if</span> mod_name <span class="keyword">in</span> self.loaded_modules:</div><div class="line">        <span class="keyword">return</span> self.loaded_modules[mod_name]</div><div class="line">    <span class="keyword">else</span>:</div><div class="line">        <span class="keyword">raise</span> AttributeError(mod_name)</div></pre></td></tr></table></figure>
+<p><strong>Hadoop vs Storm</strong></p>
+<p><img src="http://ot69fbvko.bkt.clouddn.com/storm1.png" alt=""></p>
+<p><strong>Storm设计：组件抽象</strong></p>
+<p>我们编写的处理业务逻辑的Topology提交到Storm集群后，就会发生任务的调度和资源的分配，从而也会基于Storm的设计，出现各种各样的组件。<br><img src="http://www.uml.org.cn/yunjisuan/images/2016102624.png" alt=""><br>一个Topology的Spout/Bolt对应的多个Task可能分布在多个Supervisor的多个Worker内部。而每个Worker内部又存在多个Executor，根据实际的Topology配置在运行时进行计算并分配。</p>
 <ul>
-<li>创建pillar_cache文件夹</li>
-<li>检查git_pillar<blockquote>
-<p>This external pillar allows for a Pillar top file and Pillar SLS files to be sourced from a git repository.</p>
-</blockquote>
-</li>
+<li>Topology：Storm对一个分布式计算应用程序的抽象，目的是通过实现一个Topology能够完整地完成一件事情（从业务角度来看）。一个Topology是由一组静态程序组件（Spout/Bolt）、组件关系Streaming Groups这两部分组成。</li>
+<li>Spout：描述了数据是如何从外部系统（或者组件内部直接产生）进入到Storm集群，并由该Spout所属的Topology来处理，通常是从一个数据源读取数据，也可以做一些简单的处理（为了不影响数据连续地、实时地、快速地进入到系统，通常不建议把复杂逻辑放在这里）。</li>
+<li>Bolt：描述了与业务相关的处理逻辑。</li>
+<li>Task：Spout/Bolt在运行时所表现出来的实体，都称为Task，一个Spout/Bolt在运行时可能对应一个或多个Spout Task/Bolt Task，与实际在编写Topology时进行配置有关。</li>
+<li>Worker：运行时Task所在的一级容器，Executor运行于Worker中，一个Worker对应于Supervisor上创建的一个JVM实例</li>
+<li>Executor：运行时Task所在的直接容器，在Executor中执行Task的处理逻辑；一个或多个Executor实例可以运行在同一个Worker进程中，一个或多个Task可以运行于同一个Executor中；在Worker进程并行的基础上，Executor可以并行，进而Task也能够基于Executor实现并行计算</li>
 </ul>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="attr">ext_pillar:</span></div><div class="line"><span class="attr">  - git:</span> <span class="string">master</span> <span class="attr">https://gitserver/git-pillar.git</span></div><div class="line"><span class="attr">  - git:</span> <span class="string">dev</span> <span class="attr">https://gitserver/git-pillar.git</span></div></pre></td></tr></table></figure>
-<p>2.注册信号处理程序</p>
-<ul>
-<li><p>enable_sigusr1_handler。打印stack trace</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/utils/debug.py</span></div><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">_handle_sigusr1</span><span class="params">(sig, stack)</span>:</span></div><div class="line">    <span class="string">'''</span></div><div class="line">    Signal handler for SIGUSR1, only available on Unix-like systems</div><div class="line">    '''</div><div class="line">    <span class="comment"># When running in the foreground, do the right  thing</span></div><div class="line">    <span class="comment"># and spit out the debug info straight to the console</span></div><div class="line">    <span class="keyword">if</span> sys.stderr.isatty():</div><div class="line">        output = sys.stderr</div><div class="line">        _makepretty(output, stack)</div><div class="line">    <span class="keyword">else</span>:</div><div class="line">        filename = <span class="string">'salt-debug-&#123;0&#125;.log'</span>.format(int(time.time()))</div><div class="line">        destfile = os.path.join(tempfile.gettempdir(), filename)</div><div class="line">        <span class="keyword">with</span> salt.utils.fopen(destfile, <span class="string">'w'</span>) <span class="keyword">as</span> output:</div><div class="line">            _makepretty(output, stack)</div></pre></td></tr></table></figure>
+<p><strong>Topology并行度计算</strong></p>
+<p>在编写代码设置并行度的时候，并行度只是一个提示信息，Storm会根据这个提示信息并结合其他一些参数配置（Task个数、Worker个数），去计算运行时的并行度。<br>这个并行度实际上描述的是，组成一个Topology的多个Spout/Bolt的运行时表现实体Task的分布<br><img src="http://www.uml.org.cn/yunjisuan/images/2016102625.png" alt=""></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line">conf.setNumWorkers(<span class="number">2</span>); <span class="comment">// 该Topology运行在Supervisor节点的2个Worker进程中</span></div><div class="line"></div><div class="line">topologyBuilder.setSpout(<span class="string">"blue-spout"</span>, <span class="keyword">new</span> BlueSpout(), <span class="number">2</span>); <span class="comment">// 设置并行度为2，则Task个数为2*1</span></div><div class="line"></div><div class="line">topologyBuilder.setBolt(<span class="string">"green-bolt"</span>, <span class="keyword">new</span> GreenBolt(), <span class="number">2</span>)</div><div class="line">               .setNumTasks(<span class="number">4</span>)</div><div class="line">               .shuffleGrouping(<span class="string">"blue-spout"</span>); <span class="comment">// 设置并行度为2，设置Task个数为4 ，则Task个数为2*2</span></div><div class="line"></div><div class="line">topologyBuilder.setBolt(<span class="string">"yellow-bolt"</span>, <span class="keyword">new</span> YellowBolt(), <span class="number">6</span>)</div><div class="line">               .shuffleGrouping(<span class="string">"green-bolt"</span>); <span class="comment">// 设置并行度为6，则Task个数为6*1</span></div></pre></td></tr></table></figure>
+<p>Storm是如何计算一个Topology运行时的并行度，并分配到2个Worker中的？<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">计算Task总数：2*1+4+6*1=12（总计创建12个Task实例）</div><div class="line">计算运行时Topology并行度：(2+2+6)/2=5（每个Worker对应5个Executor）</div><div class="line">将12个Task分配到2个Worker中的5*2个Executor中：应该是每个Worker上5个Executor，将6个Task分配到5个Executor中</div><div class="line">每个Worker中分配6个Task，应该是分配3个Yellow Task、2个Green Task、1个Blue Task</div></pre></td></tr></table></figure></p>
+<p>分配过程：从Task个数最少的开始，1个Blue Task只能放到一个Executor，总计1个Executor被占用；2个Green Task可以放到同一个Executor中，总计2个Executor被占用；最后看剩下的3个Yellow Task能否分配到5-2=3个Executor中，显然每个Yellow Task对应一个Executor<br><img src="http://www.uml.org.cn/yunjisuan/images/2016102626.png" alt=""></p>
+<p><strong>Storm记录级容错的基本原理</strong></p>
+<p>storm允许用户在spout中发射一个新的源tuple时为其指定一个message id, 这个message id可以是任意的object对象。多个源tuple可以共用一个message id，表示这多个源 tuple对用户来说是同一个消息单元。</p>
+<p>storm中记录级容错的意思是说，storm会告知用户每一个消息单元是否在指定时间内被完全处理了。</p>
+<p>那什么叫做完全处理呢，就是该message id绑定的源tuple及由该源tuple后续生成的tuple经过了topology中每一个应该到达的bolt的处理。</p>
+<p>举个例子。在spout由message 1绑定的tuple1和tuple2经过了bolt1和bolt2的处理生成两个新的tuple，并最终都流向了bolt3。当这个过程完成处理完时，称message 1被完全处理了。<br><img src="http://www.uml.org.cn/sjjm/images/2014092851.png" alt=""><br>在storm的topology中有一个系统级组件，叫做acker。这个acker的任务就是追踪从spout中流出来的每一个message id绑定的若干tuple的处理路径，如果在用户设置的最大超时时间内这些tuple没有被完全处理，那么acker就会告知spout该消息处理失败，相反则会告知spout该消息处理成功了。</p>
+<p>”记录tuple的处理路径”，如果曾经尝试过这么做的同学可以仔细地思考一下这件事的复杂程度。但是storm中却是使用了一种非常巧妙的方法做到了。</p>
+<p>在说明这个方法之前，我们来复习一个数学知识：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">A xor A = 0</div><div class="line">A xor B…xor B xor A = 0，其中每一个操作数出现且仅出现两次</div></pre></td></tr></table></figure></p>
+<p>storm中使用的巧妙方法就是基于这个理论。具体过程是这样的：在spout中系统会为用户指定的message id生成一个对应的64位整数，作为一个root id。root id会传递给acker及后续的bolt作为该消息单元的唯一标识。同时无论是spout还是bolt每次新生成一个tuple的时候，都会赋予该tuple一个64位的整数的id。Spout发射完某个message id对应的源tuple之后，会告知acker自己发射的root id及生成的那些源tuple的id。而bolt呢，每次接受到一个输入tuple处理完之后，也会告知acker自己处理的输入tuple的id及新生成的那些tuple的id。Acker只需要对这些id做一个简单的异或运算，就能判断出该root id对应的消息单元是否处理完成了。</p>
+<ol>
+<li><p>spout中绑定message 1生成了两个源tuple，id分别是0010和1011.<br><img src="http://static.oschina.net/uploads/space/2016/0125/181043_eKPq_2000675.jpg" alt=""></p>
 </li>
-<li><p>enable_sigusr2_handler。YAPPI开关</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/utils/debug.py</span></div><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">_handle_sigusr2</span><span class="params">(sig, stack)</span>:</span></div><div class="line">    <span class="string">'''</span></div><div class="line">    Signal handler for SIGUSR2, only available on Unix-like systems</div><div class="line">    '''</div><div class="line">    <span class="keyword">try</span>:</div><div class="line">        <span class="keyword">import</span> yappi</div><div class="line">    <span class="keyword">except</span> ImportError:</div><div class="line">        <span class="keyword">return</span></div><div class="line">    <span class="keyword">if</span> yappi.is_running():</div><div class="line">        yappi.stop()</div><div class="line">        filename = <span class="string">'callgrind.salt-&#123;0&#125;-&#123;1&#125;'</span>.format(int(time.time()), os.getpid())</div><div class="line">        destfile = os.path.join(tempfile.gettempdir(), filename)</div><div class="line">        yappi.get_func_stats().save(destfile, type=<span class="string">'CALLGRIND'</span>)</div><div class="line">        <span class="keyword">if</span> sys.stderr.isatty():</div><div class="line">            sys.stderr.write(<span class="string">'Saved profiling data to: &#123;0&#125;\n'</span>.format(destfile))</div><div class="line">        yappi.clear_stats()</div><div class="line">    <span class="keyword">else</span>:</div><div class="line">        <span class="keyword">if</span> sys.stderr.isatty():</div><div class="line">            sys.stderr.write(<span class="string">'Profiling started\n'</span>)</div><div class="line">        yappi.start()</div></pre></td></tr></table></figure>
+<li><p>bolt1处理tuple 0010时生成了一个新的tuple，id为0110<br><img src="http://static.oschina.net/uploads/space/2016/0126/150057_Hsa2_2000675.jpg" alt=""></p>
 </li>
-</ul>
-<p>3.设置max open files，Master.__set_max_open_files<br>4.初始化SMaster.secrets[‘aes’]，在进行消息的发送时加密使用<br>5.创建ProcessManager，后续创建的各组件进程都会添加进来<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line">            log.info(<span class="string">'Creating master process manager'</span>)</div><div class="line">            <span class="comment"># Since there are children having their own ProcessManager we should wait for kill more time.</span></div><div class="line">            self.process_manager = salt.utils.process.ProcessManager(wait_for_kill=<span class="number">5</span>)</div></pre></td></tr></table></figure></p>
-<p>6.创建publisher process。用于分发消息给minion<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line">            pub_channels = []</div><div class="line">            log.info(<span class="string">'Creating master publisher process'</span>)</div><div class="line">            <span class="keyword">for</span> transport, opts <span class="keyword">in</span> iter_transport_opts(self.opts):</div><div class="line">                chan = salt.transport.server.PubServerChannel.factory(opts)</div><div class="line">                chan.pre_fork(self.process_manager)</div><div class="line">                pub_channels.append(chan)</div></pre></td></tr></table></figure></p>
-<p>7.创建event publisher process。Master内部的消息总线，进行信息交换<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line">            log.info(<span class="string">'Creating master event publisher process'</span>)</div><div class="line">            self.process_manager.add_process(salt.utils.event.EventPublisher, args=(self.opts,))</div></pre></td></tr></table></figure></p>
-<p>8.创建reactor。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line">            <span class="keyword">if</span> self.opts.get(<span class="string">'reactor'</span>):</div><div class="line">                <span class="keyword">if</span> isinstance(self.opts[<span class="string">'engines'</span>], list):</div><div class="line">                    rine = <span class="keyword">False</span></div><div class="line">                    <span class="keyword">for</span> item <span class="keyword">in</span> self.opts[<span class="string">'engines'</span>]:</div><div class="line">                        <span class="keyword">if</span> <span class="string">'reactor'</span> <span class="keyword">in</span> item:</div><div class="line">                            rine = <span class="keyword">True</span></div><div class="line">                            <span class="keyword">break</span></div><div class="line">                    <span class="keyword">if</span> <span class="keyword">not</span> rine:</div><div class="line">                        self.opts[<span class="string">'engines'</span>].append(&#123;<span class="string">'reactor'</span>: &#123;&#125;&#125;)</div><div class="line">                <span class="keyword">else</span>:</div><div class="line">                    <span class="keyword">if</span> <span class="string">'reactor'</span> <span class="keyword">not</span> <span class="keyword">in</span> self.opts[<span class="string">'engines'</span>]:</div><div class="line">                        log.info(<span class="string">'Enabling the reactor engine'</span>)</div><div class="line">                        self.opts[<span class="string">'engines'</span>][<span class="string">'reactor'</span>] = &#123;&#125;</div><div class="line"></div><div class="line">            salt.engines.start_engines(self.opts, self.process_manager)</div></pre></td></tr></table></figure></p>
-<blockquote>
-<p>Salt’s Reactor system gives Salt the ability to trigger actions in response to an event. It is a simple interface to watching Salt’s event bus for event tags that match a given pattern and then running one or more commands in response.<br>This system binds sls files to event tags on the master. These sls files then define reactions. This means that the reactor system has two parts. First, the reactor option needs to be set in the master configuration file. The reactor option allows for event tags to be associated with sls reaction files. Second, these reaction files use highdata (like the state system) to define reactions to be executed.</p>
-</blockquote>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line"><span class="attr">engines:</span></div><div class="line"><span class="attr">  - reactor:</span></div><div class="line"><span class="attr">      refresh_interval:</span> <span class="number">60</span></div><div class="line"><span class="attr">      worker_threads:</span> <span class="number">10</span></div><div class="line"><span class="attr">      worker_hwm:</span> <span class="number">10000</span></div><div class="line"></div><div class="line"><span class="attr">reactor:</span></div><div class="line"><span class="bullet">  -</span> <span class="string">'salt/cloud/*/destroyed'</span><span class="string">:</span></div><div class="line"><span class="bullet">    -</span> <span class="string">/srv/reactor/destroy/*.sls</span></div></pre></td></tr></table></figure>
-<p>9.创建maintenance process。A generalized maintenance process which performs maintenance routines.<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line">            <span class="comment"># must be after channels</span></div><div class="line">            log.info(<span class="string">'Creating master maintenance process'</span>)</div><div class="line">            self.process_manager.add_process(Maintenance, args=(self.opts,))</div></pre></td></tr></table></figure></p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line">    <span class="function"><span class="keyword">def</span> <span class="title">run</span><span class="params">(self)</span>:</span></div><div class="line">        <span class="string">'''</span></div><div class="line">        This is the general passive maintenance process controller for the Salt</div><div class="line">        master.</div><div class="line"></div><div class="line">        This is where any data that needs to be cleanly maintained from the</div><div class="line">        master is maintained.</div><div class="line">        '''</div><div class="line">        salt.utils.appendproctitle(<span class="string">'Maintenance'</span>)</div><div class="line"></div><div class="line">        <span class="comment"># init things that need to be done after the process is forked</span></div><div class="line">        self._post_fork_init()</div><div class="line"></div><div class="line">        <span class="comment"># Make Start Times</span></div><div class="line">        last = int(time.time())</div><div class="line">        <span class="comment"># Clean out the fileserver backend cache</span></div><div class="line">        salt.daemons.masterapi.clean_fsbackend(self.opts)</div><div class="line">        <span class="comment"># Clean out pub auth</span></div><div class="line">        salt.daemons.masterapi.clean_pub_auth(self.opts)</div><div class="line"></div><div class="line">        old_present = set()</div><div class="line">        <span class="keyword">while</span> <span class="keyword">True</span>:</div><div class="line">            now = int(time.time())</div><div class="line">            <span class="keyword">if</span> (now - last) &gt;= self.loop_interval:</div><div class="line">                salt.daemons.masterapi.clean_old_jobs(self.opts)</div><div class="line">                salt.daemons.masterapi.clean_expired_tokens(self.opts)</div><div class="line">            self.handle_search(now, last)</div><div class="line">            self.handle_git_pillar()</div><div class="line">            self.handle_schedule()</div><div class="line">            self.handle_key_cache()</div><div class="line">            self.handle_presence(old_present)</div><div class="line">            self.handle_key_rotate(now)</div><div class="line">            salt.daemons.masterapi.fileserver_update(self.fileserver)</div><div class="line">            salt.utils.verify.check_max_open_files(self.opts)</div><div class="line">            last = now</div><div class="line">            time.sleep(self.loop_interval)</div></pre></td></tr></table></figure>
-<p>10.创建event return process。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line">            <span class="keyword">if</span> self.opts.get(<span class="string">'event_return'</span>):</div><div class="line">                log.info(<span class="string">'Creating master event return process'</span>)</div><div class="line">                self.process_manager.add_process(salt.utils.event.EventReturn, args=(self.opts,))</div></pre></td></tr></table></figure></p>
-<blockquote>
-<p>All Salt commands will return the command data back to the master. Specifying returners will ensure that the data is <em>also</em> sent to the specified returner interfaces.</p>
-</blockquote>
-<p>11.创建ext_processes process<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line">            ext_procs = self.opts.get(<span class="string">'ext_processes'</span>, [])</div><div class="line">            <span class="keyword">for</span> proc <span class="keyword">in</span> ext_procs:</div><div class="line">                log.info(<span class="string">'Creating ext_processes process: &#123;0&#125;'</span>.format(proc))</div><div class="line">                <span class="keyword">try</span>:</div><div class="line">                    mod = <span class="string">'.'</span>.join(proc.split(<span class="string">'.'</span>)[:<span class="number">-1</span>])</div><div class="line">                    cls = proc.split(<span class="string">'.'</span>)[<span class="number">-1</span>]</div><div class="line">                    _tmp = __import__(mod, globals(), locals(), [cls], <span class="number">-1</span>)</div><div class="line">                    cls = _tmp.__getattribute__(cls)</div><div class="line">                    self.process_manager.add_process(cls, args=(self.opts,))</div><div class="line">                <span class="keyword">except</span> Exception:</div><div class="line">                    log.error((<span class="string">'Error creating ext_processes '</span></div><div class="line">                            <span class="string">'process: &#123;0&#125;'</span>).format(proc))</div></pre></td></tr></table></figure></p>
-<blockquote>
-<p>In addition to the processes that the Salt master automatically spawns, it is possible to configure it to start additional custom processes.<br>This is useful if a dedicated process is needed that should run throughout the life of the Salt master. For periodic independent tasks, a scheduled runner may be more appropriate.<br>Processes started in this way will be restarted if they die and will be killed when the Salt master is shut down.</p>
-</blockquote>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line"><span class="attr">ext_processes:</span></div><div class="line"><span class="bullet">  -</span> <span class="string">mymodule.TestProcess</span></div><div class="line"><span class="bullet">  -</span> <span class="string">mymodule.AnotherProcess</span></div></pre></td></tr></table></figure>
-<p>12.创建halite process。DEPRECATED: A client-side web application interface to a running Salt infrastructure<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line">            <span class="keyword">if</span> HAS_HALITE <span class="keyword">and</span> <span class="string">'halite'</span> <span class="keyword">in</span> self.opts:</div><div class="line">                log.info(<span class="string">'Creating master halite process'</span>)</div><div class="line">                self.process_manager.add_process(Halite, args=(self.opts[<span class="string">'halite'</span>],))</div></pre></td></tr></table></figure></p>
-<p>13.创建concache process<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line">            <span class="comment"># <span class="doctag">TODO:</span> remove, or at least push into the transport stuff (pre-fork probably makes sense there)</span></div><div class="line">            <span class="keyword">if</span> self.opts[<span class="string">'con_cache'</span>]:</div><div class="line">                log.info(<span class="string">'Creating master concache process'</span>)</div><div class="line">                self.process_manager.add_process(ConnectedCache, args=(self.opts,))</div><div class="line">                <span class="comment"># workaround for issue #16315, race condition</span></div><div class="line">                log.debug(<span class="string">'Sleeping for two seconds to let concache rest'</span>)</div><div class="line">                time.sleep(<span class="number">2</span>)</div></pre></td></tr></table></figure></p>
-<blockquote>
-<p><strong>con_cache</strong><br>Default: False<br>If max_minions is used in large installations, the master might experience high-load situations because of having to check the number of connected minions for every authentication. This cache provides the minion-ids of all connected minions to all MWorker-processes and greatly improves the performance of max_minions.</p>
-</blockquote>
-<p>14.创建request server process。处理salt命令和minion处理结果<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/master.py</span></div><div class="line">            log.info(<span class="string">'Creating master request server process'</span>)</div><div class="line">            kwargs = &#123;&#125;</div><div class="line">            <span class="keyword">if</span> salt.utils.is_windows():</div><div class="line">                kwargs[<span class="string">'log_queue'</span>] = salt.log.setup.get_multiprocessing_logging_queue()</div><div class="line">                kwargs[<span class="string">'secrets'</span>] = SMaster.secrets</div><div class="line"></div><div class="line">            self.process_manager.add_process(</div><div class="line">                ReqServer,</div><div class="line">                args=(self.opts, self.key, self.master_key),</div><div class="line">                kwargs=kwargs,</div><div class="line">                name=<span class="string">'ReqServer'</span>)</div></pre></td></tr></table></figure></p>
-<p>创建ReqServerChannel和MWorker</p>
+<li><p>bolt2处理tuple 1011时生成了一个新的tuple，id为0111<br><img src="http://static.oschina.net/uploads/space/2016/0125/181207_baaW_2000675.jpg" alt=""></p>
+</li>
+<li><p>bolt3中接收到tuple 0110和tuple 0111，没有生成新的tuple<br><img src="http://static.oschina.net/uploads/space/2016/0125/181243_xKy0_2000675.jpg" alt=""></p>
+</li>
+</ol>
+<p><strong>容错过程存在一个可能出错的地方</strong></p>
+<p>如果生成的tuple id并不是完全各异的，acker可能会在消息单元完全处理完成之前就错误的计算为0。这个错误在理论上的确是存在的，但是在实际中其概率是极低极低的，完全可以忽略。</p>
+<p><strong>Storm的事务拓扑</strong></p>
+<p>事务拓扑(transactional topology)是storm0.7引入的特性，在最近发布的0.8版本中已经被封装为Trident，提供了更加便利和直观的接口。<br>事务拓扑的目的是为了满足对消息处理有着极其严格要求的场景，例如实时计算某个用户的成交笔数，要求结果完全精确，不能多也不能少。Storm的事务拓扑是完全基于它底层的spout/bolt/acker原语实现的，通过一层巧妙的封装得出一个优雅的实现。<br>事务拓扑简单来说就是将消息分为一个个的批(batch)，同一批内的消息以及批与批之间的消息可以并行处理，另一方面，用户可以设置某些bolt为committer，storm可以保证committer的finishBatch()操作是按严格不降序的顺序执行的。用户可以利用这个特性通过简单的编程技巧实现消息处理的精确。</p>
 
       
 
@@ -289,11 +310,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">saltstack</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">salt源码解析</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">Hadoop</a>
         		</li>
       		
 		</ul>
@@ -305,7 +322,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="/categories/saltstack/" class="article-tag-list-link color5">saltstack</a>
+        			<a href="/categories/Hadoop/" class="article-tag-list-link color2">Hadoop</a>
         		</li>
       		
 		</ul>
@@ -360,7 +377,7 @@
     <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="http://s.jiathis.com/qrcode.php?url=https://winway.github.io/2017/07/25/salt-master-startup-procedure/" alt="微信分享二维码">
+      <img src="http://s.jiathis.com/qrcode.php?url=https://winway.github.io/2017/01/21/big-data-storm/" alt="微信分享二维码">
     </div>
 </div>
 
@@ -374,18 +391,18 @@
   
 <nav id="article-nav">
   
-    <a href="/2017/07/27/salt-master-publisher/" id="article-nav-newer" class="article-nav-link-wrap">
+    <a href="/2017/02/22/hbase-rolling-restart/" id="article-nav-newer" class="article-nav-link-wrap">
       <i class="icon-circle-left"></i>
       <div class="article-nav-title">
         
-          saltstack源码解析之master.publisher
+          HBASE滚动重启
         
       </div>
     </a>
   
   
-    <a href="/2017/07/25/hdfs-rack-awareness/" id="article-nav-older" class="article-nav-link-wrap">
-      <div class="article-nav-title">HDFS机架感知</div>
+    <a href="/2017/01/13/big-data-pig/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">Hadoop生态系统介绍-Pig</div>
       <i class="icon-circle-right"></i>
     </a>
   

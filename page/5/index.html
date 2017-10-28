@@ -154,6 +154,131 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-mongodb-change-nssize" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2016/01/28/mongodb-change-nssize/">MongoDB在线修改nsSize</a>
+    </h1>
+  
+
+        
+        <a href="/2016/01/28/mongodb-change-nssize/" class="archive-article-date">
+  	<time datetime="2016-01-28T06:27:31.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-01-28</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#简介">简介</a></li>
+<li><a href="#修改nssize大小">修改nssize大小</a></li>
+<li><a href="#回滚">回滚</a></li>
+</ul>
+<!-- tocstop -->
+<h2 id="简介"><a href="#简介" class="headerlink" title="简介"></a>简介</h2><p>默认情况下，MongoDB(MMAP)的每个数据库的命名空间保存在一个 16MB 的 .ns 文件中，平均每个命名占用约 628 字节，也即整个数据库的命名空间的上限约为 24000。<br>每一个集合、索引都将占用一个命名。所以，如果每个集合有一个索引（比如默认的 _id 索引），那么最多可以创建 12000 个集合。如果索引数更多，则可创建的集合数就更少了。同时，如果集合数太多，一些操作也会变慢。<br>不过，如果真的需要建立更多的集合的话，MongoDB 也是支持的，只需要在启动时加上“–nssize”参数，这样对应数据库的命名空间文件就可以变得更大以便保存更多的命名。这个命名空间文件（.ns 文件）最大可以为 2G，也就是说最大可以支持约 340 万个命名，如果每个集合有一个索引的话，最多可创建约 170 万个集合。<br>还需要注意，–nssize 只设置新创建的 .ns 文件的大小，如果想改变已经存在的数据库的命名空间，在使用这个参数启动后，还需要运行 db.repairDatabase() 命令来调整尺寸。</p>
+<h2 id="修改nssize大小"><a href="#修改nssize大小" class="headerlink" title="修改nssize大小"></a>修改nssize大小</h2><p><strong>注意：尽量选择集群较空闲的时间段进行，减少单节点的操作时间，确保重启后的节点能够跟得上集群的oplog。最好先操作所有的secondary节点再操作primary节点。操作primary时，先使用stepdown降级，待集群选举出新的primary后再shutdown。</strong></p>
+<p>对副本集中所有的节点执行以下操作：</p>
+<ol>
+<li><p>查看当前库的nssize大小</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line">winway:SECONDARY&gt; use test</div><div class="line">winway:SECONDARY&gt; db.stats()</div><div class="line">&#123;</div><div class="line">        &quot;db&quot; : &quot;admin&quot;,</div><div class="line">        &quot;collections&quot; : 3,</div><div class="line">        &quot;objects&quot; : 6,</div><div class="line">        &quot;avgObjSize&quot; : 62,</div><div class="line">        &quot;dataSize&quot; : 372,</div><div class="line">        &quot;storageSize&quot; : 16384,</div><div class="line">        &quot;numExtents&quot; : 3,</div><div class="line">        &quot;indexes&quot; : 1,</div><div class="line">        &quot;indexSize&quot; : 8176,</div><div class="line">        &quot;fileSize&quot; : 201326592,</div><div class="line">        &quot;nsSizeMB&quot; : 16,</div><div class="line">        &quot;ok&quot; : 1</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+<li><p>关闭当前节点，同时登陆其他节点查看集群状态是否正常</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">winway:SECONDARY&gt; use admin</div><div class="line">switched to db admin</div><div class="line">winway:SECONDARY &gt; db.shutdownServer()</div><div class="line">Mon Jan 26 15:30:46 DBClientCursor::init call() failed</div><div class="line">Mon Jan 26 15:30:46 query failed : admin.$cmd &#123; shutdown: 1.0 &#125; to: 127.0.0.1:4422</div><div class="line">server should be down...</div><div class="line">Mon Jan 26 15:30:46 trying reconnect to 127.0.0.1:4422</div><div class="line">Mon Jan 26 15:30:46 reconnect 127.0.0.1:4422 ok</div><div class="line">Mon Jan 26 15:30:46 Socket recv() errno:104 Connection reset by peer 127.0.0.1:4422</div><div class="line">Mon Jan 26 15:30:46 SocketException: remote: 127.0.0.1:4422 error: 9001 socket exception [1] server [127.0.0.1:4422]</div><div class="line">Mon Jan 26 15:30:46 DBClientCursor::init call() failed</div></pre></td></tr></table></figure>
+</li>
+<li><p>以standalone的方式用另外的端口（确保端口空闲）启动</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">mongod --dbpath /data/mongodb/winway-data/ --port 1988 --nssize 32</div></pre></td></tr></table></figure>
+<p> nssize是要修改成为的值</p>
+</li>
+<li><p>连接mongd</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">mongo --port 1988</div></pre></td></tr></table></figure>
+</li>
+<li><p>使用repairDatabase修改现存库的nssize</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div></pre></td><td class="code"><pre><div class="line">&gt; use test</div><div class="line">switched to db test</div><div class="line">&gt; db.stats()</div><div class="line">&#123;</div><div class="line">        &quot;db&quot; : &quot;test&quot;,</div><div class="line">        &quot;collections&quot; : 11,</div><div class="line">        &quot;objects&quot; : 348,</div><div class="line">        &quot;avgObjSize&quot; : 272.7241379310345,</div><div class="line">        &quot;dataSize&quot; : 94908,</div><div class="line">        &quot;storageSize&quot; : 446464,</div><div class="line">        &quot;numExtents&quot; : 13,</div><div class="line">        &quot;indexes&quot; : 10,</div><div class="line">        &quot;indexSize&quot; : 98112,</div><div class="line">        &quot;fileSize&quot; : 201326592,</div><div class="line">        &quot;nsSizeMB&quot; : 16,</div><div class="line">        &quot;ok&quot; : 1</div><div class="line">&#125;</div><div class="line">&gt; db.repairDatabase()</div><div class="line">&#123; &quot;ok&quot; : 1 &#125;</div><div class="line">&gt; db.stats()</div><div class="line">&#123;</div><div class="line">        &quot;db&quot; : &quot;test&quot;,</div><div class="line">        &quot;collections&quot; : 11,</div><div class="line">        &quot;objects&quot; : 348,</div><div class="line">        &quot;avgObjSize&quot; : 272.8045977011494,</div><div class="line">        &quot;dataSize&quot; : 94936,</div><div class="line">        &quot;storageSize&quot; : 245760,</div><div class="line">        &quot;numExtents&quot; : 13,</div><div class="line">        &quot;indexes&quot; : 10,</div><div class="line">        &quot;indexSize&quot; : 98112,</div><div class="line">        &quot;fileSize&quot; : 201326592,</div><div class="line">        &quot;nsSizeMB&quot; : 32,</div><div class="line">        &quot;ok&quot; : 1</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+<li><p>关闭该节点</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line">&gt; use admin</div><div class="line">switched to db admin</div><div class="line">&gt; db.shutdownServer()</div><div class="line">Mon Jan 26 15:49:46 DBClientCursor::init call() failed</div><div class="line">Mon Jan 26 15:49:46 query failed : admin.$cmd &#123; shutdown: 1.0 &#125; to: 127.0.0.1:1988</div><div class="line">server should be down...</div><div class="line">Mon Jan 26 15:49:46 trying reconnect to 127.0.0.1:1988</div><div class="line">Mon Jan 26 15:49:46 reconnect 127.0.0.1:1988 ok</div><div class="line">Mon Jan 26 15:49:46 Socket recv() errno:104 Connection reset by peer 127.0.0.1:1988</div><div class="line">Mon Jan 26 15:49:46 SocketException: remote: 127.0.0.1:1988 error: 9001 socket exception [1] server [127.0.0.1:1988]</div><div class="line">Mon Jan 26 15:49:46 DBClientCursor::init call() failed</div></pre></td></tr></table></figure>
+</li>
+<li><p>修改配置文件中的nssize大小</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">nssize=32</div></pre></td></tr></table></figure>
+</li>
+<li><p>以副本集的形式重启该节点</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">mongod -f /data/mongodb/conf/winway-mongo-conf</div></pre></td></tr></table></figure>
+</li>
+<li><p>查看nssize大小和集群状态</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div></pre></td><td class="code"><pre><div class="line">&gt; use test</div><div class="line">switched to db test</div><div class="line">&gt; db.stats()</div><div class="line">&#123;</div><div class="line">        &quot;db&quot; : &quot;test&quot;,</div><div class="line">        &quot;collections&quot; : 11,</div><div class="line">        &quot;objects&quot; : 348,</div><div class="line">        &quot;avgObjSize&quot; : 272.8045977011494,</div><div class="line">        &quot;dataSize&quot; : 94936,</div><div class="line">        &quot;storageSize&quot; : 245760,</div><div class="line">        &quot;numExtents&quot; : 13,</div><div class="line">        &quot;indexes&quot; : 10,</div><div class="line">        &quot;indexSize&quot; : 98112,</div><div class="line">        &quot;fileSize&quot; : 201326592,</div><div class="line">        &quot;nsSizeMB&quot; : 32,</div><div class="line">        &quot;ok&quot; : 1</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+</li>
+</ol>
+<h2 id="回滚"><a href="#回滚" class="headerlink" title="回滚"></a>回滚</h2><p>本操作逐个节点进行，如果在某个节点失败则重新初始化该节点即可，不影响集群对外服务</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/MongoDB/" class="article-tag-list-link color3">MongoDB</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2016/01/28/mongodb-change-nssize/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-mongodb-change-oplogsize" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1547,99 +1672,9 @@
 
 
   
-    <article id="post-c-debug-macro" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/07/09/c-debug-macro/">一个方便打印C程序调试信息的宏</a>
-    </h1>
-  
-
-        
-        <a href="/2013/07/09/c-debug-macro/" class="archive-article-date">
-  	<time datetime="2013-07-09T12:24:25.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-07-09</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<!-- tocstop -->
-<p>为了方便调试C程序，写了个打印信息的宏，能够打印错误信息，以及错误发生的文件名、行号。<br><figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#<span class="meta-keyword">ifndef</span> _DEBUG_H_</span></div><div class="line"><span class="meta">#<span class="meta-keyword">define</span> _DEBUG_H_</span></div><div class="line"></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;stdio.h&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string.h&gt;</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;malloc.h&gt;</span></span></div><div class="line"></div><div class="line"><span class="meta">#<span class="meta-keyword">define</span> ERRBUFLEN 1024</span></div><div class="line"></div><div class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> DEBUG_ON</span></div><div class="line"><span class="meta">#<span class="meta-keyword">define</span> ERR_PRINT(str) \</span></div><div class="line">    do \</div><div class="line">    &#123; \</div><div class="line">        char errbuf[ERRBUFLEN] = &#123;<span class="meta-string">'\0'</span>&#125;; \</div><div class="line">        snprintf(errbuf, ERRBUFLEN, <span class="meta-string">"[file: %s line: %d] %s"</span>, \</div><div class="line">                                    __FILE__, __LINE__, str); \</div><div class="line">        fprintf(stderr, <span class="meta-string">"\033[31m"</span>); \</div><div class="line">        perror(errbuf); \</div><div class="line">        fprintf(stderr, <span class="meta-string">"\033[0m"</span>); \</div><div class="line">    &#125; while (0)</div><div class="line"><span class="meta">#<span class="meta-keyword">define</span> INFO_PRINT(str) \</span></div><div class="line">    do \</div><div class="line">    &#123; \</div><div class="line">        printf(<span class="meta-string">"\033[31m"</span>); \</div><div class="line">        printf(<span class="meta-string">"[file: %s line: %d] %s\n"</span>, __FILE__, __LINE__, str); \</div><div class="line">        printf(<span class="meta-string">"\033[0m"</span>); \</div><div class="line">    &#125; while(0)</div><div class="line"><span class="meta">#<span class="meta-keyword">else</span></span></div><div class="line"><span class="meta">#<span class="meta-keyword">define</span> ERR_PRINT(str)</span></div><div class="line"><span class="meta">#<span class="meta-keyword">define</span> INFO_PRINT(str)</span></div><div class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></div><div class="line"></div><div class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></div></pre></td></tr></table></figure></p>
-<p>测试程序：<br><figure class="highlight c"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">"debug.h"</span></span></div><div class="line"></div><div class="line"><span class="function"><span class="keyword">int</span></span></div><div class="line"><span class="title">main</span><span class="params">()</span></div><div class="line">&#123;</div><div class="line">        <span class="built_in">printf</span>(<span class="string">"test\n"</span>);</div><div class="line"></div><div class="line">        FILE *fp = <span class="literal">NULL</span>;</div><div class="line"></div><div class="line">        fp = fopen(<span class="string">"./none.txt"</span>, <span class="string">"r"</span>);</div><div class="line">        <span class="keyword">if</span> (fp == <span class="literal">NULL</span>)</div><div class="line">        &#123;</div><div class="line">                ERR_PRINT(<span class="string">"fopen error"</span>);</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        <span class="keyword">int</span> i = <span class="number">1</span>;</div><div class="line"></div><div class="line">        <span class="keyword">if</span> (i &lt; <span class="number">2</span>)</div><div class="line">        &#123;</div><div class="line">                INFO_PRINT(<span class="string">"i &lt; 2"</span>);</div><div class="line">        &#125;</div><div class="line"></div><div class="line">        <span class="keyword">return</span> <span class="number">0</span>;</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line">[winway@s211 err_print]$ gcc test.c</div><div class="line">[winway@s211 err_print]$ ./a.out</div><div class="line">test</div><div class="line">[winway@s211 err_print]$ gcc test.c -DDEBUG_ON</div><div class="line">[winway@s211 err_print]$ ./a.out</div><div class="line">test</div><div class="line">[file: test.c line: 13] fopen error: No such file or directory</div><div class="line">[file: test.c line: 20] i &lt; 2</div></pre></td></tr></table></figure>
-<p>欢迎使用。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">C</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/C/" class="article-tag-list-link color2">C</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/07/09/c-debug-macro/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
-      <a class="extend prev" rel="prev" href="/page/4/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><a class="page-number" href="/page/4/">4</a><span class="page-number current">5</span><a class="page-number" href="/page/6/">6</a><a class="extend next" rel="next" href="/page/6/">Next &raquo;</a>
+      <a class="extend prev" rel="prev" href="/page/4/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><a class="page-number" href="/page/4/">4</a><span class="page-number current">5</span><a class="page-number" href="/page/6/">6</a><a class="page-number" href="/page/7/">7</a><a class="extend next" rel="next" href="/page/6/">Next &raquo;</a>
     </nav>
   
 
@@ -1796,11 +1831,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
