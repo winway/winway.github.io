@@ -6,22 +6,22 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://winway.github.io">
-  <title>TCPCopy使用总结 | winway&#39;s blog</title>
+  <title>Hadoop生态系统介绍-Hive | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="传统架构 原理 使用   最新架构 原理 使用   注意事项 参考资料   传统架构原理TCPCopy默认从IP层抓包，从IP层发包，我们在测试服务器进行响应包的截获，并通过intercept程序返回响应包的必要信息给TCPCopy。这种架构为分布式压力测试提供了可能性。 理论上，可以在测试服务器的IP层或者数据链路层进行截获响应包，我们具体分析如下：  在数据链路层抓，正常情况下，其响应数据">
-<meta name="keywords" content="TCPCopy">
+  <meta name="description" content="前言 工作原理 特点 架构     前言提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。  Hadoop生态系统介绍-概览 Hadoop生态系统介绍-Kerberos Hadoop生态系统介绍-Zookeeper Hadoop生态系统介绍-HDFS Hadoop生态系统介绍-YARN Ha">
+<meta name="keywords" content="Hadoop">
 <meta property="og:type" content="article">
-<meta property="og:title" content="TCPCopy使用总结">
-<meta property="og:url" content="https://winway.github.io/2017/10/17/tcpcopy-introduce/index.html">
+<meta property="og:title" content="Hadoop生态系统介绍-Hive">
+<meta property="og:url" content="https://winway.github.io/2017/01/13/big-data-hive/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:description" content="传统架构 原理 使用   最新架构 原理 使用   注意事项 参考资料   传统架构原理TCPCopy默认从IP层抓包，从IP层发包，我们在测试服务器进行响应包的截获，并通过intercept程序返回响应包的必要信息给TCPCopy。这种架构为分布式压力测试提供了可能性。 理论上，可以在测试服务器的IP层或者数据链路层进行截获响应包，我们具体分析如下：  在数据链路层抓，正常情况下，其响应数据">
-<meta property="og:image" content="http://blog.gaoyuan.xyz/images/tcpcopy_flow.png">
-<meta property="og:image" content="https://camo.githubusercontent.com/df0c7d58574a4d492b45ae450bbe6f34101d66a4/68747470733a2f2f7261772e6769746875622e636f6d2f77616e6762696e3537392f617578696c696172792f6d61737465722f696d616765732f746370636f70792e474946">
-<meta property="og:updated_time" content="2017-10-18T10:59:09.334Z">
+<meta property="og:description" content="前言 工作原理 特点 架构     前言提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。  Hadoop生态系统介绍-概览 Hadoop生态系统介绍-Kerberos Hadoop生态系统介绍-Zookeeper Hadoop生态系统介绍-HDFS Hadoop生态系统介绍-YARN Ha">
+<meta property="og:image" content="http://images2015.cnblogs.com/blog/820234/201510/820234-20151023153120802-716285030.png">
+<meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/hive.png">
+<meta property="og:updated_time" content="2017-10-28T04:08:24.850Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="TCPCopy使用总结">
-<meta name="twitter:description" content="传统架构 原理 使用   最新架构 原理 使用   注意事项 参考资料   传统架构原理TCPCopy默认从IP层抓包，从IP层发包，我们在测试服务器进行响应包的截获，并通过intercept程序返回响应包的必要信息给TCPCopy。这种架构为分布式压力测试提供了可能性。 理论上，可以在测试服务器的IP层或者数据链路层进行截获响应包，我们具体分析如下：  在数据链路层抓，正常情况下，其响应数据">
-<meta name="twitter:image" content="http://blog.gaoyuan.xyz/images/tcpcopy_flow.png">
+<meta name="twitter:title" content="Hadoop生态系统介绍-Hive">
+<meta name="twitter:description" content="前言 工作原理 特点 架构     前言提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。  Hadoop生态系统介绍-概览 Hadoop生态系统介绍-Kerberos Hadoop生态系统介绍-Zookeeper Hadoop生态系统介绍-HDFS Hadoop生态系统介绍-YARN Ha">
+<meta name="twitter:image" content="http://images2015.cnblogs.com/blog/820234/201510/820234-20151023153120802-716285030.png">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -157,20 +157,20 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-tcpcopy-introduce" class="article article-type-post " itemscope itemprop="blogPost">
+            <article id="post-big-data-hive" class="article article-type-post " itemscope itemprop="blogPost">
   <div class="article-inner">
     
       <header class="article-header">
         
   
     <h1 class="article-title" itemprop="name">
-      TCPCopy使用总结
+      Hadoop生态系统介绍-Hive
     </h1>
   
 
         
-        <a href="/2017/10/17/tcpcopy-introduce/" class="archive-article-date">
-  	<time datetime="2017-10-17T02:02:41.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-10-17</time>
+        <a href="/2017/01/13/big-data-hive/" class="archive-article-date">
+  	<time datetime="2017-01-13T03:56:44.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-01-13</time>
 </a>
         
       </header>
@@ -179,126 +179,58 @@
       
         <!-- toc -->
 <ul>
-<li><a href="#传统架构">传统架构</a><ul>
-<li><a href="#原理">原理</a></li>
-<li><a href="#使用">使用</a></li>
+<li><a href="#前言">前言</a></li>
+<li><a href="#工作原理">工作原理</a><ul>
+<li><a href="#特点">特点</a></li>
+<li><a href="#架构">架构</a></li>
 </ul>
 </li>
-<li><a href="#最新架构">最新架构</a><ul>
-<li><a href="#原理-1">原理</a></li>
-<li><a href="#使用-1">使用</a></li>
-</ul>
-</li>
-<li><a href="#注意事项">注意事项</a></li>
-<li><a href="#参考资料">参考资料</a></li>
 </ul>
 <!-- tocstop -->
-<h2 id="传统架构"><a href="#传统架构" class="headerlink" title="传统架构"></a>传统架构</h2><h3 id="原理"><a href="#原理" class="headerlink" title="原理"></a>原理</h3><p><img src="http://blog.gaoyuan.xyz/images/tcpcopy_flow.png" alt=""><br>TCPCopy默认从IP层抓包，从IP层发包，我们在测试服务器进行响应包的截获，并通过intercept程序返回响应包的必要信息给TCPCopy。这种架构为分布式压力测试提供了可能性。</p>
-<p>理论上，可以在测试服务器的IP层或者数据链路层进行截获响应包，我们具体分析如下：</p>
+<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。</p>
 <ol>
-<li>在数据链路层抓，正常情况下，其响应数据包会返回给真正发起请求的客户端，这会或多或少影响到客户端的TCP（频繁地reset）模块，而且在压力大的时候，会给交换机、路由器甚至整个网络，带来不必要的干扰。</li>
-<li>在测试服务器的IP抓响应包，正好有netlink技术来解决上面的问题，netlink是一种用户态进程与内核进行交互的技术，具体地我们可以利用内核模块ip queue（内核3.5以下版本）或者nfqueue（内核3.5或者以上版本）来达到捕获响应包的目的。</li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-intro/">Hadoop生态系统介绍-概览</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-kerberos/">Hadoop生态系统介绍-Kerberos</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-zookeeper/">Hadoop生态系统介绍-Zookeeper</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-hdfs/">Hadoop生态系统介绍-HDFS</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-yarn/">Hadoop生态系统介绍-YARN</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-mapreduce/">Hadoop生态系统介绍-MapReduce</a></li>
+<li><strong><a href="https://winway.github.io/2017/01/07/big-data-hive/">Hadoop生态系统介绍-Hive</a></strong></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-pig/">Hadoop生态系统介绍-Pig</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-storm/">Hadoop生态系统介绍-Storm</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-hbase/">Hadoop生态系统介绍-Hbase</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-phoenix/">Hadoop生态系统介绍-Phoenix</a></li>
 </ol>
-<p>我们采用了第二种方式，也即上图中的IP层来截获响应包，当响应包传递给intercept后，我们就能copy到响应包信息的必要信息（一般为TCP/IP头部信息），传递给TCPCopy，我们还可以通过verdict告诉内核，该如何处理这些响应包，如果没有设置白名单的话，就会在IP层丢弃掉这些响应包，这时候你是无法利用tcpudmp来抓到这些响应包的（tcpdump工作在数据链路层）。<br>这种设计的好处就是可以支持复制多台在线流量到一台测试服务器中去，我们在intercept保留路由信息，知道响应包的相关信息该如何返回给哪一个TCPCopy实例。然而这种架构，intercept会不同程度地占用测试服务器的资源，而且ip queue或者nfqueue，并不一定能够高效工作，因而给测试，特别是高压测试和短连接压力测试，带来了很大麻烦。</p>
-<p>这种架构总结如下：</p>
+<p>本文对数据仓库Hive的工作原理进行介绍。</p>
+<h2 id="工作原理"><a href="#工作原理" class="headerlink" title="工作原理"></a>工作原理</h2><h3 id="特点"><a href="#特点" class="headerlink" title="特点"></a>特点</h3><p>Hive是基于Hadoop的一个数据仓库工具，可以将结构化的数据文件映射为一张数据库表，并提供完整的sql查询功能，可以将sql语句转换为MapReduce任务进行运行。其优点是学习成本低，可以通过类SQL语句快速实现简单的MapReduce统计，不必开发专门的MapReduce应用，十分适合数据仓库的统计分析。</p>
+<p>Hive提供了一系列的工具，可以用来进行数据提取转化加载（ETL），这是一种可以存储、查询和分析存储在 Hadoop 中的大规模数据的机制。Hive 定义了简单的类 SQL 查询语言，称为 HQL，它允许熟悉 SQL 的用户查询数据。同时，这个语言也允许熟悉 MapReduce 的开发者开发自定义的 mapper 和 reducer 来处理内建的 mapper 和 reducer 无法完成的复杂的分析工作。</p>
+<h3 id="架构"><a href="#架构" class="headerlink" title="架构"></a>架构</h3><p>hadoop和mapreduce是hive架构的根基。<br><img src="http://images2015.cnblogs.com/blog/820234/201510/820234-20151023153120802-716285030.png" alt=""><br>Hive架构包括如下组件：</p>
 <ul>
-<li>好处：<ol>
-<li>支持复制多台在线流量</li>
-<li>影响在线机器更小，因为一般只需要返回TCP/IP头部信息</li>
-</ol>
-</li>
-<li>不好的地方：<ol>
-<li>性能极限往往在ip queue或者nfqueue</li>
-<li>intercept扩展性不好，受制于ip queue和nfqueue无法支持多进程进行响应包的捕获操作</li>
-<li>intercept影响测试服务器的最终测试结果，特别是压力大的时候</li>
-<li>无法对测试服务器进行完整测试（没有覆盖到数据链路层的出口）</li>
-<li>运维不方便</li>
-</ol>
-</li>
+<li>CLI（command line interface）</li>
+<li>JDBC/ODBC</li>
+<li>Thrift Server</li>
+<li>WEB GUI</li>
+<li>Metastore</li>
+<li>Driver(Complier、Optimizer和Executor)</li>
 </ul>
-<h3 id="使用"><a href="#使用" class="headerlink" title="使用"></a>使用</h3><p>下载<a href="http://code.google.com/p/TCPCopy/downloads/list" target="_blank" rel="external">TCPCopy-0.9.6.tar.gz</a>安装包，解压，configure，make，make install</p>
-<p><strong>TCPCopy server （root用户执行）</strong></p>
+<p>这些组件可以分为两大类：服务端组件和客户端组件。</p>
+<p><strong>服务端组件</strong></p>
 <ul>
-<li><p>采用IP Queue 模块（内核&lt;3.5，默认采用IP Queue）:</p>
+<li>Driver组件：该组件包括Complier、Optimizer和Executor，它的作用是将我们写的HiveQL（类SQL）语句进行解析、编译优化，生成执行计划，然后调用底层的mapreduce计算框架。</li>
+<li>Metastore组件：元数据服务组件，这个组件存储hive的元数据，hive的元数据存储在关系数据库里，hive支持的关系数据库有derby、mysql。元数据对于hive十分重要，因此hive支持把metastore服务独立出来，安装到远程的服务器集群里，从而解耦hive服务和metastore服务，保证hive运行的健壮性。</li>
+<li>Thrift服务：thrift是facebook开发的一个软件框架，它用来进行可扩展且跨语言的服务的开发，hive集成了该服务，能让不同的编程语言调用hive的接口。</li>
+</ul>
+<p><strong>客户端组件</strong></p>
+<ul>
+<li>CLI：command line interface，命令行接口。</li>
+<li>Thrift客户端：上面的架构图里没有写上Thrift客户端，但是hive架构的许多客户端接口是建立在thrift客户端之上，包括JDBC和ODBC接口。</li>
+<li>WEBGUI：hive客户端提供了一种通过网页的方式访问hive所提供的服务。这个接口对应hive的hwi组件（hive web interface），使用前要启动hwi服务。</li>
+</ul>
+<p><strong>执行流程</strong><br><img src="http://ot69fbvko.bkt.clouddn.com/hive.png" alt=""></p>
 <ol>
-<li>启动内核模块ip_queue (modprobe ip_queue)</li>
-<li><p>设置要截获的端口，并且设置对output截获</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">iptables -I OUTPUT -p tcp --sport port -j QUEUE</div></pre></td></tr></table></figure>
-</li>
-<li><p>执行./intercept</p>
-</li>
-</ol>
-</li>
-<li><p>采用NFQueue 模块（内核&gt;=3.5，默认采用NFQueue）:</p>
-<ol>
-<li><p>设置要截获的端口，并且设置对output截获</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">iptables -I OUTPUT -p tcp --sport port -j NFQUEUE</div></pre></td></tr></table></figure>
-</li>
-<li><p>执行./intercept</p>
-</li>
-</ol>
-</li>
-</ul>
-<p><strong>TCPCopy client （root用户执行）</strong><br>执行./tcpcopy -x 服务器应用端口号-测试服务器ip地址:测试服务器应用端口</p>
-<p><strong>示例：</strong><br>测试机，装有intercept<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">$ modprobe ip_queue</div><div class="line">$ iptables -I OUTPUT -p tcp --sport 8011 -j QUEUE</div><div class="line">$ intercept</div></pre></td></tr></table></figure></p>
-<p>线上机，装有TCPCopy<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">$ tcpcopy -x 80-10.134.59.88:8011</div><div class="line">将本机的80端口的流量copy到10.134.59.88的8011端口</div></pre></td></tr></table></figure></p>
-<h2 id="最新架构"><a href="#最新架构" class="headerlink" title="最新架构"></a>最新架构</h2><h3 id="原理"><a href="#原理-1" class="headerlink" title="原理"></a>原理</h3><p><img src="https://camo.githubusercontent.com/df0c7d58574a4d492b45ae450bbe6f34101d66a4/68747470733a2f2f7261772e6769746875622e636f6d2f77616e6762696e3537392f617578696c696172792f6d61737465722f696d616765732f746370636f70792e474946" alt=""><br>最新架构是为了极限测试的目的而设计的，把intercept的工作从测试服务器（test server）中offload出来，放到另外一台独立的辅助服务器（assistant server，原则上一定要用同网段的一台闲置的服务器来充当辅助服务器）上面进行截获响应包，而且把原先从IP层捕获响应数据包的工作转移到从数据链路层抓响应包，这些改变大大降低了对测试机器的各种干扰（除了路由设置，其它已经没有影响了），而且大大扩大了捕获响应包的能力。当然这种测试也更加真实。</p>
-<p>具体如下：<br>在运行上层服务的测试服务器test server上面设置路由信息，把待测试应用的需要被捕获的响应数据包信息路由到辅助服务器assistant server 上面，在assistant server上面，我们在数据链路层截获到响应包，从中抽取出有用的信息，再返回给相应的TCPCopy。</p>
-<p>为了高效使用，这种架构推荐使用pcap进行抓包，这样就可以在内核态进行过滤，否则只能在用户态进行包的过滤，而且在intercept端或者TCPCopy端设置filter（通过-F参数，类似tcpdump的filter），达到多个实例来共同完成抓包的工作，这样可扩展性就更强，适合于超级高并发的场合。<br>这种架构需要的机器资源也更多，而且也变得更加难使用，需要了解tcp知识，route知识和pcap filter知识（类似于tcpdump过滤条件），因此推荐有条件的并且熟悉上述知识的人使用最新的架构。</p>
-<p><strong>需要注意的是，在某些场景，pcap抓包丢包率会远高于raw socket抓包，因此最好利用pf_ring来辅助或者采用raw socket来抓包</strong><br>总结如下：</p>
-<ul>
-<li>好处：<ol>
-<li>更加真实</li>
-<li>可扩展性更强</li>
-<li>适合高并发场合</li>
-<li>无ip queue或者nfqueue的各种限制</li>
-<li>对测试服务器几乎没有任何性能干扰的影响</li>
-<li>在运行服务的测试服务器，运维更加方便</li>
-<li>不会随运行服务的服务器崩溃而崩溃</li>
-</ol>
-</li>
-<li>不好的地方：<ol>
-<li>操作难度更大</li>
-<li>需要的机器数量更多</li>
-<li>需要的知识也更多</li>
-<li>assistant server（运行intercept的机器）原则上必须要和测试服务器（test server）在同一个网段</li>
-</ol>
-</li>
-</ul>
-<h3 id="使用"><a href="#使用-1" class="headerlink" title="使用"></a>使用</h3><p><strong>tcpcopy</strong><br>使用1.0版本，TCPCopy代码下载地址：<br>git clone <a href="http://github.com/session-replay-tools/TCPCopy" target="_blank" rel="external">http://github.com/session-replay-tools/TCPCopy</a><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">configure：</div><div class="line">./configure （默认raw socket方式抓包）</div><div class="line">或者</div><div class="line">./configure --pcap-capture  （pcap方式抓包，在某些场景下，丢包率会高于raw socket方式抓包，这时候需要类似pf_ring的支持）</div></pre></td></tr></table></figure></p>
-<p><strong>intercept：</strong><br>代码下载地址：<br>git clone <a href="http://github.com/session-replay-tools/intercept" target="_blank" rel="external">http://github.com/session-replay-tools/intercept</a><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">configure：</div><div class="line">./configure</div></pre></td></tr></table></figure></p>
-<p><strong>示例：</strong><br>线上机器，装有TCPCopy<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line"># TCPCopy -x 80-10.134.59.88:8011 -s 10.134.59.89 -c 218.7.43.48</div></pre></td></tr></table></figure></p>
-<p>将本机80端口的流量copy到10.134.59.88:8011，intercept运行在10.134.59.89，修改数据包源IP方便测试机路由设置<br>测试机，设置路由<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ route add -host 218.7.43.48 gw 10.134.59.89</div></pre></td></tr></table></figure></p>
-<p>辅助机，装有Intercept<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">$ intercept -i eth0 -F &apos;tcp and src port 8011&apos;</div></pre></td></tr></table></figure></p>
-<h2 id="注意事项"><a href="#注意事项" class="headerlink" title="注意事项"></a>注意事项</h2><ol>
-<li><p>如果TCPCopy出现大量“unsend:too many packets”的报警，请采用raw socket方式来抓包（TCPCopy采用./configure –enable-advanced;intercept 采用./configure –enable-advanced –enable-pcap）。因为据我们测试和用户反馈，raw socket丢包率远小于pcap抓包</p>
-</li>
-<li><p>TCPCopy：./configure –pcap-capture  （pcap方式抓包，在某些场景下，丢包率会高于raw socket方式抓包，这时候需要类似pf_ring的支持）</p>
-</li>
-<li><p>1.0版本可以采用第二种框架的方式进行导流吗<br>可以，但已经不推荐了。方法如下：在intercept端，configure的时候，配置上–traditional根据内核版本自动采用ip queue或者nfqueue来截获应答包</p>
-</li>
-<li><p>ip_conntrack: table full, dropping packet<br>在在线服务器内，由于ip_conntrack 是在IP 层中做的，而TCPCopy 转发数据包，会走部分IP 函数，导致了ip_conntrack 瞎推测连接状态。<br>为了解决此问题，可以采用如下三种方案：<br>a）去除ip_conntrack 内核模块<br>modprobe -r ip_conntrack<br>b）设置对TCPCopy 转发的包不进行track<br>如果需要对在线机器进行操作：<br>iptables -t raw -A OUTPUT -p tcp –dport 转发目的端口-j NOTRACK<br>如果需要针对测试服务器，那么可以设置如下：<br>iptables -t raw -A PREROUTING -p tcp –dport 转发目的端口-j NOTRACK<br>c）加大ip_conntrack_max 值<br>echo “262144” &gt; /proc/sys/net/ipv4/ip_conntrack_max</p>
-</li>
-<li><p>如果Queue dropped 的数值不断增大，则需要修改ip_queue_maxlen 参数，比如：<br>TCPCopy Manual<br>echo 4096 &gt; /proc/sys/net/ipv4/ip_queue_maxlen<br>如果Netlink dropped 的数值不断增大，修改rmem_max 和wmem_max 参数，比如：<br>sysctl -w net.core.rmem_max=16777216<br>sysctl -w net.core.wmem_max=16777216<br>如果IP Queue 相关系统参数的值不管设置为多大，Netlink dropped 还是在不断增大，<br>可以尝试重启IP Queue 模块：<br>modprobe -r ip_queue<br>modprobe ip_queue</p>
-</li>
-<li><p>TCPCopy server（intercept）的-s 参数，如果session 过多，压力也很大，请修改该参<br>数为更高的值（默认为65536），建议设置65536 的倍数</p>
-</li>
-<li><p>TCPCopy（TCPCopy 和intercept）的-t 参数，对于TCPCopy 默认为60s，对于intercept<br>默认为120s，如果后端普遍响应很慢或者是长连接应用的场合，建议设置更大一些（intercept<br>设置的-t 参数值要大于等于TCPCopy 所设置的-t 参数值）</p>
-</li>
-<li><p>TCPCopy client（TCPCopy）的-m 参数（此参数只有在内核版本&gt;=2.6.32 才有效），由<br>于默认所占内存最大512M，如果内存需要超过此值，请设置合理的值</p>
-</li>
-<li><p>如果仅仅复制在线的一台流量（比如单台在线流量很大）给一台测试服务器，那么<br>推荐使用single 模式的TCPCopy 版本，这个模式的版本在intercept 程序中不会保留路由信息，因此intercept 性能会更高（据我们测试，提升30%～50%性能）</p>
-</li>
-<li><p>为什么ab 发出的请求，在压力很大的场合，TCPCopy 丢失率非常高<br>答：TCPCopy 是基于session 的，一个连接一个session，由4 元组构成，源IP 地址，<br>源端口，目的IP，目的端口。在同一台机器ab 发出的请求是基于短连接的，可变的一<br>般只有源端口号，再加上压力大时候，QPS 往往非常高，ab 重复利用源端口的速度非<br>常快，导致测试服务器还没有来得及处理具有同一四元组的前一个session 的数据，后<br>面的session 就过来了。这样的问题比较类似于TCP 的timewait 问题，因此我们可以采<br>用如下策略：<br>a）从多个机器发送ab 请求到测试服务器，这样可变的不仅仅是端口号，还有IP<br>地址<br>b）采用长连接的压力测试工具，比如httpsender</p>
-</li>
-<li><p>nfqueue使用方法</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div></pre></td><td class="code"><pre><div class="line">tar jxvf libnfnetlink-1.0.1.tar.bz2</div><div class="line">cd libnfnetlink-1.0.1</div><div class="line">./configure</div><div class="line">make</div><div class="line">make install</div><div class="line"></div><div class="line">tar jxvf libmnl-1.0.3.tar.bz2</div><div class="line">cd libmnl-1.0.3</div><div class="line">./configure</div><div class="line">make</div><div class="line">make install</div><div class="line"></div><div class="line">ls /usr/lib/pkgconfig/</div><div class="line">export PKG_CONFIG_PATH=/usr/lib/pkgconfig/</div><div class="line"></div><div class="line">tar  jxvf libnetfilter_queue-1.0.2.tar.bz2</div><div class="line">cd libnetfilter_queue-1.0.2</div><div class="line">sh install-sh</div><div class="line">./configure</div><div class="line">make</div><div class="line">make install</div><div class="line"></div><div class="line">cd TCPCopy-0.9.6</div><div class="line">./configure --enable-nfqueue</div><div class="line">make</div><div class="line">make install</div></pre></td></tr></table></figure>
-</li>
-</ol>
-<h2 id="参考资料"><a href="#参考资料" class="headerlink" title="参考资料"></a>参考资料</h2><ol>
-<li><a href="http://code.google.com/p/TCPCopy/" target="_blank" rel="external">http://code.google.com/p/TCPCopy/</a></li>
-<li><a href="http://blog.csdn.net/wangbin579/article/category/926096" target="_blank" rel="external">http://blog.csdn.net/wangbin579/article/category/926096</a></li>
-<li><a href="http://www.searchtb.com/2012/05/using-TCPCopy-to-simulate-traffic.html" target="_blank" rel="external">http://www.searchtb.com/2012/05/using-TCPCopy-to-simulate-traffic.html</a></li>
+<li>客户使用不同的客户端组件提交HQL</li>
+<li>Hive完成HQL的解释、优化、生成查询计划</li>
+<li>查询计划被转化为MapReduce任务，在Hadoop中执行（有些查询没有MR任务，如：select * from table）</li>
 </ol>
 
       
@@ -344,7 +276,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">TCPCopy</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">Hadoop</a>
         		</li>
       		
 		</ul>
@@ -356,7 +288,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="/categories/TCPCopy/" class="article-tag-list-link color3">TCPCopy</a>
+        			<a href="/categories/Hadoop/" class="article-tag-list-link color2">Hadoop</a>
         		</li>
       		
 		</ul>
@@ -411,7 +343,7 @@
     <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="http://s.jiathis.com/qrcode.php?url=https://winway.github.io/2017/10/17/tcpcopy-introduce/" alt="微信分享二维码">
+      <img src="http://s.jiathis.com/qrcode.php?url=https://winway.github.io/2017/01/13/big-data-hive/" alt="微信分享二维码">
     </div>
 </div>
 
@@ -425,9 +357,18 @@
   
 <nav id="article-nav">
   
+    <a href="/2017/02/22/hbase-rolling-restart/" id="article-nav-newer" class="article-nav-link-wrap">
+      <i class="icon-circle-left"></i>
+      <div class="article-nav-title">
+        
+          HBASE滚动重启
+        
+      </div>
+    </a>
   
-    <a href="/2017/09/30/salt-job-flow/" id="article-nav-older" class="article-nav-link-wrap">
-      <div class="article-nav-title">saltstack源码解析之任务执行流程</div>
+  
+    <a href="/2017/01/12/big-data-mapreduce/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">Hadoop生态系统介绍-MapReduce</div>
       <i class="icon-circle-right"></i>
     </a>
   
