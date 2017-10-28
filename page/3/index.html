@@ -731,6 +731,181 @@
 
 
   
+    <article id="post-big-data-hbase" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/01/26/big-data-hbase/">Hadoop生态系统介绍-Hbase</a>
+    </h1>
+  
+
+        
+        <a href="/2017/01/26/big-data-hbase/" class="archive-article-date">
+  	<time datetime="2017-01-26T09:47:06.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-01-26</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#前言">前言</a></li>
+<li><a href="#工作原理">工作原理</a><ul>
+<li><a href="#hbase特点">Hbase特点</a></li>
+<li><a href="#hbase数据模型">HBase数据模型</a></li>
+<li><a href="#hbase架构">HBase架构</a></li>
+<li><a href="#数据读写">数据读写</a></li>
+<li><a href="#合并和分裂">合并和分裂</a></li>
+<li><a href="#容错">容错</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。</p>
+<ol>
+<li><a href="https://winway.github.io/2017/01/07/big-data-intro/">Hadoop生态系统介绍-概览</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-kerberos/">Hadoop生态系统介绍-Kerberos</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-zookeeper/">Hadoop生态系统介绍-Zookeeper</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-hdfs/">Hadoop生态系统介绍-HDFS</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-yarn/">Hadoop生态系统介绍-YARN</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-mapreduce/">Hadoop生态系统介绍-MapReduce</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-hive/">Hadoop生态系统介绍-Hive</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-pig/">Hadoop生态系统介绍-Pig</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-storm/">Hadoop生态系统介绍-Storm</a></li>
+<li><strong><a href="https://winway.github.io/2017/01/07/big-data-hbase/">Hadoop生态系统介绍-Hbase</a></strong></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-phoenix/">Hadoop生态系统介绍-Phoenix</a></li>
+</ol>
+<p>本文对分布式列式数据库Hbase的工作原理进行介绍。</p>
+<h2 id="工作原理"><a href="#工作原理" class="headerlink" title="工作原理"></a>工作原理</h2><h3 id="hbase特点"><a href="#Hbase特点" class="headerlink" title="Hbase特点"></a>Hbase特点</h3><p>HBase (Hadoop Database)，Google BigTable的另一种开源实现方式，为了解决用大量廉价的机器高速存取海量数据、实现数据分布式存储提供可靠的方案。</p>
+<p>从功能上来讲，HBase不折不扣是一个数据库，与我们熟悉的Oracle、MySQL、MSSQL等一样，对外提供数据的存储和读取服务。<br>而从应用的角度来说，HBase与一般的数据库又有所区别，HBase本身的存取接口相当简单，不支持复杂的数据存取，更不支持SQL等结构化的查询语言；HBase也没有除了rowkey以外的索引，所有的数据分布和查询都依赖rowkey。所以，HBase在表的设计上会有很严格的要求。<br>架构上，HBase是分布式数据库的典范，这点比较像MongoDB的sharding模式，能根据键值的大小，把数据分布到不同的存储节点上，MongoDB根据configserver来定位数据落在哪个分区上，HBase通过访问Zookeeper来获取META表所在地址，从而获取数据存储的region位置。</p>
+<h3 id="hbase数据模型"><a href="#HBase数据模型" class="headerlink" title="HBase数据模型"></a>HBase数据模型</h3><p><img src="http://image.evget.com/images/article/2015/hbase02.jpg" alt=""></p>
+<ul>
+<li>Row Key: 行键，Table的主键，Table中的记录按照Row Key排序</li>
+<li>Timestamp: 时间戳，每次数据操作对应的时间戳，可以看作是数据的version number</li>
+<li>Column Family：列簇，Table在水平方向有一个或者多个Column Family组成，一个Column Family中可以由任意多个Column组成，即Column Family支持动态扩展，无需预先定义Column的数量以及类型，所有Column均以二进制格式存储，用户需要自行进行类型转换</li>
+</ul>
+<h3 id="hbase架构"><a href="#HBase架构" class="headerlink" title="HBase架构"></a>HBase架构</h3><p><img src="https://mapr.com/blog/in-depth-look-hbase-architecture/assets/blogimages/HBaseArchitecture-Blog-Fig1.png" alt=""><br>HBase是由三种类型的服务器组成的主从式结构。Region server提供读取和写入数据的服务。当访问数据时，客户端直接与HBase RegionServers通信。Region分配，DDL（创建，删除表）操作由HBase Master处理。Zookeeper，维护着集群运行状态。<br>Hadoop DataNode存储Region Server管理的数据。所有HBase数据存储在HDFS文件中。 Region Server与HDFS DataNode共存，这使得RegionServer管理的数据具有数据本地化特性。HBase数据在写入时是本地化的，但是当region移动时，就不再是本地的，除非发生compaction。</p>
+<p><strong>Region</strong><br><img src="https://mapr.com/blog/in-depth-look-hbase-architecture/assets/blogimages/HBaseArchitecture-Blog-Fig2.png" alt=""><br>HBase表按照row key水平划分为“Region”。一个Region包含表中Region的开始键和结束键之间的所有行。Region分配给集群中“Region Servers”，Region Server提供读取和写入数据的服务。Region Server可以提供大约1,000个region。</p>
+<p><strong>Hmaster</strong><br><img src="https://mapr.com/blog/in-depth-look-hbase-architecture/assets/blogimages/HBaseArchitecture-Blog-Fig3.png" alt=""><br>Region分配，DDL（创建，删除表）操作由HBase Master处理。</p>
+<ul>
+<li>协调region servers<ul>
+<li>在集群启动时分配region，重新分配region以进行故障恢复或负载平衡</li>
+<li>通过监听来自zookeeper的通知，监控集群中的所有RegionServer</li>
+</ul>
+</li>
+<li>管理功能<ul>
+<li>提供创建，删除，更新表的接口</li>
+</ul>
+</li>
+</ul>
+<p><strong>ZooKeeper: The Coordinator</strong><br><img src="https://mapr.com/blog/in-depth-look-hbase-architecture/assets/blogimages/HBaseArchitecture-Blog-Fig4.png" alt=""><br>HBase使用ZooKeeper作为分布式协调服务来维护集群中的服务器状态。Zookeeper维护着哪些服务器是活动的和可用的，并提供服务器故障的通知。</p>
+<p><strong>How the Components Work Together</strong><br><img src="https://mapr.com/blog/in-depth-look-hbase-architecture/assets/blogimages/HBaseArchitecture-Blog-Fig5.png" alt=""><br>Zookeeper用于协调分布式系统成员间的共享状态信息。Region server和主HMaster通过建立会话连接到ZooKeeper并创建临时节点。ZooKeeper通过心跳机制监视临时节点的状态。</p>
+<p>每个Region Server创建一个临时节点。HMaster监视这些节点以发现可用的Region Server，并监控这些节点判断服务器是否故障。HMaster也会创建一个临时节点。 Zookeeper确定第一个创建成功的HMaster，以确保只有一个HMaster是活跃的。主HMaster向Zookeeper发送心跳，备HMaster监听主HMaster的故障通知。<br>如果region server或主HMaster未能发送心跳，则会话过期，相应的临时节点被删除。 这些临时节点上的侦听器将被通知。主HMaster侦听region servers，并在故障时恢复region。备HMaster监听主HMaster故障，如果主HMaster失败，则备HMaster变为活动状态。</p>
+<h3 id="数据读写"><a href="#数据读写" class="headerlink" title="数据读写"></a>数据读写</h3><p><strong>HBase First Read or Write</strong><br><img src="https://mapr.com/blog/in-depth-look-hbase-architecture/assets/blogimages/HBaseArchitecture-Blog-Fig6.png" alt=""><br>有一个称为META表的特殊HBase表，它保存集群中region的位置信息。ZooKeeper存储META表的位置。<br>客户端第一次读取或写入HBase时发生的情况：</p>
+<ol>
+<li>客户端从ZooKeeper获取存储META表的Region server。</li>
+<li>客户端查询META表获取其想要访问的row key对应的Region server。客户端将此信息与META表位置一起缓存。</li>
+<li>客户端从相应的Region server读取行。</li>
+</ol>
+<p>对于后续的读取，客户端使用缓存来检索META位置和先前读取的row keys，不需要查询META表。除非发生了未命中（region移动）， 那么它会重新查询META和更新缓存。</p>
+<p><strong>HBase Meta Table</strong><br><img src="https://mapr.com/blog/in-depth-look-hbase-architecture/assets/blogimages/HBaseArchitecture-Blog-Fig7.png" alt=""><br>META表是存储系统中所有region信息的HBase表。</p>
+<p><strong>Region Server</strong><br><img src="https://mapr.com/blog/in-depth-look-hbase-architecture/assets/blogimages/HBaseArchitecture-Blog-Fig8.png" alt=""><br>Region Server在HDFS数据节点上运行，具有以下组件：</p>
+<ul>
+<li>WAL：预写日志是分布式文件系统上的一个文件。WAL用于存储尚未持久保存到永久存储器的新数据; 它用于在故障的情况下恢复数据。</li>
+<li>BlockCache：是读取缓存。它将经常读取的数据存储在内存。当缓存满时，最近最少使用的数据被换出。</li>
+<li>MemStore：是写缓存。它存储尚未写入磁盘的新数据。它在数据写入磁盘之前进行排序。每个region的每个列族有一个MemStore。</li>
+<li>Hfiles：是存储在硬盘上的已排序的KeyValues。</li>
+</ul>
+<p><strong>HBase Write Steps</strong><br><img src="https://mapr.com/blog/in-depth-look-hbase-architecture/assets/blogimages/HBaseArchitecture-Blog-Fig9.png" alt=""><br>当客户端发出Put请求时，第一步是将数据写入WAL：</p>
+<ul>
+<li>修改被追加到存储在磁盘上的WAL文件的末尾。</li>
+<li>WAL用于在服务器崩溃的情况下恢复尚未持久化的数据。</li>
+</ul>
+<p>HBase的数据写入采用WAL(write ahead log)的形式，先写log，后写数据。HBase是一个append类型的数据库，没有关系型数据库那么复杂的操作，所以记录HLog的操作都是简单的put操作(delete/update操作都被转化为put进行)</p>
+<p><img src="https://mapr.com/blog/in-depth-look-hbase-architecture/assets/blogimages/HBaseArchitecture-Blog-Fig10.png" alt=""></p>
+<ul>
+<li>一旦修改写入WAL，它被更新到MemStore中。然后，put请求返回确认到客户端</li>
+</ul>
+<p>memstore在HBase内部通过LSM-tree结构组织，所以能够合并大量对于相同rowkey上的更新操作。正是由于memstore的存在，HBase的数据写入都是异步的，而且性能非常不错，写入到memstore后，该次写入请求就可以被返回，HBase即认为该次数据写入成功。这里有一点需要说明，写入到memstore中的数据都是预先按照rowkey的值进行排序的，这样有利于后续数据查找。</p>
+<p><strong>HBase MemStore</strong><br><img src="https://mapr.com/blog/in-depth-look-hbase-architecture/assets/blogimages/HBaseArchitecture-Blog-Fig11.png" alt=""><br>MemStore将修改作为排序的KeyValues存储在内存中。<br>每个列簇对应一个MemStore。 更新按列簇进行排序。</p>
+<p><strong>HBase Region Flush</strong><br><img src="https://mapr.com/blog/in-depth-look-hbase-architecture/assets/blogimages/HBaseArchitecture-Blog-Fig12.png" alt=""><br>当MemStore累积了足够的数据，整个数据集排序后写入HDFS中的新的HFile。每个列族会有多个HFile，其中包含实际的cells或KeyValues。随着时间的推移，MemStore中排序的KeyValue被不断刷新到硬盘，形成hfile。请注意，这是HBase中列族数量有限制的一个原因。<br>每个列族有一个MemStore; 当MemStore满了，它被刷新到硬盘。它还保存了最后写入的序列号，这样系统就知道到目前为止持久化的WAL。最高的序列号作为元字段存储在每个HFile中，以反映开始和结束的位置。在region启动时，将读取序列号，并将最高值用作新更新的序列号。</p>
+<p><strong>HBase Hfile</strong><br><img src="https://mapr.com/blog/in-depth-look-hbase-architecture/assets/blogimages/HBaseArchitecture-Blog-Fig13.png" alt=""><br>数据以排序的key/values形式存储在HFile中。当MemStore累积足够的数据时，整个排序的KeyValue集合被写入HDFS中的新Hfile。这是顺序写入，所以它非常快。</p>
+<p><strong>HBase Read Merge</strong><br><img src="https://mapr.com/blog/in-depth-look-hbase-architecture/assets/blogimages/HBaseArchitecture-Blog-Fig16.png" alt=""><br>一行数据可能存在多个地方，已经持久化的cell在Hfile，最近更新的cell在memstore，最近读取的cell在Block cache。所以，当你读取一行，系统怎样得到相应的cell并返回？<br>首先，扫描器在Block cache中寻找Row cell。 最近读取的cell被缓存在这里，并且当Block cache满时，使用LRU进行换出。接下来，扫描器在MemStore中查找，最近写入的数据存在于内存中的MemStore。如果扫描器在MemStore和Block cache中没有找到所有row cells，则HBase将使用Block Cache indexes和bloom filters将HFiles加载到内存中查找目标row cell。<br>每个MemStore可能有许多HFile，这意味着要进行读取，可能需要检查多个文件，这可能会影响性能。<br><img src="https://mapr.com/blog/in-depth-look-hbase-architecture/assets/blogimages/HBaseArchitecture-Blog-Fig17.png" alt=""></p>
+<h3 id="合并和分裂"><a href="#合并和分裂" class="headerlink" title="合并和分裂"></a>合并和分裂</h3><p><strong>HBase Minor Compaction</strong><br><img src="https://mapr.com/blog/in-depth-look-hbase-architecture/assets/blogimages/HBaseArchitecture-Blog-Fig18.png" alt=""><br>HBase将自动选择一些较小的HFile并将其重写为一些较大的Hfile。 这个过程称为minor compaction。<br>minor compaction通过将较多较小的文件重写为较少但较大的文件（合并排序），从而减少存储文件数。</p>
+<p><strong>HBase Major Compaction</strong><br><img src="https://mapr.com/blog/in-depth-look-hbase-architecture/assets/blogimages/HBaseArchitecture-Blog-Fig19.png" alt=""><br>Major compaction将一个region中的所有同一列簇的HFile合并并重写为一个HFile，此过程会删除deleted 和 expired cells。 这提高了读取性能; 但是，由于Major compaction会重写所有文件，因此在此过程中可能消耗大量磁盘I/O和网络流量。<br>Major compaction可以设置成自动运行。由于性能影响，Major compaction通常在周末或晚上进行。Major compaction可以恢复数据的本地化特性。</p>
+<p><strong>Region Split</strong><br><img src="https://mapr.com/blog/in-depth-look-hbase-architecture/assets/blogimages/HBaseArchitecture-Blog-Fig21.png" alt=""><br>最初，每个表只有一个region。 当一个region变得太大时，它分裂成两个子region。 两个子region分别代表原始region的一半，并在同一个region server上并行打开，然后将分裂信息报告给Hmaster。出于负载平衡的原因，Hmaster会安排将新region移动到另一个region server。</p>
+<p><strong>Read Load Balancing</strong><br><img src="https://mapr.com/blog/in-depth-look-hbase-architecture/assets/blogimages/HBaseArchitecture-Blog-Fig22.png" alt=""><br>分裂最初发生在同一region server上，但是出于负载平衡的原因，HMaster可以安排将新region移动到其他region server。 这导致新的region server提供来自远程HDFS节点的数据，直到Major compaction将数据文件移动到region server的本地节点。 HBase数据在写入时是本地的，但是当region被移动（用于负载平衡或恢复）时，在Major compaction之前它不是本地的。</p>
+<h3 id="容错"><a href="#容错" class="headerlink" title="容错"></a>容错</h3><p><strong>HBase Crash Recovery</strong><br><img src="https://mapr.com/blog/in-depth-look-hbase-architecture/assets/blogimages/HBaseArchitecture-Blog-Fig25.png" alt=""><br>当RegionServer失败时，崩溃的Regions不可用，直到检测和恢复步骤发生。当Zookeeper失去region server的心跳时，它将确定节点失败。然后HMaster将被告知Region Server已失败。</p>
+<p>当HMaster检测到Region Server崩溃时，HMaster将崩溃Region Server中的Regions重新分配给活动Region Server。为了恢复崩溃的Region Server的memstore中没有刷新到磁盘的操作。HMaster将属于崩溃Region Server的WAL拆分为单独的文件，并将这些文件存储在新Region Server的数据节点中。 然后，每个Region Server重放相应的WAL，以重建该Region的memstore。</p>
+<p><strong>Data Recovery</strong><br><img src="https://mapr.com/blog/in-depth-look-hbase-architecture/assets/blogimages/HBaseArchitecture-Blog-Fig26.png" alt=""><br>WAL文件包含写操作列表，其中一个写操作表示一个put或delete。写操作是按时间顺序记录的，以追加的形式写到存储在磁盘上的WAL文件的末尾。如果数据仍在内存中并且未持久保存到HFile时出现故障，会发生什么情况？<br>重放WAL。通过读取WAL，将包含的写操作更新到当前的MemStore中。最后，MemStore刷新将更改写入HFile。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">Hadoop</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/Hadoop/" class="article-tag-list-link color2">Hadoop</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/01/26/big-data-hbase/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-big-data-storm" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1273,166 +1448,6 @@
 
 
   
-    <article id="post-big-data-yarn" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/01/12/big-data-yarn/">Hadoop生态系统介绍-YARN</a>
-    </h1>
-  
-
-        
-        <a href="/2017/01/12/big-data-yarn/" class="archive-article-date">
-  	<time datetime="2017-01-12T02:34:57.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-01-12</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#前言">前言</a></li>
-<li><a href="#工作原理">工作原理</a><ul>
-<li><a href="#经典-mapreduce-的局限性">经典 MapReduce 的局限性</a></li>
-<li><a href="#yarn下一代-hadoop-计算平台">YARN：下一代 Hadoop 计算平台</a></li>
-</ul>
-</li>
-</ul>
-<!-- tocstop -->
-<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。</p>
-<ol>
-<li><a href="https://winway.github.io/2017/01/07/big-data-intro/">Hadoop生态系统介绍-概览</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-kerberos/">Hadoop生态系统介绍-Kerberos</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-zookeeper/">Hadoop生态系统介绍-Zookeeper</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-hdfs/">Hadoop生态系统介绍-HDFS</a></li>
-<li><strong><a href="https://winway.github.io/2017/01/07/big-data-yarn/">Hadoop生态系统介绍-YARN</a></strong></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-mapreduce/">Hadoop生态系统介绍-MapReduce</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-hive/">Hadoop生态系统介绍-Hive</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-pig/">Hadoop生态系统介绍-Pig</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-storm/">Hadoop生态系统介绍-Storm</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-hbase/">Hadoop生态系统介绍-Hbase</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-phoenix/">Hadoop生态系统介绍-Phoenix</a></li>
-</ol>
-<p>本文对集群资源管理系统YARN的工作原理进行介绍。</p>
-<h2 id="工作原理"><a href="#工作原理" class="headerlink" title="工作原理"></a>工作原理</h2><h3 id="经典-mapreduce-的局限性"><a href="#经典-MapReduce-的局限性" class="headerlink" title="经典 MapReduce 的局限性"></a>经典 MapReduce 的局限性</h3><p><img src="https://www.ibm.com/developerworks/cn/data/library/bd-yarn-intro/fig01.png" alt=""><br>在 MapReduce 框架中，作业执行受两种类型的进程控制：</p>
-<ul>
-<li>一个称为 JobTracker 的主要进程，它协调在集群上运行的所有作业，分配要在 TaskTracker 上运行的 map 和 reduce 任务。</li>
-<li>许多称为 TaskTracker 的下级进程，它们运行分配的任务并定期向 JobTracker 报告进度。</li>
-</ul>
-<p>经典 MapReduce 的最严重的限制主要关系到可伸缩性、资源利用和对与 MapReduce 不同的工作负载的支持。</p>
-<ul>
-<li>大型的 Hadoop 集群显现出了由单个 JobTracker 导致的可伸缩性瓶颈。在 Yahoo!，集群中有 5,000 个节点和 40,000 个任务同时运行时，这样一种设计实际上就会受到限制。由于此限制，必须创建和维护较小的集群。</li>
-<li>较小和较大的 Hadoop 集群都从未最高效地使用他们的计算资源。在 Hadoop MapReduce 中，每个从属节点上的计算资源由集群管理员分解为固定数量的 map 和 reduce slot，这些 slot 不可替代。设定 map slot 和 reduce slot 的数量后，节点在任何时刻都不能运行比 map slot 更多的 map 任务，即使没有 reduce 任务在运行。这影响了集群的利用率，因为在所有 map slot 都被使用时，我们无法使用任何 reduce slot，即使它们可用，反之亦然。</li>
-<li>Hadoop 设计为仅运行 MapReduce 作业。随着替代性的编程模型（比如 Apache Giraph 所提供的图形处理）的到来，除 MapReduce 外，越来越需要为可通过高效的、公平的方式在同一个集群上运行并共享资源的其他编程模型提供支持。</li>
-</ul>
-<p><strong>解决可伸缩性问题</strong></p>
-<p>在 Hadoop MapReduce 中，JobTracker 具有两种不同的职责：</p>
-<ul>
-<li>管理集群中的计算资源，这涉及到维护活动节点列表、可用和占用的 map 和 reduce slots 列表，以及依据所选的调度策略将可用 slots 分配给合适的作业和任务</li>
-<li>协调在集群上运行的所有任务，这涉及到指导 TaskTracker 启动 map 和 reduce 任务，监视任务的执行，重新启动失败的任务，推测性地运行缓慢的任务，计算作业计数器值的总和，等等</li>
-</ul>
-<p>为单个进程安排大量职责会导致重大的可伸缩性问题，尤其是在较大的集群上，JobTracker 必须不断跟踪数千个 TaskTracker、数百个作业，以及数万个 map 和 reduce 任务。下图演示了这一问题。相反，TaskTracker 通常仅运行十来个任务，这些任务由勤勉的 JobTracker 分配给它们。<br><img src="https://www.ibm.com/developerworks/cn/data/library/bd-yarn-intro/Figure2JobTracker-Busy.png" alt=""></p>
-<p>为了解决可伸缩性问题，一个简单而又绝妙的想法应运而生：我们减少了单个 JobTracker 的职责，将部分职责委派给 TaskTracker，因为集群中有许多 TaskTracker。在新设计中，这个概念通过将 JobTracker 的双重职责（集群资源管理和任务协调）分开为两种不同类型的进程来反映。</p>
-<ul>
-<li>不再拥有单个 JobTracker，而是引入了一个集群资源管理器，它惟一的职责就是跟踪集群中的活动节点和可用资源，并将它们分配给任务。</li>
-<li>对于提交给集群的每个作业，会启动一个专用的、短暂的 JobTracker 来控制该作业中的任务的执行。有趣的是，短暂的 JobTracker 由在从属节点上运行的 TaskTracker 启动。因此，作业的生命周期的协调工作分散在集群中所有可用的机器上。得益于这种行为，更多工作可并行运行，可伸缩性得到了显著提高。</li>
-</ul>
-<h3 id="yarn下一代-hadoop-计算平台"><a href="#YARN：下一代-Hadoop-计算平台" class="headerlink" title="YARN：下一代 Hadoop 计算平台"></a>YARN：下一代 Hadoop 计算平台</h3><p><img src="https://www.ibm.com/developerworks/cn/data/library/bd-yarn-intro/Figure3Architecture-of-YARN.png" alt=""></p>
-<ul>
-<li>ResourceManager 代替集群资源管理器</li>
-<li>ApplicationMaster 代替一个专用且短暂的 JobTracker</li>
-<li>NodeManager 代替 TaskTracker</li>
-<li>一个分布式应用程序代替一个 MapReduce 作业</li>
-</ul>
-<p>在 YARN 架构中，一个全局 ResourceManager 以后台进程的形式运行，它通常在专用机器上运行，在各种竞争的应用程序之间仲裁可用的集群资源。ResourceManager 会追踪集群中有多少可用的活动节点和资源，协调用户提交的哪些应用程序应该在何时获取这些资源。ResourceManager 是惟一拥有此信息的进程，所以它可通过某种共享的、安全的、多租户的方式制定分配（或者调度）决策（例如，依据应用程序优先级、队列容量、ACLs、数据位置等）</p>
-<p>在用户提交一个应用程序时，一个称为 ApplicationMaster 的轻量型进程实例会启动来协调应用程序内的所有任务的执行。这包括监视任务，重新启动失败的任务，推测性地运行缓慢的任务，以及计算应用程序计数器值的总和。这些职责以前分配给所有作业的单个 JobTracker。</p>
-<p>ApplicationMaster 和属于它的应用程序的任务，在受 NodeManager 控制的资源容器中运行。</p>
-<p>NodeManager 是 TaskTracker 的一种更加普通和高效的版本。没有固定数量的 map 和 reduce slots，NodeManager 拥有许多动态创建的资源容器。容器的大小取决于它所包含的资源量，比如内存、CPU、磁盘和网络 IO。目前，仅支持内存和 CPU (YARN-3)。未来可使用 cgroups 来控制磁盘和网络 IO。一个节点上的容器数量，由配置参数与总 CPU 数和总内存共同决定。</p>
-<p>有趣的是，ApplicationMaster 可在容器内运行任何类型的任务。例如，MapReduce ApplicationMaster 请求一个容器来启动 map 或 reduce 任务，而 Giraph ApplicationMaster 请求一个容器来运行 Giraph 任务。您还可以实现一个自定义的 ApplicationMaster 来运行特定的任务，进而发明出一种全新的分布式应用程序框架，改变大数据世界的格局。</p>
-<p>在 YARN 中，MapReduce 降级为一个分布式应用程序的一个角色（一个非常流行且有用的角色），现在称为 MRv2。MRv2 是经典 MapReduce 引擎（现在称为 MRv1）的重现，运行在 YARN 之上。</p>
-<p><strong>YARN 中的应用程序提交</strong><br><img src="https://www.ibm.com/developerworks/cn/data/library/bd-yarn-intro/fig04.png" alt=""><br>假设用户采用与 MRv1 中相同的方式键入 hadoop jar 命令，将应用程序提交到 ResourceManager。</p>
-<p>ResourceManager 维护着集群上运行的应用程序列表，以及每个活动的 NodeManager 上的可用资源列表。ResourceManager 需要确定哪个应用程序接下来应该获得一部分集群资源。该决策受到许多限制，比如队列容量、ACL 和公平性。ResourceManager 使用一个可插拔的 Scheduler。Scheduler 仅执行调度；它管理谁在何时获取集群资源（以容器的形式），但不会对应用程序内的任务执行任何监视，所以它不会尝试重新启动失败的任务。</p>
-<p>在 ResourceManager 接受一个新应用程序提交时，Scheduler 制定的第一个决策是选择将用来运行 ApplicationMaster 的容器。</p>
-<p>在 ApplicationMaster 启动后，它将负责此应用程序的整个生命周期。</p>
-<p>ApplicationMaster将资源请求发送到 ResourceManager，请求运行应用程序的任务所需的容器。资源请求是对一些容器的请求，用以满足一些资源需求，比如：</p>
-<ul>
-<li>一定量的资源，目前使用 MB 内存和 CPU 份额来表示</li>
-<li>一个首选的位置，由主机名、机架名称指定，或者使用 * 来表示没有偏好</li>
-<li>此应用程序中的一个优先级，而不是跨多个应用程序</li>
-</ul>
-<p>如果可能的话，ResourceManager 会分配一个满足 ApplicationMaster 在资源请求中所请求的需求的容器。该容器允许应用程序使用特定主机上给定的资源量。</p>
-<p>分配一个容器后，ApplicationMaster 会要求 NodeManager（管理分配容器的主机）使用这些资源来启动一个特定于应用程序的任务。此任务可以是在任何框架中编写的任何进程（比如一个 MapReduce 任务或一个 Giraph 任务）。</p>
-<p>NodeManager 不会监视任务；它仅监视容器中的资源使用情况，举例而言，如果一个容器消耗的内存比最初分配的更多，它会结束该容器。</p>
-<p>ApplicationMaster 会竭尽全力协调容器，启动所有需要的任务来完成它的应用程序。它还监视应用程序及其任务的进度，在新请求的容器中重新启动失败的任务，以及向提交应用程序的客户端报告进度。应用程序完成后，ApplicationMaster 会关闭自己并释放自己的容器。</p>
-<p>尽管 ResourceManager 不会对应用程序内的任务执行任何监视，但它会检查 ApplicationMaster 的健康状况。如果 ApplicationMaster 失败，ResourceManager 可在一个新容器中重新启动它。可以认为 ResourceManager 负责管理 ApplicationMaster，而 ApplicationMasters 负责管理任务。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">Hadoop</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Hadoop/" class="article-tag-list-link color2">Hadoop</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/01/12/big-data-yarn/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/2/">&laquo; Prev</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/7/">7</a><a class="extend next" rel="next" href="/page/4/">Next &raquo;</a>
@@ -1592,11 +1607,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
               </li>
              
               <li class="article-tag-list-item">
