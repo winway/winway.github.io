@@ -731,6 +731,130 @@
 
 
   
+    <article id="post-big-data-mr" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/01/12/big-data-mr/">Hadoop生态系统介绍-MapReduce</a>
+    </h1>
+  
+
+        
+        <a href="/2017/01/12/big-data-mr/" class="archive-article-date">
+  	<time datetime="2017-01-12T08:20:01.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-01-12</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#前言">前言</a></li>
+<li><a href="#工作原理">工作原理</a></li>
+</ul>
+<!-- tocstop -->
+<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。</p>
+<ol>
+<li><a href="https://winway.github.io/2017/01/07/big-data-intro/">Hadoop生态系统介绍-概览</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-kerberos/">Hadoop生态系统介绍-Kerberos</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-zookeeper/">Hadoop生态系统介绍-Zookeeper</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-hdfs/">Hadoop生态系统介绍-HDFS</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-yarn/">Hadoop生态系统介绍-YARN</a></li>
+<li><strong><a href="https://winway.github.io/2017/01/07/big-data-mapreduce/">Hadoop生态系统介绍-MapReduce</a></strong></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-hive/">Hadoop生态系统介绍-Hive</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-pig/">Hadoop生态系统介绍-Pig</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-storm/">Hadoop生态系统介绍-Storm</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-hbase/">Hadoop生态系统介绍-Hbase</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-phoenix/">Hadoop生态系统介绍-Phoenix</a></li>
+</ol>
+<p>本文对分布式计算框架MapReduce的工作原理进行介绍。</p>
+<h2 id="工作原理"><a href="#工作原理" class="headerlink" title="工作原理"></a>工作原理</h2><p><strong>输入与输出</strong></p>
+<p>Map/Reduce框架运转在<key, value=""> 键值对上，也就是说， 框架把作业的输入看为是一组<key, value=""> 键值对，同样也产出一组 <key, value=""> 键值对做为作业的输出，这两组键值对的类型可能不同。</key,></key,></key,></p>
+<p>一个Map/Reduce 作业的输入和输出类型如下所示：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">(input) &lt;k1, v1&gt; -&gt; map -&gt; &lt;k2, v2&gt; -&gt; shuffle-&gt; &lt;k2, &#123;v2……&#125;&gt; -&gt; reduce -&gt; &lt;k3, v3&gt; (output)</div></pre></td></tr></table></figure></p>
+<p><img src="http://static.open-open.com/lib/uploadImg/20141118/20141118093209_354.jpg" alt=""></p>
+<p><strong>Shuffle and Sort</strong></p>
+<p>MapReduce 确保每个reducer 的输入都按键排序。将maper的输出排序并作为输入传给reducer，这个过程称为shuffle 。</p>
+<p>shuffle 是MapReduce 的”心脏”，是奇迹发生的地方。</p>
+<p><strong>map 端</strong><br><img src="http://images2015.cnblogs.com/blog/984597/201609/984597-20160903215055030-1333381766.png" alt=""><br>map 函数开始产生输出时，并不是简单地将它写到磁盘。它利用缓冲的方式写到内存，并进行预排序（出于效率的考虑）。每个map 任务都有一个环形内存缓冲区，用于存储任务的输出。默认情况下，缓冲区的大小为100 MB ，此值可以通过改变io.sort.mb 属性来调整。一旦缓冲内容达到阈值(io.sort.spill.percent ，默认为0.80 ，或80%) ，一个后台线程便开始把内容写到磁盘中(spill)。在写磁盘过程中， map 输出继续被写到缓冲区，但如果在此期间缓冲区被填满，map 会阻塞直到写磁盘过程完成。写磁盘将按轮询方式写到mapred.local.dir 属性指定的目录中。</p>
+<p>在写磁盘之前，线程首先根据reducer的数量把数据划分成相应的分区(partition) 。在每个分区中，后台线程按照键值在内存中进行排序，如果存在combiner ，它会在排序后的输出上运行。<br>一旦内存缓冲区达到spill的阈值，就会新建一个spill文件，因此在map 任务写完其最后一个输出记录之后，会有若干spill文件。在任务完成之前，spill文件被合并成一个已分区且已排序的输出文件。io.sort.factor属性控制着一次最多能合并多少文件，默认值是10。</p>
+<p>如果指定了combiner ，并且spill次数至少为3(min.num.spills.for.combine属性的值)时，则combiner 就会在输出文件写到磁盘之前运行。运行combiner 的意义在于使map 输出更紧凑，使得写到本地磁盘和传给reducer 的数据更少。<br>写磁盘时压缩map 输出往往是个很好的主意，因为这样会让写磁盘的速度更快，节约磁盘空间，并且减少传给reducer 的数据量。默认情况下，输出是不压缩的，但只要将mapred.compress . map.output 设置为true ，就可以启用中间结果压缩功能。使用的压缩库由mapred.map.output . compression.codec 指定。</p>
+<p><strong>reduce 端</strong></p>
+<p>现在转到处理过程的reduce 部分。map 输出文件位于运行map 任务的nodemanager的本地磁盘(注意，尽管map 输出经常写到本地磁盘，但reduce输出并不这样) ，现在， nodemanager需要为分区文件运行reduce 任务，reduce 任务需要集群上若干个map 任务的map 输出作为其特殊的分区文件。reducer 通过HTTP 方式得到输出文件的分区。</p>
+<p>每个map 任务的完成时间可能不同，因此只要有一个任务完成，reduce 任务就可以开始复制其输出。这就是reduce 任务的复制阶段(copy phase)。reduce 任务有多个复制线程，因此能够并行取得map 输出。默认值是5 个线程，但这个默认值可以通过设置mapred.reduce.parallel.copies 属性来改变。</p>
+<p>如果map 输出相当小，则会被复制到reduce的内存(缓冲区大小由mapred.job.shuffle.input.buffer.percent 属性控制，指定用于此用途的堆空间的百分比) ，否则， map 输出被写到磁盘。一旦内存缓冲区达到阈值大小(由mapred.job.shuffle.merge.percent 决定)或达到从map节点取过来的文件个数阈值(由mapred.inmem.merge.threshold 控制) ，则合并后写到磁盘中。</p>
+<p>随着磁盘上文件的增多，后台线程会将它们合并为更大的、排好序的文件。这会为后面的合并节省一些时间。为了合并，压缩的map输出都必须在内存中被解压缩。</p>
+<p>所有map输出被复制完后， reduce 任务进入排序阶段(sort phase，更恰当的说法是合并阶段，因为排序是在map 端进行的) ，这个阶段将map输出合并，维持其排序。这个过程是分多个轮次进行的。比如，如果有50 个map 输出，而合并因子(merge factor)是10(10 为默认设置，由io.sort.factor属性设置，与map的合并类似)，合并将进行5轮。每次将10 个文件合并成一个文件，因此最后有5 个中间文件。</p>
+<p>在最后阶段，即reduce阶段，并没有将这5个文件合并成一个已排序的文件，而是直接把数据输入reduce 函数，从而省略了一次磁盘操作。<br>在reduce 阶段，对已排序输出中的每个键都要调用reduce函数。此阶段的输出直接写到输出文件系统，一般为HDFS 。如果采用HDFS ，由于nodemanager节点也运行着datanode节点，所以第一个块复本(block replica)将被写到本地磁盘。</p>
+<p><strong>WordCount逻辑示意图</strong></p>
+<p><img src="http://ot69fbvko.bkt.clouddn.com/hadoop-mr1.png" alt=""></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">Hadoop</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/Hadoop/" class="article-tag-list-link color2">Hadoop</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/01/12/big-data-mr/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-big-data-yarn" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -764,10 +888,10 @@
 <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。</p>
 <ol>
 <li><a href="https://winway.github.io/2017/01/07/big-data-intro/">Hadoop生态系统介绍-概览</a></li>
-<li><strong><a href="https://winway.github.io/2017/01/07/big-data-kerberos/">Hadoop生态系统介绍-Kerberos</a></strong></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-kerberos/">Hadoop生态系统介绍-Kerberos</a></li>
 <li><a href="https://winway.github.io/2017/01/07/big-data-zookeeper/">Hadoop生态系统介绍-Zookeeper</a></li>
 <li><a href="https://winway.github.io/2017/01/07/big-data-hdfs/">Hadoop生态系统介绍-HDFS</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-yarn/">Hadoop生态系统介绍-YARN</a></li>
+<li><strong><a href="https://winway.github.io/2017/01/07/big-data-yarn/">Hadoop生态系统介绍-YARN</a></strong></li>
 <li><a href="https://winway.github.io/2017/01/07/big-data-mapreduce/">Hadoop生态系统介绍-MapReduce</a></li>
 <li><a href="https://winway.github.io/2017/01/07/big-data-hive/">Hadoop生态系统介绍-Hive</a></li>
 <li><a href="https://winway.github.io/2017/01/07/big-data-pig/">Hadoop生态系统介绍-Pig</a></li>
@@ -1517,144 +1641,6 @@
       
         <p class="article-more-link">
           <a class="article-more-a" href="/2017/01/07/big-data-intro/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-k8s-apiserver-privilege-intro" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2016/09/24/k8s-apiserver-privilege-intro/">Kubernetes apiserver权限控制介绍</a>
-    </h1>
-  
-
-        
-        <a href="/2016/09/24/k8s-apiserver-privilege-intro/" class="archive-article-date">
-  	<time datetime="2016-09-24T04:11:41.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-09-24</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#认证">认证</a><ul>
-<li><a href="#1-认证方案">1. 认证方案</a></li>
-<li><a href="#2-修改配置重启">2. 修改配置，重启</a></li>
-<li><a href="#3-客户端访问">3. 客户端访问</a></li>
-<li><a href="#4-比较">4. 比较</a></li>
-</ul>
-</li>
-<li><a href="#授权">授权</a><ul>
-<li><a href="#1-授权方案">1. 授权方案</a></li>
-<li><a href="#2-修改配置重启-1">2. 修改配置，重启</a></li>
-<li><a href="#3-访问">3. 访问</a></li>
-<li><a href="#4-比较-1">4. 比较</a></li>
-</ul>
-</li>
-</ul>
-<!-- tocstop -->
-<h2 id="认证"><a href="#认证" class="headerlink" title="认证"></a>认证</h2><h3 id="1-认证方案"><a href="#1-认证方案" class="headerlink" title="1. 认证方案"></a>1. 认证方案</h3><ul>
-<li><p>Client certificate</p>
-  <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line">openssl genrsa -out ca.key 2048</div><div class="line">openssl req -x509 -new -nodes -key ca.key -subj &quot;/CN=k8stest&quot; -days 10000 -out ca.crt</div><div class="line"></div><div class="line">openssl x509 -noout -text -in ca.crt</div><div class="line"></div><div class="line">openssl genrsa -out server.key 2048</div><div class="line">openssl req -new -key server.key -subj &quot;/CN=master.k8stest&quot; -out server.csr</div><div class="line">openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 10000</div><div class="line"></div><div class="line">openssl x509 -noout -text -in server.crt</div><div class="line"></div><div class="line">openssl genrsa -out winway.key 2048</div><div class="line">openssl req -new -key winway.key -subj &quot;/CN=winway&quot; -out winway.csr</div><div class="line">openssl x509 -req -in winway.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out winway.crt -days 10000</div></pre></td></tr></table></figure>
-</li>
-<li><p>Static Token File</p>
-  <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">$ cat tokens.csv</div><div class="line">abcdTOKEN1234,winway,winway</div></pre></td></tr></table></figure>
-</li>
-<li><p>Static Password File</p>
-  <figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">$ cat password.csv</div><div class="line">123456,winway,winway</div><div class="line">$ echo -n &quot;winway:123456&quot; | base64</div><div class="line">d2FuZ3dlaToxMjM0NTY=</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<h3 id="2-修改配置重启"><a href="#2-修改配置，重启" class="headerlink" title="2. 修改配置，重启"></a>2. 修改配置，重启</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">$ vim /etc/kubernetes/apiserver</div><div class="line">KUBE_API_ARGS=&quot;--client-ca-file=/home/winway/ca.crt --tls-cert-file=/home/winway/server.crt --tls-private-key-file=/home/winway/server.key --token_auth_file=/home/winway/tokens.csv --basic-auth-file=/home/winway/password.csv&quot;</div><div class="line"></div><div class="line">systemctl restart kube-apiserver</div></pre></td></tr></table></figure>
-<h3 id="3-客户端访问"><a href="#3-客户端访问" class="headerlink" title="3. 客户端访问"></a>3. 客户端访问</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">curl --cacert ./ca.crt --key ./winway.key --cert ./winway.crt &apos;https://master.k8stest:6443&apos;</div><div class="line"></div><div class="line">curl --cacert ./ca.crt  -H &quot;Authorization: Bearer abcdTOKEN1234&quot; &apos;https://master.k8stest:6443&apos;</div><div class="line"></div><div class="line">curl --cacert ./ca.crt  -H &quot;Authorization: Basic d2FuZ3dlaToxMjM0NTY=&quot; &apos;https://master.k8stest:6443&apos;</div></pre></td></tr></table></figure>
-<h3 id="4-比较"><a href="#4-比较" class="headerlink" title="4. 比较"></a>4. 比较</h3><ul>
-<li>3种认证方案可以共存</li>
-<li>方案2、3使用上比1简单</li>
-<li>新增、删除用户时，方案1不需要重启服务，2、3需要重启，从这一点考虑，1更有优势</li>
-</ul>
-<h2 id="授权"><a href="#授权" class="headerlink" title="授权"></a>授权</h2><h3 id="1-授权方案"><a href="#1-授权方案" class="headerlink" title="1. 授权方案"></a>1. 授权方案</h3><ul>
-<li><p>ABAC Mode</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">$ cat abac.txt</div><div class="line">&#123;&quot;apiVersion&quot;: &quot;abac.authorization.kubernetes.io/v1beta1&quot;, &quot;kind&quot;: &quot;Policy&quot;, &quot;spec&quot;: &#123;&quot;user&quot;:&quot;winway&quot;, &quot;namespace&quot;: &quot;*&quot;, &quot;resource&quot;: &quot;pods&quot;, &quot;apiGroup&quot;: &quot;*&quot;, &quot;readonly&quot;: true &#125;&#125;</div></pre></td></tr></table></figure>
-</li>
-<li><p>RBAC Mode</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">When specified “RBAC” (Role-Based Access Control) uses the “rbac.authorization.k8s.io” API group to drive authorization decisions, allowing admins to dynamically configure permission policies through the Kubernetes API.</div><div class="line">As of 1.3 RBAC mode is in alpha and considered experimental.</div></pre></td></tr></table></figure>
-</li>
-<li><p>Webhook Mode</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">When specified, mode Webhook causes Kubernetes to query an outside REST service when determining user privileges.</div></pre></td></tr></table></figure>
-</li>
-</ul>
-<h3 id="2-修改配置重启"><a href="#2-修改配置，重启-1" class="headerlink" title="2. 修改配置，重启"></a>2. 修改配置，重启</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">$ vim /etc/kubernetes/apiserver</div><div class="line">KUBE_API_ARGS=&quot;--client-ca-file=/home/winway/ca.crt --tls-cert-file=/home/winway/server.crt --tls-private-key-file=/home/winway/server.key --token_auth_file=/home/winway/tokens.csv --basic-auth-file=/home/winway/password.csv --authorization-mode=ABAC --authorization-policy-file=/home/winway/abac.txt&quot;</div><div class="line"></div><div class="line">systemctl restart kube-apiserver</div></pre></td></tr></table></figure>
-<h3 id="3-访问"><a href="#3-访问" class="headerlink" title="3. 访问"></a>3. 访问</h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line"># curl --cacert ./ca.crt  -H &quot;Authorization: Bearer abcdTOKEN1234&quot; &apos;https://master.k8stest:6443/api/v1/version&apos;</div><div class="line">Forbidden: &quot;/api/v1/version&quot;</div><div class="line"></div><div class="line"># curl --cacert ./ca.crt  -H &quot;Authorization: Bearer abcdTOKEN1234&quot; &apos;https://master.k8stest:6443/api/v1/pods&apos;</div><div class="line">&#123;</div><div class="line">  &quot;kind&quot;: &quot;PodList&quot;,</div><div class="line">  &quot;apiVersion&quot;: &quot;v1&quot;,</div><div class="line">  &quot;metadata&quot;: &#123;</div><div class="line">    &quot;selfLink&quot;: &quot;/api/v1/pods&quot;,</div><div class="line">    &quot;resourceVersion&quot;: &quot;1228398&quot;</div><div class="line">  &#125;,</div><div class="line">……</div></pre></td></tr></table></figure>
-<h3 id="4-比较"><a href="#4-比较-1" class="headerlink" title="4. 比较"></a>4. 比较</h3><ul>
-<li>修改授权，方案1需要重启，2不需要</li>
-<li>方按2在1.3才引入</li>
-<li>方案3需要额外的服务</li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">k8s</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/k8s/" class="article-tag-list-link color4">k8s</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2016/09/24/k8s-apiserver-privilege-intro/">展开全文 >></a>
         </p>
       
 
