@@ -731,6 +731,166 @@
 
 
   
+    <article id="post-big-data-yarn" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/01/12/big-data-yarn/">Hadoop生态系统介绍-YARN</a>
+    </h1>
+  
+
+        
+        <a href="/2017/01/12/big-data-yarn/" class="archive-article-date">
+  	<time datetime="2017-01-12T02:34:57.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-01-12</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#前言">前言</a></li>
+<li><a href="#工作原理">工作原理</a><ul>
+<li><a href="#经典-mapreduce-的局限性">经典 MapReduce 的局限性</a></li>
+<li><a href="#yarn下一代-hadoop-计算平台">YARN：下一代 Hadoop 计算平台</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。</p>
+<ol>
+<li><a href="https://winway.github.io/2017/01/07/big-data-intro/">Hadoop生态系统介绍-概览</a></li>
+<li><strong><a href="https://winway.github.io/2017/01/07/big-data-kerberos/">Hadoop生态系统介绍-Kerberos</a></strong></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-zookeeper/">Hadoop生态系统介绍-Zookeeper</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-hdfs/">Hadoop生态系统介绍-HDFS</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-yarn/">Hadoop生态系统介绍-YARN</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-mapreduce/">Hadoop生态系统介绍-MapReduce</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-hive/">Hadoop生态系统介绍-Hive</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-pig/">Hadoop生态系统介绍-Pig</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-storm/">Hadoop生态系统介绍-Storm</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-hbase/">Hadoop生态系统介绍-Hbase</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-phoenix/">Hadoop生态系统介绍-Phoenix</a></li>
+</ol>
+<p>本文对集群资源管理系统YARN的工作原理进行介绍。</p>
+<h2 id="工作原理"><a href="#工作原理" class="headerlink" title="工作原理"></a>工作原理</h2><h3 id="经典-mapreduce-的局限性"><a href="#经典-MapReduce-的局限性" class="headerlink" title="经典 MapReduce 的局限性"></a>经典 MapReduce 的局限性</h3><p><img src="https://www.ibm.com/developerworks/cn/data/library/bd-yarn-intro/fig01.png" alt=""><br>在 MapReduce 框架中，作业执行受两种类型的进程控制：</p>
+<ul>
+<li>一个称为 JobTracker 的主要进程，它协调在集群上运行的所有作业，分配要在 TaskTracker 上运行的 map 和 reduce 任务。</li>
+<li>许多称为 TaskTracker 的下级进程，它们运行分配的任务并定期向 JobTracker 报告进度。</li>
+</ul>
+<p>经典 MapReduce 的最严重的限制主要关系到可伸缩性、资源利用和对与 MapReduce 不同的工作负载的支持。</p>
+<ul>
+<li>大型的 Hadoop 集群显现出了由单个 JobTracker 导致的可伸缩性瓶颈。在 Yahoo!，集群中有 5,000 个节点和 40,000 个任务同时运行时，这样一种设计实际上就会受到限制。由于此限制，必须创建和维护较小的集群。</li>
+<li>较小和较大的 Hadoop 集群都从未最高效地使用他们的计算资源。在 Hadoop MapReduce 中，每个从属节点上的计算资源由集群管理员分解为固定数量的 map 和 reduce slot，这些 slot 不可替代。设定 map slot 和 reduce slot 的数量后，节点在任何时刻都不能运行比 map slot 更多的 map 任务，即使没有 reduce 任务在运行。这影响了集群的利用率，因为在所有 map slot 都被使用时，我们无法使用任何 reduce slot，即使它们可用，反之亦然。</li>
+<li>Hadoop 设计为仅运行 MapReduce 作业。随着替代性的编程模型（比如 Apache Giraph 所提供的图形处理）的到来，除 MapReduce 外，越来越需要为可通过高效的、公平的方式在同一个集群上运行并共享资源的其他编程模型提供支持。</li>
+</ul>
+<p><strong>解决可伸缩性问题</strong></p>
+<p>在 Hadoop MapReduce 中，JobTracker 具有两种不同的职责：</p>
+<ul>
+<li>管理集群中的计算资源，这涉及到维护活动节点列表、可用和占用的 map 和 reduce slots 列表，以及依据所选的调度策略将可用 slots 分配给合适的作业和任务</li>
+<li>协调在集群上运行的所有任务，这涉及到指导 TaskTracker 启动 map 和 reduce 任务，监视任务的执行，重新启动失败的任务，推测性地运行缓慢的任务，计算作业计数器值的总和，等等</li>
+</ul>
+<p>为单个进程安排大量职责会导致重大的可伸缩性问题，尤其是在较大的集群上，JobTracker 必须不断跟踪数千个 TaskTracker、数百个作业，以及数万个 map 和 reduce 任务。下图演示了这一问题。相反，TaskTracker 通常仅运行十来个任务，这些任务由勤勉的 JobTracker 分配给它们。<br><img src="https://www.ibm.com/developerworks/cn/data/library/bd-yarn-intro/Figure2JobTracker-Busy.png" alt=""></p>
+<p>为了解决可伸缩性问题，一个简单而又绝妙的想法应运而生：我们减少了单个 JobTracker 的职责，将部分职责委派给 TaskTracker，因为集群中有许多 TaskTracker。在新设计中，这个概念通过将 JobTracker 的双重职责（集群资源管理和任务协调）分开为两种不同类型的进程来反映。</p>
+<ul>
+<li>不再拥有单个 JobTracker，而是引入了一个集群资源管理器，它惟一的职责就是跟踪集群中的活动节点和可用资源，并将它们分配给任务。</li>
+<li>对于提交给集群的每个作业，会启动一个专用的、短暂的 JobTracker 来控制该作业中的任务的执行。有趣的是，短暂的 JobTracker 由在从属节点上运行的 TaskTracker 启动。因此，作业的生命周期的协调工作分散在集群中所有可用的机器上。得益于这种行为，更多工作可并行运行，可伸缩性得到了显著提高。</li>
+</ul>
+<h3 id="yarn下一代-hadoop-计算平台"><a href="#YARN：下一代-Hadoop-计算平台" class="headerlink" title="YARN：下一代 Hadoop 计算平台"></a>YARN：下一代 Hadoop 计算平台</h3><p><img src="https://www.ibm.com/developerworks/cn/data/library/bd-yarn-intro/Figure3Architecture-of-YARN.png" alt=""></p>
+<ul>
+<li>ResourceManager 代替集群资源管理器</li>
+<li>ApplicationMaster 代替一个专用且短暂的 JobTracker</li>
+<li>NodeManager 代替 TaskTracker</li>
+<li>一个分布式应用程序代替一个 MapReduce 作业</li>
+</ul>
+<p>在 YARN 架构中，一个全局 ResourceManager 以后台进程的形式运行，它通常在专用机器上运行，在各种竞争的应用程序之间仲裁可用的集群资源。ResourceManager 会追踪集群中有多少可用的活动节点和资源，协调用户提交的哪些应用程序应该在何时获取这些资源。ResourceManager 是惟一拥有此信息的进程，所以它可通过某种共享的、安全的、多租户的方式制定分配（或者调度）决策（例如，依据应用程序优先级、队列容量、ACLs、数据位置等）</p>
+<p>在用户提交一个应用程序时，一个称为 ApplicationMaster 的轻量型进程实例会启动来协调应用程序内的所有任务的执行。这包括监视任务，重新启动失败的任务，推测性地运行缓慢的任务，以及计算应用程序计数器值的总和。这些职责以前分配给所有作业的单个 JobTracker。</p>
+<p>ApplicationMaster 和属于它的应用程序的任务，在受 NodeManager 控制的资源容器中运行。</p>
+<p>NodeManager 是 TaskTracker 的一种更加普通和高效的版本。没有固定数量的 map 和 reduce slots，NodeManager 拥有许多动态创建的资源容器。容器的大小取决于它所包含的资源量，比如内存、CPU、磁盘和网络 IO。目前，仅支持内存和 CPU (YARN-3)。未来可使用 cgroups 来控制磁盘和网络 IO。一个节点上的容器数量，由配置参数与总 CPU 数和总内存共同决定。</p>
+<p>有趣的是，ApplicationMaster 可在容器内运行任何类型的任务。例如，MapReduce ApplicationMaster 请求一个容器来启动 map 或 reduce 任务，而 Giraph ApplicationMaster 请求一个容器来运行 Giraph 任务。您还可以实现一个自定义的 ApplicationMaster 来运行特定的任务，进而发明出一种全新的分布式应用程序框架，改变大数据世界的格局。</p>
+<p>在 YARN 中，MapReduce 降级为一个分布式应用程序的一个角色（一个非常流行且有用的角色），现在称为 MRv2。MRv2 是经典 MapReduce 引擎（现在称为 MRv1）的重现，运行在 YARN 之上。</p>
+<p><strong>YARN 中的应用程序提交</strong><br><img src="https://www.ibm.com/developerworks/cn/data/library/bd-yarn-intro/fig04.png" alt=""><br>假设用户采用与 MRv1 中相同的方式键入 hadoop jar 命令，将应用程序提交到 ResourceManager。</p>
+<p>ResourceManager 维护着集群上运行的应用程序列表，以及每个活动的 NodeManager 上的可用资源列表。ResourceManager 需要确定哪个应用程序接下来应该获得一部分集群资源。该决策受到许多限制，比如队列容量、ACL 和公平性。ResourceManager 使用一个可插拔的 Scheduler。Scheduler 仅执行调度；它管理谁在何时获取集群资源（以容器的形式），但不会对应用程序内的任务执行任何监视，所以它不会尝试重新启动失败的任务。</p>
+<p>在 ResourceManager 接受一个新应用程序提交时，Scheduler 制定的第一个决策是选择将用来运行 ApplicationMaster 的容器。</p>
+<p>在 ApplicationMaster 启动后，它将负责此应用程序的整个生命周期。</p>
+<p>ApplicationMaster将资源请求发送到 ResourceManager，请求运行应用程序的任务所需的容器。资源请求是对一些容器的请求，用以满足一些资源需求，比如：</p>
+<ul>
+<li>一定量的资源，目前使用 MB 内存和 CPU 份额来表示</li>
+<li>一个首选的位置，由主机名、机架名称指定，或者使用 * 来表示没有偏好</li>
+<li>此应用程序中的一个优先级，而不是跨多个应用程序</li>
+</ul>
+<p>如果可能的话，ResourceManager 会分配一个满足 ApplicationMaster 在资源请求中所请求的需求的容器。该容器允许应用程序使用特定主机上给定的资源量。</p>
+<p>分配一个容器后，ApplicationMaster 会要求 NodeManager（管理分配容器的主机）使用这些资源来启动一个特定于应用程序的任务。此任务可以是在任何框架中编写的任何进程（比如一个 MapReduce 任务或一个 Giraph 任务）。</p>
+<p>NodeManager 不会监视任务；它仅监视容器中的资源使用情况，举例而言，如果一个容器消耗的内存比最初分配的更多，它会结束该容器。</p>
+<p>ApplicationMaster 会竭尽全力协调容器，启动所有需要的任务来完成它的应用程序。它还监视应用程序及其任务的进度，在新请求的容器中重新启动失败的任务，以及向提交应用程序的客户端报告进度。应用程序完成后，ApplicationMaster 会关闭自己并释放自己的容器。</p>
+<p>尽管 ResourceManager 不会对应用程序内的任务执行任何监视，但它会检查 ApplicationMaster 的健康状况。如果 ApplicationMaster 失败，ResourceManager 可在一个新容器中重新启动它。可以认为 ResourceManager 负责管理 ApplicationMaster，而 ApplicationMasters 负责管理任务。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">Hadoop</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/Hadoop/" class="article-tag-list-link color2">Hadoop</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/01/12/big-data-yarn/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-big-data-hdfs" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1029,6 +1189,144 @@
 
 
   
+    <article id="post-big-data-kerberos" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/01/07/big-data-kerberos/">Hadoop生态系统介绍-Kerberos</a>
+    </h1>
+  
+
+        
+        <a href="/2017/01/07/big-data-kerberos/" class="archive-article-date">
+  	<time datetime="2017-01-07T13:15:05.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-01-07</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#前言">前言</a></li>
+<li><a href="#工作原理">工作原理</a></li>
+</ul>
+<!-- tocstop -->
+<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。</p>
+<ol>
+<li><a href="https://winway.github.io/2017/01/07/big-data-intro/">Hadoop生态系统介绍-概览</a></li>
+<li><strong><a href="https://winway.github.io/2017/01/07/big-data-kerberos/">Hadoop生态系统介绍-Kerberos</a></strong></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-zookeeper/">Hadoop生态系统介绍-Zookeeper</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-hdfs/">Hadoop生态系统介绍-HDFS</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-yarn/">Hadoop生态系统介绍-YARN</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-mapreduce/">Hadoop生态系统介绍-MapReduce</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-hive/">Hadoop生态系统介绍-Hive</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-pig/">Hadoop生态系统介绍-Pig</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-storm/">Hadoop生态系统介绍-Storm</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-hbase/">Hadoop生态系统介绍-Hbase</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-phoenix/">Hadoop生态系统介绍-Phoenix</a></li>
+</ol>
+<p>本文对认证系统Kerberos的工作原理进行介绍。</p>
+<h2 id="工作原理"><a href="#工作原理" class="headerlink" title="工作原理"></a>工作原理</h2><p><strong>如何证明某个人确确实实就是他或她所声称的那个人?</strong></p>
+<p>如果一个秘密（secret）仅仅存在于A和B，那么有个人对B声称自己就是A，B通过让A提供这个秘密来证明这个人就是他或她所声称的A<br><img src="http://img7.ph.126.net/FufEYnxHi4_rzFZgtwdd0w==/2515823341857532827.jpg" alt=""></p>
+<p><strong>Kerberos术语</strong></p>
+<p>Princal(安全个体)：被认证的个体，有一个名字和口令<br>KDC(key distribution center)：密钥发放中心，是一个网络服务，提供ticket和临时会话密钥<br>AS(Authentication Server)：认证服务，索取credential，发放TGT<br>TGS(ticket granting service)：票据授权服务，索取TGT，发放ST<br>TGT(ticket granting ticket)：票据授权票据，由KDC的AS发放，获得这样一张票据后，以后申请其他应用的服务票据（ST）时，就不需要向KDC提交身份认证信息（credential），TGT具有一定的有效期，就像是kerberos进行kinit以后只是具有固定时间的有效期，需要不断的去renew来续约<br>ST(service ticket)：服务票据，由KDC的TGS发放，任何一个应用都需要一张有效的服务票据才能访问；如果能正确接受ST，说明client和server之间的信任关系已经被建立<br>Authenticator：验证器，与票据结合用来证明提交票据的user就是其所声明的身份，内容包括{user, address, start_time, lifetime}，这些内容使用user和service之间的session key加密；验证器是user客户端自己构建，只能“被使用一次”。<br>keytab(key table)：一个keytab包含一条或多条记录，每条记录由记录生成时间戳、主体、密钥、加密类型key的版本号组成</p>
+<p><strong>上面几个术语的关系</strong></p>
+<p>KDC由AS和TGS组成，AS进行身份认证发放TGT，TGT是用来避免多次请求而需要重复认证的凭证；TGS发放ST，ST用来访问某个service时的凭证，ST相当于告诉service你的身份被KDC认证为合法的一个凭证。</p>
+<p><strong>现实场景类比</strong></p>
+<ul>
+<li>用户要去游乐场，首先要在门口检查用户的身份(即CHECK用户的 ID 和 PASS), 如果用户通过验证，游乐场的门卫 (AS) 即提供给用户一张门卡 (TGT)。这张卡片的用处就是告诉游乐场的各个场所，用户是通过正门进来，而不是后门偷爬进来的，并且也是获取进入场所一把钥匙。</li>
+<li>现在用户有张卡，但是这对用户不重要，因为用户来游乐场不是为了拿这张卡的而是为了游览游乐项目，这时用户想游玩摩天楼，摩天轮的服务员拦下用户，向用户要求摩天轮的 (ST) 票据，用户说只有一个门卡 (TGT), 那用户只要把 TGT 放在一旁的票据授权机 (TGS) 上刷一下。</li>
+<li>票据授权机 (TGS) 就根据用户现在所在的摩天轮，给用户一张摩天轮的票据 (ST), 这样用户有了摩天轮的票据，现在用户可以畅通无阻的进入摩天轮里游玩了。</li>
+<li>当然如果用户玩完摩天轮后，想去游乐园的咖啡厅休息下，那用户一样只要带着那张门卡 (TGT). 到相应的咖啡厅的票据授权机 (TGS) 刷一下，得到咖啡厅的票据 (ST) 就可以进入咖啡厅。</li>
+<li>当用户离开游乐场后，想用这张 TGT 去刷打的回家的费用，对不起，用户的 TGT 已经过期了，在用户离开游乐场那刻开始，用户的 TGT 就已经销毁了。</li>
+</ul>
+<p><strong>工作流程</strong></p>
+<p><img src="http://www.ahathinking.com/wp-content/uploads/2015/03/cas.png" alt=""></p>
+<ol>
+<li>User向KDC中的AS请求身份验证，AS为user和TGS生成一个session key：SK_TGS，并发送{ TGT, SK_TGS } K_USER；<br>其中，{TGT, SK_TGS}K_USER表示使用user的master key加密的packet，包含了TGT和用户与TGS的session key；这个请求验证的过程实际上是使用kinit来完成的。kinit解密后得到TGT和SK_TGS ；其中，TGT使用TGS的master key加密，信息内容为{ user, address, tgs_name, start_time, lisftime, SK_TGS} K_TGS</li>
+<li>User向KDC中的TGS请求访问某个Service的ST，发送[ TGT, Authenticator ]；<br>其中，Authenticator用于验证发送该请求的user就是TGT中所声明的user，内容为：{ user, addresss, start_time, lifetime}；Authenticator使用的TGS和user之间的session key加密。TGS先使用自己的master key解开TGT获得它与user之间的session key，然后使用session key解密Authenticator，验证用户和有效期。</li>
+<li>TGS判断无误后，为user和Service之间生成一个新的session key：SK_Service；然后发送给user一个包：[ {SK_Service} SK_TGS, ST ]；<br>其中，ST是使用Service的master key加密的，SK_Service使用TGS和user之间的session key加密的；ST的内容为：{ user, address, start_time, lifetime, SK_Service } K_Service</li>
+<li>User使用与TGS之间的会话秘钥解开包得到与Service之间的会话秘钥SK_Service，然后使用SK_Service生成一个Authenticator，向Service发送[ ST, Authenticator ]；<br>其中，此处的Authenticator是使用user和service之间的会话秘钥加密的，Service收到包后先使用自己的master key解密ST，或者会话秘钥SK_Service，然后使用SK_Service解密Authenticator来验证发送请求的用户就是票中所声明的用户。</li>
+<li>Service向用户发送一个包以证明自己的身份，这个包使用SK_Service加密。<br>此后user与Service之间使用SK_Service进行通信，且在TGT有效期内，user直接跳过第一步直接从第二步使用TGT向TGS证明自己的身份。注意：user client会等待service server发送确认信息，如果不是正确的service server，就无法解开ST，也就无法获得会话秘钥，从而避免用户使用错误的服务器。</li>
+</ol>
+<p><strong>单点登录和Kerberos</strong></p>
+<p>SSO（single sign on）：单点登录。多系统共存的情况下，用户一次登录得到其他所有系统的信任；</p>
+<p>单点登录到处可见，平时在公司上班，公司有多个内部系统，如果每个系统都要输入用户名密码真的是很崩溃的一件事情，登录一次就可以访问所有的系统，这就是单点登录；例如淘宝和天猫是两个不同的系统，你上淘宝买东西，然后又去天猫买，这个时候就不需要再重新登录，即单点登录。</p>
+<p>SSO比较经典的解决方案是CAS（central authentication service）：中央认证服务。而CAS的原理和工作流程基本都是参考Kerberos票据的原理实现的。</p>
+<p><strong>Kerberos和Ldap</strong></p>
+<p>LDAP authentication is centralized authentication, meaning you have to login with every service, but if you change your password it changes everywhere.</p>
+<p>Kerberos is single sign on (SSO), meaning you login once and get a token and don’t need to login to other services. Kerberos would likely use LDAP as a backend.</p>
+<p><strong>Delegation Token(代理token)</strong></p>
+<p>在分布式系统，如HDFS或者MapReduce，会有很多客户端和服务器之间的交互，这些交互都必须要进行认证，例如：在一个HDFS读操作的过程中，需要多次调用namenode与datanode，如果对每一次call，都使用三步式Kerberos认证，那么无疑会增加很高的负载。Hadoop使用代理token，这种token在生成之后，就不会再和kerberos中心进行交互。</p>
+<p>一个Delegation Token由NameNode产生，可以被认为是一个在client与server之间共享的secret，在client与server之间的第一次RPC调用的时候，并没有Delegation Token，所以它必须要经过kerberos进行认证，之后client会从namenode中获得一个Delegation Token。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">hadoop</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/hadoop/" class="article-tag-list-link color2">hadoop</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/01/07/big-data-kerberos/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-big-data-intro" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1248,144 +1546,6 @@
 
 
   
-    <article id="post-big-data-kerberos" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/01/07/big-data-kerberos/">Hadoop生态系统介绍-Kerberos</a>
-    </h1>
-  
-
-        
-        <a href="/2017/01/07/big-data-kerberos/" class="archive-article-date">
-  	<time datetime="2017-01-07T02:15:05.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-01-07</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#前言">前言</a></li>
-<li><a href="#工作原理">工作原理</a></li>
-</ul>
-<!-- tocstop -->
-<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。</p>
-<ol>
-<li><a href="https://winway.github.io/2017/01/07/big-data-intro/">Hadoop生态系统介绍-概览</a></li>
-<li><strong><a href="https://winway.github.io/2017/01/07/big-data-kerberos/">Hadoop生态系统介绍-Kerberos</a></strong></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-zookeeper/">Hadoop生态系统介绍-Zookeeper</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-hdfs/">Hadoop生态系统介绍-HDFS</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-yarn/">Hadoop生态系统介绍-YARN</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-mapreduce/">Hadoop生态系统介绍-MapReduce</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-hive/">Hadoop生态系统介绍-Hive</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-pig/">Hadoop生态系统介绍-Pig</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-storm/">Hadoop生态系统介绍-Storm</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-hbase/">Hadoop生态系统介绍-Hbase</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-phoenix/">Hadoop生态系统介绍-Phoenix</a></li>
-</ol>
-<p>本文对认证系统Kerberos的工作原理进行介绍。</p>
-<h2 id="工作原理"><a href="#工作原理" class="headerlink" title="工作原理"></a>工作原理</h2><p><strong>如何证明某个人确确实实就是他或她所声称的那个人?</strong></p>
-<p>如果一个秘密（secret）仅仅存在于A和B，那么有个人对B声称自己就是A，B通过让A提供这个秘密来证明这个人就是他或她所声称的A<br><img src="http://img7.ph.126.net/FufEYnxHi4_rzFZgtwdd0w==/2515823341857532827.jpg" alt=""></p>
-<p><strong>Kerberos术语</strong></p>
-<p>Princal(安全个体)：被认证的个体，有一个名字和口令<br>KDC(key distribution center)：密钥发放中心，是一个网络服务，提供ticket和临时会话密钥<br>AS(Authentication Server)：认证服务，索取credential，发放TGT<br>TGS(ticket granting service)：票据授权服务，索取TGT，发放ST<br>TGT(ticket granting ticket)：票据授权票据，由KDC的AS发放，获得这样一张票据后，以后申请其他应用的服务票据（ST）时，就不需要向KDC提交身份认证信息（credential），TGT具有一定的有效期，就像是kerberos进行kinit以后只是具有固定时间的有效期，需要不断的去renew来续约<br>ST(service ticket)：服务票据，由KDC的TGS发放，任何一个应用都需要一张有效的服务票据才能访问；如果能正确接受ST，说明client和server之间的信任关系已经被建立<br>Authenticator：验证器，与票据结合用来证明提交票据的user就是其所声明的身份，内容包括{user, address, start_time, lifetime}，这些内容使用user和service之间的session key加密；验证器是user客户端自己构建，只能“被使用一次”。<br>keytab(key table)：一个keytab包含一条或多条记录，每条记录由记录生成时间戳、主体、密钥、加密类型key的版本号组成</p>
-<p><strong>上面几个术语的关系</strong></p>
-<p>KDC由AS和TGS组成，AS进行身份认证发放TGT，TGT是用来避免多次请求而需要重复认证的凭证；TGS发放ST，ST用来访问某个service时的凭证，ST相当于告诉service你的身份被KDC认证为合法的一个凭证。</p>
-<p><strong>现实场景类比</strong></p>
-<ul>
-<li>用户要去游乐场，首先要在门口检查用户的身份(即CHECK用户的 ID 和 PASS), 如果用户通过验证，游乐场的门卫 (AS) 即提供给用户一张门卡 (TGT)。这张卡片的用处就是告诉游乐场的各个场所，用户是通过正门进来，而不是后门偷爬进来的，并且也是获取进入场所一把钥匙。</li>
-<li>现在用户有张卡，但是这对用户不重要，因为用户来游乐场不是为了拿这张卡的而是为了游览游乐项目，这时用户想游玩摩天楼，摩天轮的服务员拦下用户，向用户要求摩天轮的 (ST) 票据，用户说只有一个门卡 (TGT), 那用户只要把 TGT 放在一旁的票据授权机 (TGS) 上刷一下。</li>
-<li>票据授权机 (TGS) 就根据用户现在所在的摩天轮，给用户一张摩天轮的票据 (ST), 这样用户有了摩天轮的票据，现在用户可以畅通无阻的进入摩天轮里游玩了。</li>
-<li>当然如果用户玩完摩天轮后，想去游乐园的咖啡厅休息下，那用户一样只要带着那张门卡 (TGT). 到相应的咖啡厅的票据授权机 (TGS) 刷一下，得到咖啡厅的票据 (ST) 就可以进入咖啡厅。</li>
-<li>当用户离开游乐场后，想用这张 TGT 去刷打的回家的费用，对不起，用户的 TGT 已经过期了，在用户离开游乐场那刻开始，用户的 TGT 就已经销毁了。</li>
-</ul>
-<p><strong>工作流程</strong></p>
-<p><img src="http://www.ahathinking.com/wp-content/uploads/2015/03/cas.png" alt=""></p>
-<ol>
-<li>User向KDC中的AS请求身份验证，AS为user和TGS生成一个session key：SK_TGS，并发送{ TGT, SK_TGS } K_USER；<br>其中，{TGT, SK_TGS}K_USER表示使用user的master key加密的packet，包含了TGT和用户与TGS的session key；这个请求验证的过程实际上是使用kinit来完成的。kinit解密后得到TGT和SK_TGS ；其中，TGT使用TGS的master key加密，信息内容为{ user, address, tgs_name, start_time, lisftime, SK_TGS} K_TGS</li>
-<li>User向KDC中的TGS请求访问某个Service的ST，发送[ TGT, Authenticator ]；<br>其中，Authenticator用于验证发送该请求的user就是TGT中所声明的user，内容为：{ user, addresss, start_time, lifetime}；Authenticator使用的TGS和user之间的session key加密。TGS先使用自己的master key解开TGT获得它与user之间的session key，然后使用session key解密Authenticator，验证用户和有效期。</li>
-<li>TGS判断无误后，为user和Service之间生成一个新的session key：SK_Service；然后发送给user一个包：[ {SK_Service} SK_TGS, ST ]；<br>其中，ST是使用Service的master key加密的，SK_Service使用TGS和user之间的session key加密的；ST的内容为：{ user, address, start_time, lifetime, SK_Service } K_Service</li>
-<li>User使用与TGS之间的会话秘钥解开包得到与Service之间的会话秘钥SK_Service，然后使用SK_Service生成一个Authenticator，向Service发送[ ST, Authenticator ]；<br>其中，此处的Authenticator是使用user和service之间的会话秘钥加密的，Service收到包后先使用自己的master key解密ST，或者会话秘钥SK_Service，然后使用SK_Service解密Authenticator来验证发送请求的用户就是票中所声明的用户。</li>
-<li>Service向用户发送一个包以证明自己的身份，这个包使用SK_Service加密。<br>此后user与Service之间使用SK_Service进行通信，且在TGT有效期内，user直接跳过第一步直接从第二步使用TGT向TGS证明自己的身份。注意：user client会等待service server发送确认信息，如果不是正确的service server，就无法解开ST，也就无法获得会话秘钥，从而避免用户使用错误的服务器。</li>
-</ol>
-<p><strong>单点登录和Kerberos</strong></p>
-<p>SSO（single sign on）：单点登录。多系统共存的情况下，用户一次登录得到其他所有系统的信任；</p>
-<p>单点登录到处可见，平时在公司上班，公司有多个内部系统，如果每个系统都要输入用户名密码真的是很崩溃的一件事情，登录一次就可以访问所有的系统，这就是单点登录；例如淘宝和天猫是两个不同的系统，你上淘宝买东西，然后又去天猫买，这个时候就不需要再重新登录，即单点登录。</p>
-<p>SSO比较经典的解决方案是CAS（central authentication service）：中央认证服务。而CAS的原理和工作流程基本都是参考Kerberos票据的原理实现的。</p>
-<p><strong>Kerberos和Ldap</strong></p>
-<p>LDAP authentication is centralized authentication, meaning you have to login with every service, but if you change your password it changes everywhere.</p>
-<p>Kerberos is single sign on (SSO), meaning you login once and get a token and don’t need to login to other services. Kerberos would likely use LDAP as a backend.</p>
-<p><strong>Delegation Token(代理token)</strong></p>
-<p>在分布式系统，如HDFS或者MapReduce，会有很多客户端和服务器之间的交互，这些交互都必须要进行认证，例如：在一个HDFS读操作的过程中，需要多次调用namenode与datanode，如果对每一次call，都使用三步式Kerberos认证，那么无疑会增加很高的负载。Hadoop使用代理token，这种token在生成之后，就不会再和kerberos中心进行交互。</p>
-<p>一个Delegation Token由NameNode产生，可以被认为是一个在client与server之间共享的secret，在client与server之间的第一次RPC调用的时候，并没有Delegation Token，所以它必须要经过kerberos进行认证，之后client会从namenode中获得一个Delegation Token。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">hadoop</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/hadoop/" class="article-tag-list-link color2">hadoop</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/01/07/big-data-kerberos/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
     <article id="post-k8s-apiserver-privilege-intro" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1495,96 +1655,6 @@
       
         <p class="article-more-link">
           <a class="article-more-a" href="/2016/09/24/k8s-apiserver-privilege-intro/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-namenode-ha-sshfence-hang" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2016/09/12/namenode-ha-sshfence-hang/">NameNode主从切换sshfence阶段无法完成问题</a>
-    </h1>
-  
-
-        
-        <a href="/2016/09/12/namenode-ha-sshfence-hang/" class="archive-article-date">
-  	<time datetime="2016-09-12T07:13:00.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-09-12</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<!-- tocstop -->
-<p>NameNode采用HA架构部署，在Standby切换为Active的过程中存在一个fence阶段，如果该阶段不返回true，则无法继续往下进行，即无法完成failover。<br><img src="https://www.ibm.com/developerworks/cn/opensource/os-cn-hadoop-name-node/img001.png" alt="nn-ha-arch"></p>
-<p>该行为由<a href="https://hadoop.apache.org/docs/r2.7.1/hadoop-project-dist/hadoop-hdfs/HDFSHighAvailabilityWithQJM.html#Deployment" target="_blank" rel="external">dfs.ha.fencing.methods</a>决定，默认为sshfence。<br><figure class="highlight xml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line"><span class="tag">&lt;<span class="name">property</span>&gt;</span></div><div class="line">  <span class="tag">&lt;<span class="name">name</span>&gt;</span>dfs.ha.fencing.methods<span class="tag">&lt;/<span class="name">name</span>&gt;</span></div><div class="line">  <span class="tag">&lt;<span class="name">value</span>&gt;</span>sshfence<span class="tag">&lt;/<span class="name">value</span>&gt;</span></div><div class="line"><span class="tag">&lt;/<span class="name">property</span>&gt;</span></div></pre></td></tr></table></figure></p>
-<p>但是这样配置存在问题，当Active宕机，ssh无法完成，sshfence阶段实际上会循环重试，始终无法完成failover。</p>
-<p>由于没有直接关于fence retry次数的参数配置，采取如下变通方案：配置4个fence method，3次sshfence，1次shell(/bin/true)，可以保证在3次sshfence失败之后结束fence阶段，完成failover。<br><img src="http://ot69fbvko.bkt.clouddn.com/sshfence.bmp" alt="sshfence"></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">hadoop</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/hadoop/" class="article-tag-list-link color2">hadoop</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2016/09/12/namenode-ha-sshfence-hang/">展开全文 >></a>
         </p>
       
 
@@ -1741,6 +1811,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">机架感知</a>
               </li>
              
@@ -1761,10 +1835,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">MongodDB</a>
               </li>
              
@@ -1774,6 +1844,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1802,10 +1876,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">salt源码解析</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
               </li>
              
               <li class="article-tag-list-item">
