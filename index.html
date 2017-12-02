@@ -154,6 +154,119 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-use-rundeck-api-to-auto-create-job" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/12/02/use-rundeck-api-to-auto-create-job/">Golang调用RunDeck API自动创建Job</a>
+    </h1>
+  
+
+        
+        <a href="/2017/12/02/use-rundeck-api-to-auto-create-job/" class="archive-article-date">
+  	<time datetime="2017-12-02T05:55:57.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-12-02</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#rundeck介绍">RunDeck介绍</a></li>
+<li><a href="#使用curl操作rundeck-api">使用Curl操作RunDeck API</a></li>
+<li><a href="#使用golang操作rundeck-api">使用Golang操作RunDeck API</a></li>
+</ul>
+<!-- tocstop -->
+<h2 id="rundeck介绍"><a href="#RunDeck介绍" class="headerlink" title="RunDeck介绍"></a>RunDeck介绍</h2><p><a href="http://rundeck.org" target="_blank" rel="external">Rundeck</a>是开源软件，可以帮助你自动化管理日常操作程序，Rundeck提供了许多特性来缓解耗时的繁重任务。Rundeck允许在任意数量的节点上运行，并配套有非常方便的<strong>可视化界面</strong>，Rundeck还包括其他功能，如：访问控制、工作流构建、调度、日志记录等。<br>特性：</p>
+<ul>
+<li>Web API</li>
+<li>分布式的命令执行</li>
+<li>SSH</li>
+<li>多步骤工作流程</li>
+<li>作业执行需求和计划运行</li>
+<li>图形web控制台和命令执行工作</li>
+<li>给予角色的访问控制策略支持</li>
+<li>历史和审计日志</li>
+</ul>
+<p>要想让RunDeck的使用自动化起来，有两个问题需要解决：</p>
+<ol>
+<li>机器信息如何录入<br>可以与内部CMDB联动，自动根据服务/IP信息生成RunDeck的resource.xml。</li>
+<li>Job如何配置<br>调用RunDeck的API，基于模板（只需将其中的变量如产品线/服务进行动态替换）自动配置Job。</li>
+</ol>
+<h2 id="使用curl操作rundeck-api"><a href="#使用Curl操作RunDeck-API" class="headerlink" title="使用Curl操作RunDeck API"></a>使用Curl操作RunDeck API</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#</span> 使用用户名、密码认证，获取cookie</div><div class="line">curl -sSk -D - -X POST -H "Content-Type: application/x-www-form-urlencoded" -d 'j_username=admin&amp;j_password=admin' "http://172.16.103.9:4440/j_security_check"</div><div class="line"><span class="meta"></span></div><div class="line"># 列出所有project</div><div class="line">curl -sSk -H "Accept: application/json" --cookie "JSESSIONID=8gf6uyy13tamlkcymldtqzxl"  http://172.16.103.9:4440/api/21/projects | python -m json.tool</div><div class="line"><span class="meta"></span></div><div class="line"># 创建project</div><div class="line">curl -sSk -X POST -H "Accept: application/json" -H "Content-type: application/json" --cookie "JSESSIONID=8gf6uyy13tamlkcymldtqzxl" -d '&#123;</div><div class="line">    "config": &#123;</div><div class="line">        "project.description": "productLineY",</div><div class="line">        "project.disable.executions": "false",</div><div class="line">        "project.disable.schedule": "true",</div><div class="line">        "project.jobs.gui.groupExpandLevel": "2",</div><div class="line">        "project.name": "productLineY",</div><div class="line">        "project.nodeCache.delay": "30",</div><div class="line">        "project.nodeCache.enabled": "false",</div><div class="line">        "project.ssh-authentication": "privateKey",</div><div class="line">        "project.ssh-command-timeout": "0",</div><div class="line">        "project.ssh-connect-timeout": "0",</div><div class="line">        "project.ssh-keypath": "/root/.ssh/id_rsa",</div><div class="line">        "resources.source.1.config.file": "/data/rundeck/projects/productLineY/etc/resources.xml",</div><div class="line">        "resources.source.1.config.generateFileAutomatically": "true",</div><div class="line">        "resources.source.1.config.includeServerNode": "true",</div><div class="line">        "resources.source.1.config.requireFileExists": "false",</div><div class="line">        "resources.source.1.config.writeable": "false",</div><div class="line">        "resources.source.1.type": "file",</div><div class="line">        "service.FileCopier.default.provider": "jsch-scp",</div><div class="line">        "service.NodeExecutor.default.provider": "jsch-ssh"</div><div class="line">    &#125;,</div><div class="line">    "description": "productLineY",</div><div class="line">    "name": "productLineY",</div><div class="line">    "url": "http://172.16.103.9:4440/api/21/project/productLineY"</div><div class="line">&#125;' http://172.16.103.9:4440/api/21/projects | python -m json.tool</div><div class="line"><span class="meta"></span></div><div class="line"># 查询project</div><div class="line">curl -sSk -H "Accept: application/json" --cookie "JSESSIONID=8gf6uyy13tamlkcymldtqzxl" http://172.16.103.9:4440/api/21/project/productLineY | python -m json.tool</div><div class="line"><span class="meta"></span></div><div class="line"># 删除project</div><div class="line">curl -sSk -X DELETE -H "Accept: application/json" --cookie "JSESSIONID=8gf6uyy13tamlkcymldtqzxl" http://172.16.103.9:4440/api/21/project/test2</div><div class="line"><span class="meta"></span></div><div class="line"># 查询project下的所有job</div><div class="line">curl -sSk -H "Accept: application/json" --cookie "JSESSIONID=8gf6uyy13tamlkcymldtqzxl" http://172.16.103.9:4440/api/21/project/productLineY/jobs | python -m json.tool</div><div class="line"><span class="meta"></span></div><div class="line"># 导出project下的所有job</div><div class="line">curl -sSk --cookie "JSESSIONID=8gf6uyy13tamlkcymldtqzxl" http://172.16.103.9:4440/api/21/project/productLineY/jobs/export?format=xml</div><div class="line"><span class="meta"></span></div><div class="line"># 创建job</div><div class="line">curl -sSk -X POST -H "Accept: application/json" -H "Content-type: application/xml" --cookie "JSESSIONID=8gf6uyy13tamlkcymldtqzxl" -d '&lt;joblist&gt;</div><div class="line">  &lt;job&gt;</div><div class="line">    &lt;description&gt;&lt;/description&gt;</div><div class="line">    &lt;dispatch&gt;</div><div class="line">      &lt;excludePrecedence&gt;true&lt;/excludePrecedence&gt;</div><div class="line">      &lt;keepgoing&gt;false&lt;/keepgoing&gt;</div><div class="line">      &lt;rankOrder&gt;ascending&lt;/rankOrder&gt;</div><div class="line">      &lt;successOnEmptyNodeFilter&gt;false&lt;/successOnEmptyNodeFilter&gt;</div><div class="line">      &lt;threadcount&gt;1&lt;/threadcount&gt;</div><div class="line">    &lt;/dispatch&gt;</div><div class="line">    &lt;executionEnabled&gt;true&lt;/executionEnabled&gt;</div><div class="line">    &lt;group&gt;myTest&lt;/group&gt;</div><div class="line">    &lt;id&gt;d819e418-e152-4793-8ead-adf83b5eb50e&lt;/id&gt;</div><div class="line">    &lt;loglevel&gt;INFO&lt;/loglevel&gt;</div><div class="line">    &lt;name&gt;test&lt;/name&gt;</div><div class="line">    &lt;nodeFilterEditable&gt;false&lt;/nodeFilterEditable&gt;</div><div class="line">    &lt;nodefilters&gt;</div><div class="line">      &lt;filter&gt;.*&lt;/filter&gt;</div><div class="line">    &lt;/nodefilters&gt;</div><div class="line">    &lt;nodesSelectedByDefault&gt;true&lt;/nodesSelectedByDefault&gt;</div><div class="line">    &lt;scheduleEnabled&gt;true&lt;/scheduleEnabled&gt;</div><div class="line">    &lt;sequence keepgoing='false' strategy='node-first'&gt;</div><div class="line">      &lt;command&gt;</div><div class="line">        &lt;exec&gt;bash -c 'echo "$&#123;node.name&#125;"'&lt;/exec&gt;</div><div class="line">      &lt;/command&gt;</div><div class="line">    &lt;/sequence&gt;</div><div class="line">    &lt;uuid&gt;d819e418-e152-4793-8ead-adf83b5eb50e&lt;/uuid&gt;</div><div class="line">  &lt;/job&gt;</div><div class="line">&lt;/joblist&gt;' 'http://172.16.103.9:4440/api/21/project/productLineX/jobs/import?fileformat=xml&amp;dupeOption=skip&amp;uuidOption=remove' | python -m json.tool</div></pre></td></tr></table></figure>
+<p>完整的API Reference请参考：<a href="http://rundeck.org/docs/api/" target="_blank" rel="external">http://rundeck.org/docs/api/</a></p>
+<h2 id="使用golang操作rundeck-api"><a href="#使用Golang操作RunDeck-API" class="headerlink" title="使用Golang操作RunDeck API"></a>使用Golang操作RunDeck API</h2><figure class="highlight go"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div><div class="line">92</div><div class="line">93</div><div class="line">94</div><div class="line">95</div><div class="line">96</div><div class="line">97</div><div class="line">98</div><div class="line">99</div><div class="line">100</div><div class="line">101</div><div class="line">102</div><div class="line">103</div><div class="line">104</div><div class="line">105</div><div class="line">106</div><div class="line">107</div><div class="line">108</div><div class="line">109</div><div class="line">110</div><div class="line">111</div><div class="line">112</div><div class="line">113</div><div class="line">114</div><div class="line">115</div><div class="line">116</div><div class="line">117</div><div class="line">118</div><div class="line">119</div><div class="line">120</div><div class="line">121</div><div class="line">122</div><div class="line">123</div><div class="line">124</div><div class="line">125</div><div class="line">126</div><div class="line">127</div><div class="line">128</div><div class="line">129</div><div class="line">130</div><div class="line">131</div><div class="line">132</div><div class="line">133</div><div class="line">134</div><div class="line">135</div><div class="line">136</div><div class="line">137</div><div class="line">138</div><div class="line">139</div><div class="line">140</div><div class="line">141</div><div class="line">142</div><div class="line">143</div><div class="line">144</div><div class="line">145</div><div class="line">146</div><div class="line">147</div><div class="line">148</div><div class="line">149</div><div class="line">150</div><div class="line">151</div><div class="line">152</div><div class="line">153</div><div class="line">154</div><div class="line">155</div><div class="line">156</div><div class="line">157</div><div class="line">158</div><div class="line">159</div><div class="line">160</div><div class="line">161</div><div class="line">162</div><div class="line">163</div><div class="line">164</div><div class="line">165</div><div class="line">166</div><div class="line">167</div><div class="line">168</div><div class="line">169</div><div class="line">170</div><div class="line">171</div><div class="line">172</div><div class="line">173</div><div class="line">174</div><div class="line">175</div><div class="line">176</div><div class="line">177</div><div class="line">178</div><div class="line">179</div><div class="line">180</div><div class="line">181</div><div class="line">182</div><div class="line">183</div><div class="line">184</div><div class="line">185</div><div class="line">186</div><div class="line">187</div><div class="line">188</div><div class="line">189</div><div class="line">190</div><div class="line">191</div><div class="line">192</div><div class="line">193</div><div class="line">194</div><div class="line">195</div><div class="line">196</div><div class="line">197</div><div class="line">198</div><div class="line">199</div><div class="line">200</div><div class="line">201</div><div class="line">202</div><div class="line">203</div><div class="line">204</div><div class="line">205</div><div class="line">206</div><div class="line">207</div><div class="line">208</div><div class="line">209</div><div class="line">210</div><div class="line">211</div><div class="line">212</div><div class="line">213</div><div class="line">214</div><div class="line">215</div><div class="line">216</div><div class="line">217</div><div class="line">218</div><div class="line">219</div><div class="line">220</div><div class="line">221</div><div class="line">222</div><div class="line">223</div><div class="line">224</div><div class="line">225</div><div class="line">226</div><div class="line">227</div><div class="line">228</div><div class="line">229</div><div class="line">230</div><div class="line">231</div><div class="line">232</div><div class="line">233</div><div class="line">234</div><div class="line">235</div><div class="line">236</div><div class="line">237</div><div class="line">238</div><div class="line">239</div><div class="line">240</div><div class="line">241</div><div class="line">242</div><div class="line">243</div><div class="line">244</div><div class="line">245</div><div class="line">246</div><div class="line">247</div><div class="line">248</div><div class="line">249</div><div class="line">250</div><div class="line">251</div><div class="line">252</div><div class="line">253</div><div class="line">254</div><div class="line">255</div><div class="line">256</div><div class="line">257</div><div class="line">258</div><div class="line">259</div><div class="line">260</div><div class="line">261</div><div class="line">262</div><div class="line">263</div><div class="line">264</div><div class="line">265</div><div class="line">266</div><div class="line">267</div><div class="line">268</div><div class="line">269</div><div class="line">270</div><div class="line">271</div><div class="line">272</div><div class="line">273</div><div class="line">274</div><div class="line">275</div><div class="line">276</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">package</span> main</div><div class="line"></div><div class="line"><span class="keyword">import</span> (</div><div class="line">	<span class="string">"bytes"</span></div><div class="line">	<span class="string">"encoding/json"</span></div><div class="line">	<span class="string">"errors"</span></div><div class="line">	<span class="string">"html/template"</span></div><div class="line">	<span class="string">"io/ioutil"</span></div><div class="line">	<span class="string">"log"</span></div><div class="line">	<span class="string">"net/http"</span></div><div class="line">	<span class="string">"net/http/cookiejar"</span></div><div class="line">	<span class="string">"strings"</span></div><div class="line">)</div><div class="line"></div><div class="line"><span class="keyword">type</span> RunDeckAPIResponse <span class="keyword">struct</span> &#123;</div><div class="line">	Apiversion <span class="keyword">int</span></div><div class="line">	Error      <span class="keyword">bool</span></div><div class="line">	ErrorCode  <span class="keyword">string</span></div><div class="line">	Message    <span class="keyword">string</span></div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="keyword">type</span> MyHTTPClient <span class="keyword">struct</span> &#123;</div><div class="line">	client *http.Client</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">NewHTTPClient</span><span class="params">()</span> *<span class="title">MyHTTPClient</span></span> &#123;</div><div class="line">	jar, _ := cookiejar.New(<span class="literal">nil</span>)</div><div class="line">	<span class="keyword">return</span> &amp;MyHTTPClient&#123;</div><div class="line">		&amp;http.Client&#123;</div><div class="line">			CheckRedirect: <span class="function"><span class="keyword">func</span><span class="params">(req *http.Request, via []*http.Request)</span> <span class="title">error</span></span> &#123;</div><div class="line">				<span class="keyword">return</span> http.ErrUseLastResponse <span class="comment">// or maybe the error from the request</span></div><div class="line">			&#125;,</div><div class="line">			Jar: jar,  <span class="comment">// cookie处理</span></div><div class="line">		&#125;,</div><div class="line">	&#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="comment">// 使用用户名/密码登录，获取cookie</span></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *MyHTTPClient)</span> <span class="title">Login</span><span class="params">(url <span class="keyword">string</span>)</span> <span class="title">error</span></span> &#123;</div><div class="line">	req, err := http.NewRequest(<span class="string">"POST"</span>, url, strings.NewReader(<span class="string">"j_username=admin&amp;j_password=admin"</span>))</div><div class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</div><div class="line">		<span class="keyword">return</span> err</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	req.Header.Set(<span class="string">"Accept"</span>, <span class="string">"application/json"</span>)</div><div class="line">	req.Header.Set(<span class="string">"Content-Type"</span>, <span class="string">"application/x-www-form-urlencoded"</span>)</div><div class="line">	req.Header.Set(<span class="string">"Cache-Control"</span>, <span class="string">"no-cache"</span>)</div><div class="line"></div><div class="line">	resp, err := c.client.Do(req)</div><div class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</div><div class="line">		<span class="keyword">return</span> err</div><div class="line">	&#125;</div><div class="line">	<span class="keyword">defer</span> resp.Body.Close()</div><div class="line"></div><div class="line">	<span class="comment">//fmt.Println(resp.Status)</span></div><div class="line">	<span class="comment">//fmt.Println(resp.Header)</span></div><div class="line">	<span class="comment">//fmt.Println(resp.Cookies())</span></div><div class="line"></div><div class="line">	<span class="keyword">if</span> strings.Contains(resp.Header[<span class="string">"Location"</span>][<span class="number">0</span>], <span class="string">"/user/error"</span>) &#123;</div><div class="line">		<span class="keyword">return</span> errors.New(<span class="string">"login failed"</span>)</div><div class="line">	&#125; <span class="keyword">else</span> &#123;</div><div class="line">		<span class="keyword">return</span> <span class="literal">nil</span></div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="keyword">return</span> <span class="literal">nil</span></div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *MyHTTPClient)</span> <span class="title">Get</span><span class="params">(url <span class="keyword">string</span>, header <span class="keyword">map</span>[<span class="keyword">string</span>]<span class="keyword">string</span>)</span> <span class="params">([]<span class="keyword">byte</span>, error)</span></span> &#123;</div><div class="line">	req, err := http.NewRequest(<span class="string">"GET"</span>, url, <span class="literal">nil</span>)</div><div class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</div><div class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, err</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="keyword">for</span> k, v := <span class="keyword">range</span> header &#123;</div><div class="line">		req.Header.Set(k, v)</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	resp, err := c.client.Do(req)</div><div class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</div><div class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, err</div><div class="line">	&#125;</div><div class="line">	<span class="keyword">defer</span> resp.Body.Close()</div><div class="line"></div><div class="line">	body, err := ioutil.ReadAll(resp.Body)</div><div class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</div><div class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, err</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="comment">//fmt.Println(resp.Status)</span></div><div class="line">	<span class="comment">//fmt.Println(resp.Header)</span></div><div class="line">	<span class="comment">//fmt.Println(resp.Cookies())</span></div><div class="line"></div><div class="line">	<span class="keyword">return</span> body, <span class="literal">nil</span></div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="params">(c *MyHTTPClient)</span> <span class="title">Post</span><span class="params">(url <span class="keyword">string</span>, header <span class="keyword">map</span>[<span class="keyword">string</span>]<span class="keyword">string</span>, postData []<span class="keyword">byte</span>)</span> <span class="params">(*RunDeckAPIResponse, error)</span></span> &#123;</div><div class="line">	req, err := http.NewRequest(<span class="string">"POST"</span>, url, bytes.NewBuffer(postData))</div><div class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</div><div class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, err</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="keyword">for</span> k, v := <span class="keyword">range</span> header &#123;</div><div class="line">		req.Header.Set(k, v)</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	resp, err := c.client.Do(req)</div><div class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</div><div class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, err</div><div class="line">	&#125;</div><div class="line">	<span class="keyword">defer</span> resp.Body.Close()</div><div class="line"></div><div class="line">	body, err := ioutil.ReadAll(resp.Body)</div><div class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</div><div class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, err</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="comment">//fmt.Println(resp.Status)</span></div><div class="line">	<span class="comment">//fmt.Println(resp.Header)</span></div><div class="line">	<span class="comment">//fmt.Println(resp.Cookies())</span></div><div class="line"></div><div class="line">	respJson := &amp;RunDeckAPIResponse&#123;&#125;</div><div class="line">	err = json.Unmarshal(body, respJson)</div><div class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</div><div class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, err</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="keyword">return</span> respJson, <span class="literal">nil</span></div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</div><div class="line">	client := NewHTTPClient()</div><div class="line"></div><div class="line">	client.Login(<span class="string">"http://172.16.103.9:4440/j_security_check"</span>)</div><div class="line"></div><div class="line">	<span class="keyword">if</span> err := addProject(client, <span class="string">"productLineX"</span>); err != <span class="literal">nil</span> &#123;</div><div class="line">		log.Fatal(err)</div><div class="line">	&#125; <span class="keyword">else</span> &#123;</div><div class="line">		log.Println(<span class="string">"add project succeed"</span>)</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="keyword">if</span> data, err := listProject(client); err != <span class="literal">nil</span> &#123;</div><div class="line">		log.Fatal(err)</div><div class="line">	&#125; <span class="keyword">else</span> &#123;</div><div class="line">		log.Println(<span class="keyword">string</span>(data))</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="keyword">if</span> err := addJob(client, <span class="string">"productLineX"</span>, <span class="string">"testG"</span>, <span class="string">"test"</span>); err != <span class="literal">nil</span> &#123;</div><div class="line">		log.Fatal(err)</div><div class="line">	&#125; <span class="keyword">else</span> &#123;</div><div class="line">		log.Println(<span class="string">"add job succeed"</span>)</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="keyword">if</span> data, err := listJob(client, <span class="string">"productLineX"</span>); err != <span class="literal">nil</span> &#123;</div><div class="line">		log.Fatal(err)</div><div class="line">	&#125; <span class="keyword">else</span> &#123;</div><div class="line">		log.Println(<span class="keyword">string</span>(data))</div><div class="line">	&#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">listProject</span><span class="params">(client *MyHTTPClient)</span> <span class="params">([]<span class="keyword">byte</span>, error)</span></span> &#123;</div><div class="line">	header := <span class="keyword">map</span>[<span class="keyword">string</span>]<span class="keyword">string</span>&#123;<span class="string">"Accept"</span>: <span class="string">"application/json"</span>, <span class="string">"Content-Type"</span>: <span class="string">"application/json"</span>&#125;</div><div class="line">	resp, err := client.Get(<span class="string">"http://172.16.103.9:4440/api/21/projects"</span>, header)</div><div class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</div><div class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, err</div><div class="line">	&#125;</div><div class="line">	<span class="keyword">return</span> resp, <span class="literal">nil</span></div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">addProject</span><span class="params">(client *MyHTTPClient, projectName <span class="keyword">string</span>)</span> <span class="title">error</span></span> &#123;</div><div class="line">	data := <span class="keyword">map</span>[<span class="keyword">string</span>]<span class="keyword">string</span>&#123;</div><div class="line">		<span class="string">"projectName"</span>: projectName,</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="keyword">var</span> tpl bytes.Buffer</div><div class="line">    <span class="comment">// 模板内容建议存到文件里，这里为了演示方便站街写到了代码里</span></div><div class="line">	t := template.Must(template.New(<span class="string">"add project"</span>).Parse(<span class="string">`&#123;</span></div><div class="line">    "config": &#123;</div><div class="line">        "project.description": "&#123;&#123;.projectName&#125;&#125;",</div><div class="line">        "project.disable.executions": "false",</div><div class="line">        "project.disable.schedule": "true",</div><div class="line">        "project.jobs.gui.groupExpandLevel": "2",</div><div class="line">        "project.name": "&#123;&#123;.projectName&#125;&#125;",</div><div class="line">        "project.nodeCache.delay": "30",</div><div class="line">        "project.nodeCache.enabled": "false",</div><div class="line">        "project.ssh-authentication": "privateKey",</div><div class="line">        "project.ssh-command-timeout": "0",</div><div class="line">        "project.ssh-connect-timeout": "0",</div><div class="line">        "project.ssh-keypath": "/root/.ssh/id_rsa",</div><div class="line">        "resources.source.1.config.file": "/data/rundeck/projects/&#123;&#123;.projectName&#125;&#125;/etc/resources.xml",</div><div class="line">        "resources.source.1.config.generateFileAutomatically": "true",</div><div class="line">        "resources.source.1.config.includeServerNode": "true",</div><div class="line">        "resources.source.1.config.requireFileExists": "false",</div><div class="line">        "resources.source.1.config.writeable": "false",</div><div class="line">        "resources.source.1.type": "file",</div><div class="line">        "service.FileCopier.default.provider": "jsch-scp",</div><div class="line">        "service.NodeExecutor.default.provider": "jsch-ssh"</div><div class="line">    &#125;,</div><div class="line">    "description": "&#123;&#123;.projectName&#125;&#125;",</div><div class="line">    "name": "&#123;&#123;.projectName&#125;&#125;",</div><div class="line">    "url": "http://172.16.103.9:4440/api/21/project/&#123;&#123;.projectName&#125;&#125;"</div><div class="line">&#125;`))</div><div class="line">	t.Execute(&amp;tpl, data)</div><div class="line"></div><div class="line">	header := <span class="keyword">map</span>[<span class="keyword">string</span>]<span class="keyword">string</span>&#123;<span class="string">"Accept"</span>: <span class="string">"application/json"</span>, <span class="string">"Content-Type"</span>: <span class="string">"application/json"</span>&#125;</div><div class="line">	respJson, err := client.Post(<span class="string">"http://172.16.103.9:4440/api/21/projects"</span>, header, []<span class="keyword">byte</span>(tpl.String()))</div><div class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</div><div class="line">		<span class="keyword">return</span> err</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="keyword">if</span> respJson.Error == <span class="literal">true</span> &#123;</div><div class="line">		<span class="keyword">return</span> errors.New(<span class="string">"add project failed: "</span> + respJson.Message)</div><div class="line">	&#125; <span class="keyword">else</span> &#123;</div><div class="line">		<span class="keyword">return</span> <span class="literal">nil</span></div><div class="line">	&#125;</div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">listJob</span><span class="params">(client *MyHTTPClient, projectName <span class="keyword">string</span>)</span> <span class="params">([]<span class="keyword">byte</span>, error)</span></span> &#123;</div><div class="line">	header := <span class="keyword">map</span>[<span class="keyword">string</span>]<span class="keyword">string</span>&#123;<span class="string">"Accept"</span>: <span class="string">"application/json"</span>, <span class="string">"Content-Type"</span>: <span class="string">"application/json"</span>&#125;</div><div class="line">	resp, err := client.Get(<span class="string">"http://172.16.103.9:4440/api/21/project/"</span>+projectName+<span class="string">"/jobs"</span>, header)</div><div class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</div><div class="line">		<span class="keyword">return</span> <span class="literal">nil</span>, err</div><div class="line">	&#125;</div><div class="line">	<span class="keyword">return</span> resp, <span class="literal">nil</span></div><div class="line">&#125;</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">addJob</span><span class="params">(client *MyHTTPClient, projectName <span class="keyword">string</span>, JobGroup <span class="keyword">string</span>, Job <span class="keyword">string</span>)</span> <span class="title">error</span></span> &#123;</div><div class="line">	data := <span class="keyword">map</span>[<span class="keyword">string</span>]<span class="keyword">string</span>&#123;</div><div class="line">		<span class="string">"projectName"</span>: projectName,</div><div class="line">		<span class="string">"JobGroup"</span>:    JobGroup,</div><div class="line">		<span class="string">"Job"</span>:         Job,</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="keyword">var</span> tpl bytes.Buffer</div><div class="line">	t := template.Must(template.New(<span class="string">"add job"</span>).Parse(<span class="string">`&lt;joblist&gt;</span></div><div class="line">  &lt;job&gt;</div><div class="line">    &lt;description&gt;&lt;/description&gt;</div><div class="line">    &lt;dispatch&gt;</div><div class="line">      &lt;excludePrecedence&gt;true&lt;/excludePrecedence&gt;</div><div class="line">      &lt;keepgoing&gt;false&lt;/keepgoing&gt;</div><div class="line">      &lt;rankOrder&gt;ascending&lt;/rankOrder&gt;</div><div class="line">      &lt;successOnEmptyNodeFilter&gt;false&lt;/successOnEmptyNodeFilter&gt;</div><div class="line">      &lt;threadcount&gt;1&lt;/threadcount&gt;</div><div class="line">    &lt;/dispatch&gt;</div><div class="line">    &lt;executionEnabled&gt;true&lt;/executionEnabled&gt;</div><div class="line">    &lt;group&gt;&#123;&#123;.JobGroup&#125;&#125;&lt;/group&gt;</div><div class="line">    &lt;id&gt;d819e418-e152-4793-8ead-adf83b5eb50e&lt;/id&gt;</div><div class="line">    &lt;loglevel&gt;INFO&lt;/loglevel&gt;</div><div class="line">    &lt;name&gt;&#123;&#123;.Job&#125;&#125;&lt;/name&gt;</div><div class="line">    &lt;nodeFilterEditable&gt;false&lt;/nodeFilterEditable&gt;</div><div class="line">    &lt;nodefilters&gt;</div><div class="line">      &lt;filter&gt;.*&lt;/filter&gt;</div><div class="line">    &lt;/nodefilters&gt;</div><div class="line">    &lt;nodesSelectedByDefault&gt;true&lt;/nodesSelectedByDefault&gt;</div><div class="line">    &lt;scheduleEnabled&gt;true&lt;/scheduleEnabled&gt;</div><div class="line">    &lt;sequence keepgoing='false' strategy='node-first'&gt;</div><div class="line">      &lt;command&gt;</div><div class="line">        &lt;exec&gt;bash -c 'echo "$&#123;node.name&#125;"'&lt;/exec&gt;</div><div class="line">      &lt;/command&gt;</div><div class="line">    &lt;/sequence&gt;</div><div class="line">    &lt;uuid&gt;d819e418-e152-4793-8ead-adf83b5eb50e&lt;/uuid&gt;</div><div class="line">  &lt;/job&gt;</div><div class="line">&lt;/joblist&gt;`))</div><div class="line">	t.Execute(&amp;tpl, data)</div><div class="line"></div><div class="line">	header := <span class="keyword">map</span>[<span class="keyword">string</span>]<span class="keyword">string</span>&#123;<span class="string">"Accept"</span>: <span class="string">"application/json"</span>, <span class="string">"Content-Type"</span>: <span class="string">"application/xml"</span>&#125;</div><div class="line">	respJson, err := client.Post(<span class="string">"http://172.16.103.9:4440/api/21/project/"</span>+projectName+<span class="string">"/jobs/import?fileformat=xml&amp;dupeOption=skip&amp;uuidOption=remove"</span>, header, []<span class="keyword">byte</span>(tpl.String()))</div><div class="line">	<span class="keyword">if</span> err != <span class="literal">nil</span> &#123;</div><div class="line">		<span class="keyword">return</span> err</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="keyword">if</span> respJson.Error == <span class="literal">true</span> &#123;</div><div class="line">		<span class="keyword">return</span> errors.New(<span class="string">"add job failed: "</span> + respJson.Message)</div><div class="line">	&#125; <span class="keyword">else</span> &#123;</div><div class="line">		<span class="keyword">return</span> <span class="literal">nil</span></div><div class="line">	&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">golang</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">rundeck</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/golang/" class="article-tag-list-link color2">golang</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/12/02/use-rundeck-api-to-auto-create-job/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-check-attendance-py" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1250,106 +1363,6 @@
 
 
   
-    <article id="post-open-falcon-agent" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/08/27/open-falcon-agent/">open-falcon源码阅读之agent</a>
-    </h1>
-  
-
-        
-        <a href="/2017/08/27/open-falcon-agent/" class="archive-article-date">
-  	<time datetime="2017-08-27T02:03:00.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-27</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p><em>Version：0.2.0</em></p>
-<!-- toc -->
-<ul>
-<li><a href="#1-架构图">1. 架构图</a></li>
-<li><a href="#2-流程图">2. 流程图</a></li>
-<li><a href="#3-源码解析">3. 源码解析</a></li>
-</ul>
-<!-- tocstop -->
-<h1 id="1-架构图"><a href="#1-架构图" class="headerlink" title="1. 架构图"></a>1. 架构图</h1><p><img src="http://ot69fbvko.bkt.clouddn.com/open-falcon-agent-arch.png" alt="open-falcon-agent-arch"></p>
-<h1 id="2-流程图"><a href="#2-流程图" class="headerlink" title="2. 流程图"></a>2. 流程图</h1><p><img src="http://ot69fbvko.bkt.clouddn.com/open-falcon-agent-flow.png" alt="open-falcon-agent-flow"></p>
-<h1 id="3-源码解析"><a href="#3-源码解析" class="headerlink" title="3. 源码解析"></a>3. 源码解析</h1><figure class="highlight go"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div></pre></td><td class="code"><pre><div class="line"># modules/agent/main.<span class="keyword">go</span></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</div><div class="line"></div><div class="line">	cfg := flag.String(<span class="string">"c"</span>, <span class="string">"cfg.json"</span>, <span class="string">"configuration file"</span>)</div><div class="line">	version := flag.Bool(<span class="string">"v"</span>, <span class="literal">false</span>, <span class="string">"show version"</span>)</div><div class="line">	check := flag.Bool(<span class="string">"check"</span>, <span class="literal">false</span>, <span class="string">"check collector"</span>)</div><div class="line"></div><div class="line">	<span class="comment">// 参数解析</span></div><div class="line">	flag.Parse()</div><div class="line"></div><div class="line">	<span class="keyword">if</span> *version &#123;</div><div class="line">		fmt.Println(g.VERSION)</div><div class="line">		os.Exit(<span class="number">0</span>)</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="keyword">if</span> *check &#123;</div><div class="line">		funcs.CheckCollector() <span class="comment">// 检查各种metric采集器工作是否正常</span></div><div class="line">		os.Exit(<span class="number">0</span>)</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	g.ParseConfig(*cfg) <span class="comment">// 加载配置文件到config *GlobalConfig</span></div><div class="line"></div><div class="line">	<span class="keyword">if</span> g.Config().Debug &#123; <span class="comment">// 设置日志级别log.SetLevel</span></div><div class="line">		g.InitLog(<span class="string">"debug"</span>)</div><div class="line">	&#125; <span class="keyword">else</span> &#123;</div><div class="line">		g.InitLog(<span class="string">"info"</span>)</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	g.InitRootDir() <span class="comment">// 获取当前工作目录保存到全局变量Root</span></div><div class="line">	g.InitLocalIp() <span class="comment">// 通过连接HBS，获取本机IP，保存到全局变量LocalIp</span></div><div class="line">	g.InitRpcClients() <span class="comment">// 创建一个HbsClient *SingleConnRpcClient，这个时候还未连接</span></div><div class="line"></div><div class="line">	funcs.BuildMappers() <span class="comment">// 构造metric采集函数和采集周期列表</span></div><div class="line"></div><div class="line">	<span class="keyword">go</span> cron.InitDataHistory() <span class="comment">// 定期更新procStatHistory和diskStatsMap，只保留最近两个值</span></div><div class="line"></div><div class="line">	cron.ReportAgentStatus() <span class="comment">// 定期调用rpc method：Agent.ReportStatus，上报agent状态</span></div><div class="line">	cron.SyncMinePlugins() <span class="comment">// 定期获取Plugin信息，更新本地Plugin状态，进行调度，Plugin执行结果发送到transfer</span></div><div class="line">	cron.SyncBuiltinMetrics() <span class="comment">// 周期性通过rpc调用Agent.BuiltinMetrics获取reportUrls、reportPorts、reportProcs、duPaths检查参数</span></div><div class="line">	cron.SyncTrustableIps() <span class="comment">// 周期性通过rpc调用Agent.TrustableIps，获取IP白名单，并设置全局变量ips</span></div><div class="line">	cron.Collect() <span class="comment">// 周期性调用funcs.Mappers[i].Fs，进行metric采集，并发送至transfer</span></div><div class="line"></div><div class="line">	<span class="keyword">go</span> http.Start() <span class="comment">// 启动httpserver，提供查询、操作接口，会判断TrustableIps</span></div><div class="line"></div><div class="line">	<span class="keyword">select</span> &#123;&#125;</div><div class="line">	<span class="comment">// An empty select&#123;&#125; statement blocks indefinitely i.e. forever. It is similar and in practice equivalent to an empty for&#123;&#125; statement.</span></div><div class="line"></div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>详细代码注释请参考<a href="https://github.com/winway/falcon-plus-learn" target="_blank" rel="external">https://github.com/winway/falcon-plus-learn</a>，持续更新中</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">open-falcon</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">open-falcon源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/open-falcon源码阅读/" class="article-tag-list-link color1">open-falcon源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/08/27/open-falcon-agent/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/7/">7</a><a class="extend next" rel="next" href="/page/2/">Next &raquo;</a>
@@ -1449,14 +1462,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">C</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">arp欺骗</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">shell</a>
               </li>
              
@@ -1473,6 +1478,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">C</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Python</a>
               </li>
              
@@ -1485,6 +1494,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">机架感知</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hexo</a>
               </li>
              
@@ -1493,11 +1506,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">k8s</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">机架感知</a>
+                <a href="javascript:void(0)" class="js-tag color1">arp欺骗</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1505,11 +1514,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">k8s</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">MongodDB</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1525,19 +1538,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1546,6 +1555,18 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">salt源码解析</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
              
               <li class="article-tag-list-item">
