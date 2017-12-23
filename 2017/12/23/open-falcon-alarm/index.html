@@ -6,19 +6,22 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge" >
   <link rel="dns-prefetch" href="https://winway.github.io">
-  <title>HDFS机架感知 | winway&#39;s blog</title>
+  <title>open-falcon源码阅读之alarm | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="1. 概念 2. 配置 3. 疑问   1. 概念机架感知的概念就不再赘述，可以查看以下链接进行了解：  http://www.jianshu.com/p/372d25352d3a http://www.informit.com/articles/article.aspx?p=2460260&amp;amp;seqNum=3 https://community.hortonworks.com/arti">
-<meta name="keywords" content="hadoop,机架感知">
+  <meta name="description" content="Version：0.2.0   1. 架构图 2. 流程图 3. 源码解析   1. 架构图Alarm读取Redis中的event，持久化到Mysql，并将event放到Redis的待发送队列或待合并队列。开启goroutine调用对应的接口异步发送。 2. 流程图 3. 源码解析12345678910111213141516171819202122232425262728293031323334">
+<meta name="keywords" content="open-falcon源码阅读">
 <meta property="og:type" content="article">
-<meta property="og:title" content="HDFS机架感知">
-<meta property="og:url" content="https://winway.github.io/2017/07/25/hdfs-rack-awareness/index.html">
+<meta property="og:title" content="open-falcon源码阅读之alarm">
+<meta property="og:url" content="https://winway.github.io/2017/12/23/open-falcon-alarm/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:description" content="1. 概念 2. 配置 3. 疑问   1. 概念机架感知的概念就不再赘述，可以查看以下链接进行了解：  http://www.jianshu.com/p/372d25352d3a http://www.informit.com/articles/article.aspx?p=2460260&amp;amp;seqNum=3 https://community.hortonworks.com/arti">
-<meta property="og:updated_time" content="2017-08-26T08:20:11.369Z">
+<meta property="og:description" content="Version：0.2.0   1. 架构图 2. 流程图 3. 源码解析   1. 架构图Alarm读取Redis中的event，持久化到Mysql，并将event放到Redis的待发送队列或待合并队列。开启goroutine调用对应的接口异步发送。 2. 流程图 3. 源码解析12345678910111213141516171819202122232425262728293031323334">
+<meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/open-falcon-alarm-arch.png">
+<meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/open-falcon-alarm-flow.png">
+<meta property="og:updated_time" content="2017-12-23T00:55:53.363Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="HDFS机架感知">
-<meta name="twitter:description" content="1. 概念 2. 配置 3. 疑问   1. 概念机架感知的概念就不再赘述，可以查看以下链接进行了解：  http://www.jianshu.com/p/372d25352d3a http://www.informit.com/articles/article.aspx?p=2460260&amp;amp;seqNum=3 https://community.hortonworks.com/arti">
+<meta name="twitter:title" content="open-falcon源码阅读之alarm">
+<meta name="twitter:description" content="Version：0.2.0   1. 架构图 2. 流程图 3. 源码解析   1. 架构图Alarm读取Redis中的event，持久化到Mysql，并将event放到Redis的待发送队列或待合并队列。开启goroutine调用对应的接口异步发送。 2. 流程图 3. 源码解析12345678910111213141516171819202122232425262728293031323334">
+<meta name="twitter:image" content="http://ot69fbvko.bkt.clouddn.com/open-falcon-alarm-arch.png">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -154,93 +157,38 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-hdfs-rack-awareness" class="article article-type-post " itemscope itemprop="blogPost">
+            <article id="post-open-falcon-alarm" class="article article-type-post " itemscope itemprop="blogPost">
   <div class="article-inner">
     
       <header class="article-header">
         
   
     <h1 class="article-title" itemprop="name">
-      HDFS机架感知
+      open-falcon源码阅读之alarm
     </h1>
   
 
         
-        <a href="/2017/07/25/hdfs-rack-awareness/" class="archive-article-date">
-  	<time datetime="2017-07-25T11:32:51.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-07-25</time>
+        <a href="/2017/12/23/open-falcon-alarm/" class="archive-article-date">
+  	<time datetime="2017-12-23T00:42:19.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-12-23</time>
 </a>
         
       </header>
     
     <div class="article-entry" itemprop="articleBody">
       
-        <!-- toc -->
+        <p><em>Version：0.2.0</em></p>
+<!-- toc -->
 <ul>
-<li><a href="#1-概念">1. 概念</a></li>
-<li><a href="#2-配置">2. 配置</a></li>
-<li><a href="#3-疑问">3. 疑问</a></li>
+<li><a href="#1-架构图">1. 架构图</a></li>
+<li><a href="#2-流程图">2. 流程图</a></li>
+<li><a href="#3-源码解析">3. 源码解析</a></li>
 </ul>
 <!-- tocstop -->
-<h2 id="1-概念"><a href="#1-概念" class="headerlink" title="1. 概念"></a>1. 概念</h2><p>机架感知的概念就不再赘述，可以查看以下链接进行了解：</p>
-<ul>
-<li><a href="http://www.jianshu.com/p/372d25352d3a" target="_blank" rel="external">http://www.jianshu.com/p/372d25352d3a</a></li>
-<li><a href="http://www.informit.com/articles/article.aspx?p=2460260&amp;seqNum=3" target="_blank" rel="external">http://www.informit.com/articles/article.aspx?p=2460260&amp;seqNum=3</a></li>
-<li><a href="https://community.hortonworks.com/articles/43057/rack-awareness-1.html" target="_blank" rel="external">https://community.hortonworks.com/articles/43057/rack-awareness-1.html</a></li>
-</ul>
-<h2 id="2-配置"><a href="#2-配置" class="headerlink" title="2. 配置"></a>2. 配置</h2><table>
-<thead>
-<tr>
-<th>name</th>
-<th>value</th>
-<th>description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>net.topology.node.switch.mapping.impl</td>
-<td>org.apache.hadoop.net.ScriptBasedMapping</td>
-<td>The default implementation of the DNSToSwitchMapping. It invokes a script specified in net.topology.script.file.name to resolve node names. If the value for net.topology.script.file.name is not set, the default value of DEFAULT_RACK is returned for all node names.</td>
-</tr>
-<tr>
-<td>net.topology.impl</td>
-<td>org.apache.hadoop.net.NetworkTopology</td>
-<td>The default implementation of NetworkTopology which is classic three layer one.</td>
-</tr>
-<tr>
-<td>net.topology.script.file.name</td>
-<td></td>
-<td>The script name that should be invoked to resolve DNS names to NetworkTopology names. Example: the script would take host.foo.bar as an argument, and return /rack1 as the output.</td>
-</tr>
-<tr>
-<td>net.topology.script.number.args</td>
-<td>100</td>
-<td>The max number of args that the script configured with net.topology.script.file.name should be run with. Each arg is an IP address.</td>
-</tr>
-<tr>
-<td>net.topology.table.file.name</td>
-<td></td>
-<td>The file name for a topology file, which is used when the net.topology.node.switch.mapping.impl property is set to org.apache.hadoop.net.TableMapping. The file format is a two column text file, with columns separated by whitespace. The first column is a DNS or IP address and the second column specifies the rack where the address maps. If no entry corresponding to a host in the cluster is found, then /default-rack is assumed.</td>
-</tr>
-</tbody>
-</table>
-<p>开启机架感知的相关配置（<a href="https://hadoop.apache.org/docs/r2.8.0/hadoop-project-dist/hadoop-common/core-default.xml" target="_blank" rel="external">core-site.xml</a>）如上所述，主要有两种方式：</p>
-<ul>
-<li>脚本方式：<figure class="highlight xml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="tag">&lt;<span class="name">property</span>&gt;</span></div><div class="line">     <span class="tag">&lt;<span class="name">name</span>&gt;</span>net.topology.node.switch.mapping.impl<span class="tag">&lt;/<span class="name">name</span>&gt;</span></div><div class="line">     <span class="tag">&lt;<span class="name">value</span>&gt;</span>org.apache.hadoop.net.ScriptBasedMapping<span class="tag">&lt;/<span class="name">value</span>&gt;</span></div><div class="line"><span class="tag">&lt;/<span class="name">property</span>&gt;</span></div><div class="line"><span class="tag">&lt;<span class="name">property</span>&gt;</span></div><div class="line">     <span class="tag">&lt;<span class="name">name</span>&gt;</span>net.topology.script.file.name<span class="tag">&lt;/<span class="name">name</span>&gt;</span></div><div class="line">     <span class="tag">&lt;<span class="name">value</span>&gt;</span>/hadoop/etc/hadoop/rack_topology.sh<span class="tag">&lt;/<span class="name">value</span>&gt;</span></div><div class="line"><span class="tag">&lt;/<span class="name">property</span>&gt;</span></div></pre></td></tr></table></figure>
-</li>
-</ul>
-<ul>
-<li>数据文件方式：<figure class="highlight xml"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"><span class="tag">&lt;<span class="name">property</span>&gt;</span></div><div class="line">     <span class="tag">&lt;<span class="name">name</span>&gt;</span>net.topology.node.switch.mapping.impl<span class="tag">&lt;/<span class="name">name</span>&gt;</span></div><div class="line">     <span class="tag">&lt;<span class="name">value</span>&gt;</span>org.apache.hadoop.net.TableMapping<span class="tag">&lt;/<span class="name">value</span>&gt;</span></div><div class="line"><span class="tag">&lt;/<span class="name">property</span>&gt;</span></div><div class="line"><span class="tag">&lt;<span class="name">property</span>&gt;</span></div><div class="line">     <span class="tag">&lt;<span class="name">name</span>&gt;</span>net.topology.table.file.name<span class="tag">&lt;/<span class="name">name</span>&gt;</span></div><div class="line">     <span class="tag">&lt;<span class="name">value</span>&gt;</span>/hadoop/etc/hadoop/rack_topology.data<span class="tag">&lt;/<span class="name">value</span>&gt;</span></div><div class="line"><span class="tag">&lt;/<span class="name">property</span>&gt;</span></div></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>以脚本方式为例：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#</span> cat rack_topology.sh</div><div class="line"><span class="meta">#</span>! /bin/bash</div><div class="line"><span class="meta">#</span></div><div class="line"></div><div class="line">rack_topology_file=$&#123;HADOOP_HOME&#125;/etc/hadoop/rack_topology.data</div><div class="line"></div><div class="line">if [[ -f $rack_topology_file ]]</div><div class="line">then</div><div class="line">    rack_topology_data="$(cat $rack_topology_file | grep -v '^#')"</div><div class="line">else</div><div class="line">    rack_topology_data=</div><div class="line">fi</div><div class="line"></div><div class="line">while [[ $# -gt 0 ]]</div><div class="line">do</div><div class="line">    rack=$(echo "$rack_topology_data" | awk '$1 == "'"$1"'"&#123;print $2;next&#125;')</div><div class="line"></div><div class="line">    if [[ -z $rack ]]</div><div class="line">    then</div><div class="line">        echo "/default-rack"</div><div class="line">    else</div><div class="line">        echo "$rack"</div><div class="line">    fi</div><div class="line">    shift</div><div class="line">done</div></pre></td></tr></table></figure></p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#</span> cat rack_topology.data</div><div class="line">10.13.77.140 /rack1</div><div class="line">10.13.81.200 /rack2</div><div class="line">10.13.88.198 /rack1</div><div class="line">10.13.104.202 /rack3</div></pre></td></tr></table></figure>
-<h2 id="3-疑问"><a href="#3-疑问" class="headerlink" title="3. 疑问"></a>3. 疑问</h2><ul>
-<li><p>net.topology.script.file.name脚本的调用时机？<br><strong>当需要映射不在cache中的datanode ip时进行调用。</strong><br>假如集群有3个datanode，在集群启动时会调用这个脚本，参数是3个ip。这种场景是集群之前已经正常运行，然后进行了重启。注意，如果datanode ip在namenode的dfs.hosts文件中配置了，即便datanode不来注册，也会进行映射。<br>新增第4个datanode，这时会调用这个脚本，参数是新增的ip。<br>已经注册过的datanode发生重启，并不会再次进行映射，因为已经在namenode上存在了cache，除非重启namenode</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div></pre></td><td class="code"><pre><div class="line"><span class="meta">@Override</span></div><div class="line"><span class="function"><span class="keyword">public</span> List&lt;String&gt; <span class="title">resolve</span><span class="params">(List&lt;String&gt; names)</span> </span>&#123;</div><div class="line">  <span class="comment">// normalize all input names to be in the form of IP addresses</span></div><div class="line">  names = NetUtils.normalizeHostNames(names);</div><div class="line"></div><div class="line">  List &lt;String&gt; result = <span class="keyword">new</span> ArrayList&lt;String&gt;(names.size());</div><div class="line">  <span class="keyword">if</span> (names.isEmpty()) &#123;</div><div class="line">    <span class="keyword">return</span> result;</div><div class="line">  &#125;</div><div class="line"></div><div class="line">  List&lt;String&gt; uncachedHosts = getUncachedHosts(names);</div><div class="line"></div><div class="line">  <span class="comment">// Resolve the uncached hosts</span></div><div class="line">  List&lt;String&gt; resolvedHosts = rawMapping.resolve(uncachedHosts);</div><div class="line">  <span class="comment">//cache them</span></div><div class="line">  cacheResolvedHosts(uncachedHosts, resolvedHosts);</div><div class="line">  <span class="comment">//now look up the entire list in the cache</span></div><div class="line">  <span class="keyword">return</span> getCachedHosts(names);</div><div class="line"></div><div class="line">&#125;</div></pre></td></tr></table></figure>
-</li>
-<li><p>机架感知是否考虑机房？<br>机架感知不考虑机房，副本存放只考虑机架层面。以下面的网络拓扑为例，一个block的3个副本是有可能存放在/d1/r1、/d1/r2、/d1/r3上面的，即全部存放在d1机房的3个机架上。<br>/d1/r1<br>/d1/r2<br>/d1/r3<br>/d2/r4</p>
-</li>
-</ul>
+<h1 id="1-架构图"><a href="#1-架构图" class="headerlink" title="1. 架构图"></a>1. 架构图</h1><p>Alarm读取Redis中的event，持久化到Mysql，并将event放到Redis的待发送队列或待合并队列。开启goroutine调用对应的接口异步发送。<br><img src="http://ot69fbvko.bkt.clouddn.com/open-falcon-alarm-arch.png" alt=""></p>
+<h1 id="2-流程图"><a href="#2-流程图" class="headerlink" title="2. 流程图"></a>2. 流程图</h1><p><img src="http://ot69fbvko.bkt.clouddn.com/open-falcon-alarm-flow.png" alt=""></p>
+<h1 id="3-源码解析"><a href="#3-源码解析" class="headerlink" title="3. 源码解析"></a>3. 源码解析</h1><figure class="highlight go"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">package</span> main</div><div class="line"></div><div class="line"><span class="keyword">import</span> (</div><div class="line">	<span class="string">"flag"</span></div><div class="line">	<span class="string">"fmt"</span></div><div class="line">	<span class="string">"os"</span></div><div class="line">	<span class="string">"os/signal"</span></div><div class="line">	<span class="string">"syscall"</span></div><div class="line"></div><div class="line">	<span class="string">"github.com/gin-gonic/gin"</span></div><div class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/cron"</span></div><div class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/g"</span></div><div class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/http"</span></div><div class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/model"</span></div><div class="line">)</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</div><div class="line">	cfg := flag.String(<span class="string">"c"</span>, <span class="string">"cfg.json"</span>, <span class="string">"configuration file"</span>)</div><div class="line">	version := flag.Bool(<span class="string">"v"</span>, <span class="literal">false</span>, <span class="string">"show version"</span>)</div><div class="line">	help := flag.Bool(<span class="string">"h"</span>, <span class="literal">false</span>, <span class="string">"help"</span>)</div><div class="line">	flag.Parse()</div><div class="line"></div><div class="line">	<span class="keyword">if</span> *version &#123;</div><div class="line">		fmt.Println(g.VERSION)</div><div class="line">		os.Exit(<span class="number">0</span>)</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="keyword">if</span> *help &#123;</div><div class="line">		flag.Usage()</div><div class="line">		os.Exit(<span class="number">0</span>)</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	g.ParseConfig(*cfg) <span class="comment">// 加载配置文件</span></div><div class="line"></div><div class="line">	g.InitLog(g.Config().LogLevel) <span class="comment">// 根据配置文件设置日志级别</span></div><div class="line">	<span class="keyword">if</span> g.Config().LogLevel != <span class="string">"debug"</span> &#123;</div><div class="line">		gin.SetMode(gin.ReleaseMode)</div><div class="line">	&#125;</div><div class="line">	<span class="comment">/*</span></div><div class="line">	Gin is a web framework written in Go (Golang).</div><div class="line">	It features a martini-like API with much better performance,</div><div class="line">	up to 40 times faster thanks to httprouter.</div><div class="line">	If you need performance and good productivity, you will love Gin.</div><div class="line">	HttpRouter is a lightweight high performance HTTP request router</div><div class="line">	(also called multiplexer or just mux for short) for Go.</div><div class="line">	In contrast to the default mux of Go's net/http package,</div><div class="line">	this router supports variables in the routing pattern and matches against the request method.</div><div class="line">	It also scales better.The router is optimized for high performance and a small memory footprint.</div><div class="line">	It scales well even with very long paths and a large number of routes.</div><div class="line">	A compressing dynamic trie (radix tree) structure is used for efficient matching.</div><div class="line">	 */</div><div class="line"></div><div class="line">	g.InitRedisConnPool() <span class="comment">// 创建redis连接池</span></div><div class="line">	model.InitDatabase() <span class="comment">// 创建数据库连接和数据库表，使用了beego的orm</span></div><div class="line">	cron.InitSenderWorker() <span class="comment">// 创建IMWorkerChan/SmsWorkerChan/MailWorkerChan，根据配置设置channel长度</span></div><div class="line">	                        <span class="comment">// 实际在用信号量做并发控制，避免同时发送过多</span></div><div class="line"></div><div class="line">	<span class="keyword">go</span> http.Start() <span class="comment">// 启动http服务（使用gin框架实现），提供版本查询、健康查询、工作查询接口</span></div><div class="line">	<span class="keyword">go</span> cron.ReadHighEvent() <span class="comment">// 处理高优先级报警事件，包括入库、调callback、报警入redis待发送队列</span></div><div class="line">	<span class="keyword">go</span> cron.ReadLowEvent() <span class="comment">// 处理低优先级报警事件，包括入库、调callback、报警入redis待合并队列</span></div><div class="line">	<span class="keyword">go</span> cron.CombineSms() <span class="comment">// 读取/queue/user/sms队列中的短信内容，聚合后入库，并发送聚合短信</span></div><div class="line">	<span class="keyword">go</span> cron.CombineMail() <span class="comment">// 读取/queue/user/mail队列中的邮件内容，聚合发送</span></div><div class="line">	<span class="keyword">go</span> cron.CombineIM() <span class="comment">// 读取/queue/user/im队列中的IM内容，聚合后入库，并发送聚合消息</span></div><div class="line">	<span class="keyword">go</span> cron.ConsumeIM() <span class="comment">// 读取/im队列中的内容，调用微信发送网关地址发送</span></div><div class="line">	<span class="keyword">go</span> cron.ConsumeSms() <span class="comment">// 读取/sms队列中的内容，调用短信发送网关地址发送</span></div><div class="line">	<span class="keyword">go</span> cron.ConsumeMail() <span class="comment">// 读取/mail队列中的内容，调用邮件发送网关地址发送</span></div><div class="line">	<span class="keyword">go</span> cron.CleanExpiredEvent() <span class="comment">// 删除events表的旧数据，默认7天之前</span></div><div class="line"></div><div class="line">	<span class="comment">// 注册信号处理程序，监听syscall.SIGINT和syscall.SIGTERM信号</span></div><div class="line">	sigs := <span class="built_in">make</span>(<span class="keyword">chan</span> os.Signal, <span class="number">1</span>)</div><div class="line">	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)</div><div class="line">	<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</div><div class="line">		&lt;-sigs</div><div class="line">		fmt.Println()</div><div class="line">		g.RedisConnPool.Close()</div><div class="line">		os.Exit(<span class="number">0</span>)</div><div class="line">	&#125;()</div><div class="line"></div><div class="line">	<span class="keyword">select</span> &#123;&#125; <span class="comment">// 等待</span></div><div class="line">&#125;</div></pre></td></tr></table></figure>
+<p>详细代码注释请参考<a href="https://github.com/winway/falcon-plus-learn，持续更新中" target="_blank" rel="external">https://github.com/winway/falcon-plus-learn，持续更新中</a></p>
 
       
 
@@ -285,11 +233,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">hadoop</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">机架感知</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">open-falcon源码阅读</a>
         		</li>
       		
 		</ul>
@@ -301,7 +245,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="/categories/hadoop/" class="article-tag-list-link color2">hadoop</a>
+        			<a href="/categories/open-falcon/" class="article-tag-list-link color2">open-falcon</a>
         		</li>
       		
 		</ul>
@@ -356,7 +300,7 @@
     <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="http://s.jiathis.com/qrcode.php?url=https://winway.github.io/2017/07/25/hdfs-rack-awareness/" alt="微信分享二维码">
+      <img src="http://s.jiathis.com/qrcode.php?url=https://winway.github.io/2017/12/23/open-falcon-alarm/" alt="微信分享二维码">
     </div>
 </div>
 
@@ -370,18 +314,9 @@
   
 <nav id="article-nav">
   
-    <a href="/2017/07/25/salt-master-startup-procedure/" id="article-nav-newer" class="article-nav-link-wrap">
-      <i class="icon-circle-left"></i>
-      <div class="article-nav-title">
-        
-          saltstack源码解析之master启动流程
-        
-      </div>
-    </a>
   
-  
-    <a href="/2017/07/18/salt-master-option-parser/" id="article-nav-older" class="article-nav-link-wrap">
-      <div class="article-nav-title">saltstack源码解析之master选项解析-MasterOptionParser</div>
+    <a href="/2017/12/03/open-falcon-judge/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">open-falcon源码阅读之judge</div>
       <i class="icon-circle-right"></i>
     </a>
   
