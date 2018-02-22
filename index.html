@@ -157,16 +157,24 @@
     <article id="post-open-falcon-alarm" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/12/23/open-falcon-alarm/">open-falcon源码阅读之alarm</a>
+    </h1>
+  
+
+        
+        <a href="/2017/12/23/open-falcon-alarm/" class="archive-article-date">
+  	<time datetime="2017-12-23T00:42:19.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-12-23</time>
+</a>
+        
+      </header>
+    
     <div class="article-entry" itemprop="articleBody">
       
-        <hr>
-<p>title: open-falcon源码阅读之alarm<br>categories:</p>
-<ul>
-<li>open-falcon<br>tags:</li>
-<li>open-falcon源码阅读<br>date: 2017-12-23T08:42:19.000Z</li>
-</ul>
-<hr>
-<p><em>Version：0.2.0</em></p>
+        <p><em>Version：0.2.0</em></p>
 <!-- toc -->
 <ul>
 <li><a href="#1-架构图">1. 架构图</a></li>
@@ -176,87 +184,7 @@
 <!-- tocstop -->
 <h1 id="1-架构图"><a href="#1-架构图" class="headerlink" title="1. 架构图"></a>1. 架构图</h1><p>Alarm读取Redis中的event，持久化到Mysql，并将event放到Redis的待发送队列或待合并队列。开启goroutine调用对应的接口异步发送。<br><img src="http://ot69fbvko.bkt.clouddn.com/open-falcon-alarm-arch.png" alt=""></p>
 <h1 id="2-流程图"><a href="#2-流程图" class="headerlink" title="2. 流程图"></a>2. 流程图</h1><p><img src="http://ot69fbvko.bkt.clouddn.com/open-falcon-alarm-flow.png" alt=""></p>
-<h1 id="3-源码解析"><a href="#3-源码解析" class="headerlink" title="3. 源码解析"></a>3. 源码解析</h1><pre><code class="go"><span class="keyword">package</span> main
-
-<span class="keyword">import</span> (
-    <span class="string">"flag"</span>
-    <span class="string">"fmt"</span>
-    <span class="string">"os"</span>
-    <span class="string">"os/signal"</span>
-    <span class="string">"syscall"</span>
-
-    <span class="string">"github.com/gin-gonic/gin"</span>
-    <span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/cron"</span>
-    <span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/g"</span>
-    <span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/http"</span>
-    <span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/model"</span>
-)
-
-<span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> {
-    cfg := flag.String(<span class="string">"c"</span>, <span class="string">"cfg.json"</span>, <span class="string">"configuration file"</span>)
-    version := flag.Bool(<span class="string">"v"</span>, <span class="literal">false</span>, <span class="string">"show version"</span>)
-    help := flag.Bool(<span class="string">"h"</span>, <span class="literal">false</span>, <span class="string">"help"</span>)
-    flag.Parse()
-
-    <span class="keyword">if</span> *version {
-        fmt.Println(g.VERSION)
-        os.Exit(<span class="number">0</span>)
-    }
-
-    <span class="keyword">if</span> *help {
-        flag.Usage()
-        os.Exit(<span class="number">0</span>)
-    }
-
-    g.ParseConfig(*cfg) <span class="comment">// 加载配置文件</span>
-
-    g.InitLog(g.Config().LogLevel) <span class="comment">// 根据配置文件设置日志级别</span>
-    <span class="keyword">if</span> g.Config().LogLevel != <span class="string">"debug"</span> {
-        gin.SetMode(gin.ReleaseMode)
-    }
-    <span class="comment">/*
-    Gin is a web framework written in Go (Golang).
-    It features a martini-like API with much better performance,
-    up to 40 times faster thanks to httprouter.
-    If you need performance and good productivity, you will love Gin.
-    HttpRouter is a lightweight high performance HTTP request router
-    (also called multiplexer or just mux for short) for Go.
-    In contrast to the default mux of Go's net/http package,
-    this router supports variables in the routing pattern and matches against the request method.
-    It also scales better.The router is optimized for high performance and a small memory footprint.
-    It scales well even with very long paths and a large number of routes.
-    A compressing dynamic trie (radix tree) structure is used for efficient matching.
-     */</span>
-
-    g.InitRedisConnPool() <span class="comment">// 创建redis连接池</span>
-    model.InitDatabase() <span class="comment">// 创建数据库连接和数据库表，使用了beego的orm</span>
-    cron.InitSenderWorker() <span class="comment">// 创建IMWorkerChan/SmsWorkerChan/MailWorkerChan，根据配置设置channel长度</span>
-                            <span class="comment">// 实际在用信号量做并发控制，避免同时发送过多</span>
-
-    <span class="keyword">go</span> http.Start() <span class="comment">// 启动http服务（使用gin框架实现），提供版本查询、健康查询、工作查询接口</span>
-    <span class="keyword">go</span> cron.ReadHighEvent() <span class="comment">// 处理高优先级报警事件，包括入库、调callback、报警入redis待发送队列</span>
-    <span class="keyword">go</span> cron.ReadLowEvent() <span class="comment">// 处理低优先级报警事件，包括入库、调callback、报警入redis待合并队列</span>
-    <span class="keyword">go</span> cron.CombineSms() <span class="comment">// 读取/queue/user/sms队列中的短信内容，聚合后入库，并发送聚合短信</span>
-    <span class="keyword">go</span> cron.CombineMail() <span class="comment">// 读取/queue/user/mail队列中的邮件内容，聚合发送</span>
-    <span class="keyword">go</span> cron.CombineIM() <span class="comment">// 读取/queue/user/im队列中的IM内容，聚合后入库，并发送聚合消息</span>
-    <span class="keyword">go</span> cron.ConsumeIM() <span class="comment">// 读取/im队列中的内容，调用微信发送网关地址发送</span>
-    <span class="keyword">go</span> cron.ConsumeSms() <span class="comment">// 读取/sms队列中的内容，调用短信发送网关地址发送</span>
-    <span class="keyword">go</span> cron.ConsumeMail() <span class="comment">// 读取/mail队列中的内容，调用邮件发送网关地址发送</span>
-    <span class="keyword">go</span> cron.CleanExpiredEvent() <span class="comment">// 删除events表的旧数据，默认7天之前</span>
-
-    <span class="comment">// 注册信号处理程序，监听syscall.SIGINT和syscall.SIGTERM信号</span>
-    sigs := <span class="built_in">make</span>(<span class="keyword">chan</span> os.Signal, <span class="number">1</span>)
-    signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-    <span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> {
-        &lt;-sigs
-        fmt.Println()
-        g.RedisConnPool.Close()
-        os.Exit(<span class="number">0</span>)
-    }()
-
-    <span class="keyword">select</span> {} <span class="comment">// 等待</span>
-}
-</code></pre>
+<h1 id="3-源码解析"><a href="#3-源码解析" class="headerlink" title="3. 源码解析"></a>3. 源码解析</h1><figure class="highlight go"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">package</span> main</div><div class="line"></div><div class="line"><span class="keyword">import</span> (</div><div class="line">	<span class="string">"flag"</span></div><div class="line">	<span class="string">"fmt"</span></div><div class="line">	<span class="string">"os"</span></div><div class="line">	<span class="string">"os/signal"</span></div><div class="line">	<span class="string">"syscall"</span></div><div class="line"></div><div class="line">	<span class="string">"github.com/gin-gonic/gin"</span></div><div class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/cron"</span></div><div class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/g"</span></div><div class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/http"</span></div><div class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/model"</span></div><div class="line">)</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</div><div class="line">	cfg := flag.String(<span class="string">"c"</span>, <span class="string">"cfg.json"</span>, <span class="string">"configuration file"</span>)</div><div class="line">	version := flag.Bool(<span class="string">"v"</span>, <span class="literal">false</span>, <span class="string">"show version"</span>)</div><div class="line">	help := flag.Bool(<span class="string">"h"</span>, <span class="literal">false</span>, <span class="string">"help"</span>)</div><div class="line">	flag.Parse()</div><div class="line"></div><div class="line">	<span class="keyword">if</span> *version &#123;</div><div class="line">		fmt.Println(g.VERSION)</div><div class="line">		os.Exit(<span class="number">0</span>)</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="keyword">if</span> *help &#123;</div><div class="line">		flag.Usage()</div><div class="line">		os.Exit(<span class="number">0</span>)</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	g.ParseConfig(*cfg) <span class="comment">// 加载配置文件</span></div><div class="line"></div><div class="line">	g.InitLog(g.Config().LogLevel) <span class="comment">// 根据配置文件设置日志级别</span></div><div class="line">	<span class="keyword">if</span> g.Config().LogLevel != <span class="string">"debug"</span> &#123;</div><div class="line">		gin.SetMode(gin.ReleaseMode)</div><div class="line">	&#125;</div><div class="line">	<span class="comment">/*</span></div><div class="line">	Gin is a web framework written in Go (Golang).</div><div class="line">	It features a martini-like API with much better performance,</div><div class="line">	up to 40 times faster thanks to httprouter.</div><div class="line">	If you need performance and good productivity, you will love Gin.</div><div class="line">	HttpRouter is a lightweight high performance HTTP request router</div><div class="line">	(also called multiplexer or just mux for short) for Go.</div><div class="line">	In contrast to the default mux of Go's net/http package,</div><div class="line">	this router supports variables in the routing pattern and matches against the request method.</div><div class="line">	It also scales better.The router is optimized for high performance and a small memory footprint.</div><div class="line">	It scales well even with very long paths and a large number of routes.</div><div class="line">	A compressing dynamic trie (radix tree) structure is used for efficient matching.</div><div class="line">	 */</div><div class="line"></div><div class="line">	g.InitRedisConnPool() <span class="comment">// 创建redis连接池</span></div><div class="line">	model.InitDatabase() <span class="comment">// 创建数据库连接和数据库表，使用了beego的orm</span></div><div class="line">	cron.InitSenderWorker() <span class="comment">// 创建IMWorkerChan/SmsWorkerChan/MailWorkerChan，根据配置设置channel长度</span></div><div class="line">	                        <span class="comment">// 实际在用信号量做并发控制，避免同时发送过多</span></div><div class="line"></div><div class="line">	<span class="keyword">go</span> http.Start() <span class="comment">// 启动http服务（使用gin框架实现），提供版本查询、健康查询、工作查询接口</span></div><div class="line">	<span class="keyword">go</span> cron.ReadHighEvent() <span class="comment">// 处理高优先级报警事件，包括入库、调callback、报警入redis待发送队列</span></div><div class="line">	<span class="keyword">go</span> cron.ReadLowEvent() <span class="comment">// 处理低优先级报警事件，包括入库、调callback、报警入redis待合并队列</span></div><div class="line">	<span class="keyword">go</span> cron.CombineSms() <span class="comment">// 读取/queue/user/sms队列中的短信内容，聚合后入库，并发送聚合短信</span></div><div class="line">	<span class="keyword">go</span> cron.CombineMail() <span class="comment">// 读取/queue/user/mail队列中的邮件内容，聚合发送</span></div><div class="line">	<span class="keyword">go</span> cron.CombineIM() <span class="comment">// 读取/queue/user/im队列中的IM内容，聚合后入库，并发送聚合消息</span></div><div class="line">	<span class="keyword">go</span> cron.ConsumeIM() <span class="comment">// 读取/im队列中的内容，调用微信发送网关地址发送</span></div><div class="line">	<span class="keyword">go</span> cron.ConsumeSms() <span class="comment">// 读取/sms队列中的内容，调用短信发送网关地址发送</span></div><div class="line">	<span class="keyword">go</span> cron.ConsumeMail() <span class="comment">// 读取/mail队列中的内容，调用邮件发送网关地址发送</span></div><div class="line">	<span class="keyword">go</span> cron.CleanExpiredEvent() <span class="comment">// 删除events表的旧数据，默认7天之前</span></div><div class="line"></div><div class="line">	<span class="comment">// 注册信号处理程序，监听syscall.SIGINT和syscall.SIGTERM信号</span></div><div class="line">	sigs := <span class="built_in">make</span>(<span class="keyword">chan</span> os.Signal, <span class="number">1</span>)</div><div class="line">	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)</div><div class="line">	<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</div><div class="line">		&lt;-sigs</div><div class="line">		fmt.Println()</div><div class="line">		g.RedisConnPool.Close()</div><div class="line">		os.Exit(<span class="number">0</span>)</div><div class="line">	&#125;()</div><div class="line"></div><div class="line">	<span class="keyword">select</span> &#123;&#125; <span class="comment">// 等待</span></div><div class="line">&#125;</div></pre></td></tr></table></figure>
 <p>详细代码注释请参考<a href="https://github.com/winway/falcon-plus-learn，持续更新中" target="_blank" rel="external">https://github.com/winway/falcon-plus-learn，持续更新中</a></p>
 
       
@@ -266,11 +194,33 @@
     <div class="article-info article-info-index">
       
       
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">open-falcon源码阅读</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
       
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/open-falcon/" class="article-tag-list-link color2">open-falcon</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
 
       
         <p class="article-more-link">
-          <a class="article-more-a" href="/2018/01/02/open-falcon-alarm/">展开全文 >></a>
+          <a class="article-more-a" href="/2017/12/23/open-falcon-alarm/">展开全文 >></a>
         </p>
       
 
