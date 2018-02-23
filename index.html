@@ -154,6 +154,108 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-a-simple-plugin-mechanism-in-python" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2018/02/23/a-simple-plugin-mechanism-in-python/">一个Python实现的简单插件机制</a>
+    </h1>
+  
+
+        
+        <a href="/2018/02/23/a-simple-plugin-mechanism-in-python/" class="archive-article-date">
+  	<time datetime="2018-02-23T12:53:49.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-02-23</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#1-介绍">1. 介绍</a><ul>
+<li><a href="#定义插件">定义插件</a></li>
+<li><a href="#插件同步">插件同步</a></li>
+<li><a href="#插件加载">插件加载</a></li>
+<li><a href="#测试">测试</a></li>
+</ul>
+</li>
+<li><a href="#2-代码">2. 代码</a></li>
+</ul>
+<!-- tocstop -->
+<h1 id="1-介绍"><a href="#1-介绍" class="headerlink" title="1. 介绍"></a>1. 介绍</h1><p>本文介绍了一个Python实现的简单插件机制，可以为程序动态的增加功能，而无需重新部署程序甚至重启。<br>该机制包括两部分，同步机制和加载机制。同步机制用于获取插件代码；加载机制负责导入插件。</p>
+<h2 id="定义插件"><a href="#定义插件" class="headerlink" title="定义插件"></a>定义插件</h2><p>插件中实现名称相同的类、函数等，但是类和函数具有不同的实现，这样才能进行统一调用。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div></pre></td><td class="code"><pre><div class="line">[root@winway plugin]<span class="comment"># ll plugins/</span></div><div class="line">total <span class="number">16</span></div><div class="line">-rw-r--r--. <span class="number">1</span> root root <span class="number">948</span> Feb <span class="number">23</span> <span class="number">17</span>:<span class="number">04</span> pluginA.py</div><div class="line">-rw-r--r--. <span class="number">1</span> root root <span class="number">948</span> Feb <span class="number">23</span> <span class="number">16</span>:<span class="number">49</span> pluginB.py</div><div class="line">-rw-r--r--. <span class="number">1</span> root root <span class="number">948</span> Feb <span class="number">23</span> <span class="number">16</span>:<span class="number">49</span> pluginC.py</div><div class="line"></div><div class="line">[root@winway plugin]<span class="comment"># cat plugins/pluginA.py</span></div><div class="line"><span class="comment">#!/usr/bin/env python</span></div><div class="line"><span class="comment"># -*- coding: utf-8 -*-</span></div><div class="line"><span class="comment">#</span></div><div class="line"></div><div class="line"><span class="string">r"""</span></div><div class="line">plugin A</div><div class="line">"""</div><div class="line"></div><div class="line"></div><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">f</span><span class="params">()</span>:</span></div><div class="line">    <span class="keyword">print</span> <span class="string">'plugin A'</span></div><div class="line">[root@winway plugin]<span class="comment"># cat plugins/pluginB.py</span></div><div class="line"><span class="comment">#!/usr/bin/env python</span></div><div class="line"><span class="comment"># -*- coding: utf-8 -*-</span></div><div class="line"><span class="comment">#</span></div><div class="line"></div><div class="line"><span class="string">r"""</span></div><div class="line">plugin B</div><div class="line">"""</div><div class="line"></div><div class="line"></div><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">f</span><span class="params">()</span>:</span></div><div class="line">    <span class="keyword">print</span> <span class="string">'plugin B'</span></div><div class="line">[root@winway plugin]<span class="comment"># cat plugins/pluginC.py</span></div><div class="line"><span class="comment">#!/usr/bin/env python</span></div><div class="line"><span class="comment"># -*- coding: utf-8 -*-</span></div><div class="line"><span class="comment">#</span></div><div class="line"></div><div class="line"><span class="string">r"""</span></div><div class="line">plugin C</div><div class="line">"""</div><div class="line"></div><div class="line"></div><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">f</span><span class="params">()</span>:</span></div><div class="line">    <span class="keyword">print</span> <span class="string">'plugin C'</span></div></pre></td></tr></table></figure></p>
+<h2 id="插件同步"><a href="#插件同步" class="headerlink" title="插件同步"></a>插件同步</h2><p>插件下载通过http完成。开启http服务，提供插件下载功能。需要插件的地方可以通过http下载插件代码。<br>http服务代码如下：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">startHttpFileServer</span><span class="params">(dir, port)</span>:</span></div><div class="line">    <span class="string">"""http服务器，用于下载plugin文件"""</span></div><div class="line"></div><div class="line">    print(<span class="string">'startHttpFileServer'</span>)</div><div class="line"></div><div class="line">    ServerClass = BaseHTTPServer.HTTPServer</div><div class="line">    HandlerClass = SimpleHTTPRequestHandler</div><div class="line">    Protocol = <span class="string">"HTTP/1.0"</span></div><div class="line">    server_address = (<span class="string">'0.0.0.0'</span>, port)</div><div class="line"></div><div class="line">    HandlerClass.protocol_version = Protocol</div><div class="line">    httpd = ServerClass(server_address, HandlerClass)</div><div class="line"></div><div class="line">    <span class="keyword">if</span> os.path.isdir(dir):  <span class="comment"># 切换到插件所在目录</span></div><div class="line">        os.chdir(dir)</div><div class="line">    <span class="keyword">else</span>:</div><div class="line">        print(<span class="string">'no such dir: %s'</span> % dir)</div><div class="line">        sys.exit()</div><div class="line"></div><div class="line">    sa = httpd.socket.getsockname()</div><div class="line">    print(<span class="string">"Serving HTTP on %s:%s"</span> % (sa[<span class="number">0</span>], sa[<span class="number">1</span>]))</div><div class="line"></div><div class="line">    httpd.serve_forever()  <span class="comment"># 启动http服务器</span></div></pre></td></tr></table></figure></p>
+<h2 id="插件加载"><a href="#插件加载" class="headerlink" title="插件加载"></a>插件加载</h2><p>根据名称，在插件目录中动态查找插件代码，并导入。使用md5判断是否需要重新导入插件。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div></pre></td><td class="code"><pre><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">findPlugin</span><span class="params">(self, moduleName)</span>:</span></div><div class="line">    <span class="string">"""查找moduleName，并计算md5"""</span></div><div class="line"></div><div class="line">    location = os.path.join(self.pluginDir, moduleName)</div><div class="line"></div><div class="line">    <span class="keyword">if</span> os.path.isdir(location) <span class="keyword">and</span> <span class="string">'__init__.py'</span> <span class="keyword">in</span> os.listdir(location):  <span class="comment"># package</span></div><div class="line">        info = imp.find_module(<span class="string">'__init__'</span>, [location])</div><div class="line">        md5 = self.computeMd5(location)</div><div class="line">    <span class="keyword">elif</span> os.path.isfile(location + <span class="string">'.py'</span>):  <span class="comment"># module</span></div><div class="line">        info = imp.find_module(moduleName, [self.pluginDir])</div><div class="line">        md5 = self.computeMd5(location + <span class="string">'.py'</span>)</div><div class="line">    <span class="keyword">else</span>:</div><div class="line">        <span class="keyword">return</span> <span class="keyword">False</span>, <span class="string">'no such module: %s'</span> % moduleName</div><div class="line"></div><div class="line">    plugin = &#123;<span class="string">"name"</span>: moduleName, <span class="string">"info"</span>: info, <span class="string">'md5'</span>: md5&#125;</div><div class="line"></div><div class="line">    <span class="keyword">return</span> <span class="keyword">True</span>, plugin</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">loadPlugin</span><span class="params">(self, moduleName)</span>:</span></div><div class="line">    <span class="string">"""加载moduleName</span></div><div class="line">    如果没有加载过或有更新，则重新加载，否则直接返回self.plugins中保存的</div><div class="line">    """</div><div class="line"></div><div class="line">    ok, plugin = self.findPlugin(moduleName)</div><div class="line">    <span class="keyword">if</span> <span class="keyword">not</span> ok:</div><div class="line">        <span class="keyword">return</span> ok, plugin</div><div class="line"></div><div class="line">    <span class="keyword">if</span> plugin[<span class="string">'name'</span>] <span class="keyword">not</span> <span class="keyword">in</span> self.plugins:  <span class="comment"># 新增</span></div><div class="line">        print(<span class="string">'add plugin: %s'</span> % plugin[<span class="string">'name'</span>])</div><div class="line">        self.plugins[plugin[<span class="string">'name'</span>]] = &#123;&#125;</div><div class="line">        self.plugins[plugin[<span class="string">'name'</span>]][<span class="string">'module'</span>] = imp.load_module(plugin[<span class="string">'name'</span>], *plugin[<span class="string">"info"</span>])</div><div class="line">        self.plugins[plugin[<span class="string">'name'</span>]][<span class="string">'md5'</span>] = plugin[<span class="string">'md5'</span>]</div><div class="line">    <span class="keyword">elif</span> plugin[<span class="string">'name'</span>] <span class="keyword">in</span> self.plugins <span class="keyword">and</span> plugin[<span class="string">'md5'</span>] != self.plugins[plugin[<span class="string">'name'</span>]][<span class="string">'md5'</span>]:  <span class="comment"># 更新</span></div><div class="line">        print(<span class="string">'update plugin: %s'</span> % plugin[<span class="string">'name'</span>])</div><div class="line">        self.plugins[plugin[<span class="string">'name'</span>]][<span class="string">'module'</span>] = imp.load_module(plugin[<span class="string">'name'</span>], *plugin[<span class="string">"info"</span>])</div><div class="line">        self.plugins[plugin[<span class="string">'name'</span>]][<span class="string">'md5'</span>] = plugin[<span class="string">'md5'</span>]</div><div class="line"></div><div class="line">    <span class="comment"># TODO：删除遗留的module</span></div><div class="line"></div><div class="line">    <span class="keyword">return</span> <span class="keyword">True</span>, self.plugins[plugin[<span class="string">'name'</span>]][<span class="string">'module'</span>]</div><div class="line"></div><div class="line"><span class="function"><span class="keyword">def</span> <span class="title">computeMd5</span><span class="params">(self, entry)</span>:</span></div><div class="line">    <span class="string">"""计算文件或目录的md5值"""</span></div><div class="line"></div><div class="line">    md5 = hashlib.md5()</div><div class="line"></div><div class="line">    <span class="keyword">if</span> os.path.isfile(entry):</div><div class="line">        md5.update(open(entry, <span class="string">'rb'</span>).read())</div><div class="line">    <span class="keyword">elif</span> os.path.isdir(entry):</div><div class="line">        <span class="keyword">for</span> path, dirList, fileList <span class="keyword">in</span> os.walk(entry):</div><div class="line">            <span class="keyword">for</span> file <span class="keyword">in</span> fileList:</div><div class="line">                <span class="keyword">if</span> glob.fnmatch.fnmatch(file, <span class="string">'*.py'</span>):</div><div class="line">                    md5.update(open(os.path.join(path, file), <span class="string">'rb'</span>).read())</div><div class="line"></div><div class="line">    <span class="keyword">return</span> md5.hexdigest()</div></pre></td></tr></table></figure></p>
+<h2 id="测试"><a href="#测试" class="headerlink" title="测试"></a>测试</h2><p>测试代码如下：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div></pre></td><td class="code"><pre><div class="line"><span class="keyword">import</span> os</div><div class="line"><span class="keyword">import</span> time</div><div class="line"></div><div class="line"><span class="keyword">from</span> plugin <span class="keyword">import</span> loader</div><div class="line"></div><div class="line">p = loader.Loader(<span class="string">'/tmp'</span>)  <span class="comment"># 插件目录设置为/tmp</span></div><div class="line"></div><div class="line"><span class="keyword">while</span> <span class="keyword">True</span>:</div><div class="line">    <span class="comment"># 下载插件</span></div><div class="line">    os.system(<span class="string">"wget -q -r -np -nH --reject='index.html*,*.pyc' -P %s 'http://127.0.0.1:8080'"</span> % p.pluginDir)</div><div class="line"></div><div class="line">    ok, m = p.loadPlugin(<span class="string">'pluginA'</span>)  <span class="comment"># 动态查找并加载插件。新增插件或插件更新可以自动更新</span></div><div class="line">    <span class="keyword">if</span> ok:</div><div class="line">        getattr(m, <span class="string">'f'</span>)()</div><div class="line">    <span class="keyword">else</span>:</div><div class="line">        <span class="keyword">print</span> <span class="string">'no such plugin pluginA'</span></div><div class="line"></div><div class="line">    ok, m = p.loadPlugin(<span class="string">'pluginB'</span>)  <span class="comment"># 动态查找并加载插件</span></div><div class="line">    <span class="keyword">if</span> ok:</div><div class="line">        getattr(m, <span class="string">'f'</span>)()</div><div class="line">    <span class="keyword">else</span>:</div><div class="line">        <span class="keyword">print</span> <span class="string">'no such plugin pluginB'</span></div><div class="line"></div><div class="line">    ok, m = p.loadPlugin(<span class="string">'pluginC'</span>)  <span class="comment"># 动态查找并加载插件</span></div><div class="line">    <span class="keyword">if</span> ok:</div><div class="line">        getattr(m, <span class="string">'f'</span>)()</div><div class="line">    <span class="keyword">else</span>:</div><div class="line">        <span class="keyword">print</span> <span class="string">'no such plugin pluginC'</span></div><div class="line"></div><div class="line">    ok, m = p.loadPlugin(<span class="string">'pluginD'</span>)  <span class="comment"># 动态查找并加载插件</span></div><div class="line">    <span class="keyword">if</span> ok:</div><div class="line">        getattr(m, <span class="string">'f'</span>)()</div><div class="line">    <span class="keyword">else</span>:</div><div class="line">        <span class="keyword">print</span> <span class="string">'no such plugin pluginD'</span></div><div class="line"></div><div class="line">    time.sleep(<span class="number">5</span>)</div></pre></td></tr></table></figure></p>
+<h1 id="2-代码"><a href="#2-代码" class="headerlink" title="2. 代码"></a>2. 代码</h1><p>代码地址：<a href="https://github.com/winway/simple-plugin" target="_blank" rel="external">https://github.com/winway/simple-plugin</a></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">python</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/python/" class="article-tag-list-link color2">python</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2018/02/23/a-simple-plugin-mechanism-in-python/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-open-falcon-alarm" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1261,102 +1363,6 @@
 
 
   
-    <article id="post-open-falcon-transfer" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/09/04/open-falcon-transfer/">open-falcon源码阅读之transfer</a>
-    </h1>
-  
-
-        
-        <a href="/2017/09/04/open-falcon-transfer/" class="archive-article-date">
-  	<time datetime="2017-09-04T11:27:32.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-09-04</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p><em>Version：0.2.0</em></p>
-<!-- toc -->
-<ul>
-<li><a href="#1-架构图">1. 架构图</a></li>
-<li><a href="#2-流程图">2. 流程图</a></li>
-<li><a href="#3-源码解析">3. 源码解析</a></li>
-</ul>
-<!-- tocstop -->
-<h1 id="1-架构图"><a href="#1-架构图" class="headerlink" title="1. 架构图"></a>1. 架构图</h1><p><img src="http://ot69fbvko.bkt.clouddn.com/open-falcon-transfer-arch.png" alt="open-falcon-transfer-arch"></p>
-<h1 id="2-流程图"><a href="#2-流程图" class="headerlink" title="2. 流程图"></a>2. 流程图</h1><p><img src="http://ot69fbvko.bkt.clouddn.com/open-falcon-transfer-flow.png" alt="open-falcon-transfer-flow"></p>
-<h1 id="3-源码解析"><a href="#3-源码解析" class="headerlink" title="3. 源码解析"></a>3. 源码解析</h1><figure class="highlight go"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div></pre></td><td class="code"><pre><div class="line"># modules/transfer/main.<span class="keyword">go</span></div><div class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</div><div class="line">	cfg := flag.String(<span class="string">"c"</span>, <span class="string">"cfg.json"</span>, <span class="string">"configuration file"</span>)</div><div class="line">	version := flag.Bool(<span class="string">"v"</span>, <span class="literal">false</span>, <span class="string">"show version"</span>)</div><div class="line">	versionGit := flag.Bool(<span class="string">"vg"</span>, <span class="literal">false</span>, <span class="string">"show version"</span>)</div><div class="line">	flag.Parse()</div><div class="line"></div><div class="line">	<span class="keyword">if</span> *version &#123;</div><div class="line">		fmt.Println(g.VERSION)</div><div class="line">		os.Exit(<span class="number">0</span>)</div><div class="line">	&#125;</div><div class="line">	<span class="keyword">if</span> *versionGit &#123;</div><div class="line">		fmt.Println(g.VERSION, g.COMMIT)</div><div class="line">		os.Exit(<span class="number">0</span>)</div><div class="line">	&#125;</div><div class="line"></div><div class="line">	<span class="comment">// global config</span></div><div class="line">	g.ParseConfig(*cfg) <span class="comment">// 加载配置文件到GlobalConfig</span></div><div class="line">	<span class="comment">// proc</span></div><div class="line">	proc.Start()</div><div class="line"></div><div class="line">	sender.Start() <span class="comment">// 创建连接池、发送队列，初始化一致性哈希，启动发送goroutine</span></div><div class="line">	receiver.Start() <span class="comment">// 创建rpcServer和telnetServer，将上报的item放入对应的发送队列</span></div><div class="line"></div><div class="line">	<span class="comment">// http</span></div><div class="line">	http.Start() <span class="comment">// 启动httpserver，提供运行状态查询、统计信息查询、上报数据等接口</span></div><div class="line"></div><div class="line">	<span class="keyword">select</span> &#123;&#125;</div><div class="line">&#125;</div></pre></td></tr></table></figure>
-<p>详细代码注释请参考<a href="https://github.com/winway/falcon-plus-learn" target="_blank" rel="external">https://github.com/winway/falcon-plus-learn</a>，持续更新中</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">open-falcon源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/open-falcon/" class="article-tag-list-link color2">open-falcon</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/09/04/open-falcon-transfer/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/7/">7</a><a class="extend next" rel="next" href="/page/2/">Next &raquo;</a>
@@ -1456,18 +1462,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">shell</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">监控</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Hadoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
@@ -1476,11 +1470,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">hadoop</a>
+                <a href="javascript:void(0)" class="js-tag color1">shell</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Linux</a>
+                <a href="javascript:void(0)" class="js-tag color3">监控</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Hadoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">hadoop</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1488,15 +1494,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">Linux</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">snmp</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">机架感知</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">k8s</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1508,6 +1510,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">机架感知</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">k8s</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
               </li>
              
@@ -1516,11 +1526,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1528,15 +1538,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">open-falcon源码阅读</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
+                <a href="javascript:void(0)" class="js-tag color1">open-falcon源码阅读</a>
               </li>
              
               <li class="article-tag-list-item">
