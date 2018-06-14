@@ -154,6 +154,127 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-salt-minion-AsyncEventPublisher" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/08/26/salt-minion-AsyncEventPublisher/">saltstack源码解析之minion.AsyncEventPublisher</a>
+    </h1>
+  
+
+        
+        <a href="/2017/08/26/salt-minion-AsyncEventPublisher/" class="archive-article-date">
+  	<time datetime="2017-08-26T03:33:39.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-26</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p><em>ENV: Version: 2016.11.0, Transport: tcp, Multi-Master</em></p>
+<!-- toc -->
+<ul>
+<li><a href="#1-架构图">1. 架构图</a></li>
+<li><a href="#2-类图和重要方法说明">2. 类图和重要方法说明</a></li>
+<li><a href="#3-源码解析">3. 源码解析</a><ul>
+<li><a href="#ipcmessagepublisher">IPCMessagePublisher</a></li>
+<li><a href="#ipcmessageserver">IPCMessageServer</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h1 id="1-架构图"><a href="#1-架构图" class="headerlink" title="1. 架构图"></a>1. 架构图</h1><p><img src="http://ot69fbvko.bkt.clouddn.com/minion.AsyncEventPublisher-arch.png" alt="minion.AsyncEventPublisher-arch"></p>
+<h1 id="2-类图和重要方法说明"><a href="#2-类图和重要方法说明" class="headerlink" title="2. 类图和重要方法说明"></a>2. 类图和重要方法说明</h1><p><img src="http://ot69fbvko.bkt.clouddn.com/minion.AsyncEventPublisher-cls1.png" alt="minion.AsyncEventPublisher-cls1"></p>
+<p><img src="http://ot69fbvko.bkt.clouddn.com/minion.AsyncEventPublisher-cls2.png" alt="minion.AsyncEventPublisher-cls2"></p>
+<p><img src="http://ot69fbvko.bkt.clouddn.com/minion.AsyncEventPublisher-cls3.png" alt="minion.AsyncEventPublisher-cls3"></p>
+<h1 id="3-源码解析"><a href="#3-源码解析" class="headerlink" title="3. 源码解析"></a>3. 源码解析</h1><p>代码入口<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/minion.py</span></div><div class="line">    <span class="function"><span class="keyword">def</span> <span class="title">_bind</span><span class="params">(self)</span>:</span></div><div class="line">        <span class="comment"># start up the event publisher, so we can see events during startup</span></div><div class="line">        self.event_publisher = salt.utils.event.AsyncEventPublisher(</div><div class="line">            self.opts,</div><div class="line">            io_loop=self.io_loop,</div><div class="line">        )</div><div class="line">        self.event = salt.utils.event.get_event(<span class="string">'minion'</span>, opts=self.opts, io_loop=self.io_loop)</div><div class="line">        self.event.subscribe(<span class="string">''</span>)</div><div class="line">        self.event.set_event_handler(self.handle_event)</div></pre></td></tr></table></figure></p>
+<p>在salt.minion.MinionManager的_bind方法中创建AsyncEventPublisher<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div><div class="line">55</div><div class="line">56</div><div class="line">57</div><div class="line">58</div><div class="line">59</div><div class="line">60</div><div class="line">61</div><div class="line">62</div><div class="line">63</div><div class="line">64</div><div class="line">65</div><div class="line">66</div><div class="line">67</div><div class="line">68</div><div class="line">69</div><div class="line">70</div><div class="line">71</div><div class="line">72</div><div class="line">73</div><div class="line">74</div><div class="line">75</div><div class="line">76</div><div class="line">77</div><div class="line">78</div><div class="line">79</div><div class="line">80</div><div class="line">81</div><div class="line">82</div><div class="line">83</div><div class="line">84</div><div class="line">85</div><div class="line">86</div><div class="line">87</div><div class="line">88</div><div class="line">89</div><div class="line">90</div><div class="line">91</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/utils/event.py</span></div><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">AsyncEventPublisher</span><span class="params">(object)</span>:</span></div><div class="line">    <span class="string">'''</span></div><div class="line">    An event publisher class intended to run in an ioloop (within a single process)</div><div class="line"></div><div class="line">    TODO: remove references to "minion_event" whenever we need to use this for other things</div><div class="line">    '''</div><div class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, opts, io_loop=None)</span>:</span></div><div class="line">        self.opts = salt.config.DEFAULT_MINION_OPTS.copy()</div><div class="line">        default_minion_sock_dir = self.opts[<span class="string">'sock_dir'</span>]</div><div class="line">        self.opts.update(opts)</div><div class="line"></div><div class="line">        self.io_loop = io_loop <span class="keyword">or</span> tornado.ioloop.IOLoop.current()</div><div class="line">        self._closing = <span class="keyword">False</span></div><div class="line"></div><div class="line">        hash_type = getattr(hashlib, self.opts[<span class="string">'hash_type'</span>])</div><div class="line">        <span class="comment"># Only use the first 10 chars to keep longer hashes from exceeding the</span></div><div class="line">        <span class="comment"># max socket path length.</span></div><div class="line">        id_hash = hash_type(salt.utils.to_bytes(self.opts[<span class="string">'id'</span>])).hexdigest()[:<span class="number">10</span>]</div><div class="line">        epub_sock_path = os.path.join(</div><div class="line">            self.opts[<span class="string">'sock_dir'</span>],</div><div class="line">            <span class="string">'minion_event_&#123;0&#125;_pub.ipc'</span>.format(id_hash)</div><div class="line">        )</div><div class="line">        <span class="keyword">if</span> os.path.exists(epub_sock_path):</div><div class="line">            os.unlink(epub_sock_path)</div><div class="line">        epull_sock_path = os.path.join(</div><div class="line">            self.opts[<span class="string">'sock_dir'</span>],</div><div class="line">            <span class="string">'minion_event_&#123;0&#125;_pull.ipc'</span>.format(id_hash)</div><div class="line">        )</div><div class="line">        <span class="keyword">if</span> os.path.exists(epull_sock_path):</div><div class="line">            os.unlink(epull_sock_path)</div><div class="line"></div><div class="line">        <span class="keyword">if</span> self.opts[<span class="string">'ipc_mode'</span>] == <span class="string">'tcp'</span>:</div><div class="line">            epub_uri = int(self.opts[<span class="string">'tcp_pub_port'</span>])</div><div class="line">            epull_uri = int(self.opts[<span class="string">'tcp_pull_port'</span>])</div><div class="line">        <span class="keyword">else</span>:</div><div class="line">            epub_uri = epub_sock_path</div><div class="line">            epull_uri = epull_sock_path</div><div class="line"></div><div class="line">        log.debug(</div><div class="line">            <span class="string">'&#123;0&#125; PUB socket URI: &#123;1&#125;'</span>.format(</div><div class="line">                self.__class__.__name__, epub_uri</div><div class="line">            )</div><div class="line">        )</div><div class="line">        log.debug(</div><div class="line">            <span class="string">'&#123;0&#125; PULL socket URI: &#123;1&#125;'</span>.format(</div><div class="line">                self.__class__.__name__, epull_uri</div><div class="line">            )</div><div class="line">        )</div><div class="line"></div><div class="line">        minion_sock_dir = self.opts[<span class="string">'sock_dir'</span>]</div><div class="line"></div><div class="line">        <span class="keyword">if</span> <span class="keyword">not</span> os.path.isdir(minion_sock_dir):</div><div class="line">            <span class="comment"># Let's try to create the directory defined on the configuration</span></div><div class="line">            <span class="comment"># file</span></div><div class="line">            <span class="keyword">try</span>:</div><div class="line">                os.makedirs(minion_sock_dir, <span class="number">0o755</span>)</div><div class="line">            <span class="keyword">except</span> OSError <span class="keyword">as</span> exc:</div><div class="line">                log.error(<span class="string">'Could not create SOCK_DIR: &#123;0&#125;'</span>.format(exc))</div><div class="line">                <span class="comment"># Let's not fail yet and try using the default path</span></div><div class="line">                <span class="keyword">if</span> minion_sock_dir == default_minion_sock_dir:</div><div class="line">                    <span class="comment"># We're already trying the default system path, stop now!</span></div><div class="line">                    <span class="keyword">raise</span></div><div class="line"></div><div class="line">                <span class="keyword">if</span> <span class="keyword">not</span> os.path.isdir(default_minion_sock_dir):</div><div class="line">                    <span class="keyword">try</span>:</div><div class="line">                        os.makedirs(default_minion_sock_dir, <span class="number">0o755</span>)</div><div class="line">                    <span class="keyword">except</span> OSError <span class="keyword">as</span> exc:</div><div class="line">                        log.error(<span class="string">'Could not create SOCK_DIR: &#123;0&#125;'</span>.format(exc))</div><div class="line">                        <span class="comment"># Let's stop at this stage</span></div><div class="line">                        <span class="keyword">raise</span></div><div class="line"></div><div class="line">        self.publisher = salt.transport.ipc.IPCMessagePublisher(</div><div class="line">            self.opts,</div><div class="line">            epub_uri,</div><div class="line">            io_loop=self.io_loop</div><div class="line">        )</div><div class="line"></div><div class="line">        self.puller = salt.transport.ipc.IPCMessageServer(</div><div class="line">            epull_uri,</div><div class="line">            io_loop=self.io_loop,</div><div class="line">            payload_handler=self.handle_publish</div><div class="line">        )</div><div class="line"></div><div class="line">        log.info(<span class="string">'Starting pull socket on &#123;0&#125;'</span>.format(epull_uri))</div><div class="line">        old_umask = os.umask(<span class="number">0o177</span>)</div><div class="line">        <span class="keyword">try</span>:</div><div class="line">            self.publisher.start()</div><div class="line">            self.puller.start()</div><div class="line">        <span class="keyword">finally</span>:</div><div class="line">            os.umask(old_umask)</div></pre></td></tr></table></figure></p>
+<p>在salt.utils.event.AsyncEventPublisher的__init__中，首先使用hash(minion id)生成epub_uri和epull_uri（主要考虑到在单台机器上部署多个minion的情况，可以参考：<a href="https://groups.google.com/forum/#!topic/salt-users/FOz8mYO3sJo" target="_blank" rel="external">https://groups.google.com/forum/#!topic/salt-users/FOz8mYO3sJo</a> ），然后创建self.publisher（salt.transport.ipc.IPCMessagePublisher）绑定epub_uri，创建self.puller（salt.transport.ipc.IPCMessageServer）绑定epull_uri，并将handle_publish作为它的payload_handler，最后分别调用self.publisher和self.puller的start方法<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/utils/event.py</span></div><div class="line">    <span class="function"><span class="keyword">def</span> <span class="title">handle_publish</span><span class="params">(self, package, _)</span>:</span></div><div class="line">        <span class="string">'''</span></div><div class="line">        Get something from epull, publish it out epub, and return the package (or None)</div><div class="line">        '''</div><div class="line">        <span class="keyword">try</span>:</div><div class="line">            self.publisher.publish(package)</div><div class="line">            <span class="keyword">return</span> package</div><div class="line">        <span class="comment"># Add an extra fallback in case a forked process leeks through</span></div><div class="line">        <span class="keyword">except</span> Exception:</div><div class="line">            log.critical(<span class="string">'Unexpected error while polling minion events'</span>,</div><div class="line">                         exc_info=<span class="keyword">True</span>)</div><div class="line">            <span class="keyword">return</span> <span class="keyword">None</span></div></pre></td></tr></table></figure></p>
+<p>salt.utils.event.AsyncEventPublisher的handle_publish方法再调用salt.transport.ipc.IPCMessagePublisher的publish方法，用来将信息分发给所有监听在epub_uri上的订阅者</p>
+<p>接下来分别看一下IPCMessagePublisher和IPCMessageServer</p>
+<h2 id="ipcmessagepublisher"><a href="#IPCMessagePublisher" class="headerlink" title="IPCMessagePublisher"></a>IPCMessagePublisher</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/transport/ipc.py</span></div><div class="line">    <span class="function"><span class="keyword">def</span> <span class="title">start</span><span class="params">(self)</span>:</span></div><div class="line">        <span class="string">'''</span></div><div class="line">        Perform the work necessary to start up a Tornado IPC server</div><div class="line"></div><div class="line">        Blocks until socket is established</div><div class="line">        '''</div><div class="line">        <span class="comment"># Start up the ioloop</span></div><div class="line">        log.trace(<span class="string">'IPCMessagePublisher: binding to socket: &#123;0&#125;'</span>.format(self.socket_path))</div><div class="line">        <span class="keyword">if</span> isinstance(self.socket_path, int):</div><div class="line">            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)</div><div class="line">            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, <span class="number">1</span>)</div><div class="line">            self.sock.setblocking(<span class="number">0</span>)</div><div class="line">            self.sock.bind((<span class="string">'127.0.0.1'</span>, self.socket_path))</div><div class="line">            <span class="comment"># Based on default used in tornado.netutil.bind_sockets()</span></div><div class="line">            self.sock.listen(<span class="number">128</span>)</div><div class="line">        <span class="keyword">else</span>:</div><div class="line">            self.sock = tornado.netutil.bind_unix_socket(self.socket_path)</div><div class="line"></div><div class="line">        tornado.netutil.add_accept_handler(</div><div class="line">            self.sock,</div><div class="line">            self.handle_connection,</div><div class="line">            io_loop=self.io_loop,</div><div class="line">        )</div><div class="line">        self._started = <span class="keyword">True</span></div></pre></td></tr></table></figure>
+<p>首先调用的是其start方法，绑定epub_uri并调用add_accept_handler注册handle_connection<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/transport/ipc.py</span></div><div class="line">    <span class="function"><span class="keyword">def</span> <span class="title">handle_connection</span><span class="params">(self, connection, address)</span>:</span></div><div class="line">        log.trace(<span class="string">'IPCServer: Handling connection to address: &#123;0&#125;'</span>.format(address))</div><div class="line">        <span class="keyword">try</span>:</div><div class="line">            <span class="keyword">if</span> self.opts[<span class="string">'ipc_write_buffer'</span>] &gt; <span class="number">0</span>:</div><div class="line">                log.trace(<span class="string">'Setting IPC connection write buffer: &#123;0&#125;'</span>.format((self.opts[<span class="string">'ipc_write_buffer'</span>])))</div><div class="line">                stream = IOStream(</div><div class="line">                    connection,</div><div class="line">                    io_loop=self.io_loop,</div><div class="line">                    max_write_buffer_size=self.opts[<span class="string">'ipc_write_buffer'</span>]</div><div class="line">                )</div><div class="line">            <span class="keyword">else</span>:</div><div class="line">                stream = IOStream(</div><div class="line">                    connection,</div><div class="line">                    io_loop=self.io_loop</div><div class="line">                )</div><div class="line">            self.streams.add(stream)</div><div class="line">        <span class="keyword">except</span> Exception <span class="keyword">as</span> exc:</div><div class="line">            log.error(<span class="string">'IPC streaming error: &#123;0&#125;'</span>.format(exc))</div></pre></td></tr></table></figure></p>
+<p>handle_connection将接收到的连接封装成IOStream，并添加到self.streams，以此维护Pub-Sub关系<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/transport/ipc.py</span></div><div class="line">    <span class="function"><span class="keyword">def</span> <span class="title">publish</span><span class="params">(self, msg)</span>:</span></div><div class="line">        <span class="string">'''</span></div><div class="line">        Send message to all connected sockets</div><div class="line">        '''</div><div class="line">        <span class="keyword">if</span> <span class="keyword">not</span> len(self.streams):</div><div class="line">            <span class="keyword">return</span></div><div class="line"></div><div class="line">        pack = salt.transport.frame.frame_msg_ipc(msg, raw_body=<span class="keyword">True</span>)</div><div class="line"></div><div class="line">        <span class="keyword">for</span> stream <span class="keyword">in</span> self.streams:</div><div class="line">            self.io_loop.spawn_callback(self._write, stream, pack)</div></pre></td></tr></table></figure></p>
+<p>而publish就是借助这个Pub-Sub关系，进行消息的分发</p>
+<h2 id="ipcmessageserver"><a href="#IPCMessageServer" class="headerlink" title="IPCMessageServer"></a>IPCMessageServer</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/transport/ipc.py</span></div><div class="line"><span class="class"><span class="keyword">class</span> <span class="title">IPCMessageServer</span><span class="params">(IPCServer)</span>:</span></div><div class="line">    <span class="string">'''</span></div><div class="line">    Salt IPC message server</div><div class="line"></div><div class="line">    Creates a message server which can create and bind to a socket on a given</div><div class="line">    path and then respond to messages asynchronously.</div><div class="line"></div><div class="line">    An example of a very simple IPCServer which prints received messages to</div><div class="line">    a console:</div><div class="line"></div><div class="line">        # Import Tornado libs</div><div class="line">        import tornado.ioloop</div><div class="line"></div><div class="line">        # Import Salt libs</div><div class="line">        import salt.transport.ipc</div><div class="line">        import salt.config</div><div class="line"></div><div class="line">        opts = salt.config.master_opts()</div><div class="line"></div><div class="line">        io_loop = tornado.ioloop.IOLoop.current()</div><div class="line">        ipc_server_socket_path = '/var/run/ipc_server.ipc'</div><div class="line">        ipc_server = salt.transport.ipc.IPCMessageServer(opts, io_loop=io_loop</div><div class="line">                                                         stream_handler=print_to_console)</div><div class="line">        # Bind to the socket and prepare to run</div><div class="line">        ipc_server.start(ipc_server_socket_path)</div><div class="line"></div><div class="line">        # Start the server</div><div class="line">        io_loop.start()</div><div class="line"></div><div class="line">        # This callback is run whenever a message is received</div><div class="line">        def print_to_console(payload):</div><div class="line">            print(payload)</div><div class="line"></div><div class="line">    See IPCMessageClient() for an example of sending messages to an IPCMessageServer instance</div><div class="line">    '''</div></pre></td></tr></table></figure>
+<p>IPCMessageServer直接继承了IPCServer<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/transport/ipc.py</span></div><div class="line">    <span class="function"><span class="keyword">def</span> <span class="title">start</span><span class="params">(self)</span>:</span></div><div class="line">        <span class="string">'''</span></div><div class="line">        Perform the work necessary to start up a Tornado IPC server</div><div class="line"></div><div class="line">        Blocks until socket is established</div><div class="line">        '''</div><div class="line">        <span class="comment"># Start up the ioloop</span></div><div class="line">        log.trace(<span class="string">'IPCServer: binding to socket: &#123;0&#125;'</span>.format(self.socket_path))</div><div class="line">        <span class="keyword">if</span> isinstance(self.socket_path, int):</div><div class="line">            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)</div><div class="line">            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, <span class="number">1</span>)</div><div class="line">            self.sock.setblocking(<span class="number">0</span>)</div><div class="line">            self.sock.bind((<span class="string">'127.0.0.1'</span>, self.socket_path))</div><div class="line">            <span class="comment"># Based on default used in tornado.netutil.bind_sockets()</span></div><div class="line">            self.sock.listen(<span class="number">128</span>)</div><div class="line">        <span class="keyword">else</span>:</div><div class="line">            self.sock = tornado.netutil.bind_unix_socket(self.socket_path)</div><div class="line"></div><div class="line">        tornado.netutil.add_accept_handler(</div><div class="line">            self.sock,</div><div class="line">            self.handle_connection,</div><div class="line">            io_loop=self.io_loop,</div><div class="line">        )</div><div class="line">        self._started = <span class="keyword">True</span></div></pre></td></tr></table></figure></p>
+<p>直接看start方法。绑定epull_uri并调用add_accept_handler注册handle_connection<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/transport/ipc.py</span></div><div class="line">    <span class="function"><span class="keyword">def</span> <span class="title">handle_connection</span><span class="params">(self, connection, address)</span>:</span></div><div class="line">        log.trace(<span class="string">'IPCServer: Handling connection to address: &#123;0&#125;'</span>.format(address))</div><div class="line">        <span class="keyword">try</span>:</div><div class="line">            stream = IOStream(</div><div class="line">                connection,</div><div class="line">                io_loop=self.io_loop,</div><div class="line">            )</div><div class="line">            self.io_loop.spawn_callback(self.handle_stream, stream)</div><div class="line">        <span class="keyword">except</span> Exception <span class="keyword">as</span> exc:</div><div class="line">            log.error(<span class="string">'IPC streaming error: &#123;0&#125;'</span>.format(exc))</div></pre></td></tr></table></figure></p>
+<p>handle_connection在接收到请求后，调用io_loop.spawn_callback注册回调函数handle_stream<br><figure class="highlight python"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div></pre></td><td class="code"><pre><div class="line"><span class="comment"># salt/transport/ipc.py</span></div><div class="line"><span class="meta">    @tornado.gen.coroutine</span></div><div class="line">    <span class="function"><span class="keyword">def</span> <span class="title">handle_stream</span><span class="params">(self, stream)</span>:</span></div><div class="line">        <span class="string">'''</span></div><div class="line">        Override this to handle the streams as they arrive</div><div class="line"></div><div class="line">        :param IOStream stream: An IOStream for processing</div><div class="line"></div><div class="line">        See https://tornado.readthedocs.io/en/latest/iostream.html#tornado.iostream.IOStream</div><div class="line">        for additional details.</div><div class="line">        '''</div><div class="line"><span class="meta">        @tornado.gen.coroutine</span></div><div class="line">        <span class="function"><span class="keyword">def</span> <span class="title">_null</span><span class="params">(msg)</span>:</span></div><div class="line">            <span class="keyword">raise</span> tornado.gen.Return(<span class="keyword">None</span>)</div><div class="line"></div><div class="line">        <span class="function"><span class="keyword">def</span> <span class="title">write_callback</span><span class="params">(stream, header)</span>:</span></div><div class="line">            <span class="keyword">if</span> header.get(<span class="string">'mid'</span>):</div><div class="line"><span class="meta">                @tornado.gen.coroutine</span></div><div class="line">                <span class="function"><span class="keyword">def</span> <span class="title">return_message</span><span class="params">(msg)</span>:</span></div><div class="line">                    pack = salt.transport.frame.frame_msg_ipc(</div><div class="line">                        msg,</div><div class="line">                        header=&#123;<span class="string">'mid'</span>: header[<span class="string">'mid'</span>]&#125;,</div><div class="line">                        raw_body=<span class="keyword">True</span>,</div><div class="line">                    )</div><div class="line">                    <span class="keyword">yield</span> stream.write(pack)</div><div class="line">                <span class="keyword">return</span> return_message</div><div class="line">            <span class="keyword">else</span>:</div><div class="line">                <span class="keyword">return</span> _null</div><div class="line">        <span class="keyword">if</span> six.PY2:</div><div class="line">            encoding = <span class="keyword">None</span></div><div class="line">        <span class="keyword">else</span>:</div><div class="line">            encoding = <span class="string">'utf-8'</span></div><div class="line">        unpacker = msgpack.Unpacker(encoding=encoding)</div><div class="line">        <span class="keyword">while</span> <span class="keyword">not</span> stream.closed():</div><div class="line">            <span class="keyword">try</span>:</div><div class="line">                wire_bytes = <span class="keyword">yield</span> stream.read_bytes(<span class="number">4096</span>, partial=<span class="keyword">True</span>)</div><div class="line">                unpacker.feed(wire_bytes)</div><div class="line">                <span class="keyword">for</span> framed_msg <span class="keyword">in</span> unpacker:</div><div class="line">                    body = framed_msg[<span class="string">'body'</span>]</div><div class="line">                    self.io_loop.spawn_callback(self.payload_handler, body, write_callback(stream, framed_msg[<span class="string">'head'</span>]))</div><div class="line">            <span class="keyword">except</span> tornado.iostream.StreamClosedError:</div><div class="line">                log.trace(<span class="string">'Client disconnected from IPC &#123;0&#125;'</span>.format(self.socket_path))</div><div class="line">                <span class="keyword">break</span></div><div class="line">            <span class="keyword">except</span> Exception <span class="keyword">as</span> exc:</div><div class="line">                log.error(<span class="string">'Exception occurred while handling stream: &#123;0&#125;'</span>.format(exc))</div></pre></td></tr></table></figure></p>
+<p>handle_stream读取客户端发来的信息，并调用payload_handler，即AsyncEventPublisher.handle_publish，将信息分发出去</p>
+<blockquote>
+<p>至此，AsyncEventPublisher分析完毕<br>其实IPCMessagePublisher和IPCMessageServer直接复用了master.EventPublisher中用到的Publisher和Server，可以参考<a href="https://winway.github.io/2017/08/03/salt-master-eventpublisher/">saltstack源码解析之master.EventPublisher</a></p>
+</blockquote>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">saltstack</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">salt源码解析</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/saltstack/" class="article-tag-list-link color5">saltstack</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/08/26/salt-minion-AsyncEventPublisher/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-salt-minion-option-parser" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1335,103 +1456,6 @@
 
 
   
-    <article id="post-namenode-failover-by-hand" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/05/15/namenode-failover-by-hand/">NameNode主/备滚动重启步骤</a>
-    </h1>
-  
-
-        
-        <a href="/2017/05/15/namenode-failover-by-hand/" class="archive-article-date">
-  	<time datetime="2017-05-15T06:36:00.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-05-15</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#1-判断主从关系">1. 判断主从关系</a></li>
-<li><a href="#2-重启备机">2. 重启备机</a></li>
-<li><a href="#3-failover">3. failover</a></li>
-<li><a href="#4-判断主从关系">4. 判断主从关系</a></li>
-<li><a href="#5-重启备机">5. 重启备机</a></li>
-</ul>
-<!-- tocstop -->
-<h3 id="1-判断主从关系"><a href="#1-判断主从关系" class="headerlink" title="1. 判断主从关系"></a>1. 判断主从关系</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">hdfs haadmin -getServiceState nn1</div><div class="line"></div><div class="line">hdfs haadmin -getServiceState nn2</div></pre></td></tr></table></figure>
-<h3 id="2-重启备机"><a href="#2-重启备机" class="headerlink" title="2. 重启备机"></a>2. 重启备机</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">sh hadoop-daemon.sh stop namenode</div><div class="line"></div><div class="line">sh hadoop-daemon.sh start namenode</div></pre></td></tr></table></figure>
-<h3 id="3-failover"><a href="#3-failover" class="headerlink" title="3. failover"></a>3. failover</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">hdfs haadmin -failover nn1 nn2</div></pre></td></tr></table></figure>
-<h3 id="4-判断主从关系"><a href="#4-判断主从关系" class="headerlink" title="4. 判断主从关系"></a>4. 判断主从关系</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">hdfs haadmin -getServiceState nn1</div><div class="line"></div><div class="line">hdfs haadmin -getServiceState nn2</div></pre></td></tr></table></figure>
-<h3 id="5-重启备机"><a href="#5-重启备机" class="headerlink" title="5. 重启备机"></a>5. 重启备机</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">sh hadoop-daemon.sh stop namenode</div><div class="line"></div><div class="line">sh hadoop-daemon.sh start namenode</div></pre></td></tr></table></figure>
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">hadoop</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/hadoop/" class="article-tag-list-link color2">hadoop</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/05/15/namenode-failover-by-hand/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/2/">&laquo; Prev</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/7/">7</a><a class="extend next" rel="next" href="/page/4/">Next &raquo;</a>
@@ -1531,15 +1555,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">arp欺骗</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1563,6 +1587,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Python</a>
               </li>
              
@@ -1571,11 +1599,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+                <a href="javascript:void(0)" class="js-tag color5">hexo</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">github pages</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">k8s</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1591,14 +1627,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hexo</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">github pages</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
               </li>
              
@@ -1611,15 +1639,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">open-falcon源码阅读</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
+                <a href="javascript:void(0)" class="js-tag color1">open-falcon源码阅读</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1635,11 +1659,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
               </li>
              
               <li class="article-tag-list-item">

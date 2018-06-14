@@ -154,6 +154,121 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-domain2ip" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2018/06/14/domain2ip/">如何获取一个域名对应的所有IP地址</a>
+    </h1>
+  
+
+        
+        <a href="/2018/06/14/domain2ip/" class="archive-article-date">
+  	<time datetime="2018-06-14T07:59:06.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-06-14</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#1-问题">1、问题</a></li>
+<li><a href="#2-思路">2、思路</a></li>
+<li><a href="#3-实现方案">3、实现方案</a><ul>
+<li><a href="#shell-dig版本">shell + dig版本</a></li>
+<li><a href="#shell-dig分布式版本">shell + dig分布式版本</a></li>
+<li><a href="#golang发包版本">golang发包版本</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h1 id="1-问题"><a href="#1、问题" class="headerlink" title="1、问题"></a>1、问题</h1><p>给定一个域名，如何取得该域名对应的所有IP地址。</p>
+<h1 id="2-思路"><a href="#2、思路" class="headerlink" title="2、思路"></a>2、思路</h1><p>到全球所有DNS服务器上查询。但是我们很难得到全球所有的DNS服务器，所以只能尽量收集DNS服务器，解析出尽量多的IP地址。</p>
+<ul>
+<li>获取全球DNS服务器。可以通过<a href="https://public-dns.info/" target="_blank" rel="external">https://public-dns.info/</a>获得，虽然不敢保证是全球所有的，但是全球各个城市23000+的DNS服务器也差不多了</li>
+<li>针对每台DNS服务器发送DNS查询请求，获取IP地址信息</li>
+</ul>
+<h1 id="3-实现方案"><a href="#3、实现方案" class="headerlink" title="3、实现方案"></a>3、实现方案</h1><p><em>这里以解析某个域名的AAAA记录为例，代码：<a href="https://github.com/winway/domain2IP" target="_blank" rel="external">https://github.com/winway/domain2IP</a></em></p>
+<h2 id="shell-dig版本"><a href="#shell-dig版本" class="headerlink" title="shell + dig版本"></a>shell + dig版本</h2><p>Linux下有一个很强大的域名解析命令——dig。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div></pre></td><td class="code"><pre><div class="line"># dig -t AAAA +noquestion +noadditional +noauthority @207.234.132.214 www.who.int</div><div class="line"></div><div class="line">; &lt;&lt;&gt;&gt; DiG 9.9.4-RedHat-9.9.4-50.el7_3.1 &lt;&lt;&gt;&gt; -t AAAA +noquestion +noadditional +noauthority @207.234.132.214 www.who.int</div><div class="line">; (1 server found)</div><div class="line">;; global options: +cmd</div><div class="line">;; Got answer:</div><div class="line">;; -&gt;&gt;HEADER&lt;&lt;- opcode: QUERY, status: NOERROR, id: 2516</div><div class="line">;; flags: qr rd ra; QUERY: 1, ANSWER: 9, AUTHORITY: 0, ADDITIONAL: 1</div><div class="line"></div><div class="line">;; OPT PSEUDOSECTION:</div><div class="line">; EDNS: version: 0, flags:; udp: 1280</div><div class="line">;; ANSWER SECTION:</div><div class="line">www.who.int.            300     IN      CNAME   d334guqhelsxtv.cloudfront.net.</div><div class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:ca00:16:b115:d0c0:21</div><div class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:800:16:b115:d0c0:21</div><div class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:4e00:16:b115:d0c0:21</div><div class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:0:16:b115:d0c0:21</div><div class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:7400:16:b115:d0c0:21</div><div class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:2000:16:b115:d0c0:21</div><div class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:a000:16:b115:d0c0:21</div><div class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:b800:16:b115:d0c0:21</div><div class="line"></div><div class="line">;; Query time: 783 msec</div><div class="line">;; SERVER: 207.234.132.214#53(207.234.132.214)</div><div class="line">;; WHEN: Thu Jun 14 16:14:35 CST 2018</div><div class="line">;; MSG SIZE  rcvd: 307</div></pre></td></tr></table></figure></p>
+<p>我们直接使用dig命令实现域名解析，用shell并发的调用dig命令解析并聚合结果。这里为了防止负载过高，控制了一下并发度。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#</span> cat getIP.sh</div><div class="line"><span class="meta">#</span>! /bin/bash</div><div class="line"><span class="meta">#</span></div><div class="line"></div><div class="line">CONFDIR=./conf/</div><div class="line">RESULTDIR=./result/</div><div class="line"></div><div class="line">if [[ $# -ne 1 ]]</div><div class="line">then</div><div class="line">    echo "Usage: sh $0 &lt;url&gt;"</div><div class="line">    exit</div><div class="line">fi</div><div class="line">url=$1</div><div class="line"></div><div class="line">nameservers=($(cat $&#123;CONFDIR&#125;/nameservers.txt | grep '[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*' | sort -u))</div><div class="line"></div><div class="line">N=300</div><div class="line"></div><div class="line">ts=$(date '+%s')</div><div class="line"></div><div class="line">for dns_server in $&#123;nameservers[*]&#125;</div><div class="line">do</div><div class="line">    &#123; dig -t AAAA +noquestion +noadditional +noauthority @$dns_server $url | awk '/IN[ \t]+AAAA/&#123;print $NF&#125;' &gt; /tmp/.$&#123;url&#125;.$&#123;ts&#125;.$&#123;dns_server&#125;.txt; echo "dig @$dns_server $url done"; &#125; &amp;</div><div class="line"></div><div class="line">    joblist=($(jobs -p))</div><div class="line">    while (( $&#123;#joblist[*]&#125; &gt; $N ))</div><div class="line">    do</div><div class="line">        echo "######## rest for a while ########"</div><div class="line">        sleep 0.1</div><div class="line">        joblist=($(jobs -p))</div><div class="line">    done</div><div class="line">done</div><div class="line"></div><div class="line">wait</div><div class="line"></div><div class="line">cat /tmp/.$&#123;url&#125;.$&#123;ts&#125;.*.txt | sort -u &gt;$&#123;RESULTDIR&#125;/$&#123;url&#125;.ip.txt</div><div class="line">find /tmp/ -name ".$&#123;url&#125;.$&#123;ts&#125;.*.txt" | xargs rm -f</div></pre></td></tr></table></figure></p>
+<p>运行情况如下，耗时4分多钟，解析出9000+IP地址<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line"># time sh getIP.sh www.who.int</div><div class="line"></div><div class="line">real    4m10.336s</div><div class="line">user    4m12.732s</div><div class="line">sys     3m55.625s</div><div class="line"># wc -l result/www.who.int.ip.txt</div><div class="line">9862 result/www.who.int.ip.txt</div></pre></td></tr></table></figure></p>
+<h2 id="shell-dig分布式版本"><a href="#shell-dig分布式版本" class="headerlink" title="shell + dig分布式版本"></a>shell + dig分布式版本</h2><p>该版本是上个版本的分布式版本，核心功能相同，只是将DNS服务器列表切分为多份，分发到多台机器上同时处理，然后将结果取回合并。<br>改脚本负责切分任务、分发任务，收集结果<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div><div class="line">51</div><div class="line">52</div><div class="line">53</div><div class="line">54</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#</span> cat getIP_distributed.sh</div><div class="line"><span class="meta">#</span>! /bin/bash</div><div class="line"><span class="meta">#</span></div><div class="line"></div><div class="line">CONFDIR=./conf/</div><div class="line">RESULTDIR=./result/</div><div class="line">TMPDIR=./tmp/</div><div class="line"></div><div class="line">if [[ $# -ne 1 ]]</div><div class="line">then</div><div class="line">    echo "Usage: sh $0 &lt;url&gt;"</div><div class="line">    exit 1</div><div class="line">fi</div><div class="line">url=$1</div><div class="line"><span class="meta"></span></div><div class="line"># get work node</div><div class="line">work_nodes=($(cat $&#123;CONFDIR&#125;/work_nodes.txt | grep '[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*' | sort -u))</div><div class="line">work_nodes_num=$&#123;#work_nodes[@]&#125;</div><div class="line"><span class="meta"></span></div><div class="line"># split nameservers</div><div class="line">nameservers=($(cat $&#123;CONFDIR&#125;/nameservers.txt | grep '[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*' | sort -u))</div><div class="line">nameservers_num=$&#123;#nameservers[@]&#125;</div><div class="line">chunk=$(($nameservers_num/$work_nodes_num+1))</div><div class="line"></div><div class="line">work_node_index=0</div><div class="line">counter=1</div><div class="line">: &gt; $&#123;TMPDIR&#125;/$&#123;work_nodes[$work_node_index]&#125;_nameservers.txt</div><div class="line">for nameserver in $&#123;nameservers[@]&#125;</div><div class="line">do</div><div class="line">    if (($counter &gt; $chunk))</div><div class="line">    then</div><div class="line">        ((work_node_index++))</div><div class="line">        counter=1</div><div class="line">        : &gt; $&#123;TMPDIR&#125;/$&#123;work_nodes[$work_node_index]&#125;_nameservers.txt</div><div class="line">    fi</div><div class="line">    echo "$nameserver" &gt;&gt; $&#123;TMPDIR&#125;/$&#123;work_nodes[$work_node_index]&#125;_nameservers.txt</div><div class="line">    ((counter++))</div><div class="line">done</div><div class="line"><span class="meta"></span></div><div class="line"># distribute and run</div><div class="line">for node in $&#123;work_nodes[@]&#125;</div><div class="line">do</div><div class="line">    echo "$node, count: $(wc -l $&#123;TMPDIR&#125;/$&#123;node&#125;_nameservers.txt)"</div><div class="line">    &#123; scp job.sh $&#123;TMPDIR&#125;/$&#123;node&#125;_nameservers.txt $node:/tmp/ &amp;&amp; ssh $node "sh /tmp/job.sh $node $url" &amp;&amp; scp $node:/tmp/$&#123;node&#125;_ip.txt $TMPDIR &amp;&amp; echo "[$(date)] $node done"; &#125; &amp;</div><div class="line">done</div><div class="line"></div><div class="line">wait</div><div class="line"></div><div class="line">for node in $&#123;work_nodes[@]&#125;</div><div class="line">do</div><div class="line">    cat $TMPDIR/$&#123;node&#125;_ip.txt &gt;&gt; $TMPDIR/$&#123;url&#125;_ip.txt</div><div class="line">done</div><div class="line"></div><div class="line">sort -u $TMPDIR/$&#123;url&#125;_ip.txt &gt;$&#123;RESULTDIR&#125;/$&#123;url&#125;_ip.txt</div></pre></td></tr></table></figure></p>
+<p>该脚本负责解析，与方案1几乎一样。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div></pre></td><td class="code"><pre><div class="line"><span class="meta">#</span> cat job.sh</div><div class="line"><span class="meta">#</span>! /bin/bash</div><div class="line"><span class="meta">#</span></div><div class="line"></div><div class="line">SCRIPT=$(readlink -f "$BASH_SOURCE")</div><div class="line"></div><div class="line">cd $(dirname $SCRIPT) || &#123; echo "cd $(dirname $SCRIPT) failed"; exit 1; &#125;</div><div class="line"></div><div class="line">node=$1</div><div class="line">url=$2</div><div class="line"></div><div class="line">nameservers=($(cat $&#123;node&#125;_nameservers.txt | grep '[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*' | sort -u))</div><div class="line"></div><div class="line">N=300</div><div class="line"></div><div class="line">ts=$(date '+%s')</div><div class="line"></div><div class="line">for nameserver in $&#123;nameservers[*]&#125;</div><div class="line">do</div><div class="line">    &#123; dig -t AAAA +noquestion +noadditional +noauthority @$nameserver $url | awk '/IN[ \t]+AAAA/&#123;print $NF&#125;' &gt; /tmp/.$&#123;url&#125;.$&#123;ts&#125;.$&#123;nameserver&#125;.txt; &#125; &amp;</div><div class="line"></div><div class="line">    joblist=($(jobs -p))</div><div class="line">    while (( $&#123;#joblist[*]&#125; &gt; $N ))</div><div class="line">    do</div><div class="line">        echo "######## rest for a while ########"</div><div class="line">        sleep 0.1</div><div class="line">        joblist=($(jobs -p))</div><div class="line">    done</div><div class="line">done</div><div class="line"></div><div class="line">wait</div><div class="line"></div><div class="line">cat /tmp/.$&#123;url&#125;.$&#123;ts&#125;.*.txt | sort -u &gt;$&#123;node&#125;_ip.txt</div><div class="line">find /tmp/ -name ".$&#123;url&#125;.*.txt" | xargs rm -f</div></pre></td></tr></table></figure></p>
+<p>运行情况如下，同时在3台机器上执行，耗时1分多钟，解析出9000+IP地址<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div></pre></td><td class="code"><pre><div class="line"># time sh getIP_distributed.sh www.who.int</div><div class="line"></div><div class="line">real    1m43.125s</div><div class="line">user    0m1.060s</div><div class="line">sys     0m0.201s</div><div class="line"></div><div class="line"># wc -l result/www.who.int.ip.txt</div><div class="line">9861 result/www.who.int_ip.txt</div></pre></td></tr></table></figure></p>
+<p><em>上述版本由于使用的是纯多进程加dig版本，很难达到一个好的性能。因为单个进程资源占用太大，大量的进程又会频繁上下文切换。理想的方式是多进程加协程方式，这样就无法直接使用dig了，需要一个基于异步io的DNS解析实现</em></p>
+<h2 id="golang发包版本"><a href="#golang发包版本" class="headerlink" title="golang发包版本"></a>golang发包版本</h2><p>该版本直接构造并发送DNS查询请求包，并捕包分析DNS查询应答包。<br>最初我是使用python实现的该版本，但是性能实在太差，单机耗时在1分钟左右，然后使用golang实现了一遍。<br>代码：<a href="https://github.com/winway/domain2IP/blob/master/getIP.go" target="_blank" rel="external">https://github.com/winway/domain2IP/blob/master/getIP.go</a><br>运行情况如下，单机耗时20秒<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div></pre></td><td class="code"><pre><div class="line"># time go run getIP.go --url www.who.int</div><div class="line">2018/06/14 16:56:25 Start to dig url: www.who.int</div><div class="line">2018/06/14 16:56:25 Start capturePacket</div><div class="line">2018/06/14 16:56:25 Load 23298 nameserver</div><div class="line">2018/06/14 16:56:25 Start sendPacket</div><div class="line">2018/06/14 16:56:25 Set filter: udp and src port 53</div><div class="line">2018/06/14 16:56:39 Complete sendPacket</div><div class="line">2018/06/14 16:56:40 Waiting ...</div><div class="line">2018/06/14 16:56:41 Waiting ...</div><div class="line">2018/06/14 16:56:44 Get 9204 ip for www.who.int</div><div class="line"></div><div class="line">real    0m19.643s</div><div class="line">user    0m1.269s</div><div class="line">sys     0m0.469s</div></pre></td></tr></table></figure></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">shell</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">golang</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2018/06/14/domain2ip/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-kaggle-intro" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
@@ -1212,131 +1327,6 @@
 
 
   
-    <article id="post-mongodb-point-in-time-backup-restore" class="article article-type-post  article-index" itemscope itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/09/28/mongodb-point-in-time-backup-restore/">MongoDB增量备份方案介绍</a>
-    </h1>
-  
-
-        
-        <a href="/2017/09/28/mongodb-point-in-time-backup-restore/" class="archive-article-date">
-  	<time datetime="2017-09-28T07:38:26.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-09-28</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#前言">前言</a></li>
-<li><a href="#知识准备">知识准备</a></li>
-<li><a href="#全量备份">全量备份</a></li>
-<li><a href="#增量备份oplog">增量备份（oplog）</a></li>
-<li><a href="#恢复">恢复</a></li>
-</ul>
-<!-- tocstop -->
-<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>使用数据文件全量备份+Oplog增量备份的方式实现一种MongoDB备份方案，用于在集群各副本数据均不可用或者脏数据无法人工修复时重建集群。具有以下特点：</p>
-<ul>
-<li>库表结构对备份和恢复透明，降低操作复杂度</li>
-<li>支持恢复至特定时间点，精确到秒</li>
-</ul>
-<h2 id="知识准备"><a href="#知识准备" class="headerlink" title="知识准备"></a>知识准备</h2><p><img src="http://ot69fbvko.bkt.clouddn.com/mongodb-pit-backup1.png" alt=""><br><strong>MongoDB副本集</strong>：有自动故障恢复功能的主从集群，由一个Primary节点和一个或多个Secondary节点组成。Primary节点提供读写服务，Secondary节点提供读服务<br><strong>Oplog</strong>：当Primary进行写操作的时候，会将这些写操作写入Primary的oplog中，而后Secondary会将oplog复制到本机并应用这些操作，从而实现Replication的功能，可以简单的将其视作Mysql中的binlog。oplog的每条记录都有一个时间戳Timestamp(1494267123, 1790)，1494267123表示1970-01-01 00:00:00至今的秒数，1790表示该秒数上的自增序号<br><strong>Mongodump</strong>：MongoDB自带的数据库导出工具，将数据以BSON的格式导出<br><strong>Mongorestore</strong>：MongoDB自带的数据库导入工具，用于导入Mongodump导出的文件，支持oplog回放（–oplogReplay）<br><strong>备份方案基于上述的原理和工具实现。</strong></p>
-<h2 id="全量备份"><a href="#全量备份" class="headerlink" title="全量备份"></a>全量备份</h2><p>为了加快恢复速度，采用直接对原始数据文件进行备份和恢复的方案。<br><img src="http://ot69fbvko.bkt.clouddn.com/mongodb-pit-backup2.png" alt=""></p>
-<ol>
-<li>使用db.fsyncLock()锁定备份节点，使数据文件夹静止</li>
-<li>将数据文件夹归档保存，文件名：&lt;集群名&gt;/&lt;集群名&gt;-data.yyyymmddHHMMSS.oplogSeconds.oplogOrdinal.tar，创建done文件：&lt;集群名&gt;/&lt;集群名&gt;-data.yyyymmddHHMMSS.oplogSeconds.oplogOrdinal.done，其中yyyymmddHHMMSS是本次备份开始的时间，oplogSeconds是当前最新oplog的时间戳秒数部分，oplogOrdinal是当前最新oplog的时间戳序号部分，</li>
-<li>使用db.fsyncUnlock()解锁</li>
-</ol>
-<p><strong>定期执行该操作完成全量备份，比如每天。建议增加专用备份节点（不提供在线服务），用来完成备份操作。</strong></p>
-<h2 id="增量备份oplog"><a href="#增量备份（oplog）" class="headerlink" title="增量备份（oplog）"></a>增量备份（oplog）</h2><p><img src="http://ot69fbvko.bkt.clouddn.com/mongodb-pit-backup3.png" alt=""></p>
-<ol>
-<li>获取最近一次增量备份对应的oplogSeconds.oplogOrdinal，作为本次增量备份的开始timestamp</li>
-<li>如果1没有找到，则获取最近一次全量备份对应的oplogSeconds.oplogOrdinal，作为本次增量备份的开始timestamp</li>
-<li>如果1、2均为找到，则终止本次增量备份</li>
-<li>获取当前最新的oplog的oplogSeconds.oplogOrdinal，作为本次增量备份的结束timestamp</li>
-<li>使用Mongodump导出该时间段内的oplog</li>
-<li>将备份文件归档保存，文件名：&lt;集群名&gt;/&lt;集群名&gt;-data.yyyymmddHHMMSS.StartOplogSeconds.StartOplogOrdinal.EndOplogSeconds.EndOplogOrdinal.tar，创建done文件&lt;集群名&gt;/&lt;集群名&gt;-data.yyyymmddHHMMSS.StartOplogSeconds.StartOplogOrdinal.EndOplogSeconds.EndOplogOrdinal.done，其中yyyymmddHHMMSS是本次备份开始的时间，StartOplogSeconds.StartOplogOrdinal是本次备份对应的第一个oplog的时间戳，EndOplogSeconds.EndOplogOrdinal是本次备份对应的最后一个oplog的时间戳</li>
-</ol>
-<p><strong>定期执行该操作完成增量备份，比如每小时。oplog长度需要足够长，用以支撑增量备份的完成。</strong></p>
-<h2 id="恢复"><a href="#恢复" class="headerlink" title="恢复"></a>恢复</h2><ol>
-<li>准备新集群环境，包括安装配置MongoDB，配置hosts、iptables等</li>
-<li>确定需要恢复的目标时间点</li>
-<li>根据目标时间点确定该时间点前最新的全量备份文件</li>
-<li>下载全量备份文件，放至集群各节点的dbpath</li>
-<li>启动集群各节点</li>
-<li>根据全量备份文件对应的oplogSeconds.oplogOrdinal和目标时间点，确定需要重放的增量备份文件列表</li>
-<li>下载增量备份文件，待集群选举结束，在Primary节点进行回放，回放至目标时间点</li>
-</ol>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/MongoDB/" class="article-tag-list-link color3">MongoDB</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/09/28/mongodb-point-in-time-backup-restore/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/7/">7</a><a class="extend next" rel="next" href="/page/2/">Next &raquo;</a>
@@ -1436,15 +1426,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">arp欺骗</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1468,6 +1458,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Python</a>
               </li>
              
@@ -1476,11 +1470,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+                <a href="javascript:void(0)" class="js-tag color5">hexo</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">github pages</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">k8s</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1496,14 +1498,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hexo</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">github pages</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
               </li>
              
@@ -1516,15 +1510,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">open-falcon源码阅读</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
+                <a href="javascript:void(0)" class="js-tag color1">open-falcon源码阅读</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1540,11 +1530,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
               </li>
              
               <li class="article-tag-list-item">
