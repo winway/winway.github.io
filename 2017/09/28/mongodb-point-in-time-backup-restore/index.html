@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head>
+<head><meta name="generator" content="Hexo 3.8.0">
   <meta charset="utf-8">
   
   <meta name="renderer" content="webkit">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" >
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <link rel="dns-prefetch" href="https://winway.github.io">
   <title>MongoDB增量备份方案介绍 | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
@@ -15,10 +15,11 @@
 <meta property="og:url" content="https://winway.github.io/2017/09/28/mongodb-point-in-time-backup-restore/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
 <meta property="og:description" content="前言 知识准备 全量备份 增量备份（oplog） 恢复   前言使用数据文件全量备份+Oplog增量备份的方式实现一种MongoDB备份方案，用于在集群各副本数据均不可用或者脏数据无法人工修复时重建集群。具有以下特点：  库表结构对备份和恢复透明，降低操作复杂度 支持恢复至特定时间点，精确到秒  知识准备MongoDB副本集：有自动故障恢复功能的主从集群，由一个Primary节点和一个或多个S">
+<meta property="og:locale" content="default">
 <meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/mongodb-pit-backup1.png">
 <meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/mongodb-pit-backup2.png">
 <meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/mongodb-pit-backup3.png">
-<meta property="og:updated_time" content="2017-10-18T08:50:34.966Z">
+<meta property="og:updated_time" content="2017-10-18T08:50:36.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="MongoDB增量备份方案介绍">
 <meta name="twitter:description" content="前言 知识准备 全量备份 增量备份（oplog） 恢复   前言使用数据文件全量备份+Oplog增量备份的方式实现一种MongoDB备份方案，用于在集群各副本数据均不可用或者脏数据无法人工修复时重建集群。具有以下特点：  库表结构对备份和恢复透明，降低操作复杂度 支持恢复至特定时间点，精确到秒  知识准备MongoDB副本集：有自动故障恢复功能的主从集群，由一个Primary节点和一个或多个S">
@@ -41,7 +42,7 @@
   
 
 </head>
-
+</html>
 <body>
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
@@ -158,7 +159,7 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-mongodb-point-in-time-backup-restore" class="article article-type-post " itemscope itemprop="blogPost">
+            <article id="post-mongodb-point-in-time-backup-restore" class="article article-type-post " itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
       <header class="article-header">
@@ -187,20 +188,20 @@
 <li><a href="#恢复">恢复</a></li>
 </ul>
 <!-- tocstop -->
-<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>使用数据文件全量备份+Oplog增量备份的方式实现一种MongoDB备份方案，用于在集群各副本数据均不可用或者脏数据无法人工修复时重建集群。具有以下特点：</p>
+<h2><span id="前言">前言</span></h2><p>使用数据文件全量备份+Oplog增量备份的方式实现一种MongoDB备份方案，用于在集群各副本数据均不可用或者脏数据无法人工修复时重建集群。具有以下特点：</p>
 <ul>
 <li>库表结构对备份和恢复透明，降低操作复杂度</li>
 <li>支持恢复至特定时间点，精确到秒</li>
 </ul>
-<h2 id="知识准备"><a href="#知识准备" class="headerlink" title="知识准备"></a>知识准备</h2><p><img src="http://ot69fbvko.bkt.clouddn.com/mongodb-pit-backup1.png" alt=""><br><strong>MongoDB副本集</strong>：有自动故障恢复功能的主从集群，由一个Primary节点和一个或多个Secondary节点组成。Primary节点提供读写服务，Secondary节点提供读服务<br><strong>Oplog</strong>：当Primary进行写操作的时候，会将这些写操作写入Primary的oplog中，而后Secondary会将oplog复制到本机并应用这些操作，从而实现Replication的功能，可以简单的将其视作Mysql中的binlog。oplog的每条记录都有一个时间戳Timestamp(1494267123, 1790)，1494267123表示1970-01-01 00:00:00至今的秒数，1790表示该秒数上的自增序号<br><strong>Mongodump</strong>：MongoDB自带的数据库导出工具，将数据以BSON的格式导出<br><strong>Mongorestore</strong>：MongoDB自带的数据库导入工具，用于导入Mongodump导出的文件，支持oplog回放（–oplogReplay）<br><strong>备份方案基于上述的原理和工具实现。</strong></p>
-<h2 id="全量备份"><a href="#全量备份" class="headerlink" title="全量备份"></a>全量备份</h2><p>为了加快恢复速度，采用直接对原始数据文件进行备份和恢复的方案。<br><img src="http://ot69fbvko.bkt.clouddn.com/mongodb-pit-backup2.png" alt=""></p>
+<h2><span id="知识准备">知识准备</span></h2><p><img src="http://ot69fbvko.bkt.clouddn.com/mongodb-pit-backup1.png" alt=""><br><strong>MongoDB副本集</strong>：有自动故障恢复功能的主从集群，由一个Primary节点和一个或多个Secondary节点组成。Primary节点提供读写服务，Secondary节点提供读服务<br><strong>Oplog</strong>：当Primary进行写操作的时候，会将这些写操作写入Primary的oplog中，而后Secondary会将oplog复制到本机并应用这些操作，从而实现Replication的功能，可以简单的将其视作Mysql中的binlog。oplog的每条记录都有一个时间戳Timestamp(1494267123, 1790)，1494267123表示1970-01-01 00:00:00至今的秒数，1790表示该秒数上的自增序号<br><strong>Mongodump</strong>：MongoDB自带的数据库导出工具，将数据以BSON的格式导出<br><strong>Mongorestore</strong>：MongoDB自带的数据库导入工具，用于导入Mongodump导出的文件，支持oplog回放（–oplogReplay）<br><strong>备份方案基于上述的原理和工具实现。</strong></p>
+<h2><span id="全量备份">全量备份</span></h2><p>为了加快恢复速度，采用直接对原始数据文件进行备份和恢复的方案。<br><img src="http://ot69fbvko.bkt.clouddn.com/mongodb-pit-backup2.png" alt=""></p>
 <ol>
 <li>使用db.fsyncLock()锁定备份节点，使数据文件夹静止</li>
 <li>将数据文件夹归档保存，文件名：&lt;集群名&gt;/&lt;集群名&gt;-data.yyyymmddHHMMSS.oplogSeconds.oplogOrdinal.tar，创建done文件：&lt;集群名&gt;/&lt;集群名&gt;-data.yyyymmddHHMMSS.oplogSeconds.oplogOrdinal.done，其中yyyymmddHHMMSS是本次备份开始的时间，oplogSeconds是当前最新oplog的时间戳秒数部分，oplogOrdinal是当前最新oplog的时间戳序号部分，</li>
 <li>使用db.fsyncUnlock()解锁</li>
 </ol>
 <p><strong>定期执行该操作完成全量备份，比如每天。建议增加专用备份节点（不提供在线服务），用来完成备份操作。</strong></p>
-<h2 id="增量备份oplog"><a href="#增量备份（oplog）" class="headerlink" title="增量备份（oplog）"></a>增量备份（oplog）</h2><p><img src="http://ot69fbvko.bkt.clouddn.com/mongodb-pit-backup3.png" alt=""></p>
+<h2><span id="增量备份oplog">增量备份（oplog）</span></h2><p><img src="http://ot69fbvko.bkt.clouddn.com/mongodb-pit-backup3.png" alt=""></p>
 <ol>
 <li>获取最近一次增量备份对应的oplogSeconds.oplogOrdinal，作为本次增量备份的开始timestamp</li>
 <li>如果1没有找到，则获取最近一次全量备份对应的oplogSeconds.oplogOrdinal，作为本次增量备份的开始timestamp</li>
@@ -210,7 +211,7 @@
 <li>将备份文件归档保存，文件名：&lt;集群名&gt;/&lt;集群名&gt;-data.yyyymmddHHMMSS.StartOplogSeconds.StartOplogOrdinal.EndOplogSeconds.EndOplogOrdinal.tar，创建done文件&lt;集群名&gt;/&lt;集群名&gt;-data.yyyymmddHHMMSS.StartOplogSeconds.StartOplogOrdinal.EndOplogSeconds.EndOplogOrdinal.done，其中yyyymmddHHMMSS是本次备份开始的时间，StartOplogSeconds.StartOplogOrdinal是本次备份对应的第一个oplog的时间戳，EndOplogSeconds.EndOplogOrdinal是本次备份对应的最后一个oplog的时间戳</li>
 </ol>
 <p><strong>定期执行该操作完成增量备份，比如每小时。oplog长度需要足够长，用以支撑增量备份的完成。</strong></p>
-<h2 id="恢复"><a href="#恢复" class="headerlink" title="恢复"></a>恢复</h2><ol>
+<h2><span id="恢复">恢复</span></h2><ol>
 <li>准备新集群环境，包括安装配置MongoDB，配置hosts、iptables等</li>
 <li>确定需要恢复的目标时间点</li>
 <li>根据目标时间点确定该时间点前最新的全量备份文件</li>
@@ -502,18 +503,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">shell</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">监控</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
@@ -522,19 +511,27 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">shell</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">监控</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Hadoop</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">hadoop</a>
+                <a href="javascript:void(0)" class="js-tag color1">Linux</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Linux</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -546,6 +543,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">hadoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">机架感知</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hexo</a>
               </li>
              
@@ -554,19 +559,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">k8s</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">机架感知</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">k8s</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">MongodDB</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -575,10 +580,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">mutt</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -598,6 +599,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">saltstack</a>
               </li>
              
@@ -606,15 +611,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">MongodDB</a>
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
               </li>
             
             <div class="clearfix"></div>
@@ -622,7 +623,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
         </div>
         <ul class="search-ul">
           <p q-show="jsonFail" style="padding: 20px; font-size: 12px;">
-            缺失模块。<br/>1、请确保node版本大于6.2<br/>2、在博客根目录（注意不是yilia根目录）执行以下命令：<br/> npm i hexo-generator-json-content --save<br/><br/>
+            缺失模块。<br>1、请确保node版本大于6.2<br>2、在博客根目录（注意不是yilia根目录）执行以下命令：<br> npm i hexo-generator-json-content --save<br><br>
             3、在根目录_config.yml里添加配置：
 <pre style="font-size: 12px;" q-show="jsonFail">
   jsonContent:

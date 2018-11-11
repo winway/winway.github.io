@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head>
+<head><meta name="generator" content="Hexo 3.8.0">
   <meta charset="utf-8">
   
   <meta name="renderer" content="webkit">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" >
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <link rel="dns-prefetch" href="https://winway.github.io">
   <title>HBASE滚动重启 | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
@@ -15,9 +15,10 @@
 <meta property="og:url" content="https://winway.github.io/2017/02/22/hbase-rolling-restart/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
 <meta property="og:description" content="1. 缘起 2. 分析 3. 解决 4. 收尾   1. 缘起线上HBASE集群在每次重启之后，都会出现访问延迟增大的现象。通过Ganglia查看HABSE相关监控指标和推测，最后发现是数据的本地化特性被破坏导致。如下图，在HBASE重启之后，regionserver的percentFilesLocal指标出现下降。 2. 分析由于HBASE建立在HDFS的基础之上，regionserver通">
+<meta property="og:locale" content="default">
 <meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/regionserver-percentfileslocal-1.png">
 <meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/regionserver-percentfileslocal-2.png">
-<meta property="og:updated_time" content="2017-10-16T09:19:11.135Z">
+<meta property="og:updated_time" content="2017-10-16T09:19:12.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="HBASE滚动重启">
 <meta name="twitter:description" content="1. 缘起 2. 分析 3. 解决 4. 收尾   1. 缘起线上HBASE集群在每次重启之后，都会出现访问延迟增大的现象。通过Ganglia查看HABSE相关监控指标和推测，最后发现是数据的本地化特性被破坏导致。如下图，在HBASE重启之后，regionserver的percentFilesLocal指标出现下降。 2. 分析由于HBASE建立在HDFS的基础之上，regionserver通">
@@ -40,7 +41,7 @@
   
 
 </head>
-
+</html>
 <body>
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
@@ -157,7 +158,7 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-hbase-rolling-restart" class="article article-type-post " itemscope itemprop="blogPost">
+            <article id="post-hbase-rolling-restart" class="article article-type-post " itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
       <header class="article-header">
@@ -185,20 +186,20 @@
 <li><a href="#4-收尾">4. 收尾</a></li>
 </ul>
 <!-- tocstop -->
-<h2 id="1-缘起"><a href="#1-缘起" class="headerlink" title="1. 缘起"></a>1. 缘起</h2><p>线上HBASE集群在每次重启之后，都会出现访问延迟增大的现象。通过Ganglia查看HABSE相关监控指标和推测，最后发现是数据的本地化特性被破坏导致。<br>如下图，在HBASE重启之后，regionserver的percentFilesLocal指标出现下降。<br><img src="http://ot69fbvko.bkt.clouddn.com/regionserver-percentfileslocal-1.png" alt="regionserver-percentfileslocal-1"></p>
-<h2 id="2-分析"><a href="#2-分析" class="headerlink" title="2. 分析"></a>2. 分析</h2><p>由于HBASE建立在HDFS的基础之上，regionserver通过datanode读取数据。如果regionserver读取的数据正好是同宿的datanode负责管理，则是最理想的情况，即<a href="https://www.zybuluo.com/jewes/note/37713" target="_blank" rel="external">Short Circuit Local Reads</a>。<br>随着时间的推移，HBASE的<a href="http://www.jianshu.com/p/895ab6511819" target="_blank" rel="external">compact</a>机制会将regionserver管理的region所对应的HDFS文件移动到同宿的datanode上进行管理，这提高了Short Circuit Local Reads的概率。<br>当HBASE发生重启的时候，region会重新随机分配给各个regionserver，这导致重启之后regionserver和region的对应关系发生改变，也就是region和其对应的HDFS文件的同宿关系被打破。于是regionserver不得不跨网络读取数据，因此数据访问延迟增大。<br>当然随着时间的推移，由于compact机制的存在，region和其对应的HDFS文件会重新分布于同一机器，访问延迟会慢慢恢复到重启前的水平。<br><strong>可见，如果想要避免重启导致的访问延迟短期内增大的问题，最直接的方式是保证重启前后region的分布情况不变。</strong></p>
+<h2><span id="1-缘起">1. 缘起</span></h2><p>线上HBASE集群在每次重启之后，都会出现访问延迟增大的现象。通过Ganglia查看HABSE相关监控指标和推测，最后发现是数据的本地化特性被破坏导致。<br>如下图，在HBASE重启之后，regionserver的percentFilesLocal指标出现下降。<br><img src="http://ot69fbvko.bkt.clouddn.com/regionserver-percentfileslocal-1.png" alt="regionserver-percentfileslocal-1"></p>
+<h2><span id="2-分析">2. 分析</span></h2><p>由于HBASE建立在HDFS的基础之上，regionserver通过datanode读取数据。如果regionserver读取的数据正好是同宿的datanode负责管理，则是最理想的情况，即<a href="https://www.zybuluo.com/jewes/note/37713" target="_blank" rel="noopener">Short Circuit Local Reads</a>。<br>随着时间的推移，HBASE的<a href="http://www.jianshu.com/p/895ab6511819" target="_blank" rel="noopener">compact</a>机制会将regionserver管理的region所对应的HDFS文件移动到同宿的datanode上进行管理，这提高了Short Circuit Local Reads的概率。<br>当HBASE发生重启的时候，region会重新随机分配给各个regionserver，这导致重启之后regionserver和region的对应关系发生改变，也就是region和其对应的HDFS文件的同宿关系被打破。于是regionserver不得不跨网络读取数据，因此数据访问延迟增大。<br>当然随着时间的推移，由于compact机制的存在，region和其对应的HDFS文件会重新分布于同一机器，访问延迟会慢慢恢复到重启前的水平。<br><strong>可见，如果想要避免重启导致的访问延迟短期内增大的问题，最直接的方式是保证重启前后region的分布情况不变。</strong></p>
 <blockquote>
 <p>通过上面的分析可知：HDFS的balancer通过移动block也会打破数据本地化特性，所以HBASE集群不要开启HDFS的balancer。</p>
 </blockquote>
-<h2 id="3-解决"><a href="#3-解决" class="headerlink" title="3. 解决"></a>3. 解决</h2><p>HBASE自带了graceful_stop.sh脚本，可以实现regionserver重启前后所管理的region保持不变。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">sh graceful_stop.sh --restart --reload --debug --maxthreads 10 &lt;regionserver&gt;</div></pre></td></tr></table></figure></p>
-<p>但是这个脚本默认不支持并发，只能一台一台重启，在集群规模较大时，效率比较低。<br>我对这个脚本进行了修改，增加了批量重启的功能，可以分批次滚动重启regionserver。详见<a href="https://github.com/winway/hbase-rolling-restart" target="_blank" rel="external">https://github.com/winway/hbase-rolling-restart</a><br>使用滚动重启后，regionserver的percentFilesLocal指标如下：<br><img src="http://ot69fbvko.bkt.clouddn.com/regionserver-percentfileslocal-2.png" alt="regionserver-percentfileslocal-2"></p>
-<h2 id="4-收尾"><a href="#4-收尾" class="headerlink" title="4. 收尾"></a>4. 收尾</h2><p>通过解决这个问题，我们了解了数据本地化特性的概念和影响，那么可不可以量化一个region、一个table、一个regionserver以及集群整体的数据本地化特性。答案是可以的，大致思路如下：</p>
+<h2><span id="3-解决">3. 解决</span></h2><p>HBASE自带了graceful_stop.sh脚本，可以实现regionserver重启前后所管理的region保持不变。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sh graceful_stop.sh --restart --reload --debug --maxthreads 10 &lt;regionserver&gt;</span><br></pre></td></tr></table></figure></p>
+<p>但是这个脚本默认不支持并发，只能一台一台重启，在集群规模较大时，效率比较低。<br>我对这个脚本进行了修改，增加了批量重启的功能，可以分批次滚动重启regionserver。详见<a href="https://github.com/winway/hbase-rolling-restart" target="_blank" rel="noopener">https://github.com/winway/hbase-rolling-restart</a><br>使用滚动重启后，regionserver的percentFilesLocal指标如下：<br><img src="http://ot69fbvko.bkt.clouddn.com/regionserver-percentfileslocal-2.png" alt="regionserver-percentfileslocal-2"></p>
+<h2><span id="4-收尾">4. 收尾</span></h2><p>通过解决这个问题，我们了解了数据本地化特性的概念和影响，那么可不可以量化一个region、一个table、一个regionserver以及集群整体的数据本地化特性。答案是可以的，大致思路如下：</p>
 <ol>
 <li>通过scan “hbase:meta”，获取regionserver和region的对应关系</li>
 <li>通过hdfs fsck /hbase/data/default/ -blocks -files -racks获取所有region对应的HDFS文件的block的分布情况</li>
 <li>针对每个region计算所有的block中，有多少block分布在本地</li>
 </ol>
-<p>详见<a href="https://github.com/winway/hbase-rolling-restart/blob/master/hbase_locality.sh" target="_blank" rel="external">https://github.com/winway/hbase-rolling-restart/blob/master/hbase_locality.sh</a></p>
+<p>详见<a href="https://github.com/winway/hbase-rolling-restart/blob/master/hbase_locality.sh" target="_blank" rel="noopener">https://github.com/winway/hbase-rolling-restart/blob/master/hbase_locality.sh</a></p>
 
       
 
@@ -482,18 +483,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">shell</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">监控</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
@@ -502,19 +491,27 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">shell</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">监控</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Hadoop</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">hadoop</a>
+                <a href="javascript:void(0)" class="js-tag color1">Linux</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Linux</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -526,6 +523,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">hadoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">机架感知</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hexo</a>
               </li>
              
@@ -534,19 +539,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">k8s</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">机架感知</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">k8s</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">MongodDB</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -555,10 +560,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">mutt</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -578,6 +579,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">saltstack</a>
               </li>
              
@@ -586,15 +591,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">MongodDB</a>
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
               </li>
             
             <div class="clearfix"></div>
@@ -602,7 +603,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
         </div>
         <ul class="search-ul">
           <p q-show="jsonFail" style="padding: 20px; font-size: 12px;">
-            缺失模块。<br/>1、请确保node版本大于6.2<br/>2、在博客根目录（注意不是yilia根目录）执行以下命令：<br/> npm i hexo-generator-json-content --save<br/><br/>
+            缺失模块。<br>1、请确保node版本大于6.2<br>2、在博客根目录（注意不是yilia根目录）执行以下命令：<br> npm i hexo-generator-json-content --save<br><br>
             3、在根目录_config.yml里添加配置：
 <pre style="font-size: 12px;" q-show="jsonFail">
   jsonContent:

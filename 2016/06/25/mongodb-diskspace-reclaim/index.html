@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<head>
+<head><meta name="generator" content="Hexo 3.8.0">
   <meta charset="utf-8">
   
   <meta name="renderer" content="webkit">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" >
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <link rel="dns-prefetch" href="https://winway.github.io">
   <title>MongoDB磁盘空间回收 | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
@@ -15,7 +15,8 @@
 <meta property="og:url" content="https://winway.github.io/2016/06/25/mongodb-diskspace-reclaim/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
 <meta property="og:description" content="背景 可用方案 一、 repairDatabase 二、 copyDatabase 三、 mongodump/mongorestore     背景MongoDB-2.2版本只有在dropDatabase的时候才会释放磁盘空间，drop collection并不会减少磁盘占用。如果需要回收磁盘空间，需要采取一些措施。 可用方案一、 repairDatabaserepairDatabase是官方">
-<meta property="og:updated_time" content="2017-10-17T10:13:23.183Z">
+<meta property="og:locale" content="default">
+<meta property="og:updated_time" content="2017-10-17T10:13:24.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="MongoDB磁盘空间回收">
 <meta name="twitter:description" content="背景 可用方案 一、 repairDatabase 二、 copyDatabase 三、 mongodump/mongorestore     背景MongoDB-2.2版本只有在dropDatabase的时候才会释放磁盘空间，drop collection并不会减少磁盘占用。如果需要回收磁盘空间，需要采取一些措施。 可用方案一、 repairDatabaserepairDatabase是官方">
@@ -37,7 +38,7 @@
   
 
 </head>
-
+</html>
 <body>
   <div id="container" q-class="show:isCtnShow">
     <canvas id="anm-canvas" class="anm-canvas"></canvas>
@@ -154,7 +155,7 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-mongodb-diskspace-reclaim" class="article article-type-post " itemscope itemprop="blogPost">
+            <article id="post-mongodb-diskspace-reclaim" class="article article-type-post " itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
       <header class="article-header">
@@ -185,17 +186,17 @@
 </li>
 </ul>
 <!-- tocstop -->
-<h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>MongoDB-2.2版本只有在dropDatabase的时候才会释放磁盘空间，drop collection并不会减少磁盘占用。如果需要回收磁盘空间，需要采取一些措施。</p>
-<h2 id="可用方案"><a href="#可用方案" class="headerlink" title="可用方案"></a>可用方案</h2><h3 id="一-repairdatabase"><a href="#一、-repairDatabase" class="headerlink" title="一、 repairDatabase"></a>一、 repairDatabase</h3><p>repairDatabase是官方给出的唯一可以释放磁盘空间的方法。repairDatabase只能在master或者primary上执行，对于secondary只能以standalone的方式启动，然后执行repairDatabase。<br>repairDatabase对剩余可用磁盘空间有要求，必须大于等于原库的大小才能执行。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line"><span class="meta">&gt;</span> db.repairDatabase()</div><div class="line">&#123;</div><div class="line">        "errmsg" : "Cannot repair database test having size: 691102810112 (bytes) because free disk space is: 479286095872 (bytes)",</div><div class="line">        "ok" : 0</div><div class="line">&#125;</div></pre></td></tr></table></figure></p>
+<h2><span id="背景">背景</span></h2><p>MongoDB-2.2版本只有在dropDatabase的时候才会释放磁盘空间，drop collection并不会减少磁盘占用。如果需要回收磁盘空间，需要采取一些措施。</p>
+<h2><span id="可用方案">可用方案</span></h2><h3><span id="一-repairdatabase">一、 repairDatabase</span></h3><p>repairDatabase是官方给出的唯一可以释放磁盘空间的方法。repairDatabase只能在master或者primary上执行，对于secondary只能以standalone的方式启动，然后执行repairDatabase。<br>repairDatabase对剩余可用磁盘空间有要求，必须大于等于原库的大小才能执行。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&gt;</span> db.repairDatabase()</span><br><span class="line">&#123;</span><br><span class="line">        "errmsg" : "Cannot repair database test having size: 691102810112 (bytes) because free disk space is: 479286095872 (bytes)",</span><br><span class="line">        "ok" : 0</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
 <p>数据量大的话耗时会比较长，而且会阻塞所有操作，所以不能在线上提供服务的节点上直接执行。</p>
-<h3 id="二-copydatabase"><a href="#二、-copyDatabase" class="headerlink" title="二、 copyDatabase"></a>二、 copyDatabase</h3><p>为了绕过方案一对空间的要求，可以采用copyDatabase。因为copyDatabase只需要占用实际data set的空间，一般在删除collection后，剩余数据会比较小。由于copyDatabase支持远程拷贝，如果空间实在不足，可以使用一个临时的mongod中转。copyDatabase不会阻塞操作。大致步骤：</p>
+<h3><span id="二-copydatabase">二、 copyDatabase</span></h3><p>为了绕过方案一对空间的要求，可以采用copyDatabase。因为copyDatabase只需要占用实际data set的空间，一般在删除collection后，剩余数据会比较小。由于copyDatabase支持远程拷贝，如果空间实在不足，可以使用一个临时的mongod中转。copyDatabase不会阻塞操作。大致步骤：</p>
 <ol>
 <li>删除不需要的collection</li>
 <li>db.copyDatabase(‘databasename’, ‘databasename_tmp’)</li>
 <li>use databasename; db.dropDatabase()</li>
 <li>db.copyDatabase(‘databasename_tmp’, ‘databasename’)</li>
 </ol>
-<h3 id="三-mongodumpmongorestore"><a href="#三、-mongodump-mongorestore" class="headerlink" title="三、 mongodump/mongorestore"></a>三、 mongodump/mongorestore</h3><p>解决思路与方案二相同。大致步骤：</p>
+<h3><span id="三-mongodumpmongorestore">三、 mongodump/mongorestore</span></h3><p>解决思路与方案二相同。大致步骤：</p>
 <ol>
 <li>删除不需要的collection</li>
 <li>mongodump –port 1988 -uread -pread -d databasename -o tmp</li>
@@ -486,18 +487,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">shell</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">监控</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
@@ -506,19 +495,27 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">shell</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">监控</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Hadoop</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">hadoop</a>
+                <a href="javascript:void(0)" class="js-tag color1">Linux</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">Linux</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -530,6 +527,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">hadoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">机架感知</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hexo</a>
               </li>
              
@@ -538,19 +543,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">k8s</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">机架感知</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">k8s</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">MongodDB</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -559,10 +564,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">mutt</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -582,6 +583,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">saltstack</a>
               </li>
              
@@ -590,15 +595,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">MongodDB</a>
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
               </li>
             
             <div class="clearfix"></div>
@@ -606,7 +607,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
         </div>
         <ul class="search-ul">
           <p q-show="jsonFail" style="padding: 20px; font-size: 12px;">
-            缺失模块。<br/>1、请确保node版本大于6.2<br/>2、在博客根目录（注意不是yilia根目录）执行以下命令：<br/> npm i hexo-generator-json-content --save<br/><br/>
+            缺失模块。<br>1、请确保node版本大于6.2<br>2、在博客根目录（注意不是yilia根目录）执行以下命令：<br> npm i hexo-generator-json-content --save<br><br>
             3、在根目录_config.yml里添加配置：
 <pre style="font-size: 12px;" q-show="jsonFail">
   jsonContent:
