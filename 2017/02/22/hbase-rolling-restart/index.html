@@ -16,13 +16,13 @@
 <meta property="og:site_name" content="winway&#39;s blog">
 <meta property="og:description" content="1. 缘起 2. 分析 3. 解决 4. 收尾   1. 缘起线上HBASE集群在每次重启之后，都会出现访问延迟增大的现象。通过Ganglia查看HABSE相关监控指标和推测，最后发现是数据的本地化特性被破坏导致。如下图，在HBASE重启之后，regionserver的percentFilesLocal指标出现下降。 2. 分析由于HBASE建立在HDFS的基础之上，regionserver通">
 <meta property="og:locale" content="default">
-<meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/regionserver-percentfileslocal-1.png">
-<meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/regionserver-percentfileslocal-2.png">
-<meta property="og:updated_time" content="2017-10-16T09:19:12.000Z">
+<meta property="og:image" content="http://raw.githubusercontent.com/winway/picRepo/master/pics/regionserver-percentfileslocal-1.png">
+<meta property="og:image" content="http://raw.githubusercontent.com/winway/picRepo/master/pics/regionserver-percentfileslocal-2.png">
+<meta property="og:updated_time" content="2019-08-22T06:57:25.677Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="HBASE滚动重启">
 <meta name="twitter:description" content="1. 缘起 2. 分析 3. 解决 4. 收尾   1. 缘起线上HBASE集群在每次重启之后，都会出现访问延迟增大的现象。通过Ganglia查看HABSE相关监控指标和推测，最后发现是数据的本地化特性被破坏导致。如下图，在HBASE重启之后，regionserver的percentFilesLocal指标出现下降。 2. 分析由于HBASE建立在HDFS的基础之上，regionserver通">
-<meta name="twitter:image" content="http://ot69fbvko.bkt.clouddn.com/regionserver-percentfileslocal-1.png">
+<meta name="twitter:image" content="http://raw.githubusercontent.com/winway/picRepo/master/pics/regionserver-percentfileslocal-1.png">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -186,13 +186,13 @@
 <li><a href="#4-收尾">4. 收尾</a></li>
 </ul>
 <!-- tocstop -->
-<h2><span id="1-缘起">1. 缘起</span></h2><p>线上HBASE集群在每次重启之后，都会出现访问延迟增大的现象。通过Ganglia查看HABSE相关监控指标和推测，最后发现是数据的本地化特性被破坏导致。<br>如下图，在HBASE重启之后，regionserver的percentFilesLocal指标出现下降。<br><img src="http://ot69fbvko.bkt.clouddn.com/regionserver-percentfileslocal-1.png" alt="regionserver-percentfileslocal-1"></p>
+<h2><span id="1-缘起">1. 缘起</span></h2><p>线上HBASE集群在每次重启之后，都会出现访问延迟增大的现象。通过Ganglia查看HABSE相关监控指标和推测，最后发现是数据的本地化特性被破坏导致。<br>如下图，在HBASE重启之后，regionserver的percentFilesLocal指标出现下降。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/regionserver-percentfileslocal-1.png" alt="regionserver-percentfileslocal-1"></p>
 <h2><span id="2-分析">2. 分析</span></h2><p>由于HBASE建立在HDFS的基础之上，regionserver通过datanode读取数据。如果regionserver读取的数据正好是同宿的datanode负责管理，则是最理想的情况，即<a href="https://www.zybuluo.com/jewes/note/37713" target="_blank" rel="noopener">Short Circuit Local Reads</a>。<br>随着时间的推移，HBASE的<a href="http://www.jianshu.com/p/895ab6511819" target="_blank" rel="noopener">compact</a>机制会将regionserver管理的region所对应的HDFS文件移动到同宿的datanode上进行管理，这提高了Short Circuit Local Reads的概率。<br>当HBASE发生重启的时候，region会重新随机分配给各个regionserver，这导致重启之后regionserver和region的对应关系发生改变，也就是region和其对应的HDFS文件的同宿关系被打破。于是regionserver不得不跨网络读取数据，因此数据访问延迟增大。<br>当然随着时间的推移，由于compact机制的存在，region和其对应的HDFS文件会重新分布于同一机器，访问延迟会慢慢恢复到重启前的水平。<br><strong>可见，如果想要避免重启导致的访问延迟短期内增大的问题，最直接的方式是保证重启前后region的分布情况不变。</strong></p>
 <blockquote>
 <p>通过上面的分析可知：HDFS的balancer通过移动block也会打破数据本地化特性，所以HBASE集群不要开启HDFS的balancer。</p>
 </blockquote>
 <h2><span id="3-解决">3. 解决</span></h2><p>HBASE自带了graceful_stop.sh脚本，可以实现regionserver重启前后所管理的region保持不变。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sh graceful_stop.sh --restart --reload --debug --maxthreads 10 &lt;regionserver&gt;</span><br></pre></td></tr></table></figure></p>
-<p>但是这个脚本默认不支持并发，只能一台一台重启，在集群规模较大时，效率比较低。<br>我对这个脚本进行了修改，增加了批量重启的功能，可以分批次滚动重启regionserver。详见<a href="https://github.com/winway/hbase-rolling-restart" target="_blank" rel="noopener">https://github.com/winway/hbase-rolling-restart</a><br>使用滚动重启后，regionserver的percentFilesLocal指标如下：<br><img src="http://ot69fbvko.bkt.clouddn.com/regionserver-percentfileslocal-2.png" alt="regionserver-percentfileslocal-2"></p>
+<p>但是这个脚本默认不支持并发，只能一台一台重启，在集群规模较大时，效率比较低。<br>我对这个脚本进行了修改，增加了批量重启的功能，可以分批次滚动重启regionserver。详见<a href="https://github.com/winway/hbase-rolling-restart" target="_blank" rel="noopener">https://github.com/winway/hbase-rolling-restart</a><br>使用滚动重启后，regionserver的percentFilesLocal指标如下：<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/regionserver-percentfileslocal-2.png" alt="regionserver-percentfileslocal-2"></p>
 <h2><span id="4-收尾">4. 收尾</span></h2><p>通过解决这个问题，我们了解了数据本地化特性的概念和影响，那么可不可以量化一个region、一个table、一个regionserver以及集群整体的数据本地化特性。答案是可以的，大致思路如下：</p>
 <ol>
 <li>通过scan “hbase:meta”，获取regionserver和region的对应关系</li>

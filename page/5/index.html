@@ -244,7 +244,7 @@
 <p><strong>副本的存放</strong></p>
 <p>副本的存放是HDFS可靠性和性能的关键。优化的副本存放策略是HDFS区分于其他大部分分布式文件系统的重要特性。HDFS采用一种称为机架感知(rack-aware)的策略来改进数据的可靠性、可用性和网络带宽的利用率。</p>
 <p>通过一个机架感知的过程，Namenode可以确定每个Datanode所属的机架号。一个简单但没有优化的策略就是将副本存放在不同的机架上。这样可以有效防止当整个机架失效时数据的丢失，并且允许读数据的时候充分利用多个机架的带宽。但是，因为这种策略的一个写操作需要传输数据块到多个机架，增加了写的代价。</p>
-<p>在大多数情况下，副本系数是3，HDFS的存放策略是将一个副本存放在本地机架的节点上，一个副本放在另一机架的一个节点上，最后一个副本与第二个放在同一机架的另一节点上。这种策略减少了机架间的数据传输，这就提高了写操作的效率。机架的错误远远比节点的错误少，所以这个策略不会影响到数据的可靠性和可用性。这一策略在不损害数据可靠性和读取性能的情况下改进了写的性能。<br><img src="http://ot69fbvko.bkt.clouddn.com/hdfs-block-replacement.png" alt=""></p>
+<p>在大多数情况下，副本系数是3，HDFS的存放策略是将一个副本存放在本地机架的节点上，一个副本放在另一机架的一个节点上，最后一个副本与第二个放在同一机架的另一节点上。这种策略减少了机架间的数据传输，这就提高了写操作的效率。机架的错误远远比节点的错误少，所以这个策略不会影响到数据的可靠性和可用性。这一策略在不损害数据可靠性和读取性能的情况下改进了写的性能。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/hdfs-block-replacement.png" alt=""></p>
 <p><strong>机架感知（Rack awareness）</strong></p>
 <p>通常，大型Hadoop集群是以机架的形式来组织的，同一个机架上不同节点间的网络状况比不同机架之间的更为理想。另外，NameNode设法将数据块副本保存在不同的机架上以提高容错性。</p>
 <p>Hadoop允许集群的管理员通过配置dfs.network.script参数来确定节点所处的机架。当这个脚本配置完毕，每个节点都会运行这个脚本来获取它的机架ID。默认的安装假定所有的节点属于同一个机架。</p>
@@ -321,7 +321,7 @@
 <li>packet是中等的一个单位，它是数据由DFSClient流向DataNode的粒度，以dfs.write.packet.size参数为参考值，默认是64K</li>
 <li>chunk是最小的一个单位，它是DFSClient到DataNode数据传输中进行数据校验的粒度，由io.bytes.per.checksum参数决定，默认是512B</li>
 </ul>
-<p><strong>写过程中的三层buffer</strong><br><img src="http://ot69fbvko.bkt.clouddn.com/hdfs-chunk-packet-block.png" alt=""><br>写过程中会以chunk、packet及packet queue三个粒度做三层缓存；</p>
+<p><strong>写过程中的三层buffer</strong><br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/hdfs-chunk-packet-block.png" alt=""><br>写过程中会以chunk、packet及packet queue三个粒度做三层缓存；</p>
 <ul>
 <li>首先，当数据流入DFSOutputStream时，DFSOutputStream内会有一个chunk大小的buf，当数据写满这个buf（或遇到强制flush），会计算checksum值，然后填塞进packet</li>
 <li>当一个chunk填塞进入packet后，仍然不会立即发送，而是累积到一个packet填满后，将这个packet放入dataqueue队列</li>
@@ -689,7 +689,7 @@
 <li>重新注册并立即发送数据块报告</li>
 <li>关闭节点</li>
 </ul>
-<h2><span id="yarn">YARN</span></h2><p><strong>什么是YARN？</strong><br><img src="http://ot69fbvko.bkt.clouddn.com/hadoop-yarn.png" alt=""><br>YARN是开源项目Hadoop的一个<strong>资源管理系统</strong>，最初设计是为了解决Hadoop中MapReduce计算框架中的资源管理问题，但是现在它已经是一个更加通用的资源管理系统，可以把MapReduce计算框架作为一个应用程序运行在YARN系统之上，通过YARN来管理资源。<br>如果你的应用程序也需要借助YARN的资源管理功能，你也可以实现YARN提供的编程API，将你的应用程序运行于YARN之上，将资源的分配与回收统一交给YARN去管理，可以大大简化资源管理功能的开发。<br>当前，也有很多应用程序已经可以构建于YARN之上，如Storm、Spark等计算框架。</p>
+<h2><span id="yarn">YARN</span></h2><p><strong>什么是YARN？</strong><br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/hadoop-yarn.png" alt=""><br>YARN是开源项目Hadoop的一个<strong>资源管理系统</strong>，最初设计是为了解决Hadoop中MapReduce计算框架中的资源管理问题，但是现在它已经是一个更加通用的资源管理系统，可以把MapReduce计算框架作为一个应用程序运行在YARN系统之上，通过YARN来管理资源。<br>如果你的应用程序也需要借助YARN的资源管理功能，你也可以实现YARN提供的编程API，将你的应用程序运行于YARN之上，将资源的分配与回收统一交给YARN去管理，可以大大简化资源管理功能的开发。<br>当前，也有很多应用程序已经可以构建于YARN之上，如Storm、Spark等计算框架。</p>
 <p><strong>YARN架构</strong><br><img src="http://attachbak.dataguru.cn/attachments/forum/201305/25/203300mzpkwvczvhpimvpk.gif" alt=""></p>
 <ul>
 <li>YARN Client<br>YARN Client提交Application到RM，它会首先创建一个Application上下文件对象，并设置AM必需的资源请求信息，然后提交到RM。YARN Client也可以与RM通信，获取到一个已经提交并运行的Application的状态信息等</li>
@@ -705,7 +705,7 @@
 <p>The Apache Hive ™ data warehouse software facilitates reading, writing, and managing large datasets residing in distributed storage using SQL. Structure can be projected onto data already in storage. A command line tool and JDBC driver are provided to connect users to Hive.</p>
 </blockquote>
 <p>Apache Hive是一个建立Hadoop架构之上的数据仓库。它能够提供数据的精炼，查询和分析。</p>
-<h2><span id="pig">Pig</span></h2><p><strong>什么是Pig？</strong><br><img src="http://ot69fbvko.bkt.clouddn.com/hadoop-pig.png" alt=""></p>
+<h2><span id="pig">Pig</span></h2><p><strong>什么是Pig？</strong><br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/hadoop-pig.png" alt=""></p>
 <blockquote>
 <p>Apache Pig is a platform for analyzing large data sets that consists of a high-level language for expressing data analysis programs, coupled with infrastructure for evaluating these programs. The salient property of Pig programs is that their structure is amenable to substantial parallelization, which in turns enables them to handle very large data sets.</p>
 </blockquote>
@@ -973,7 +973,7 @@
 <p>NameNode采用HA架构部署，在Standby切换为Active的过程中存在一个fence阶段，如果该阶段不返回true，则无法继续往下进行，即无法完成failover。<br><img src="https://www.ibm.com/developerworks/cn/opensource/os-cn-hadoop-name-node/img001.png" alt="nn-ha-arch"></p>
 <p>该行为由<a href="https://hadoop.apache.org/docs/r2.7.1/hadoop-project-dist/hadoop-hdfs/HDFSHighAvailabilityWithQJM.html#Deployment" target="_blank" rel="noopener">dfs.ha.fencing.methods</a>决定，默认为sshfence。<br><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">property</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">name</span>&gt;</span>dfs.ha.fencing.methods<span class="tag">&lt;/<span class="name">name</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">value</span>&gt;</span>sshfence<span class="tag">&lt;/<span class="name">value</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">property</span>&gt;</span></span><br></pre></td></tr></table></figure></p>
 <p>但是这样配置存在问题，当Active宕机，ssh无法完成，sshfence阶段实际上会循环重试，始终无法完成failover。</p>
-<p>由于没有直接关于fence retry次数的参数配置，采取如下变通方案：配置4个fence method，3次sshfence，1次shell(/bin/true)，可以保证在3次sshfence失败之后结束fence阶段，完成failover。<br><img src="http://ot69fbvko.bkt.clouddn.com/sshfence.bmp" alt="sshfence"></p>
+<p>由于没有直接关于fence retry次数的参数配置，采取如下变通方案：配置4个fence method，3次sshfence，1次shell(/bin/true)，可以保证在3次sshfence失败之后结束fence阶段，完成failover。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/sshfence.bmp" alt="sshfence"></p>
 
       
 
@@ -1631,8 +1631,8 @@
 </table>
 <h3><span id="2-测试方案">2. 测试方案</span></h3><p>测试使用ycsb进行。<br>导入同样的数据量到MongoDB2.2.2和MongoDB3.0.6，针对该数据集进行读写比分别为0/100，20/80，50/50，80/20的并发量和延迟测试。<br>ycsb部分参数如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">recordcount=20000000	#记录数</span><br><span class="line">operationcount=20000000	#操作次数</span><br><span class="line">fieldlength=50	#字段长度</span><br><span class="line">fieldcount=10	#单个文档的字段数</span><br><span class="line">threadcount=48	#并发线程数，相当于客户端数</span><br></pre></td></tr></table></figure></p>
 <h2><span id="三-测试结果">三、 测试结果</span></h2><ol>
-<li>并发量<br> 如图所示，读写比越小，MongoDB3.0的性能优势越明显，大概是2.2的3-4倍。<br> <img src="http://ot69fbvko.bkt.clouddn.com/mongodb-performance-test1.png" alt=""></li>
-<li>延迟<br> <img src="http://ot69fbvko.bkt.clouddn.com/mongodb-performance-test2.png" alt=""><br> <img src="http://ot69fbvko.bkt.clouddn.com/mongodb-performance-test3.png" alt=""><br> 如图所示，在并发量提升的情况下，平均延迟和99th百分位数也比2.2有很大优化。99th百分位数表示这个数值（响应延迟）比99%的其他操作都要糟糕（慢）</li>
+<li>并发量<br> 如图所示，读写比越小，MongoDB3.0的性能优势越明显，大概是2.2的3-4倍。<br> <img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/mongodb-performance-test1.png" alt=""></li>
+<li>延迟<br> <img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/mongodb-performance-test2.png" alt=""><br> <img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/mongodb-performance-test3.png" alt=""><br> 如图所示，在并发量提升的情况下，平均延迟和99th百分位数也比2.2有很大优化。99th百分位数表示这个数值（响应延迟）比99%的其他操作都要糟糕（慢）</li>
 </ol>
 <h2><span id="四-结论">四、 结论</span></h2><p>从测试结果的并发量和延迟情况来看，MongoDB3.0的性能比起MongoDB2.x的性能确实有比较明显的提升。并发量提升3-4倍，延迟降低了90%。升级到新版本的MongoDB确实会带来性能上的很大提升。</p>
 

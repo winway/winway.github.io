@@ -17,8 +17,8 @@
 <meta property="og:description" content="NameNode采用HA架构部署，在Standby切换为Active的过程中存在一个fence阶段，如果该阶段不返回true，则无法继续往下进行，即无法完成failover。 该行为由dfs.ha.fencing.methods决定，默认为sshfence。1234&amp;lt;property&amp;gt;  &amp;lt;name&amp;gt;dfs.ha.fencing.methods&amp;lt;/name&amp;gt;">
 <meta property="og:locale" content="default">
 <meta property="og:image" content="https://www.ibm.com/developerworks/cn/opensource/os-cn-hadoop-name-node/img001.png">
-<meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/sshfence.bmp">
-<meta property="og:updated_time" content="2017-09-30T10:17:36.000Z">
+<meta property="og:image" content="http://raw.githubusercontent.com/winway/picRepo/master/pics/sshfence.bmp">
+<meta property="og:updated_time" content="2019-08-22T06:57:25.691Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="NameNode主从切换sshfence阶段无法完成问题">
 <meta name="twitter:description" content="NameNode采用HA架构部署，在Standby切换为Active的过程中存在一个fence阶段，如果该阶段不返回true，则无法继续往下进行，即无法完成failover。 该行为由dfs.ha.fencing.methods决定，默认为sshfence。1234&amp;lt;property&amp;gt;  &amp;lt;name&amp;gt;dfs.ha.fencing.methods&amp;lt;/name&amp;gt;">
@@ -183,7 +183,7 @@
 <p>NameNode采用HA架构部署，在Standby切换为Active的过程中存在一个fence阶段，如果该阶段不返回true，则无法继续往下进行，即无法完成failover。<br><img src="https://www.ibm.com/developerworks/cn/opensource/os-cn-hadoop-name-node/img001.png" alt="nn-ha-arch"></p>
 <p>该行为由<a href="https://hadoop.apache.org/docs/r2.7.1/hadoop-project-dist/hadoop-hdfs/HDFSHighAvailabilityWithQJM.html#Deployment" target="_blank" rel="noopener">dfs.ha.fencing.methods</a>决定，默认为sshfence。<br><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">property</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">name</span>&gt;</span>dfs.ha.fencing.methods<span class="tag">&lt;/<span class="name">name</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">value</span>&gt;</span>sshfence<span class="tag">&lt;/<span class="name">value</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">property</span>&gt;</span></span><br></pre></td></tr></table></figure></p>
 <p>但是这样配置存在问题，当Active宕机，ssh无法完成，sshfence阶段实际上会循环重试，始终无法完成failover。</p>
-<p>由于没有直接关于fence retry次数的参数配置，采取如下变通方案：配置4个fence method，3次sshfence，1次shell(/bin/true)，可以保证在3次sshfence失败之后结束fence阶段，完成failover。<br><img src="http://ot69fbvko.bkt.clouddn.com/sshfence.bmp" alt="sshfence"></p>
+<p>由于没有直接关于fence retry次数的参数配置，采取如下变通方案：配置4个fence method，3次sshfence，1次shell(/bin/true)，可以保证在3次sshfence失败之后结束fence阶段，完成failover。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/sshfence.bmp" alt="sshfence"></p>
 
       
 

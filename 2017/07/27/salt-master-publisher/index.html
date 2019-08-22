@@ -16,16 +16,16 @@
 <meta property="og:site_name" content="winway&#39;s blog">
 <meta property="og:description" content="ENV: Version: 2016.11.0, Transport: tcp, Multi-Master   1. 架构图 2. 类图和重要方法说明 3. 源码解析 PubServer IPCMessageServer     1. 架构图 2. 类图和重要方法说明    3. 源码解析代码入口salt.master.Master.start1234567# salt/master.py">
 <meta property="og:locale" content="default">
-<meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/salt-master-publisher-arch.png">
-<meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/salt-master-publisher-class1.png">
-<meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/salt-master-publisher-class2.png">
-<meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/salt-master-publisher-class3.png">
-<meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/salt-master-publisher-class4.png">
-<meta property="og:updated_time" content="2017-08-26T07:57:52.000Z">
+<meta property="og:image" content="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-publisher-arch.png">
+<meta property="og:image" content="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-publisher-class1.png">
+<meta property="og:image" content="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-publisher-class2.png">
+<meta property="og:image" content="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-publisher-class3.png">
+<meta property="og:image" content="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-publisher-class4.png">
+<meta property="og:updated_time" content="2019-08-22T06:57:25.706Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="saltstack源码解析之master.publisher">
 <meta name="twitter:description" content="ENV: Version: 2016.11.0, Transport: tcp, Multi-Master   1. 架构图 2. 类图和重要方法说明 3. 源码解析 PubServer IPCMessageServer     1. 架构图 2. 类图和重要方法说明    3. 源码解析代码入口salt.master.Master.start1234567# salt/master.py">
-<meta name="twitter:image" content="http://ot69fbvko.bkt.clouddn.com/salt-master-publisher-arch.png">
+<meta name="twitter:image" content="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-publisher-arch.png">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -193,11 +193,11 @@
 </li>
 </ul>
 <!-- tocstop -->
-<h2><span id="1-架构图">1. 架构图</span></h2><p><img src="http://ot69fbvko.bkt.clouddn.com/salt-master-publisher-arch.png" alt="salt-master-publisher-arch"></p>
-<h2><span id="2-类图和重要方法说明">2. 类图和重要方法说明</span></h2><p><img src="http://ot69fbvko.bkt.clouddn.com/salt-master-publisher-class1.png" alt="salt-master-publisher-class1"></p>
-<p><img src="http://ot69fbvko.bkt.clouddn.com/salt-master-publisher-class2.png" alt="salt-master-publisher-class2"></p>
-<p><img src="http://ot69fbvko.bkt.clouddn.com/salt-master-publisher-class3.png" alt="salt-master-publisher-class3"></p>
-<p><img src="http://ot69fbvko.bkt.clouddn.com/salt-master-publisher-class4.png" alt="salt-master-publisher-class4"></p>
+<h2><span id="1-架构图">1. 架构图</span></h2><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-publisher-arch.png" alt="salt-master-publisher-arch"></p>
+<h2><span id="2-类图和重要方法说明">2. 类图和重要方法说明</span></h2><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-publisher-class1.png" alt="salt-master-publisher-class1"></p>
+<p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-publisher-class2.png" alt="salt-master-publisher-class2"></p>
+<p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-publisher-class3.png" alt="salt-master-publisher-class3"></p>
+<p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-publisher-class4.png" alt="salt-master-publisher-class4"></p>
 <h2><span id="3-源码解析">3. 源码解析</span></h2><p>代码入口salt.master.Master.start<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/master.py</span></span><br><span class="line">            pub_channels = []</span><br><span class="line">            log.info(<span class="string">'Creating master publisher process'</span>)</span><br><span class="line">            <span class="keyword">for</span> transport, opts <span class="keyword">in</span> iter_transport_opts(self.opts):</span><br><span class="line">                chan = salt.transport.server.PubServerChannel.factory(opts)</span><br><span class="line">                chan.pre_fork(self.process_manager)</span><br><span class="line">                pub_channels.append(chan)</span><br></pre></td></tr></table></figure></p>
 <ul>
 <li>iter_transport_opts是一个生成器，会产生所有的transport, opts<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/\_\_init\_\_.py</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">iter_transport_opts</span><span class="params">(opts)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    Yield transport, opts for all master configured transports</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    transports = set()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> transport, opts_overrides <span class="keyword">in</span> six.iteritems(opts.get(<span class="string">'transport_opts'</span>, &#123;&#125;)):</span><br><span class="line">        t_opts = dict(opts)</span><br><span class="line">        t_opts.update(opts_overrides)</span><br><span class="line">        t_opts[<span class="string">'transport'</span>] = transport</span><br><span class="line">        transports.add(transport)</span><br><span class="line">        <span class="keyword">yield</span> transport, t_opts</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> opts[<span class="string">'transport'</span>] <span class="keyword">not</span> <span class="keyword">in</span> transports:</span><br><span class="line">        <span class="keyword">yield</span> opts[<span class="string">'transport'</span>], opts</span><br></pre></td></tr></table></figure>

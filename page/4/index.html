@@ -195,7 +195,7 @@
 <blockquote>
 <p>到这里，你应该可以看到hello world的页面了</p>
 </blockquote>
-<p><img src="http://ot69fbvko.bkt.clouddn.com/hello%20hexo.bmp" alt="hello-hexo"></p>
+<p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/hello%20hexo.bmp" alt="hello-hexo"></p>
 <h2><span id="3-创建github-pages">3. 创建Github pages</span></h2><p>首先，你要有一个Github账号，然后参照官方的<a href="https://pages.github.com/#user-site" target="_blank" rel="noopener">文档</a>即可。</p>
 <blockquote>
 <p>到这里，你应该可以访问个人的<a href="https://winway.github.io/">Github pages</a>了</p>
@@ -315,6 +315,7 @@
 <h3><span id="3-failover">3. failover</span></h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hdfs haadmin -failover nn1 nn2</span><br></pre></td></tr></table></figure>
 <h3><span id="4-判断主从关系">4. 判断主从关系</span></h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">hdfs haadmin -getServiceState nn1</span><br><span class="line"></span><br><span class="line">hdfs haadmin -getServiceState nn2</span><br></pre></td></tr></table></figure>
 <h3><span id="5-重启备机">5. 重启备机</span></h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">sh hadoop-daemon.sh stop namenode</span><br><span class="line"></span><br><span class="line">sh hadoop-daemon.sh start namenode</span><br></pre></td></tr></table></figure>
+
       
 
       
@@ -418,7 +419,7 @@
 </li>
 <li>修改fuse_dfs_wrapper.sh（从hadoop源码包中获取），指定hadoop客户端信息</li>
 </ol>
-<p>最终需要的文件如下：<br><img src="http://ot69fbvko.bkt.clouddn.com/fuse-dfs.bmp" alt=""></p>
+<p>最终需要的文件如下：<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/fuse-dfs.bmp" alt=""></p>
 <h2><span id="使用">使用</span></h2><ol>
 <li>mkdir -p ./mnt/hdfs/</li>
 <li>sh fuse_dfs_wrapper.sh -o uid=$(id root -u) -o gid=$(id root -g) hdfs://democluster/ ./mnt/hdfs</li>
@@ -517,13 +518,13 @@
 <li><a href="#4-收尾">4. 收尾</a></li>
 </ul>
 <!-- tocstop -->
-<h2><span id="1-缘起">1. 缘起</span></h2><p>线上HBASE集群在每次重启之后，都会出现访问延迟增大的现象。通过Ganglia查看HABSE相关监控指标和推测，最后发现是数据的本地化特性被破坏导致。<br>如下图，在HBASE重启之后，regionserver的percentFilesLocal指标出现下降。<br><img src="http://ot69fbvko.bkt.clouddn.com/regionserver-percentfileslocal-1.png" alt="regionserver-percentfileslocal-1"></p>
+<h2><span id="1-缘起">1. 缘起</span></h2><p>线上HBASE集群在每次重启之后，都会出现访问延迟增大的现象。通过Ganglia查看HABSE相关监控指标和推测，最后发现是数据的本地化特性被破坏导致。<br>如下图，在HBASE重启之后，regionserver的percentFilesLocal指标出现下降。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/regionserver-percentfileslocal-1.png" alt="regionserver-percentfileslocal-1"></p>
 <h2><span id="2-分析">2. 分析</span></h2><p>由于HBASE建立在HDFS的基础之上，regionserver通过datanode读取数据。如果regionserver读取的数据正好是同宿的datanode负责管理，则是最理想的情况，即<a href="https://www.zybuluo.com/jewes/note/37713" target="_blank" rel="noopener">Short Circuit Local Reads</a>。<br>随着时间的推移，HBASE的<a href="http://www.jianshu.com/p/895ab6511819" target="_blank" rel="noopener">compact</a>机制会将regionserver管理的region所对应的HDFS文件移动到同宿的datanode上进行管理，这提高了Short Circuit Local Reads的概率。<br>当HBASE发生重启的时候，region会重新随机分配给各个regionserver，这导致重启之后regionserver和region的对应关系发生改变，也就是region和其对应的HDFS文件的同宿关系被打破。于是regionserver不得不跨网络读取数据，因此数据访问延迟增大。<br>当然随着时间的推移，由于compact机制的存在，region和其对应的HDFS文件会重新分布于同一机器，访问延迟会慢慢恢复到重启前的水平。<br><strong>可见，如果想要避免重启导致的访问延迟短期内增大的问题，最直接的方式是保证重启前后region的分布情况不变。</strong></p>
 <blockquote>
 <p>通过上面的分析可知：HDFS的balancer通过移动block也会打破数据本地化特性，所以HBASE集群不要开启HDFS的balancer。</p>
 </blockquote>
 <h2><span id="3-解决">3. 解决</span></h2><p>HBASE自带了graceful_stop.sh脚本，可以实现regionserver重启前后所管理的region保持不变。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sh graceful_stop.sh --restart --reload --debug --maxthreads 10 &lt;regionserver&gt;</span><br></pre></td></tr></table></figure></p>
-<p>但是这个脚本默认不支持并发，只能一台一台重启，在集群规模较大时，效率比较低。<br>我对这个脚本进行了修改，增加了批量重启的功能，可以分批次滚动重启regionserver。详见<a href="https://github.com/winway/hbase-rolling-restart" target="_blank" rel="noopener">https://github.com/winway/hbase-rolling-restart</a><br>使用滚动重启后，regionserver的percentFilesLocal指标如下：<br><img src="http://ot69fbvko.bkt.clouddn.com/regionserver-percentfileslocal-2.png" alt="regionserver-percentfileslocal-2"></p>
+<p>但是这个脚本默认不支持并发，只能一台一台重启，在集群规模较大时，效率比较低。<br>我对这个脚本进行了修改，增加了批量重启的功能，可以分批次滚动重启regionserver。详见<a href="https://github.com/winway/hbase-rolling-restart" target="_blank" rel="noopener">https://github.com/winway/hbase-rolling-restart</a><br>使用滚动重启后，regionserver的percentFilesLocal指标如下：<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/regionserver-percentfileslocal-2.png" alt="regionserver-percentfileslocal-2"></p>
 <h2><span id="4-收尾">4. 收尾</span></h2><p>通过解决这个问题，我们了解了数据本地化特性的概念和影响，那么可不可以量化一个region、一个table、一个regionserver以及集群整体的数据本地化特性。答案是可以的，大致思路如下：</p>
 <ol>
 <li>通过scan “hbase:meta”，获取regionserver和region的对应关系</li>
@@ -832,7 +833,7 @@
 <li>Stream：源源不断传递的tuple就组成了stream。</li>
 </ul>
 <p><strong>Hadoop vs Storm</strong></p>
-<p><img src="http://ot69fbvko.bkt.clouddn.com/storm1.png" alt=""></p>
+<p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/storm1.png" alt=""></p>
 <p><strong>Storm设计：组件抽象</strong></p>
 <p>我们编写的处理业务逻辑的Topology提交到Storm集群后，就会发生任务的调度和资源的分配，从而也会基于Storm的设计，出现各种各样的组件。<br><img src="http://www.uml.org.cn/yunjisuan/images/2016102624.png" alt=""><br>一个Topology的Spout/Bolt对应的多个Task可能分布在多个Supervisor的多个Worker内部。而每个Worker内部又存在多个Executor，根据实际的Topology配置在运行时进行计算并分配。</p>
 <ul>
@@ -1118,7 +1119,7 @@
 <li>Thrift客户端：上面的架构图里没有写上Thrift客户端，但是hive架构的许多客户端接口是建立在thrift客户端之上，包括JDBC和ODBC接口。</li>
 <li>WEBGUI：hive客户端提供了一种通过网页的方式访问hive所提供的服务。这个接口对应hive的hwi组件（hive web interface），使用前要启动hwi服务。</li>
 </ul>
-<p><strong>执行流程</strong><br><img src="http://ot69fbvko.bkt.clouddn.com/hive.png" alt=""></p>
+<p><strong>执行流程</strong><br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/hive.png" alt=""></p>
 <ol>
 <li>客户使用不同的客户端组件提交HQL</li>
 <li>Hive完成HQL的解释、优化、生成查询计划</li>
@@ -1247,7 +1248,7 @@
 <p>所有map输出被复制完后， reduce 任务进入排序阶段(sort phase，更恰当的说法是合并阶段，因为排序是在map 端进行的) ，这个阶段将map输出合并，维持其排序。这个过程是分多个轮次进行的。比如，如果有50 个map 输出，而合并因子(merge factor)是10(10 为默认设置，由io.sort.factor属性设置，与map的合并类似)，合并将进行5轮。每次将10 个文件合并成一个文件，因此最后有5 个中间文件。</p>
 <p>在最后阶段，即reduce阶段，并没有将这5个文件合并成一个已排序的文件，而是直接把数据输入reduce 函数，从而省略了一次磁盘操作。<br>在reduce 阶段，对已排序输出中的每个键都要调用reduce函数。此阶段的输出直接写到输出文件系统，一般为HDFS 。如果采用HDFS ，由于nodemanager节点也运行着datanode节点，所以第一个块复本(block replica)将被写到本地磁盘。</p>
 <p><strong>WordCount逻辑示意图</strong></p>
-<p><img src="http://ot69fbvko.bkt.clouddn.com/hadoop-mr1.png" alt=""></p>
+<p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/hadoop-mr1.png" alt=""></p>
 
       
 

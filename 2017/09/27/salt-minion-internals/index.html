@@ -16,16 +16,16 @@
 <meta property="og:site_name" content="winway&#39;s blog">
 <meta property="og:description" content="ENV: Version: 2016.11.0, Transport: tcp, Multi-Master   1. 架构图 2. 类图和重要方法说明 3. 源码解析 MinionManager Minion     1. 架构图 2. 类图和重要方法说明    3. 源码解析代码入口12345678910111213141516171819# salt/minion.pyclass Minion">
 <meta property="og:locale" content="default">
-<meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/salt-minion-internals-arch.png">
-<meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/salt-minion-internals-cls1.png">
-<meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/salt-minion-internals-cls2.png">
-<meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/salt-minion-internals-cls3.png">
-<meta property="og:image" content="http://ot69fbvko.bkt.clouddn.com/salt-minion-internals-cls4.png">
-<meta property="og:updated_time" content="2017-09-27T11:29:12.000Z">
+<meta property="og:image" content="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-minion-internals-arch.png">
+<meta property="og:image" content="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-minion-internals-cls1.png">
+<meta property="og:image" content="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-minion-internals-cls2.png">
+<meta property="og:image" content="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-minion-internals-cls3.png">
+<meta property="og:image" content="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-minion-internals-cls4.png">
+<meta property="og:updated_time" content="2019-08-22T06:57:25.722Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="saltstack源码解析之minion工作原理">
 <meta name="twitter:description" content="ENV: Version: 2016.11.0, Transport: tcp, Multi-Master   1. 架构图 2. 类图和重要方法说明 3. 源码解析 MinionManager Minion     1. 架构图 2. 类图和重要方法说明    3. 源码解析代码入口12345678910111213141516171819# salt/minion.pyclass Minion">
-<meta name="twitter:image" content="http://ot69fbvko.bkt.clouddn.com/salt-minion-internals-arch.png">
+<meta name="twitter:image" content="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-minion-internals-arch.png">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -193,11 +193,11 @@
 </li>
 </ul>
 <!-- tocstop -->
-<h2><span id="1-架构图">1. 架构图</span></h2><p><img src="http://ot69fbvko.bkt.clouddn.com/salt-minion-internals-arch.png" alt="salt-minion-internals-arch"></p>
-<h2><span id="2-类图和重要方法说明">2. 类图和重要方法说明</span></h2><p><img src="http://ot69fbvko.bkt.clouddn.com/salt-minion-internals-cls1.png" alt="salt-minion-internals-cls1"></p>
-<p><img src="http://ot69fbvko.bkt.clouddn.com/salt-minion-internals-cls2.png" alt="salt-minion-internals-cls2"></p>
-<p><img src="http://ot69fbvko.bkt.clouddn.com/salt-minion-internals-cls3.png" alt="salt-minion-internals-cls3"></p>
-<p><img src="http://ot69fbvko.bkt.clouddn.com/salt-minion-internals-cls4.png" alt="salt-minion-internals-cls4"></p>
+<h2><span id="1-架构图">1. 架构图</span></h2><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-minion-internals-arch.png" alt="salt-minion-internals-arch"></p>
+<h2><span id="2-类图和重要方法说明">2. 类图和重要方法说明</span></h2><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-minion-internals-cls1.png" alt="salt-minion-internals-cls1"></p>
+<p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-minion-internals-cls2.png" alt="salt-minion-internals-cls2"></p>
+<p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-minion-internals-cls3.png" alt="salt-minion-internals-cls3"></p>
+<p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-minion-internals-cls4.png" alt="salt-minion-internals-cls4"></p>
 <h2><span id="3-源码解析">3. 源码解析</span></h2><p>代码入口<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/minion.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MinionManager</span><span class="params">(MinionBase)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    Create a multi minion interface, this creates as many minions as are</span></span><br><span class="line"><span class="string">    defined in the master option and binds each minion object to a respective</span></span><br><span class="line"><span class="string">    master.</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, opts)</span>:</span></span><br><span class="line">        super(MinionManager, self).__init__(opts)</span><br><span class="line">        self.auth_wait = self.opts[<span class="string">'acceptance_wait_time'</span>]</span><br><span class="line">        self.max_auth_wait = self.opts[<span class="string">'acceptance_wait_time_max'</span>]</span><br><span class="line">        self.minions = []</span><br><span class="line">        self.jid_queue = []</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> HAS_ZMQ:</span><br><span class="line">            zmq.eventloop.ioloop.install()</span><br><span class="line">        self.io_loop = LOOP_CLASS.current()</span><br><span class="line">        self.process_manager = ProcessManager(name=<span class="string">'MultiMinionProcessManager'</span>)</span><br><span class="line">        self.io_loop.spawn_callback(self.process_manager.run, <span class="keyword">async</span>=<span class="keyword">True</span>)</span><br></pre></td></tr></table></figure></p>
 <h3><span id="minionmanager">MinionManager</span></h3><p>MinionManager继承自MinionBase，MinionBase中最重要的方法是eval_master，用于与指定master建立连接，并返回元组（master address（master地址），pub_channel（连接到master的publish端口监听消息）），详情请参考<a href="https://winway.github.io/2017/08/26/salt-minion-connect-salt-master/">minion&amp;master连接建立流程</a></p>
 <p>__init__方法初始化io_loop，创建MultiMinionProcessManager（不过好像没用到），注册回调函数io_loop.spawn_callback(self.process_manager.run, async=True)</p>
