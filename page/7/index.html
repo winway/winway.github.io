@@ -155,6 +155,99 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-mutt-send-mail-usage" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2013/07/10/mutt-send-mail-usage/">使用mutt自动发送邮件</a>
+    </h1>
+  
+
+        
+        <a href="/2013/07/10/mutt-send-mail-usage/" class="archive-article-date">
+  	<time datetime="2013-07-10T01:15:17.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-07-10</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<!-- tocstop -->
+<p>使用方法：将要发送的内容以下面的形式组织<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> tree mails/</span><br><span class="line">mails/</span><br><span class="line">|-- mail1</span><br><span class="line">| |-- attach1</span><br><span class="line">| |-- attach2</span><br><span class="line">| |-- attach3</span><br><span class="line">| |-- attachment.lst</span><br><span class="line">| |-- body.txt</span><br><span class="line">| |-- receiver.lst</span><br><span class="line">| `-- subject.txt</span><br><span class="line">|-- mail2</span><br><span class="line">| |-- attach1</span><br><span class="line">| |-- attach2</span><br><span class="line">| |-- attach3</span><br><span class="line">| |-- attachment.lst</span><br><span class="line">| |-- body.txt</span><br><span class="line">| |-- receiver.lst</span><br><span class="line">| `-- subject.txt</span><br><span class="line">`-- mail3</span><br><span class="line">|-- attach1</span><br><span class="line">|-- attach2</span><br><span class="line">|-- attach3</span><br><span class="line">|-- attachment.lst</span><br><span class="line">|-- body.txt</span><br><span class="line">|-- receiver.lst</span><br><span class="line">`-- subject.txt</span><br></pre></td></tr></table></figure></p>
+<p>其中receiver.lst是收件人列表，subject.txt是主题，body.txt是正文，attachment.lst是附件列表，attach1、attach2、attach3是attachment.lst中列出的附件，每个mailN文件夹是一封邮件。</p>
+<p>脚本很简单：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span>! /bin/bash</span><br><span class="line"><span class="meta">#</span> Auto send email</span><br><span class="line"><span class="meta">#</span></span><br><span class="line">if [[ $# &lt; 1 ]]</span><br><span class="line">then</span><br><span class="line">    echo "Usage: $0 &lt;maildir&gt;"</span><br><span class="line">    exit</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">DIR="$1"</span><br><span class="line">cd "$DIR" || &#123; echo "Enter $DIR failed"; exit; &#125;</span><br><span class="line"></span><br><span class="line">for dir in $(ls -d */)</span><br><span class="line">do</span><br><span class="line">    cd "$dir" || &#123; echo "Enter $dir failed"; continue; &#125;</span><br><span class="line">    receiver=$(cat receiver.lst | sed ':a; $!N; s/\n/ /; ta')</span><br><span class="line">    subject=$(cat subject.txt)</span><br><span class="line">    body=$(cat body.txt)</span><br><span class="line">    attachment=$(cat attachment.lst | sed ':a; $!N; s/\n/ -a /; ta')</span><br><span class="line">    echo "$body" | mutt -s "$subject" -a $attachment $receiver</span><br><span class="line">    echo "Send $dir"</span><br><span class="line">    cd ..</span><br><span class="line">done</span><br></pre></td></tr></table></figure></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Linux</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">mutt</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2013/07/10/mutt-send-mail-usage/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-c-debug-macro" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1069,111 +1162,6 @@
 
 
   
-    <article id="post-server-batch-manage-tool-introduction" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/05/11/server-batch-manage-tool-introduction/">服务器批量管理工具</a>
-    </h1>
-  
-
-        
-        <a href="/2013/05/11/server-batch-manage-tool-introduction/" class="archive-article-date">
-  	<time datetime="2013-05-11T06:33:35.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-05-11</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>记录几个现成的批量管理工具，留做备用。</p>
-<!-- toc -->
-<ul>
-<li><a href="#1-dsh-dancers-shell-distributed-shell">1. dsh - dancer’s shell / distributed shell</a></li>
-<li><a href="#2-pssh-parallel-ssh">2. pssh - Parallel ssh</a></li>
-<li><a href="#3-pdsh">3. pdsh</a></li>
-<li><a href="#4clusterssh">4.ClusterSSH</a></li>
-<li><a href="#5-mussh">5. mussh</a></li>
-<li><a href="#6-saltstack">6. SaltStack</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="1-dsh-dancers-shell-distributed-shell">1. dsh - dancer’s shell / distributed shell</span></h2><p>dsh是专为在远程系统上运行shell命令设计的，可以简化对大量计算机的操作。尽管很方便，但是dsh有一个重大的缺陷：它无法复制文件。如果希望把数据部署到多台计算机上，就必须编写一个新脚本，利用发行版的基础设施（比如 rsync），或者考虑使用更健壮的工具（比如 Parallel SSH (pssh)）。<br><a href="http://xukaizijian.blog.163.com/blog/static/17043311920110319301199/" target="_blank" rel="noopener">http://xukaizijian.blog.163.com/blog/static/17043311920110319301199/</a></p>
-<h2><span id="2-pssh-parallel-ssh">2. pssh - Parallel ssh</span></h2><p>与dsh一样，pssh的目标也是简化大量计算机的管理。除了具备dsh的所有功能之外，pssh还可以把文件从一组系统复制到中心服务器或反向复制，以及杀死一组系统上的进程。这个 shell 和它的底层库是用 Python 编写的，如果系统上已经安装了 Python 解释器和核心库，就很容易安装它。<br><a href="http://www.ibm.com/developerworks/cn/aix/library/au-spunix_remoteserver/index.html" target="_blank" rel="noopener">http://www.ibm.com/developerworks/cn/aix/library/au-spunix_remoteserver/index.html</a></p>
-<h2><span id="3-pdsh">3. pdsh</span></h2><p>pdsh可以在指定的一组机器上执行同一个命令。pdsh软件包还自带了pdcp命令，可以将文件拷贝到一组机器上。<br><a href="http://scmbob.org/parallel-distributed-shell.html" target="_blank" rel="noopener">http://scmbob.org/parallel-distributed-shell.html</a><br><a href="http://linux.die.net/man/1/pdsh" target="_blank" rel="noopener">http://linux.die.net/man/1/pdsh</a><br><a href="http://bbs.chinaunix.net/thread-2002080-1-1.html" target="_blank" rel="noopener">http://bbs.chinaunix.net/thread-2002080-1-1.html</a></p>
-<h2><span id="4clusterssh">4.ClusterSSH</span></h2><p>Cluster SSH是一个可以用来通过SSH协议同时管理多台远程计算机的工具。它非常适合用来快速配置一个集群中的所有运行相同服务和具备相同配置的计算机节点。<br><a href="http://os.51cto.com/art/201103/250014.htm" target="_blank" rel="noopener">http://os.51cto.com/art/201103/250014.htm</a></p>
-<h2><span id="5-mussh">5. mussh</span></h2><p>mussh是一款管理多主机的ssh软件，mussh可以让你把本地的脚本，在多台ssh目的机器上执行。<br><a href="http://rtxbc.blog.163.com/blog/static/1228936592010825105416832/" target="_blank" rel="noopener">http://rtxbc.blog.163.com/blog/static/1228936592010825105416832/</a></p>
-<h2><span id="6-saltstack">6. SaltStack</span></h2><p>Saltstack可以看做是func的增强版+Puppet的弱化版，使用Python编写，非常好用，可以快速基于EPEL部署。Salt 是一个开源的工具用来管理你的基础架构，可轻松管理成千上万台服务器。<br><a href="http://zhoulg.blog.51cto.com/48455/1140178" target="_blank" rel="noopener">http://zhoulg.blog.51cto.com/48455/1140178</a></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Linux</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">批量管理</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/05/11/server-batch-manage-tool-introduction/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/6/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/5/">5</a><a class="page-number" href="/page/6/">6</a><span class="page-number current">7</span><a class="page-number" href="/page/8/">8</a><a class="extend next" rel="next" href="/page/8/">Next &raquo;</a>
@@ -1273,15 +1261,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">arp欺骗</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1301,11 +1289,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Hadoop</a>
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+                <a href="javascript:void(0)" class="js-tag color2">Hadoop</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1313,11 +1301,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1326,10 +1318,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">机架感知</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1345,15 +1333,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">open-falcon源码阅读</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1361,11 +1345,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+                <a href="javascript:void(0)" class="js-tag color1">open-falcon源码阅读</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">telent</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1381,11 +1373,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
+                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
               </li>
             
             <div class="clearfix"></div>

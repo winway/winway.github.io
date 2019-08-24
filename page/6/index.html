@@ -155,6 +155,144 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-mongodb-performance-test" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2016/01/28/mongodb-performance-test/">MongoDB2.2 vs MongoDB3.0性能对比测试</a>
+    </h1>
+  
+
+        
+        <a href="/2016/01/28/mongodb-performance-test/" class="archive-article-date">
+  	<time datetime="2016-01-28T06:28:22.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-01-28</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#一-概述">一、 概述</a></li>
+<li><a href="#二-测试方法">二、 测试方法</a><ul>
+<li><a href="#1-测试环境">1. 测试环境</a></li>
+<li><a href="#2-测试方案">2. 测试方案</a></li>
+</ul>
+</li>
+<li><a href="#三-测试结果">三、 测试结果</a></li>
+<li><a href="#四-结论">四、 结论</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="一-概述">一、 概述</span></h2><p>MongoDB3.0的重要特性是新增了wiretigger存储引擎。该存储引擎支持文档级锁和数据压缩，使MongoDB3.0较MongoDB2.x在性能上有很大提升。官方给出的测试结果显示：在YCSB测试中，MongoDB3.0在多线程、批量插入场景下较之于MongoDB2.6有大约7倍的增长。</p>
+<h2><span id="二-测试方法">二、 测试方法</span></h2><h3><span id="1-测试环境">1. 测试环境</span></h3><p>3台实体机组成的副本集。单机配置如下：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>cpu</td>
+<td>Intel(R) Xeon(R) CPU E5-2630 0 @ 2.30GHz，12 cores</td>
+</tr>
+<tr>
+<td>ram</td>
+<td>128G</td>
+</tr>
+<tr>
+<td>storage</td>
+<td>16 * 300G SAS</td>
+</tr>
+<tr>
+<td>network</td>
+<td>1 Gbps</td>
+</tr>
+<tr>
+<td>os</td>
+<td>RHEL 5.8 64bit</td>
+</tr>
+<tr>
+<td>MongoDB version</td>
+<td>monogdb 2.2.2，MongoDB 3.0.6</td>
+</tr>
+</tbody>
+</table>
+<h3><span id="2-测试方案">2. 测试方案</span></h3><p>测试使用ycsb进行。<br>导入同样的数据量到MongoDB2.2.2和MongoDB3.0.6，针对该数据集进行读写比分别为0/100，20/80，50/50，80/20的并发量和延迟测试。<br>ycsb部分参数如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">recordcount=20000000	#记录数</span><br><span class="line">operationcount=20000000	#操作次数</span><br><span class="line">fieldlength=50	#字段长度</span><br><span class="line">fieldcount=10	#单个文档的字段数</span><br><span class="line">threadcount=48	#并发线程数，相当于客户端数</span><br></pre></td></tr></table></figure></p>
+<h2><span id="三-测试结果">三、 测试结果</span></h2><ol>
+<li>并发量<br> 如图所示，读写比越小，MongoDB3.0的性能优势越明显，大概是2.2的3-4倍。<br> <img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/mongodb-performance-test1.png" alt=""></li>
+<li>延迟<br> <img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/mongodb-performance-test2.png" alt=""><br> <img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/mongodb-performance-test3.png" alt=""><br> 如图所示，在并发量提升的情况下，平均延迟和99th百分位数也比2.2有很大优化。99th百分位数表示这个数值（响应延迟）比99%的其他操作都要糟糕（慢）</li>
+</ol>
+<h2><span id="四-结论">四、 结论</span></h2><p>从测试结果的并发量和延迟情况来看，MongoDB3.0的性能比起MongoDB2.x的性能确实有比较明显的提升。并发量提升3-4倍，延迟降低了90%。升级到新版本的MongoDB确实会带来性能上的很大提升。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/MongoDB/" class="article-tag-list-link color3">MongoDB</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2016/01/28/mongodb-performance-test/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-mongodb-change-nssize" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1584,99 +1722,6 @@
 
 
   
-    <article id="post-mutt-send-mail-usage" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/07/10/mutt-send-mail-usage/">使用mutt自动发送邮件</a>
-    </h1>
-  
-
-        
-        <a href="/2013/07/10/mutt-send-mail-usage/" class="archive-article-date">
-  	<time datetime="2013-07-10T01:15:17.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-07-10</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<!-- tocstop -->
-<p>使用方法：将要发送的内容以下面的形式组织<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> tree mails/</span><br><span class="line">mails/</span><br><span class="line">|-- mail1</span><br><span class="line">| |-- attach1</span><br><span class="line">| |-- attach2</span><br><span class="line">| |-- attach3</span><br><span class="line">| |-- attachment.lst</span><br><span class="line">| |-- body.txt</span><br><span class="line">| |-- receiver.lst</span><br><span class="line">| `-- subject.txt</span><br><span class="line">|-- mail2</span><br><span class="line">| |-- attach1</span><br><span class="line">| |-- attach2</span><br><span class="line">| |-- attach3</span><br><span class="line">| |-- attachment.lst</span><br><span class="line">| |-- body.txt</span><br><span class="line">| |-- receiver.lst</span><br><span class="line">| `-- subject.txt</span><br><span class="line">`-- mail3</span><br><span class="line">|-- attach1</span><br><span class="line">|-- attach2</span><br><span class="line">|-- attach3</span><br><span class="line">|-- attachment.lst</span><br><span class="line">|-- body.txt</span><br><span class="line">|-- receiver.lst</span><br><span class="line">`-- subject.txt</span><br></pre></td></tr></table></figure></p>
-<p>其中receiver.lst是收件人列表，subject.txt是主题，body.txt是正文，attachment.lst是附件列表，attach1、attach2、attach3是attachment.lst中列出的附件，每个mailN文件夹是一封邮件。</p>
-<p>脚本很简单：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span>! /bin/bash</span><br><span class="line"><span class="meta">#</span> Auto send email</span><br><span class="line"><span class="meta">#</span></span><br><span class="line">if [[ $# &lt; 1 ]]</span><br><span class="line">then</span><br><span class="line">    echo "Usage: $0 &lt;maildir&gt;"</span><br><span class="line">    exit</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">DIR="$1"</span><br><span class="line">cd "$DIR" || &#123; echo "Enter $DIR failed"; exit; &#125;</span><br><span class="line"></span><br><span class="line">for dir in $(ls -d */)</span><br><span class="line">do</span><br><span class="line">    cd "$dir" || &#123; echo "Enter $dir failed"; continue; &#125;</span><br><span class="line">    receiver=$(cat receiver.lst | sed ':a; $!N; s/\n/ /; ta')</span><br><span class="line">    subject=$(cat subject.txt)</span><br><span class="line">    body=$(cat body.txt)</span><br><span class="line">    attachment=$(cat attachment.lst | sed ':a; $!N; s/\n/ -a /; ta')</span><br><span class="line">    echo "$body" | mutt -s "$subject" -a $attachment $receiver</span><br><span class="line">    echo "Send $dir"</span><br><span class="line">    cd ..</span><br><span class="line">done</span><br></pre></td></tr></table></figure></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">Linux</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">mutt</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/07/10/mutt-send-mail-usage/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/5/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/4/">4</a><a class="page-number" href="/page/5/">5</a><span class="page-number current">6</span><a class="page-number" href="/page/7/">7</a><a class="page-number" href="/page/8/">8</a><a class="extend next" rel="next" href="/page/7/">Next &raquo;</a>
@@ -1776,15 +1821,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">arp欺骗</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1804,11 +1849,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Hadoop</a>
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+                <a href="javascript:void(0)" class="js-tag color2">Hadoop</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1816,11 +1861,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1829,10 +1878,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">机架感知</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1848,15 +1893,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">open-falcon源码阅读</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1864,11 +1905,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+                <a href="javascript:void(0)" class="js-tag color1">open-falcon源码阅读</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">telent</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1884,11 +1933,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
+                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
               </li>
             
             <div class="clearfix"></div>
