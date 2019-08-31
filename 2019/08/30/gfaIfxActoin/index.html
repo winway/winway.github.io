@@ -8,13 +8,13 @@
   <link rel="dns-prefetch" href="https://winway.github.io">
   <title>InfluxDB&amp;Grafana实战总结 | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="前言 下拉框动态取值 下拉框支持中文 CQ预聚合 增加timeshift功能 influxdb-timeshift-proxy优化   前言本文就使用InfluxDB和Grafana的过程中遇到的问题、知识点进行总结记录，不会涉及InfluxDB和Grafana的基本用法，读者需要对InfluxDB和Grafana有一定了解。  InfluxDB是一个开源的时序数据库，使用GO语言开发，特别适">
+  <meta name="description" content="前言 下拉框动态取值 下拉框支持中文 CQ预聚合 增加timeshift功能 influxdb-timeshift-proxy优化 控制tag数量和取值范围 InfluxDB数据覆盖问题   前言本文就使用InfluxDB和Grafana的过程中遇到的问题、知识点进行总结记录，不会涉及InfluxDB和Grafana的基本用法，读者需要对InfluxDB和Grafana有一定了解。  Infl">
 <meta name="keywords" content="influxdb,grafana">
 <meta property="og:type" content="article">
 <meta property="og:title" content="InfluxDB&amp;Grafana实战总结">
 <meta property="og:url" content="https://winway.github.io/2019/08/30/gfaIfxActoin/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:description" content="前言 下拉框动态取值 下拉框支持中文 CQ预聚合 增加timeshift功能 influxdb-timeshift-proxy优化   前言本文就使用InfluxDB和Grafana的过程中遇到的问题、知识点进行总结记录，不会涉及InfluxDB和Grafana的基本用法，读者需要对InfluxDB和Grafana有一定了解。  InfluxDB是一个开源的时序数据库，使用GO语言开发，特别适">
+<meta property="og:description" content="前言 下拉框动态取值 下拉框支持中文 CQ预聚合 增加timeshift功能 influxdb-timeshift-proxy优化 控制tag数量和取值范围 InfluxDB数据覆盖问题   前言本文就使用InfluxDB和Grafana的过程中遇到的问题、知识点进行总结记录，不会涉及InfluxDB和Grafana的基本用法，读者需要对InfluxDB和Grafana有一定了解。  Infl">
 <meta property="og:locale" content="default">
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20190830-194316.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831113134.png">
@@ -28,10 +28,10 @@
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831110639.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831112919.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831113629.png">
-<meta property="og:updated_time" content="2019-08-31T03:54:08.452Z">
+<meta property="og:updated_time" content="2019-08-31T04:05:48.163Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="InfluxDB&amp;Grafana实战总结">
-<meta name="twitter:description" content="前言 下拉框动态取值 下拉框支持中文 CQ预聚合 增加timeshift功能 influxdb-timeshift-proxy优化   前言本文就使用InfluxDB和Grafana的过程中遇到的问题、知识点进行总结记录，不会涉及InfluxDB和Grafana的基本用法，读者需要对InfluxDB和Grafana有一定了解。  InfluxDB是一个开源的时序数据库，使用GO语言开发，特别适">
+<meta name="twitter:description" content="前言 下拉框动态取值 下拉框支持中文 CQ预聚合 增加timeshift功能 influxdb-timeshift-proxy优化 控制tag数量和取值范围 InfluxDB数据覆盖问题   前言本文就使用InfluxDB和Grafana的过程中遇到的问题、知识点进行总结记录，不会涉及InfluxDB和Grafana的基本用法，读者需要对InfluxDB和Grafana有一定了解。  Infl">
 <meta name="twitter:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20190830-194316.png">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
@@ -196,6 +196,8 @@
 <li><a href="#cq预聚合">CQ预聚合</a></li>
 <li><a href="#增加timeshift功能">增加timeshift功能</a></li>
 <li><a href="#influxdb-timeshift-proxy优化">influxdb-timeshift-proxy优化</a></li>
+<li><a href="#控制tag数量和取值范围">控制tag数量和取值范围</a></li>
+<li><a href="#influxdb数据覆盖问题">InfluxDB数据覆盖问题</a></li>
 </ul>
 <!-- tocstop -->
 <h1><span id="前言">前言</span></h1><p>本文就使用InfluxDB和Grafana的过程中遇到的问题、知识点进行总结记录，不会涉及InfluxDB和Grafana的基本用法，读者需要对InfluxDB和Grafana有一定了解。</p>
@@ -221,6 +223,8 @@
 <p>InfluxDB默认不支持timeshift的功能，要实现这个功能需要借助一个代理<a href="https://github.com/maxsivanov/influxdb-timeshift-proxy" target="_blank" rel="noopener">influxdb-timeshift-proxy</a>。其原理是修改查询sql的时间区间，再转发给InfluxDB。<br>参照<a href="https://github.com/maxsivanov/influxdb-timeshift-proxy" target="_blank" rel="noopener">https://github.com/maxsivanov/influxdb-timeshift-proxy</a>安装完成后，配置新的数据源连接influxdb-timeshift-proxy。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831112919.png" alt=""></p>
 <p>修改查询数据源，并使用alias指定shift信息<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831113629.png" alt=""></p>
 <h1><span id="influxdb-timeshift-proxy优化">influxdb-timeshift-proxy优化</span></h1><p>在使用influxdb-timeshift-proxy实现timeshift功能时，发现查询性能存在问题，原因是influxdb-timeshift-proxy会查询多余的数据，导致性能问题，详见<a href="https://github.com/maxsivanov/influxdb-timeshift-proxy/pull/21" target="_blank" rel="noopener">bug fix: avoid query unnecessary data</a>。<br>修改了sql替换逻辑，解决了该问题，代码见：<a href="https://github.com/winway/influxdb-timeshift-proxy" target="_blank" rel="noopener">https://github.com/winway/influxdb-timeshift-proxy</a></p>
+<h1><span id="控制tag数量和取值范围">控制tag数量和取值范围</span></h1><p>tag的数量太多，tag的取值范围太广会严重影响InfluxDB的性能，因为这些信息会占用大量内存。详见<a href="https://docs.influxdata.com/influxdb/v1.7/concepts/schema_and_data_layout/#discouraged-schema-design" target="_blank" rel="noopener">Discouraged schema design</a></p>
+<h1><span id="influxdb数据覆盖问题">InfluxDB数据覆盖问题</span></h1><p>具有相同时间戳和tag取值的记录在插入InfluxDB时会产生覆盖，这一点需要结合业务逻辑来考虑处理方式。详见<a href="https://github.com/influxdata/influxdb/issues/4150" target="_blank" rel="noopener">data with same timestamp and tags gets overwritten </a></p>
 
       
 
