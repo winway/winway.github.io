@@ -6,18 +6,33 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <link rel="dns-prefetch" href="https://winway.github.io">
-  <title>Archives: 2017/8 | winway&#39;s blog</title>
+  <title>InfluxDB&amp;Grafana实战总结 | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="python, go, devops, hadoop, MongoDB">
-<meta property="og:type" content="website">
-<meta property="og:title" content="winway&#39;s blog">
-<meta property="og:url" content="https://winway.github.io/archives/2017/08/index.html">
+  <meta name="description" content="前言 下拉框动态取值 下拉框支持中文 CQ预聚合 增加timeshift功能 influxdb-timeshift-proxy优化   前言本文就使用InfluxDB和Grafana的过程中遇到的问题、知识点进行总结记录，不会涉及InfluxDB和Grafana的基本用法，读者需要对InfluxDB和Grafana有一定了解。  InfluxDB是一个开源的时序数据库，使用GO语言开发，特别适">
+<meta name="keywords" content="influxdb,grafana">
+<meta property="og:type" content="article">
+<meta property="og:title" content="InfluxDB&amp;Grafana实战总结">
+<meta property="og:url" content="https://winway.github.io/2019/08/30/gfaIfxActoin/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:description" content="python, go, devops, hadoop, MongoDB">
+<meta property="og:description" content="前言 下拉框动态取值 下拉框支持中文 CQ预聚合 增加timeshift功能 influxdb-timeshift-proxy优化   前言本文就使用InfluxDB和Grafana的过程中遇到的问题、知识点进行总结记录，不会涉及InfluxDB和Grafana的基本用法，读者需要对InfluxDB和Grafana有一定了解。  InfluxDB是一个开源的时序数据库，使用GO语言开发，特别适">
 <meta property="og:locale" content="default">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20190830-194316.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831113134.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20190830-194537.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20190830-200023.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831100904.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831100300.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831100710.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831100800.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831101449.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831110639.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831112919.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831113629.png">
+<meta property="og:updated_time" content="2019-08-31T03:54:08.452Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="winway&#39;s blog">
-<meta name="twitter:description" content="python, go, devops, hadoop, MongoDB">
+<meta name="twitter:title" content="InfluxDB&amp;Grafana实战总结">
+<meta name="twitter:description" content="前言 下拉框动态取值 下拉框支持中文 CQ预聚合 增加timeshift功能 influxdb-timeshift-proxy优化   前言本文就使用InfluxDB和Grafana的过程中遇到的问题、知识点进行总结记录，不会涉及InfluxDB和Grafana的基本用法，读者需要对InfluxDB和Grafana有一定了解。  InfluxDB是一个开源的时序数据库，使用GO语言开发，特别适">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20190830-194316.png">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -153,440 +168,114 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            
-  
-  
+            <article id="post-gfaIfxActoin" class="article article-type-post " itemscope="" itemprop="blogPost">
+  <div class="article-inner">
     
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      InfluxDB&amp;Grafana实战总结
+    </h1>
+  
+
+        
+        <a href="/2019/08/30/gfaIfxActoin/" class="archive-article-date">
+  	<time datetime="2019-08-30T10:18:33.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-08-30</time>
+</a>
+        
+      </header>
     
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#前言">前言</a></li>
+<li><a href="#下拉框动态取值">下拉框动态取值</a></li>
+<li><a href="#下拉框支持中文">下拉框支持中文</a></li>
+<li><a href="#cq预聚合">CQ预聚合</a></li>
+<li><a href="#增加timeshift功能">增加timeshift功能</a></li>
+<li><a href="#influxdb-timeshift-proxy优化">influxdb-timeshift-proxy优化</a></li>
+</ul>
+<!-- tocstop -->
+<h1><span id="前言">前言</span></h1><p>本文就使用InfluxDB和Grafana的过程中遇到的问题、知识点进行总结记录，不会涉及InfluxDB和Grafana的基本用法，读者需要对InfluxDB和Grafana有一定了解。</p>
+<ul>
+<li><a href="https://www.influxdata.com" target="_blank" rel="noopener">InfluxDB</a>是一个开源的时序数据库，使用GO语言开发，特别适合用于处理和分析资源监控数据这种时序相关数据。InfluxDB自带的各种特殊函数如求标准差、随机取样数据、统计数据变化比等，使数据统计和实时分析变得十分方便。</li>
+<li><a href="https://grafana.com/" target="_blank" rel="noopener">Grafana</a>是一个跨平台的开源度量分析和可视化工具，可以查询采集的数据然后可视化展示。Grafana支持许多不同的数据源，官方支持以下数据源：Graphite，InfluxDB，OpenTSDB，Prometheus，Elasticsearch，CloudWatch和KairosDB。</li>
+<li>基于InfluxDB和Grafana可以快速搭建一套时序数据存储展示系统。</li>
+</ul>
+<h1><span id="下拉框动态取值">下拉框动态取值</span></h1><p>表metric_data存储有监控数据，有两个tag：hostname和metric_type。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&gt;</span> select * from metric_data;</span><br><span class="line">name: metric_data</span><br><span class="line">time                hostname metric_type value</span><br><span class="line">----                -------- ----------- -----</span><br><span class="line">1567094400000000000 hostA    cpu         1</span><br><span class="line">1567094400000000000 hostA    mem         2</span><br><span class="line">1567094400000000000 hostB    cpu         3</span><br><span class="line">1567094400000000000 hostB    mem         4</span><br><span class="line">1567094400000000000 hostC    cpu         5</span><br><span class="line">1567094400000000000 hostC    mem         6</span><br><span class="line"></span><br><span class="line"><span class="meta">&gt;</span> show tag values from metric_data with key="hostname"</span><br><span class="line">name: metric_data</span><br><span class="line">key      value</span><br><span class="line">---      -----</span><br><span class="line">hostname hostA</span><br><span class="line">hostname hostB</span><br><span class="line">hostname hostC</span><br><span class="line"><span class="meta">&gt;</span> show tag values from metric_data with key="metric_type"</span><br><span class="line">name: metric_data</span><br><span class="line">key         value</span><br><span class="line">---         -----</span><br><span class="line">metric_type cpu</span><br><span class="line">metric_type mem</span><br></pre></td></tr></table></figure></p>
+<p>希望查看数据时可以选择hostname和metric_type。效果如下图：<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20190830-194316.png" alt=""></p>
+<p>首先配置数据源<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831113134.png" alt=""></p>
+<p>针对hostname和metric_type定义两个Variables，将tag value作为下拉选项<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20190830-194537.png" alt=""></p>
+<p>然后在Query的where语句中使用变量作为条件<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20190830-200023.png" alt=""></p>
+<h1><span id="下拉框支持中文">下拉框支持中文</span></h1><p>如图实现“metric类型”下拉框显示“CPU使用率”和“内存使用率”。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831100904.png" alt=""></p>
+<p>首先创建一张映射表，将“cpu”映射成“CPU使用率”；“mem”映射成“内存使用率”<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&gt;</span> select * from metric_type_name_mapping</span><br><span class="line">name: metric_type_name_mapping</span><br><span class="line">time                metric_type name     value</span><br><span class="line">----                ----------- ----     -----</span><br><span class="line">1567216170324226055 cpu         'CPU使用率' 1</span><br><span class="line">1567216170356800234 mem         '内存使用率'  1</span><br></pre></td></tr></table></figure></p>
+<p>然后创建两个Variables，metric_type_name和metric_type<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831100300.png" alt=""></p>
+<p>metric_type_name的取值对应中文名，定义如下图<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831100710.png" alt=""></p>
+<p>metric_type的取值根据中文名映射成原始名，定义如下图<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831100800.png" alt=""></p>
+<p>最后，修改Query<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831101449.png" alt=""></p>
+<p><strong>这个方案需要在metric_type_name_mapping中维护metric_type的信息</strong></p>
+<h1><span id="cq预聚合">CQ预聚合</span></h1><p>为了提高查询性能，可以使用<a href="https://docs.influxdata.com/influxdb/v1.7/query_language/continuous_queries/" target="_blank" rel="noopener">CONTINUOUS QUERY</a>对原始数据进行预聚合，将秒/分钟级数据聚合成更粗粒度的分钟/小时级数据，减少查询数据量。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 查看现有CQ</span><br><span class="line"><span class="meta">&gt;</span> SHOW CONTINUOUS QUERIES</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 创建CQ</span><br><span class="line"><span class="meta">&gt;</span> CREATE CONTINUOUS QUERY metric_data_min ON test RESAMPLE EVERY 1m FOR 3m BEGIN SELECT MEAN(value) AS value INTO metric_data_min FROM metric_data GROUP BY time(1m), * END</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 删除CQ</span><br><span class="line"><span class="meta">&gt;</span> DROP CONTINUOUS QUERY metric_data_min ON test</span><br></pre></td></tr></table></figure></p>
+<h1><span id="增加timeshift功能">增加timeshift功能</span></h1><p>如图，希望对比展示今日和昨日同一时间点的数据。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831110639.png" alt=""></p>
+<p>InfluxDB默认不支持timeshift的功能，要实现这个功能需要借助一个代理<a href="https://github.com/maxsivanov/influxdb-timeshift-proxy" target="_blank" rel="noopener">influxdb-timeshift-proxy</a>。其原理是修改查询sql的时间区间，再转发给InfluxDB。<br>参照<a href="https://github.com/maxsivanov/influxdb-timeshift-proxy" target="_blank" rel="noopener">https://github.com/maxsivanov/influxdb-timeshift-proxy</a>安装完成后，配置新的数据源连接influxdb-timeshift-proxy。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831112919.png" alt=""></p>
+<p>修改查询数据源，并使用alias指定shift信息<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831113629.png" alt=""></p>
+<h1><span id="influxdb-timeshift-proxy优化">influxdb-timeshift-proxy优化</span></h1><p>在使用influxdb-timeshift-proxy实现timeshift功能时，发现查询性能存在问题，原因是influxdb-timeshift-proxy会查询多余的数据，导致性能问题，详见<a href="https://github.com/maxsivanov/influxdb-timeshift-proxy/pull/21" target="_blank" rel="noopener">bug fix: avoid query unnecessary data</a>。<br>修改了sql替换逻辑，解决了该问题，代码见：<a href="https://github.com/winway/influxdb-timeshift-proxy" target="_blank" rel="noopener">https://github.com/winway/influxdb-timeshift-proxy</a></p>
+
+      
+
+      
+        <div class="page-reward">
+          <a href="javascript:;" class="page-reward-btn tooltip-top">
+            <div class="tooltip tooltip-east">
+            <span class="tooltip-item">
+              赏
+            </span>
+            <span class="tooltip-content">
+              <span class="tooltip-text">
+                <span class="tooltip-inner">
+                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢你请我吃糖果<i class="icon icon-quo-right"></i></p>
+                  <div class="reward-box">
+                    
+                    <div class="reward-box-item">
+                      <img class="reward-img" src="/img/alipay.jpg">
+                      <span class="reward-type">支付宝</span>
+                    </div>
+                    
+                    
+                    <div class="reward-box-item">
+                      <img class="reward-img" src="/img/weixinpay.png">
+                      <span class="reward-type">微信</span>
+                    </div>
+                    
+                  </div>
+                </span>
+              </span>
+            </span>
+          </div>
+          </a>
+        </div>
+      
+    </div>
+    <div class="article-info article-info-index">
       
       
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <a href="/archives/2017" class="archive-year">2017</a>
-        </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2017/08/27/open-falcon-agent/" class="archive-article-date">
-  	<time datetime="2017-08-27T02:03:00.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-27</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2017/08/27/open-falcon-agent/">open-falcon源码阅读之agent</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
 	<div class="article-tag tagcloud">
 		<i class="icon-price-tags icon"></i>
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">open-falcon</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">influxdb</a>
         		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
+      		 
         		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">grafana</a>
         		</li>
       		
 		</ul>
 	</div>
 
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2017/08/26/open-falcon-main/" class="archive-article-date">
-  	<time datetime="2017-08-26T08:03:14.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-26</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2017/08/26/open-falcon-main/">open-falcon源码阅读之main</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">open-falcon</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2017/08/26/salt-minion-connect-salt-master/" class="archive-article-date">
-  	<time datetime="2017-08-26T06:06:56.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-26</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2017/08/26/salt-minion-connect-salt-master/">saltstack源码解析之minion&amp;master连接建立流程</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">saltstack</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2017/08/26/salt-minion-saltEvent/" class="archive-article-date">
-  	<time datetime="2017-08-26T05:05:57.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-26</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2017/08/26/salt-minion-saltEvent/">saltstack源码解析之消息总线-saltEvent</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">saltstack</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2017/08/26/salt-minion-AsyncEventPublisher/" class="archive-article-date">
-  	<time datetime="2017-08-26T03:33:39.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-26</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2017/08/26/salt-minion-AsyncEventPublisher/">saltstack源码解析之minion.AsyncEventPublisher</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">saltstack</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2017/08/11/salt-minion-option-parser/" class="archive-article-date">
-  	<time datetime="2017-08-11T07:47:44.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-11</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2017/08/11/salt-minion-option-parser/">saltstack源码解析之minion选项解析-MinionOptionParser</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">saltstack</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2017/08/10/salt-master-ReqServer/" class="archive-article-date">
-  	<time datetime="2017-08-10T10:30:25.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-10</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2017/08/10/salt-master-ReqServer/">saltstack源码解析之master.ReqServer</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">saltstack</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2017/08/03/salt-master-eventpublisher/" class="archive-article-date">
-  	<time datetime="2017-08-03T12:16:15.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-03</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2017/08/03/salt-master-eventpublisher/">saltstack源码解析之master.EventPublisher</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">saltstack</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2017/08/01/centos-7-tmp-file-removed-when-logout/" class="archive-article-date">
-  	<time datetime="2017-08-01T09:48:21.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-01</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2017/08/01/centos-7-tmp-file-removed-when-logout/">systemd-logind.service的RemoveIPC参数影响</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">systemd</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
+      
 	<div class="article-category tagcloud">
 		<i class="icon-book icon"></i>
 		<ul class="article-tag-list">
@@ -599,17 +288,123 @@
 	</div>
 
 
+      
+
+      
+        
+<div class="share-btn share-icons tooltip-left">
+  <div class="tooltip tooltip-east">
+    <span class="tooltip-item">
+      <a href="javascript:;" class="share-sns share-outer">
+        <i class="icon icon-share"></i>
+      </a>
+    </span>
+    <span class="tooltip-content">
+      <div class="share-wrap">
+        <div class="share-icons">
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="icon icon-weibo"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="icon icon-weixin"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="icon icon-qq"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="icon icon-douban"></i>
+          </a>
+          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a>
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="icon icon-facebook"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="icon icon-twitter"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="icon icon-google"></i>
+          </a>
         </div>
-        <div class="clearfix"></div>
-    </header>
+      </div>
+    </span>
+  </div>
+</div>
+
+<div class="page-modal wx-share js-wx-box">
+    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="http://s.jiathis.com/qrcode.php?url=https://winway.github.io/2019/08/30/gfaIfxActoin/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div class="mask js-mask"></div>
+      
+      <div class="clearfix"></div>
+    </div>
   </div>
 </article>
+
+  
+<nav id="article-nav">
   
   
-    </div></section>
+    <a href="/2019/08/25/sendmail/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">一个邮件发送脚本</div>
+      <i class="icon-circle-right"></i>
+    </a>
+  
+</nav>
+
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+  
+  
   
 
-    
+  
+
+  
+
+  
+  
+<section class="comments" id="comments">
+    <div id="gitment_thread"></div>
+    <link rel="stylesheet" href="https://imsun.github.io/gitment/style/default.css">
+    <script src="https://imsun.github.io/gitment/dist/gitment.browser.js"></script>
+    <script>
+        var gitment = new Gitment({
+            owner: 'winway',
+            repo: 'winway.github.io',
+            oauth: {
+                client_id: 'ac205f1362174ccbdb1d',
+                client_secret: '42779eaec04b4f1765b777df3fa1c73e24b96943',
+            },
+        })
+        gitment.render('comments')
+    </script>
+</section>
+
+  
 
 
           </div>
@@ -634,8 +429,8 @@
 	var yiliaConfig = {
 		mathjax: false,
 		isHome: false,
-		isPost: false,
-		isArchive: true,
+		isPost: true,
+		isArchive: false,
 		isTag: false,
 		isCategory: false,
 		open_in_new: false,
