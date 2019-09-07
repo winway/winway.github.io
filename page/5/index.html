@@ -155,6 +155,170 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-big-data-storm" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/01/21/big-data-storm/">Hadoop生态系统介绍-Storm</a>
+    </h1>
+  
+
+        
+        <a href="/2017/01/21/big-data-storm/" class="archive-article-date">
+  	<time datetime="2017-01-21T06:00:12.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-01-21</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#前言">前言</a></li>
+<li><a href="#工作原理">工作原理</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="前言">前言</span></h2><p>提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。</p>
+<ol>
+<li><a href="https://winway.github.io/2017/01/07/big-data-intro/">Hadoop生态系统介绍-概览</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-kerberos/">Hadoop生态系统介绍-Kerberos</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-zookeeper/">Hadoop生态系统介绍-Zookeeper</a></li>
+<li><a href="https://winway.github.io/2017/01/11/big-data-hdfs/">Hadoop生态系统介绍-HDFS</a></li>
+<li><a href="https://winway.github.io/2017/01/12/big-data-yarn/">Hadoop生态系统介绍-YARN</a></li>
+<li><a href="https://winway.github.io/2017/01/12/big-data-mapreduce/">Hadoop生态系统介绍-MapReduce</a></li>
+<li><a href="https://winway.github.io/2017/01/13/big-data-hive/">Hadoop生态系统介绍-Hive</a></li>
+<li><a href="https://winway.github.io/2017/01/13/big-data-pig/">Hadoop生态系统介绍-Pig</a></li>
+<li><strong><a href="https://winway.github.io/2017/01/21/big-data-storm/">Hadoop生态系统介绍-Storm</a></strong></li>
+<li><a href="https://winway.github.io/2017/01/26/big-data-hbase/">Hadoop生态系统介绍-Hbase</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-phoenix/">Hadoop生态系统介绍-Phoenix</a></li>
+</ol>
+<p>本文对流式处理框架Storm的工作原理进行介绍。</p>
+<h2><span id="工作原理">工作原理</span></h2><p><strong>Storm计算模型</strong><br><img src="http://www.uml.org.cn/yunjisuan/images/2015101231.jpg" alt=""><br>Storm 实现了一种数据流模型，其中数据持续地流经一个拓扑结构。一个数据流是一个无限的元组序列。元组就像一种使用一些附加的序列化代码来表示标准数据类型（比如整数、浮点和字节数组）或用户定义类型的结构。每个流由一个惟一 ID 定义，这个 ID 可用于构建数据源和接收器 (sink) 的拓扑结构。流起源于spout，spout将数据从外部来源流入 Storm 拓扑结构中。</p>
+<p>bolt实现了一个流上的单一转换和一个 Storm 拓扑结构中的所有处理。bolt既可以实现 MapReduce 之类的传统功能，也可以实现更复杂的操作），比如过滤、聚合或与数据库等外部实体通信。典型的 Storm 拓扑结构会实现多个转换，因此需要多个具有独立元组流的bolt。</p>
+<p><strong>Storm集群架构</strong><br><img src="http://www.uml.org.cn/yunjisuan/images/2016102621.png" alt=""><br>Storm集群采用主从架构，主节点是Nimbus，从节点是Supervisor，有关调度相关的信息存储到ZooKeeper集群中</p>
+<ul>
+<li>Nimbus<br>Storm集群的Master节点，负责分发用户代码，指派给具体的Supervisor节点上的Worker进程，去运行Topology对应的组件（Spout/Bolt）的Task</li>
+<li>Supervisor<br>Storm集群的从节点，负责管理运行在Supervisor节点上的每一个Worker进程的启动和终止。通过Storm的配置文件中的supervisor.slots.ports配置项，可以指定在一个Supervisor上最大允许多少个Slot，每个Slot通过端口号来唯一标识，一个端口号对应一个Worker进程</li>
+<li>ZooKeeper<br>用来协调Nimbus和Supervisor，如果Supervisor因故障出现问题而无法运行Topology，Nimbus会第一时间感知到，并重新分配Topology到其它可用的Supervisor上运行。</li>
+</ul>
+<p><strong>术语</strong></p>
+<ul>
+<li>Nimbus：负责资源分配和任务调度的主节点。</li>
+<li>Supervisor：负责接受nimbus分配的任务，启动和停止属于自己管理的worker进程。</li>
+<li>Worker：运行具体处理组件逻辑的进程。</li>
+<li>Task：worker中每一个spout/bolt的线程称为一个task. 在storm0.8之后，task不再与物理线程对应，同一个spout/bolt的task可能会共享一个物理线程，该线程称为executor。</li>
+<li>Topology：storm中运行的一个实时应用程序，因为各个组件间的消息流动形成逻辑上的一个拓扑结构。</li>
+<li>Spout：在一个topology中产生源数据流的组件。通常情况下spout会从外部数据源中读取数据，然后转换为topology内部的源数据。Spout是一个主动的角色，其接口中有个nextTuple()函数，storm框架会不停地调用此函数，用户只要在其中生成源数据即可。</li>
+<li>Bolt：在一个topology中接受数据然后执行处理的组件。Bolt可以执行过滤、转换、合并、写数据库等操作。Bolt是一个被动的角色，其接口中有个execute(Tuple input)函数,在接受到消息后会调用此函数，用户可以在其中执行自己想要的操作。</li>
+<li>Tuple：一次消息传递的基本单元。本来应该是一个key-value的map，但是由于各个组件间传递的tuple的字段名称已经事先定义好，所以tuple中只要按序填入各个value就行了，所以就是一个value list.</li>
+<li>Stream：源源不断传递的tuple就组成了stream。</li>
+</ul>
+<p><strong>Hadoop vs Storm</strong></p>
+<p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/storm1.png" alt=""></p>
+<p><strong>Storm设计：组件抽象</strong></p>
+<p>我们编写的处理业务逻辑的Topology提交到Storm集群后，就会发生任务的调度和资源的分配，从而也会基于Storm的设计，出现各种各样的组件。<br><img src="http://www.uml.org.cn/yunjisuan/images/2016102624.png" alt=""><br>一个Topology的Spout/Bolt对应的多个Task可能分布在多个Supervisor的多个Worker内部。而每个Worker内部又存在多个Executor，根据实际的Topology配置在运行时进行计算并分配。</p>
+<ul>
+<li>Topology：Storm对一个分布式计算应用程序的抽象，目的是通过实现一个Topology能够完整地完成一件事情（从业务角度来看）。一个Topology是由一组静态程序组件（Spout/Bolt）、组件关系Streaming Groups这两部分组成。</li>
+<li>Spout：描述了数据是如何从外部系统（或者组件内部直接产生）进入到Storm集群，并由该Spout所属的Topology来处理，通常是从一个数据源读取数据，也可以做一些简单的处理（为了不影响数据连续地、实时地、快速地进入到系统，通常不建议把复杂逻辑放在这里）。</li>
+<li>Bolt：描述了与业务相关的处理逻辑。</li>
+<li>Task：Spout/Bolt在运行时所表现出来的实体，都称为Task，一个Spout/Bolt在运行时可能对应一个或多个Spout Task/Bolt Task，与实际在编写Topology时进行配置有关。</li>
+<li>Worker：运行时Task所在的一级容器，Executor运行于Worker中，一个Worker对应于Supervisor上创建的一个JVM实例</li>
+<li>Executor：运行时Task所在的直接容器，在Executor中执行Task的处理逻辑；一个或多个Executor实例可以运行在同一个Worker进程中，一个或多个Task可以运行于同一个Executor中；在Worker进程并行的基础上，Executor可以并行，进而Task也能够基于Executor实现并行计算</li>
+</ul>
+<p><strong>Topology并行度计算</strong></p>
+<p>在编写代码设置并行度的时候，并行度只是一个提示信息，Storm会根据这个提示信息并结合其他一些参数配置（Task个数、Worker个数），去计算运行时的并行度。<br>这个并行度实际上描述的是，组成一个Topology的多个Spout/Bolt的运行时表现实体Task的分布<br><img src="http://www.uml.org.cn/yunjisuan/images/2016102625.png" alt=""></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">conf.setNumWorkers(<span class="number">2</span>); <span class="comment">// 该Topology运行在Supervisor节点的2个Worker进程中</span></span><br><span class="line"></span><br><span class="line">topologyBuilder.setSpout(<span class="string">"blue-spout"</span>, <span class="keyword">new</span> BlueSpout(), <span class="number">2</span>); <span class="comment">// 设置并行度为2，则Task个数为2*1</span></span><br><span class="line"></span><br><span class="line">topologyBuilder.setBolt(<span class="string">"green-bolt"</span>, <span class="keyword">new</span> GreenBolt(), <span class="number">2</span>)</span><br><span class="line">               .setNumTasks(<span class="number">4</span>)</span><br><span class="line">               .shuffleGrouping(<span class="string">"blue-spout"</span>); <span class="comment">// 设置并行度为2，设置Task个数为4 ，则Task个数为2*2</span></span><br><span class="line"></span><br><span class="line">topologyBuilder.setBolt(<span class="string">"yellow-bolt"</span>, <span class="keyword">new</span> YellowBolt(), <span class="number">6</span>)</span><br><span class="line">               .shuffleGrouping(<span class="string">"green-bolt"</span>); <span class="comment">// 设置并行度为6，则Task个数为6*1</span></span><br></pre></td></tr></table></figure>
+<p>Storm是如何计算一个Topology运行时的并行度，并分配到2个Worker中的？<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">计算Task总数：2*1+4+6*1=12（总计创建12个Task实例）</span><br><span class="line">计算运行时Topology并行度：(2+2+6)/2=5（每个Worker对应5个Executor）</span><br><span class="line">将12个Task分配到2个Worker中的5*2个Executor中：应该是每个Worker上5个Executor，将6个Task分配到5个Executor中</span><br><span class="line">每个Worker中分配6个Task，应该是分配3个Yellow Task、2个Green Task、1个Blue Task</span><br></pre></td></tr></table></figure></p>
+<p>分配过程：从Task个数最少的开始，1个Blue Task只能放到一个Executor，总计1个Executor被占用；2个Green Task可以放到同一个Executor中，总计2个Executor被占用；最后看剩下的3个Yellow Task能否分配到5-2=3个Executor中，显然每个Yellow Task对应一个Executor<br><img src="http://www.uml.org.cn/yunjisuan/images/2016102626.png" alt=""></p>
+<p><strong>Storm记录级容错的基本原理</strong></p>
+<p>storm允许用户在spout中发射一个新的源tuple时为其指定一个message id, 这个message id可以是任意的object对象。多个源tuple可以共用一个message id，表示这多个源 tuple对用户来说是同一个消息单元。</p>
+<p>storm中记录级容错的意思是说，storm会告知用户每一个消息单元是否在指定时间内被完全处理了。</p>
+<p>那什么叫做完全处理呢，就是该message id绑定的源tuple及由该源tuple后续生成的tuple经过了topology中每一个应该到达的bolt的处理。</p>
+<p>举个例子。在spout由message 1绑定的tuple1和tuple2经过了bolt1和bolt2的处理生成两个新的tuple，并最终都流向了bolt3。当这个过程完成处理完时，称message 1被完全处理了。<br><img src="http://www.uml.org.cn/sjjm/images/2014092851.png" alt=""><br>在storm的topology中有一个系统级组件，叫做acker。这个acker的任务就是追踪从spout中流出来的每一个message id绑定的若干tuple的处理路径，如果在用户设置的最大超时时间内这些tuple没有被完全处理，那么acker就会告知spout该消息处理失败，相反则会告知spout该消息处理成功了。</p>
+<p>”记录tuple的处理路径”，如果曾经尝试过这么做的同学可以仔细地思考一下这件事的复杂程度。但是storm中却是使用了一种非常巧妙的方法做到了。</p>
+<p>在说明这个方法之前，我们来复习一个数学知识：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">A xor A = 0</span><br><span class="line">A xor B…xor B xor A = 0，其中每一个操作数出现且仅出现两次</span><br></pre></td></tr></table></figure></p>
+<p>storm中使用的巧妙方法就是基于这个理论。具体过程是这样的：在spout中系统会为用户指定的message id生成一个对应的64位整数，作为一个root id。root id会传递给acker及后续的bolt作为该消息单元的唯一标识。同时无论是spout还是bolt每次新生成一个tuple的时候，都会赋予该tuple一个64位的整数的id。Spout发射完某个message id对应的源tuple之后，会告知acker自己发射的root id及生成的那些源tuple的id。而bolt呢，每次接受到一个输入tuple处理完之后，也会告知acker自己处理的输入tuple的id及新生成的那些tuple的id。Acker只需要对这些id做一个简单的异或运算，就能判断出该root id对应的消息单元是否处理完成了。</p>
+<ol>
+<li><p>spout中绑定message 1生成了两个源tuple，id分别是0010和1011.<br><img src="http://static.oschina.net/uploads/space/2016/0125/181043_eKPq_2000675.jpg" alt=""></p>
+</li>
+<li><p>bolt1处理tuple 0010时生成了一个新的tuple，id为0110<br><img src="http://static.oschina.net/uploads/space/2016/0126/150057_Hsa2_2000675.jpg" alt=""></p>
+</li>
+<li><p>bolt2处理tuple 1011时生成了一个新的tuple，id为0111<br><img src="http://static.oschina.net/uploads/space/2016/0125/181207_baaW_2000675.jpg" alt=""></p>
+</li>
+<li><p>bolt3中接收到tuple 0110和tuple 0111，没有生成新的tuple<br><img src="http://static.oschina.net/uploads/space/2016/0125/181243_xKy0_2000675.jpg" alt=""></p>
+</li>
+</ol>
+<p><strong>容错过程存在一个可能出错的地方</strong></p>
+<p>如果生成的tuple id并不是完全各异的，acker可能会在消息单元完全处理完成之前就错误的计算为0。这个错误在理论上的确是存在的，但是在实际中其概率是极低极低的，完全可以忽略。</p>
+<p><strong>Storm的事务拓扑</strong></p>
+<p>事务拓扑(transactional topology)是storm0.7引入的特性，在最近发布的0.8版本中已经被封装为Trident，提供了更加便利和直观的接口。<br>事务拓扑的目的是为了满足对消息处理有着极其严格要求的场景，例如实时计算某个用户的成交笔数，要求结果完全精确，不能多也不能少。Storm的事务拓扑是完全基于它底层的spout/bolt/acker原语实现的，通过一层巧妙的封装得出一个优雅的实现。<br>事务拓扑简单来说就是将消息分为一个个的批(batch)，同一批内的消息以及批与批之间的消息可以并行处理，另一方面，用户可以设置某些bolt为committer，storm可以保证committer的finishBatch()操作是按严格不降序的顺序执行的。用户可以利用这个特性通过简单的编程技巧实现消息处理的精确。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">storm</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/01/21/big-data-storm/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-big-data-pig" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1565,175 +1729,6 @@
 
 
   
-    <article id="post-firewalld-intro" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2016/08/15/firewalld-intro/">Iptables vs Firewalld</a>
-    </h1>
-  
-
-        
-        <a href="/2016/08/15/firewalld-intro/" class="archive-article-date">
-  	<time datetime="2016-08-15T10:17:27.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-08-15</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#iptables介绍">Iptables介绍</a></li>
-<li><a href="#firewalld-介绍">Firewalld 介绍</a></li>
-<li><a href="#iptables-vs-firewalld">Iptables VS Firewalld</a></li>
-<li><a href="#常用命令">常用命令</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="iptables介绍">Iptables介绍</span></h2><p>iptables只是用户空间的防火墙管理工具，准确的说linux防火墙指的是netfilter/iptables这个组合。<br>netfilter 组件也称为内核空间（kernelspace），是内核的一部分，由一些数据包过滤表组成，这些表包含内核用来控制数据包过滤处理的规则集。iptables组件是一种工具，也称为用户空间（userspace），它使插入、修改和删除数据包过滤表中的规则变得容易。</p>
-<p>Netfilter是Linux操作系统核心层内部的一个数据包处理模块，它具有如下功能：</p>
-<ul>
-<li>网络地址转换(Network Address Translate)</li>
-<li>数据包内容修改</li>
-<li>以及数据包过滤的防火墙功能</li>
-</ul>
-<p>Netfilter平台中制定了数据包的五个挂载点（Hook Point，我们可以理解为回调函数点，数据包到达这些位置的时候会主动调用我们的函数，使我们有机会能在数据包路由的时候改变它们的方向、内容），这5个挂载点分别是PRE_ROUTING、INPUT、OUTPUT、FORWARD、POST_ROUTING。<br><img src="https://ooo.0o0.ooo/2016/09/10/57d3be21b6090.png" alt=""></p>
-<p>Netfilter所设置的规则是存放在内核内存中的，而iptables是一个应用层的应用程序，它通过Netfilter放出的接口来对存放在内核内存中的XXtables（Netfilter的配置表）进行修改。<br><img src="http://upload-images.jianshu.io/upload_images/1859318-588ea9f329f3ac96.png?imageMogr2/auto-orient/strip%7CimageView2/2" alt=""></p>
-<p>netfilter在内核空间的代码根据table中的rules，完成对packet的分析和处置。但是这些table中的具体的防火墙rules，还是必须由系统管理员亲自编写。kernel中的netfilter只是提供了一个机制，它并不知道该怎样利用这个机制，写出合适的rules，来实现一个网络防火墙。那么，系统管理员编写的rules，怎样进入位于kernel空间中的netfilter维护的table中去呢？<br>这个任务是由iptables这个工具来完成的。它经过getsockopt()以及setsockopt()两个系统调用，进入kernel空间。这两个调用是BSD Socket接口的一部分。这里面的问题是IPv4在接到关于某个sock的不认识的opt的时候，应该怎么处理？netfilter要求它在linux-2.4.19/net/ipv4/ip_sockglue.c文件中处理getsockopt()和setsockopt()系统调用的ip_sockopt()函数中适当的地方调用nf_sockopt()。这样，用户空间就可以和netfilter核心部分进行交流，可以维护table中的防火墙rules了。<br>netfilter对于IPv4的修改非常小，一是在若干个地方调用了NF_HOOK()，二是在ip_sockopt()中调用了nf_sockopt()。</p>
-<h2><span id="firewalld-介绍">Firewalld 介绍</span></h2><p>firewalld提供了支持网络/防火墙区域(zone)定义网络链接以及接口安全等级的动态防火墙管理工具。它支持IPv4,IPv6防火墙设置以及以太网桥接，并且拥有运行时配置和永久配置选项。它也支持允许服务或者应用程序直接添加防火墙规则的接口。<br><strong>什么是区域？</strong><br>区域（zone）是防火墙产品所引入的一个安全概念，它定义了网络连接的可信等级。这是一个一对多的关系，这意味着一次连接可以仅仅是一个区域的一部分，而一个区域可以用于很多连接。<br>区别于iptables面向数据包的访问控制方式，区域通过定义面向服务的访问策略来形成信任级别的概念，一般与网络接口关联。<br><strong>哪个区域可用?</strong><br>由firewalld提供的区域按照从不信任到信任的顺序排序。</p>
-<ul>
-<li>丢弃<br>任何流入网络的包都被丢弃，不作出任何响应。只允许流出的网络连接。</li>
-<li>阻塞<br>任何进入的网络连接都被拒绝，并返回IPv4的icmp-host-prohibited报文或者IPv6的icmp6-adm-prohibited报文。只允许由该系统初始化的网络连接。</li>
-<li>公开<br>用以可以公开的部分。你认为网络中其他的计算机不可信并且可能伤害你的计算机。只允许选中的连接接入。（You do not trust the other computers on networks to not harm your computer. Only selected incoming connections are accepted.）</li>
-<li>外部<br>用在路由器等启用伪装的外部网络。你认为网络中其他的计算机不可信并且可能伤害你的计算机。只允许选中的连接接入。</li>
-<li>隔离区（dmz）<br>用以允许隔离区（dmz）中的电脑有限地被外界网络访问。只接受被选中的连接。</li>
-<li>工作<br>用在工作网络。你信任网络中的大多数计算机不会影响你的计算机。只接受被选中的连接。</li>
-<li>家庭<br>用在家庭网络。你信任网络中的大多数计算机不会影响你的计算机。只接受被选中的连接。</li>
-<li>内部<br>用在内部网络。你信任网络中的大多数计算机不会影响你的计算机。只接受被选中的连接。</li>
-<li>受信任的<br>允许所有网络连接。<br><strong>为什么是动态防火墙？</strong><br>以前的iptables防火墙是静态的，每次修改都要求防火墙完全重启。这个过程包括内核netfilter防火墙模块的卸载和新配置所需模块的装载等。而模块的卸载将会破坏状态防火墙和确立的连接。现在firewalld可以动态管理防火墙。</li>
-</ul>
-<p><img src="http://images2015.cnblogs.com/blog/540443/201601/540443-20160125155614754-447228315.png" alt=""></p>
-<p>firewalld的配置方式：firewall-config、firewall-cmd、编辑XML<br>重要参数：<br>–permanent只修改配置文件，不立即生效。在reload（不会破坏当前状态）、restart后生效。如果不加此参数，则立即生效，但是不会持久化。<br>所以配置的推荐流程是：带–permanent参数执行一次，然后不带–permanent参数执行<br>–direct直接操作原生的iptables</p>
-<h2><span id="iptables-vs-firewalld">Iptables VS Firewalld</span></h2><p>示例：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"># Iptables</span><br><span class="line">-A INPUT -s 10.14.40.157 -p tcp -m multiport --dports  1986  -j ACCEPT</span><br><span class="line">-A INPUT -s 10.15.40.157 -p tcp -m multiport --dports  1986  -j ACCEPT</span><br><span class="line">-A INPUT -p tcp --dport 1986 -j DROP</span><br></pre></td></tr></table></figure></p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"># Firewalld</span><br><span class="line">firewall-cmd --permanent --add-rich-rule &apos;rule family=ipv4 source address=10.14.40.157 port port=1986 protocol=tcp accept&apos;</span><br><span class="line">firewall-cmd --add-rich-rule &apos;rule family=ipv4 source address=10.14.40.157 port port=1986 protocol=tcp accept&apos;</span><br><span class="line">firewall-cmd --permanent --add-rich-rule &apos;rule family=ipv4 source address=10.15.40.157 port port=1986 protocol=tcp accept&apos;</span><br><span class="line">firewall-cmd --add-rich-rule &apos;rule family=ipv4 source address=10.15.40.157 port port=1986 protocol=tcp accept&apos;</span><br><span class="line"># 可以使用--direct配置多个端口的accept</span><br></pre></td></tr></table></figure>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"># cat zones/public.xml</span><br><span class="line">&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;</span><br><span class="line">&lt;zone&gt;</span><br><span class="line">  &lt;short&gt;Public&lt;/short&gt;</span><br><span class="line">  &lt;description&gt;For use in public areas. You do not trust the other computers on networks to not harm your computer. Only selected incoming connections are accepted.&lt;/description&gt;</span><br><span class="line">  &lt;service name=&quot;dhcpv6-client&quot;/&gt;</span><br><span class="line">  &lt;service name=&quot;ssh&quot;/&gt;</span><br><span class="line">  &lt;rule family=&quot;ipv4&quot;&gt;</span><br><span class="line">    &lt;source address=&quot;10.14.40.157&quot;/&gt;</span><br><span class="line">    &lt;port protocol=&quot;tcp&quot; port=&quot;1986&quot;/&gt;</span><br><span class="line">    &lt;accept/&gt;</span><br><span class="line">  &lt;/rule&gt;</span><br><span class="line">  &lt;rule family=&quot;ipv4&quot;&gt;</span><br><span class="line">    &lt;source address=&quot;10.15.40.157&quot;/&gt;</span><br><span class="line">    &lt;port protocol=&quot;tcp&quot; port=&quot;1986&quot;/&gt;</span><br><span class="line">    &lt;accept/&gt;</span><br><span class="line">  &lt;/rule&gt;</span><br><span class="line">&lt;/zone&gt;</span><br><span class="line"></span><br><span class="line"># cat services/snmp.xml</span><br><span class="line">&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;</span><br><span class="line">&lt;service&gt;</span><br><span class="line">  &lt;short&gt;SNMP&lt;/short&gt;</span><br><span class="line">  &lt;description&gt;SNMP.&lt;/description&gt;</span><br><span class="line">  &lt;port protocol=&quot;udp&quot; port=&quot;161&quot;/&gt;</span><br><span class="line">&lt;/service&gt;</span><br><span class="line">firewall-cmd -reload</span><br><span class="line">firewall-cmd --add-service=snmp</span><br><span class="line">firewall-cmd --add-port=161/udp</span><br></pre></td></tr></table></figure>
-<p>支持一个服务对应多个port<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;</span><br><span class="line">&lt;service&gt;</span><br><span class="line">  &lt;short&gt;Mail (SMTP)&lt;/short&gt;</span><br><span class="line">  &lt;description&gt;This option allows incoming SMTP mail delivery. If you need to allow remote hosts to connect directly to your machine to deliver mail, enable this option. You $</span><br><span class="line">  &lt;port protocol=&quot;tcp&quot; port=&quot;465&quot;/&gt;</span><br><span class="line">  &lt;!-- is adding a second port here legal and the best approach? --&gt;</span><br><span class="line">  &lt;port protocol=&quot;tcp&quot; port=&quot;25&quot;/&gt;</span><br><span class="line">&lt;/service&gt;</span><br><span class="line"></span><br><span class="line"># cat zones/public.xml</span><br><span class="line">&lt;?xml version=&quot;1.0&quot; encoding=&quot;utf-8&quot;?&gt;</span><br><span class="line">&lt;zone&gt;</span><br><span class="line">  &lt;short&gt;Public&lt;/short&gt;</span><br><span class="line">  &lt;description&gt;For use in public areas. You do not trust the other computers on networks to not harm your computer. Only selected incoming connections are accepted.&lt;/description&gt;</span><br><span class="line">  &lt;service name=&quot;dhcpv6-client&quot;/&gt;</span><br><span class="line">  &lt;service name=&quot;snmp&quot;/&gt;</span><br><span class="line">  &lt;service name=&quot;ssh&quot;/&gt;</span><br><span class="line">  &lt;rule family=&quot;ipv4&quot;&gt;</span><br><span class="line">    &lt;source address=&quot;10.14.40.157&quot;/&gt;</span><br><span class="line">    &lt;port protocol=&quot;tcp&quot; port=&quot;1986&quot;/&gt;</span><br><span class="line">    &lt;accept/&gt;</span><br><span class="line">  &lt;/rule&gt;</span><br><span class="line">  &lt;rule family=&quot;ipv4&quot;&gt;</span><br><span class="line">    &lt;source address=&quot;10.15.40.157&quot;/&gt;</span><br><span class="line">    &lt;port protocol=&quot;tcp&quot; port=&quot;1986&quot;/&gt;</span><br><span class="line">    &lt;accept/&gt;</span><br><span class="line">  &lt;/rule&gt;</span><br><span class="line">&lt;/zone&gt;</span><br><span class="line"></span><br><span class="line">firewall-cmd --zone=trusted --add-interface=eth1</span><br></pre></td></tr></table></figure></p>
-<table>
-<thead>
-<tr>
-<th></th>
-<th>Iptables</th>
-<th>Firewalld</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>配置文件格式</td>
-<td>自定义</td>
-<td>XML</td>
-</tr>
-<tr>
-<td>应用接口</td>
-<td>无</td>
-<td>D-BUS</td>
-</tr>
-<tr>
-<td>重启的影响</td>
-<td>清空重新加载</td>
-<td>不影响当前状态（reload）</td>
-</tr>
-<tr>
-<td>灵活性</td>
-<td>更灵活</td>
-<td>一般</td>
-</tr>
-<tr>
-<td>性能</td>
-<td>-</td>
-<td>-</td>
-</tr>
-</tbody>
-</table>
-<p>结论：<br>Iptables比较符合运维操作习惯，firewalld并未提供更方便的配置方式；<br>重启对当前状态的影响不是痛点；<br>zone的引入没有太多收益，且有一定的学习成本；</p>
-<p><strong>WHY FIREWALLD?</strong></p>
-<ol>
-<li>对于新手而言，firewalld未必不如iptables；</li>
-<li>更高层次的抽象，屏蔽底层可能的变动；</li>
-</ol>
-<h2><span id="常用命令">常用命令</span></h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br></pre></td><td class="code"><pre><span class="line">To stop firewalld, enter the following command as root:</span><br><span class="line">~]# systemctl stop firewalld</span><br><span class="line"></span><br><span class="line">To prevent firewalld from starting automatically at system start, issue the following command as root:</span><br><span class="line">~]# systemctl disable firewalld</span><br><span class="line"></span><br><span class="line">To start firewalld, enter the following command as root:</span><br><span class="line">~]# systemctl start firewalld</span><br><span class="line"></span><br><span class="line">To ensure firewalld starts automatically at system start, enter the following command as root:</span><br><span class="line">~]# systemctl enable firewalld</span><br><span class="line"></span><br><span class="line">To check if firewalld is running, enter the following command:</span><br><span class="line">~]$ systemctl status firewalld</span><br><span class="line"></span><br><span class="line">In addition, check if firewall-cmd can connect to the daemon by entering the following command:</span><br><span class="line">~]$ firewall-cmd --state</span><br><span class="line"></span><br><span class="line">To view the list of active zones, with a list of the interfaces currently assigned to them, enter the following command:</span><br><span class="line">~]$ firewall-cmd --get-active-zones</span><br><span class="line"></span><br><span class="line">To find out the zone that an interface, for example em1, is currently assigned to, enter the following command:</span><br><span class="line">~]$ firewall-cmd --get-zone-of-interface=em1</span><br><span class="line"></span><br><span class="line">To find out all the interfaces assigned to a zone, for example the public zone, enter the following command as root:</span><br><span class="line">~]# firewall-cmd --zone=public --list-interfaces</span><br><span class="line"></span><br><span class="line">To find out all the settings of a zone, for example the public zone, enter the following command as root:</span><br><span class="line">~]# firewall-cmd --zone=public --list-all</span><br><span class="line"></span><br><span class="line">To view the list of services currently loaded, enter the following command as root:</span><br><span class="line">~]# firewall-cmd --get-services</span><br><span class="line"></span><br><span class="line">If custom services have been created but not loaded, they can be listed as follows:</span><br><span class="line">~]# firewall-cmd --permanent --get-services</span><br><span class="line"></span><br><span class="line">To start dropping all incoming and outgoing packets, enter the following command as root:</span><br><span class="line">~]# firewall-cmd --panic-on</span><br><span class="line"></span><br><span class="line">To start passing incoming and outgoing packets again, enter the following command as root:</span><br><span class="line">~]# firewall-cmd --panic-off</span><br><span class="line"></span><br><span class="line"> To find out if panic mode is enabled or disabled, enter the following command:</span><br><span class="line">~]$ firewall-cmd --query-panic</span><br><span class="line"></span><br><span class="line"> To reload the firewall without interrupting user connections (without losing state information), enter the following command as root:</span><br><span class="line">~]# firewall-cmd --reload</span><br><span class="line"></span><br><span class="line"> To reload the firewall and interrupt user connections, discarding state information, enter the following command as root:</span><br><span class="line">~]# firewall-cmd --complete-reload</span><br><span class="line"></span><br><span class="line"> To add an interface to a zone (for example, to add em1 to the public zone), enter the following command as root:</span><br><span class="line">~]# firewall-cmd --zone=public --add-interface=em1</span><br><span class="line"></span><br><span class="line"> To get the default zone (to public, for example), enter the following command as root:</span><br><span class="line">~]# firewall-cmd --get-default-zone</span><br><span class="line"></span><br><span class="line"> To set the default zone (to public, for example), enter the following command as root:</span><br><span class="line">~]# firewall-cmd --set-default-zone=public</span><br><span class="line"></span><br><span class="line"> To list all open ports for a zone (dmz, for example), enter the following command as root:</span><br><span class="line">~]# firewall-cmd --zone=dmz --list-ports</span><br><span class="line"></span><br><span class="line"> To add a port to a zone (for example, to allow TCP traffic to port 8080 to the dmz zone), enter the following command as root:</span><br><span class="line">~]# firewall-cmd --zone=dmz --add-port=8080/tcp</span><br><span class="line"></span><br><span class="line"> To add a range of ports to a zone (for example, to allow the ports from 5060 to 5061 to the public zone, enter the following command as root:</span><br><span class="line">~]# firewall-cmd --zone=public --add-port=5060-5061/udp</span><br><span class="line"></span><br><span class="line"> To add a service to a zone (for example, to allow SMTP to the work zone), enter the following command as root:</span><br><span class="line">~]# firewall-cmd --zone=work --add-service=smtp</span><br><span class="line"></span><br><span class="line"> To remove a service from a zone (for example, to remove SMTP from the work zone), enter the following command as root:</span><br><span class="line">~]# firewall-cmd --zone=work --remove-service=smtp</span><br><span class="line"></span><br><span class="line"> To add a custom rule to the “IN_public_allow” chain, issue the following command as root:</span><br><span class="line">~]# firewall-cmd --direct --add-rule ipv4 filter IN_public_allow 0 -m tcp -p tcp --dport 666 -j ACCEPT</span><br><span class="line"></span><br><span class="line"> To remove a custom rule from the “IN_public_allow” chain, issue the following command as root:</span><br><span class="line">~]# firewall-cmd --direct --remove-rule ipv4 filter IN_public_allow 0 -m tcp -p tcp --dport 666 -j ACCEPT</span><br><span class="line"></span><br><span class="line"> To list the rules in the “IN_public_allow” chain, issue the following command as root:</span><br><span class="line">~]# firewall-cmd --direct --get-rules ipv4 filter IN_public_allow</span><br></pre></td></tr></table></figure>
-<h2><span id="参考资料">参考资料</span></h2><p><a href="https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/Security_Guide/sec-Using_Firewalls.html#sec-Introduction_to_firewalld1" target="_blank" rel="noopener">https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/7/html/Security_Guide/sec-Using_Firewalls.html#sec-Introduction_to_firewalld1</a><br><a href="https://fedoraproject.org/wiki/FirewallD/zh-cn#.E4.BB.8E_ip.2Atables_.E5.92.8C_ebtables_.E6.9C.8D.E5.8A.A1.E8.BF.81.E7.A7.BB" target="_blank" rel="noopener">https://fedoraproject.org/wiki/FirewallD/zh-cn#.E4.BB.8E_ip.2Atables_.E5.92.8C_ebtables_.E6.9C.8D.E5.8A.A1.E8.BF.81.E7.A7.BB</a><br><a href="http://www.ibm.com/developerworks/cn/linux/1507_caojh/" target="_blank" rel="noopener">http://www.ibm.com/developerworks/cn/linux/1507_caojh/</a></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">iptables</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">firewalld</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2016/08/15/firewalld-intro/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/4/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/3/">3</a><a class="page-number" href="/page/4/">4</a><span class="page-number current">5</span><a class="page-number" href="/page/6/">6</a><a class="page-number" href="/page/7/">7</a><a class="page-number" href="/page/8/">8</a><a class="extend next" rel="next" href="/page/6/">Next &raquo;</a>
@@ -1837,6 +1832,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">C</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">shell</a>
               </li>
              
@@ -1849,19 +1852,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">C</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">pig</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1873,23 +1872,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">snmp</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">influxdb</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">grafana</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1901,11 +1892,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+                <a href="javascript:void(0)" class="js-tag color4">influxdb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">grafana</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1921,14 +1920,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
               </li>
              
@@ -1937,7 +1928,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1945,7 +1936,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1953,7 +1952,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+                <a href="javascript:void(0)" class="js-tag color4">tez</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1989,11 +1988,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
+                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
               </li>
             
             <div class="clearfix"></div>

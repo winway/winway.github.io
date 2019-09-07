@@ -155,6 +155,108 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-tezRandomSlow" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2019/09/07/tezRandomSlow/">TEZ执行耗时随机陡增问题</a>
+    </h1>
+  
+
+        
+        <a href="/2019/09/07/tezRandomSlow/" class="archive-article-date">
+  	<time datetime="2019-09-07T02:24:54.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-09-07</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#问题">问题</a></li>
+<li><a href="#分析">分析</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="问题">问题</span></h2><p>最近遇到一个问题：同样的查询语句，同样的输入数据，TEZ的执行耗时会随机陡增。正常5分钟执行完毕，偶尔会执行30-40分钟，即便是集群资源不紧张的时候。</p>
+<h2><span id="分析">分析</span></h2><p>通过TEZ UI观察正常执行和异常执行的任务信息，发现问题出在task的数量上，如下图。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/image.png" alt=""></p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/image2.png" alt=""></p>
+<p><strong>正常情况下的Map个数要远大于异常情况。</strong></p>
+<p><em>TEZ是如何决定Map的个数呢？</em><br>简单的说，TEZ会根据当时集群的资源使用情况，同时在参数tez.grouping.split-waves、tez.grouping.max-size、tez.grouping.min-size的控制下，动态的决定Map的个数，详见：<a href="https://cwiki.apache.org/confluence/display/TEZ/How+initial+task+parallelism+works。" target="_blank" rel="noopener">https://cwiki.apache.org/confluence/display/TEZ/How+initial+task+parallelism+works。</a><br>所以如果能控制Map的个数，保持在比较合理的数量，就不会出现该问题。</p>
+<p><em>如何控制TEZ的Map数量呢？</em><br>简单来说，有3个参数，通过设置它们，可以控制Map的数量，避免出现过少的Map。</p>
+<ul>
+<li>tez.grouping.max-size(default 1073741824 which is 1GB)</li>
+<li>tez.grouping.min-size(default 52428800 which is 50MB)</li>
+<li>tez.grouping.split-count(not set by default)</li>
+</ul>
+<p>详见：<a href="http://www.openkb.info/2017/05/hive-on-tez-how-to-control-number-of.html" target="_blank" rel="noopener">http://www.openkb.info/2017/05/hive-on-tez-how-to-control-number-of.html</a></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">tez</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2019/09/07/tezRandomSlow/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-gfaIfxActoin" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1124,102 +1226,6 @@
 
 
   
-    <article id="post-open-falcon-alarm" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/12/23/open-falcon-alarm/">open-falcon源码阅读之alarm</a>
-    </h1>
-  
-
-        
-        <a href="/2017/12/23/open-falcon-alarm/" class="archive-article-date">
-  	<time datetime="2017-12-23T00:42:19.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-12-23</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p><em>Version：0.2.0</em></p>
-<!-- toc -->
-<ul>
-<li><a href="#1-架构图">1. 架构图</a></li>
-<li><a href="#2-流程图">2. 流程图</a></li>
-<li><a href="#3-源码解析">3. 源码解析</a></li>
-</ul>
-<!-- tocstop -->
-<h1><span id="1-架构图">1. 架构图</span></h1><p>Alarm读取Redis中的event，持久化到Mysql，并将event放到Redis的待发送队列或待合并队列。开启goroutine调用对应的接口异步发送。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/open-falcon-alarm-arch.png" alt=""></p>
-<h1><span id="2-流程图">2. 流程图</span></h1><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/open-falcon-alarm-flow.png" alt=""></p>
-<h1><span id="3-源码解析">3. 源码解析</span></h1><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">"flag"</span></span><br><span class="line">	<span class="string">"fmt"</span></span><br><span class="line">	<span class="string">"os"</span></span><br><span class="line">	<span class="string">"os/signal"</span></span><br><span class="line">	<span class="string">"syscall"</span></span><br><span class="line"></span><br><span class="line">	<span class="string">"github.com/gin-gonic/gin"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/cron"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/g"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/http"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/model"</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	cfg := flag.String(<span class="string">"c"</span>, <span class="string">"cfg.json"</span>, <span class="string">"configuration file"</span>)</span><br><span class="line">	version := flag.Bool(<span class="string">"v"</span>, <span class="literal">false</span>, <span class="string">"show version"</span>)</span><br><span class="line">	help := flag.Bool(<span class="string">"h"</span>, <span class="literal">false</span>, <span class="string">"help"</span>)</span><br><span class="line">	flag.Parse()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> *version &#123;</span><br><span class="line">		fmt.Println(g.VERSION)</span><br><span class="line">		os.Exit(<span class="number">0</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> *help &#123;</span><br><span class="line">		flag.Usage()</span><br><span class="line">		os.Exit(<span class="number">0</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	g.ParseConfig(*cfg) <span class="comment">// 加载配置文件</span></span><br><span class="line"></span><br><span class="line">	g.InitLog(g.Config().LogLevel) <span class="comment">// 根据配置文件设置日志级别</span></span><br><span class="line">	<span class="keyword">if</span> g.Config().LogLevel != <span class="string">"debug"</span> &#123;</span><br><span class="line">		gin.SetMode(gin.ReleaseMode)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	Gin is a web framework written in Go (Golang).</span></span><br><span class="line"><span class="comment">	It features a martini-like API with much better performance,</span></span><br><span class="line"><span class="comment">	up to 40 times faster thanks to httprouter.</span></span><br><span class="line"><span class="comment">	If you need performance and good productivity, you will love Gin.</span></span><br><span class="line"><span class="comment">	HttpRouter is a lightweight high performance HTTP request router</span></span><br><span class="line"><span class="comment">	(also called multiplexer or just mux for short) for Go.</span></span><br><span class="line"><span class="comment">	In contrast to the default mux of Go's net/http package,</span></span><br><span class="line"><span class="comment">	this router supports variables in the routing pattern and matches against the request method.</span></span><br><span class="line"><span class="comment">	It also scales better.The router is optimized for high performance and a small memory footprint.</span></span><br><span class="line"><span class="comment">	It scales well even with very long paths and a large number of routes.</span></span><br><span class="line"><span class="comment">	A compressing dynamic trie (radix tree) structure is used for efficient matching.</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line"></span><br><span class="line">	g.InitRedisConnPool() <span class="comment">// 创建redis连接池</span></span><br><span class="line">	model.InitDatabase() <span class="comment">// 创建数据库连接和数据库表，使用了beego的orm</span></span><br><span class="line">	cron.InitSenderWorker() <span class="comment">// 创建IMWorkerChan/SmsWorkerChan/MailWorkerChan，根据配置设置channel长度</span></span><br><span class="line">	                        <span class="comment">// 实际在用信号量做并发控制，避免同时发送过多</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">go</span> http.Start() <span class="comment">// 启动http服务（使用gin框架实现），提供版本查询、健康查询、工作查询接口</span></span><br><span class="line">	<span class="keyword">go</span> cron.ReadHighEvent() <span class="comment">// 处理高优先级报警事件，包括入库、调callback、报警入redis待发送队列</span></span><br><span class="line">	<span class="keyword">go</span> cron.ReadLowEvent() <span class="comment">// 处理低优先级报警事件，包括入库、调callback、报警入redis待合并队列</span></span><br><span class="line">	<span class="keyword">go</span> cron.CombineSms() <span class="comment">// 读取/queue/user/sms队列中的短信内容，聚合后入库，并发送聚合短信</span></span><br><span class="line">	<span class="keyword">go</span> cron.CombineMail() <span class="comment">// 读取/queue/user/mail队列中的邮件内容，聚合发送</span></span><br><span class="line">	<span class="keyword">go</span> cron.CombineIM() <span class="comment">// 读取/queue/user/im队列中的IM内容，聚合后入库，并发送聚合消息</span></span><br><span class="line">	<span class="keyword">go</span> cron.ConsumeIM() <span class="comment">// 读取/im队列中的内容，调用微信发送网关地址发送</span></span><br><span class="line">	<span class="keyword">go</span> cron.ConsumeSms() <span class="comment">// 读取/sms队列中的内容，调用短信发送网关地址发送</span></span><br><span class="line">	<span class="keyword">go</span> cron.ConsumeMail() <span class="comment">// 读取/mail队列中的内容，调用邮件发送网关地址发送</span></span><br><span class="line">	<span class="keyword">go</span> cron.CleanExpiredEvent() <span class="comment">// 删除events表的旧数据，默认7天之前</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 注册信号处理程序，监听syscall.SIGINT和syscall.SIGTERM信号</span></span><br><span class="line">	sigs := <span class="built_in">make</span>(<span class="keyword">chan</span> os.Signal, <span class="number">1</span>)</span><br><span class="line">	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)</span><br><span class="line">	<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		&lt;-sigs</span><br><span class="line">		fmt.Println()</span><br><span class="line">		g.RedisConnPool.Close()</span><br><span class="line">		os.Exit(<span class="number">0</span>)</span><br><span class="line">	&#125;()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">select</span> &#123;&#125; <span class="comment">// 等待</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>详细代码注释请参考<a href="https://github.com/winway/falcon-plus-learn，持续更新中" target="_blank" rel="noopener">https://github.com/winway/falcon-plus-learn，持续更新中</a></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">open-falcon</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/12/23/open-falcon-alarm/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/8/">8</a><a class="extend next" rel="next" href="/page/2/">Next &raquo;</a>
@@ -1323,6 +1329,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">C</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">shell</a>
               </li>
              
@@ -1335,19 +1349,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">C</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">pig</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1359,23 +1369,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">snmp</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">influxdb</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">grafana</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1387,11 +1389,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+                <a href="javascript:void(0)" class="js-tag color4">influxdb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">grafana</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1407,14 +1417,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
               </li>
              
@@ -1423,7 +1425,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1431,7 +1433,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1439,7 +1449,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+                <a href="javascript:void(0)" class="js-tag color4">tez</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1475,11 +1485,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
+                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
               </li>
             
             <div class="clearfix"></div>
