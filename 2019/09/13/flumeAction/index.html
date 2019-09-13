@@ -6,18 +6,31 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <link rel="dns-prefetch" href="https://winway.github.io">
-  <title>Archives | winway&#39;s blog</title>
+  <title>Flume实战总结 | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="python, go, devops, hadoop, MongoDB">
-<meta property="og:type" content="website">
-<meta property="og:title" content="winway&#39;s blog">
-<meta property="og:url" content="https://winway.github.io/archives/page/3/index.html">
+  <meta name="description" content="前言 Flume介绍 架构演进 Kafka topic覆盖问题 Flume重复读取日志问题   前言一直使用Flume进行日志收集，本文就使用Flume的过程中遇到的问题、知识点进行总结记录，不会涉及Flume的基本用法，读者需要对Flume有一定了解。 Flume介绍Flume是Cloudera开发的一个高可用的，高可靠的，分布式的海量日志采集、聚合和传输的系统，Flume支持在日志系统中定">
+<meta name="keywords" content="flume">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Flume实战总结">
+<meta property="og:url" content="https://winway.github.io/2019/09/13/flumeAction/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:description" content="python, go, devops, hadoop, MongoDB">
+<meta property="og:description" content="前言 Flume介绍 架构演进 Kafka topic覆盖问题 Flume重复读取日志问题   前言一直使用Flume进行日志收集，本文就使用Flume的过程中遇到的问题、知识点进行总结记录，不会涉及Flume的基本用法，读者需要对Flume有一定了解。 Flume介绍Flume是Cloudera开发的一个高可用的，高可靠的，分布式的海量日志采集、聚合和传输的系统，Flume支持在日志系统中定">
 <meta property="og:locale" content="default">
+<meta property="og:image" content="https://flume.apache.org/_images/UserGuide_image02.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913161017.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20190913-162321.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913162846.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913163601.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913163815.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913173504.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20190913-173820.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913174314.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913174351.png">
+<meta property="og:updated_time" content="2019-09-13T09:51:04.200Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="winway&#39;s blog">
-<meta name="twitter:description" content="python, go, devops, hadoop, MongoDB">
+<meta name="twitter:title" content="Flume实战总结">
+<meta name="twitter:description" content="前言 Flume介绍 架构演进 Kafka topic覆盖问题 Flume重复读取日志问题   前言一直使用Flume进行日志收集，本文就使用Flume的过程中遇到的问题、知识点进行总结记录，不会涉及Flume的基本用法，读者需要对Flume有一定了解。 Flume介绍Flume是Cloudera开发的一个高可用的，高可靠的，分布式的海量日志采集、聚合和传输的系统，Flume支持在日志系统中定">
+<meta name="twitter:image" content="https://flume.apache.org/_images/UserGuide_image02.png">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -153,146 +166,174 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            
-  
-  
+            <article id="post-flumeAction" class="article article-type-post " itemscope="" itemprop="blogPost">
+  <div class="article-inner">
     
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      Flume实战总结
+    </h1>
+  
+
+        
+        <a href="/2019/09/13/flumeAction/" class="archive-article-date">
+  	<time datetime="2019-09-13T07:32:31.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-09-13</time>
+</a>
+        
+      </header>
     
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#前言">前言</a></li>
+<li><a href="#flume介绍">Flume介绍</a></li>
+<li><a href="#架构演进">架构演进</a></li>
+<li><a href="#kafka-topic覆盖问题">Kafka topic覆盖问题</a></li>
+<li><a href="#flume重复读取日志问题">Flume重复读取日志问题</a></li>
+</ul>
+<!-- tocstop -->
+<h1><span id="前言">前言</span></h1><p>一直使用Flume进行日志收集，本文就使用Flume的过程中遇到的问题、知识点进行总结记录，不会涉及Flume的基本用法，读者需要对Flume有一定了解。</p>
+<h1><span id="flume介绍">Flume介绍</span></h1><p><a href="https://flume.apache.org/releases/content/1.8.0/FlumeUserGuide.html" target="_blank" rel="noopener">Flume</a>是Cloudera开发的一个高可用的，高可靠的，分布式的海量日志采集、聚合和传输的系统，Flume支持在日志系统中定制各类数据发送方，用于收集数据。数据源可定制、可扩展，数据存储系统可定制、可扩展。<br>Flume运行的核心是agent。它是一个完整的数据收集工具，含有三个核心组件，分别是source、channel、sink。Flume传输的数据的基本单位是event，如果是文本文件，通常是一行记录，这也是事务的基本单位。通过source、channel、sink，event可以从一个地方流向另一个地方。</p>
+<p><img src="https://flume.apache.org/_images/UserGuide_image02.png" alt=""></p>
+<p>Flume的数据流由事件(Event)贯穿始终。事件是Flume的基本数据单位，它携带日志数据（字节数组形式）并且携带有头信息，这些Event由Agent外部的Source，比如上图中的Web Server生成。当Source捕获事件后会进行特定的格式化，然后Source会把事件推入(单个或多个)Channel中。你可以把Channel看作是一个缓冲区，它将保存事件直到Sink处理完该事件。Sink负责持久化日志或者把事件推向另一个Source。不同类型的Source，Channel和Sink可以自由组合。组合方式基于用户设置的配置文件，非常灵活。比如：Channel可以把事件暂存在内存里，也可以持久化到本地硬盘上。Sink可以把日志写入HDFS, HBase，甚至是另外一个Source等等。<br>就这样，单纯通过配置，Flume就可以实现大多数日志收集、传输、存储的需求。</p>
+<h1><span id="架构演进">架构演进</span></h1><p>最初的日志收集架构如下图，很简单。应用服务器部署flume-agent，使用taildir source收集日志，并上报至汇聚节点flume-collector，flume-collector将日志统一写入HDFS。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913161017.png" alt=""></p>
+<p>随着业务的发展，日志规模和多样性都有所增加。</p>
+<ul>
+<li>fluem-agent增加了使用kafka source收集Kafka日志</li>
+<li>flume collector同时将日志写入HDFS和Kafka</li>
+</ul>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20190913-162321.png" alt=""></p>
+<p>在这个阶段，遇到了一个问题：HDFS的写入和Kafka的写入会相互影响。<br>主要原因在于：HdfsSink使用的Channel和KafkaSink使用的Channel共用了同一个Source，由于Source同步写两个Channel，当其中一个Channel由于Sink速度跟不上而满时，另一个的速度也会受到影响。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913162846.png" alt=""></p>
+<p>我们可以使用下面的架构解决该问题，但缺点是：一份日志会被flume agent读取两次。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913163601.png" alt=""></p>
+<p>最终，采用了如下架构解决该问题。flume-collector不再直接写HDFS，而是使用另外的flume-hdfs-sinker异步消费Kafka再写入HDFS。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913163815.png" alt=""></p>
+<h1><span id="kafka-topic覆盖问题">Kafka topic覆盖问题</span></h1><p>使用kafka source消费Kafka的A topic，同时使用kafka sink写入Kafka的B topic，但是kafka sink并没有如期写入B，而是写入了A。其实这个问题在Flume的<a href="https://flume.apache.org/releases/content/1.8.0/FlumeUserGuide.html" target="_blank" rel="noopener">文档</a>中写的很清楚。</p>
+<p>kafka sink有如下几个配置：当event header中含有“topic”字段时，kafka sink会优先使用该字段的value作为目的topic，而不是配置指定的topic。</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>kafka.topic</td>
+<td>default-flume-topic</td>
+<td>The topic in Kafka to which the messages will be published. If this parameter is configured, messages will be published to this topic. <strong>If the event header contains a “topic” field, the event will be published to that topic overriding the topic configured here.</strong> Arbitrary header substitution is supported, eg. %{header} is replaced with value of event header named “header”. (If using the substitution, it is recommended to set “auto.create.topics.enable” property of Kafka broker to true.)</td>
+</tr>
+<tr>
+<td>allowTopicOverride</td>
+<td>true</td>
+<td>When set, the sink will allow a message to be produced into a topic specified by the topicHeader property (if provided).</td>
+</tr>
+<tr>
+<td>topicHeader</td>
+<td>topic</td>
+<td>When set in conjunction with allowTopicOverride will produce a message into the value of the header named using the value of this property. <strong>Care should be taken when using in conjunction with the Kafka Source topicHeader property to avoid creating a loopback.</strong></td>
+</tr>
+</tbody>
+</table>
+<p>同时kafka source有如下几个配置：从Kafka读取的消息，event header默认会设置一个字段“topic”，存储源topic的名字。</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>setTopicHeader</td>
+<td>true</td>
+<td><strong>When set to true, stores the topic of the retrieved message into a header, defined by the topicHeader property.</strong></td>
+</tr>
+<tr>
+<td>topicHeader</td>
+<td>topic</td>
+<td>Defines the name of the header in which to store the name of the topic the message was received from, if the setTopicHeader property is set to true. <strong>Care should be taken if combining with the Kafka Sink topicHeader property so as to avoid sending the message back to the same topic in a loop.</strong></td>
+</tr>
+</tbody>
+</table>
+<p>所以，Flume的默认行为就是从哪个topic读，就写入哪个topic。知道了原因，这个问题就很好解决了。</p>
+<ul>
+<li>将Kafak source的setTopicHeader设置为false</li>
+<li>将Kafka sink的allowTopicOverride设置为false</li>
+</ul>
+<h1><span id="flume重复读取日志问题">Flume重复读取日志问题</span></h1><p>使用Flume的taildir source采集服务器日志写入HDFS，发现HDFS上的日志条数多于服务器上的日志。分析服务器上的Flume日志，发现了问题。<br>Flume使用inode识别文件，会在内存中记录inode和读取偏移的对应关系MAP&lt;inode，pos&gt;，并且这个map只增不减。当文件从磁盘删除后，inode就会被重用，会出现同一个inode对应不同的文件。<br>当Flume发现新文件产生时，会检查该文件的inode对应的pos。同一个inode第二次被使用时，如果当前文件小于已经删除的文件大小，pos被重置为0。<br>正常情况下日志输出如下，发现新文件后，因为其inode对应的pos大于文件大小（inode复用），重置该文件的读取偏移pos为0，开始读取。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913173504.png" alt=""></p>
+<p>重复读取日志的情况输出如下，inode为3147478的文件在15:00的时候生成，开始从pos 0读取；在16:00的时候pos被重置成了0，问题就出在这里。相当于这个文件被重复读取了一遍。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20190913-173820.png" alt=""></p>
+<p>查看对应位置的<a href="https://github.com/apache/flume/blob/release-1.8.0/flume-ng-sources/flume-taildir-source/src/main/java/org/apache/flume/source/taildir/ReliableTaildirEventReader.java#L256-L260" target="_blank" rel="noopener">源码</a>，发现在f.length() &lt; tf.getPos()时，会进入该重置pos的逻辑。f.length()表示当前文件的size，tf.getPos()表示该文件对应的inode的读取偏移，理论上这种情况只会出现在发现新文件时，由于新文件的size小，且新文件对应的inode以前使用过，所以重置pos是对的。但是这里重置就很奇怪，会导致读取不准确。除非在1和2之间，文件发生了变化，比如日志滚动，f.length获取的是新文件的size，tf指向的是滚动后的文件。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913174314.png" alt=""></p>
+<p>测试程序验证了这个猜测：在两个f.length之间删除文件并重建，f.length会输出新文件的size。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913174351.png" alt=""></p>
+<p><strong>所以根本原因是，在执行updateTailFiles的过程中（1和2之间），日志发生了滚动。</strong><br>google搜索，有人也遇到了同样的的问题：<a href="https://issues.apache.org/jira/browse/FLUME-3320" target="_blank" rel="noopener">https://issues.apache.org/jira/browse/FLUME-3320</a></p>
+<p>目前这个问题还没有好的解决方案：</p>
+<ol>
+<li>应用处理，日志去重。对于应用开发是个负担，且浪费计算资源</li>
+<li>等待flume修复该bug，目前flume最新版本还没有修复这个bug</li>
+<li>自行<a href="https://github.com/apache/flume/pull/297/files" target="_blank" rel="noopener">修复</a>，可以在f.length() &lt; tf.getPos()的同时再次判断f和tf的inode是否一致，</li>
+</ol>
+
+      
+
+      
+        <div class="page-reward">
+          <a href="javascript:;" class="page-reward-btn tooltip-top">
+            <div class="tooltip tooltip-east">
+            <span class="tooltip-item">
+              赏
+            </span>
+            <span class="tooltip-content">
+              <span class="tooltip-text">
+                <span class="tooltip-inner">
+                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢你请我吃糖果<i class="icon icon-quo-right"></i></p>
+                  <div class="reward-box">
+                    
+                    <div class="reward-box-item">
+                      <img class="reward-img" src="/img/alipay.jpg">
+                      <span class="reward-type">支付宝</span>
+                    </div>
+                    
+                    
+                    <div class="reward-box-item">
+                      <img class="reward-img" src="/img/weixinpay.png">
+                      <span class="reward-type">微信</span>
+                    </div>
+                    
+                  </div>
+                </span>
+              </span>
+            </span>
+          </div>
+          </a>
+        </div>
+      
+    </div>
+    <div class="article-info article-info-index">
       
       
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <a href="/archives/2017" class="archive-year">2017</a>
-        </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2017/09/04/open-falcon-transfer/" class="archive-article-date">
-  	<time datetime="2017-09-04T11:27:32.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-09-04</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2017/09/04/open-falcon-transfer/">open-falcon源码阅读之transfer</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
 	<div class="article-tag tagcloud">
 		<i class="icon-price-tags icon"></i>
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">open-falcon</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">flume</a>
         		</li>
       		
 		</ul>
 	</div>
 
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2017/09/04/open-falcon-hbs/" class="archive-article-date">
-  	<time datetime="2017-09-04T11:26:26.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-09-04</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2017/09/04/open-falcon-hbs/">open-falcon源码阅读之hbs</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">open-falcon</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2017/09/01/webhdfs-intro/" class="archive-article-date">
-  	<time datetime="2017-09-01T08:28:21.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-09-01</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2017/09/01/webhdfs-intro/">webhdfs使用说明</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">webhdfs</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
+      
 	<div class="article-category tagcloud">
 		<i class="icon-book icon"></i>
 		<ul class="article-tag-list">
@@ -305,363 +346,122 @@
 	</div>
 
 
+      
+
+      
+        
+<div class="share-btn share-icons tooltip-left">
+  <div class="tooltip tooltip-east">
+    <span class="tooltip-item">
+      <a href="javascript:;" class="share-sns share-outer">
+        <i class="icon icon-share"></i>
+      </a>
+    </span>
+    <span class="tooltip-content">
+      <div class="share-wrap">
+        <div class="share-icons">
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="icon icon-weibo"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="icon icon-weixin"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="icon icon-qq"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="icon icon-douban"></i>
+          </a>
+          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a>
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="icon icon-facebook"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="icon icon-twitter"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="icon icon-google"></i>
+          </a>
         </div>
-        <div class="clearfix"></div>
-    </header>
+      </div>
+    </span>
+  </div>
+</div>
+
+<div class="page-modal wx-share js-wx-box">
+    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="http://s.jiathis.com/qrcode.php?url=https://winway.github.io/2019/09/13/flumeAction/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div class="mask js-mask"></div>
+      
+      <div class="clearfix"></div>
+    </div>
   </div>
 </article>
+
   
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2017/08/27/open-falcon-agent/" class="archive-article-date">
-  	<time datetime="2017-08-27T02:03:00.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-27</time>
-</a>
+<nav id="article-nav">
+  
+  
+    <a href="/2019/09/07/tezRandomSlow/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">Tez执行耗时随机陡增问题</div>
+      <i class="icon-circle-right"></i>
+    </a>
+  
+</nav>
+
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
         </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2017/08/27/open-falcon-agent/">open-falcon源码阅读之agent</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">open-falcon</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
+        
+        
+    </div>
+</aside>
 
 
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2017/08/26/open-falcon-main/" class="archive-article-date">
-  	<time datetime="2017-08-26T08:03:14.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-26</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2017/08/26/open-falcon-main/">open-falcon源码阅读之main</a>
-    </h1>
-  
 
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">open-falcon</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2017/08/26/salt-minion-connect-salt-master/" class="archive-article-date">
-  	<time datetime="2017-08-26T06:06:56.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-26</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2017/08/26/salt-minion-connect-salt-master/">saltstack源码解析之minion&amp;master连接建立流程</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">saltstack</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2017/08/26/salt-minion-saltEvent/" class="archive-article-date">
-  	<time datetime="2017-08-26T05:05:57.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-26</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2017/08/26/salt-minion-saltEvent/">saltstack源码解析之消息总线-saltEvent</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">saltstack</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2017/08/26/salt-minion-AsyncEventPublisher/" class="archive-article-date">
-  	<time datetime="2017-08-26T03:33:39.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-26</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2017/08/26/salt-minion-AsyncEventPublisher/">saltstack源码解析之minion.AsyncEventPublisher</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">saltstack</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2017/08/11/salt-minion-option-parser/" class="archive-article-date">
-  	<time datetime="2017-08-11T07:47:44.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-11</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2017/08/11/salt-minion-option-parser/">saltstack源码解析之minion选项解析-MinionOptionParser</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">saltstack</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2017/08/10/salt-master-ReqServer/" class="archive-article-date">
-  	<time datetime="2017-08-10T10:30:25.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-10</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2017/08/10/salt-master-ReqServer/">saltstack源码解析之master.ReqServer</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">saltstack</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
   
   
-    </div></section>
   
 
-    
-    <nav id="page-nav">
-      <a class="extend prev" rel="prev" href="/archives/page/2/">&laquo; Prev</a><a class="page-number" href="/archives/">1</a><a class="page-number" href="/archives/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/archives/page/4/">4</a><a class="page-number" href="/archives/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/archives/page/8/">8</a><a class="extend next" rel="next" href="/archives/page/4/">Next &raquo;</a>
-    </nav>
+  
+
+  
+
+  
+  
+<section class="comments" id="comments">
+    <div id="gitment_thread"></div>
+    <link rel="stylesheet" href="https://imsun.github.io/gitment/style/default.css">
+    <script src="https://imsun.github.io/gitment/dist/gitment.browser.js"></script>
+    <script>
+        var gitment = new Gitment({
+            owner: 'winway',
+            repo: 'winway.github.io',
+            oauth: {
+                client_id: 'ac205f1362174ccbdb1d',
+                client_secret: '42779eaec04b4f1765b777df3fa1c73e24b96943',
+            },
+        })
+        gitment.render('comments')
+    </script>
+</section>
+
   
 
 
@@ -687,8 +487,8 @@
 	var yiliaConfig = {
 		mathjax: false,
 		isHome: false,
-		isPost: false,
-		isArchive: true,
+		isPost: true,
+		isArchive: false,
 		isTag: false,
 		isCategory: false,
 		open_in_new: false,
