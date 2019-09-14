@@ -8,13 +8,13 @@
   <link rel="dns-prefetch" href="https://winway.github.io">
   <title>Flume实战总结 | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="前言 Flume介绍 架构演进 Kafka topic覆盖问题 Flume重复读取日志问题 Memory Channel重启丢数据问题   Version：Flume 1.8.0 前言一直使用Flume进行日志收集，本文就使用Flume的过程中遇到的问题、知识点进行总结记录，不会涉及Flume的基本用法，读者需要对Flume有一定了解。 Flume介绍Flume是Cloudera开发的一个高可">
+  <meta name="description" content="前言 Flume介绍 架构演进 Kafka topic覆盖问题 Flume重复读取日志问题 Memory Channel重启丢数据问题 Error while querying external table containing Flume stream Flume监控   Version：Flume 1.8.0 前言一直使用Flume进行日志收集，本文就使用Flume的过程中遇到的问题、知识">
 <meta name="keywords" content="flume">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Flume实战总结">
 <meta property="og:url" content="https://winway.github.io/2019/09/13/flumeAction/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:description" content="前言 Flume介绍 架构演进 Kafka topic覆盖问题 Flume重复读取日志问题 Memory Channel重启丢数据问题   Version：Flume 1.8.0 前言一直使用Flume进行日志收集，本文就使用Flume的过程中遇到的问题、知识点进行总结记录，不会涉及Flume的基本用法，读者需要对Flume有一定了解。 Flume介绍Flume是Cloudera开发的一个高可">
+<meta property="og:description" content="前言 Flume介绍 架构演进 Kafka topic覆盖问题 Flume重复读取日志问题 Memory Channel重启丢数据问题 Error while querying external table containing Flume stream Flume监控   Version：Flume 1.8.0 前言一直使用Flume进行日志收集，本文就使用Flume的过程中遇到的问题、知识">
 <meta property="og:locale" content="default">
 <meta property="og:image" content="https://flume.apache.org/_images/UserGuide_image02.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913161017.png">
@@ -27,10 +27,10 @@
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913174314.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913174351.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190914111907.png">
-<meta property="og:updated_time" content="2019-09-14T03:52:18.701Z">
+<meta property="og:updated_time" content="2019-09-14T09:28:19.759Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Flume实战总结">
-<meta name="twitter:description" content="前言 Flume介绍 架构演进 Kafka topic覆盖问题 Flume重复读取日志问题 Memory Channel重启丢数据问题   Version：Flume 1.8.0 前言一直使用Flume进行日志收集，本文就使用Flume的过程中遇到的问题、知识点进行总结记录，不会涉及Flume的基本用法，读者需要对Flume有一定了解。 Flume介绍Flume是Cloudera开发的一个高可">
+<meta name="twitter:description" content="前言 Flume介绍 架构演进 Kafka topic覆盖问题 Flume重复读取日志问题 Memory Channel重启丢数据问题 Error while querying external table containing Flume stream Flume监控   Version：Flume 1.8.0 前言一直使用Flume进行日志收集，本文就使用Flume的过程中遇到的问题、知识">
 <meta name="twitter:image" content="https://flume.apache.org/_images/UserGuide_image02.png">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
@@ -195,6 +195,8 @@
 <li><a href="#kafka-topic覆盖问题">Kafka topic覆盖问题</a></li>
 <li><a href="#flume重复读取日志问题">Flume重复读取日志问题</a></li>
 <li><a href="#memory-channel重启丢数据问题">Memory Channel重启丢数据问题</a></li>
+<li><a href="#error-while-querying-external-table-containing-flume-stream">Error while querying external table containing Flume stream</a></li>
+<li><a href="#flume监控">Flume监控</a></li>
 </ul>
 <!-- tocstop -->
 <p><em>Version：Flume 1.8.0</em></p>
@@ -296,6 +298,41 @@
 <li><p>修改<a href="https://github.com/apache/flume/pull/296/files" target="_blank" rel="noopener">代码</a>，实现按照source、sink、channel的顺序关闭各组件，并且等待memory channel空之后再关闭sink。</p>
 </li>
 </ol>
+<h1><span id="error-while-querying-external-table-containing-flume-stream">Error while querying external table containing Flume stream</span></h1><p>使用Flume的HdfsSink往HDFS写文件时，会先写入以“.tmp”结尾的临时文件，待文件关闭时，重命名去掉“.tmp”后缀。<br>如果在此期间使用Hive查询该文件，就可能出现找不到文件的问题。可以通过设置以下参数避免该问题。</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>hdfs.inUseSuffix</td>
+<td>.tmp</td>
+<td>Suffix that is used for temporal files that flume actively writes into</td>
+</tr>
+<tr>
+<td>hdfs.inUsePrefix</td>
+<td>–</td>
+<td>Prefix that is used for temporal files that flume actively writes into</td>
+</tr>
+</tbody>
+</table>
+<p>详见：</p>
+<ul>
+<li><a href="https://stackoverflow.com/questions/32968450/hive-error-while-querying-external-table-containing-flume-stream" target="_blank" rel="noopener">https://stackoverflow.com/questions/32968450/hive-error-while-querying-external-table-containing-flume-stream</a></li>
+<li><a href="https://www.iteye.com/blog/liyonghui160com-2173163" target="_blank" rel="noopener">https://www.iteye.com/blog/liyonghui160com-2173163</a></li>
+</ul>
+<h1><span id="flume监控">Flume监控</span></h1><p>Flume提供了以下几种监控机制：</p>
+<ul>
+<li><a href="https://flume.apache.org/releases/content/1.8.0/FlumeUserGuide.html#jmx-reporting" target="_blank" rel="noopener">JMX Reporting</a></li>
+<li><a href="https://flume.apache.org/releases/content/1.8.0/FlumeUserGuide.html#ganglia-reporting" target="_blank" rel="noopener">Ganglia Reporting</a></li>
+<li><a href="https://flume.apache.org/releases/content/1.8.0/FlumeUserGuide.html#json-reporting" target="_blank" rel="noopener">JSON Reporting</a></li>
+<li><a href="https://flume.apache.org/releases/content/1.8.0/FlumeUserGuide.html#custom-reporting" target="_blank" rel="noopener">Custom Reporting</a></li>
+</ul>
+<p>其中JSON Reporting比较简单、易用、灵活，可以直接发送HTTP请求获取Flume的运行状态信息，<br>只需要在启动Flume时加上<code>-Dflume.monitoring.type=http -Dflume.monitoring.port=34545</code>参数，就可以使用HTTP获取metric信息。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]# curl 'http://127.0.0.1:34545/metrics' | python -m json.tool</span><br><span class="line">&#123;</span><br><span class="line">    "CHANNEL.channel1": &#123;</span><br><span class="line">        "ChannelCapacity": "2600000",</span><br><span class="line">        "ChannelFillPercentage": "0.0038461538461538464",</span><br><span class="line">        "ChannelSize": "100",</span><br><span class="line">        "EventPutAttemptCount": "11649320466",</span><br><span class="line">        "EventPutSuccessCount": "11649320466",</span><br><span class="line">        "EventTakeAttemptCount": "11649320572",</span><br><span class="line">        "EventTakeSuccessCount": "11649317405",</span><br><span class="line">        "StartTime": "1563766387062",</span><br><span class="line">        "StopTime": "0",</span><br><span class="line">        "Type": "CHANNEL"</span><br><span class="line">    &#125;,</span><br><span class="line">    "CHANNEL.channel2": &#123;</span><br><span class="line">        "ChannelCapacity": "6800000",</span><br><span class="line">        "ChannelFillPercentage": "0.06991176470588235",</span><br><span class="line">        "ChannelSize": "4754",</span><br><span class="line">        "EventPutAttemptCount": "97781696225",</span><br><span class="line">        "EventPutSuccessCount": "97781680954",</span><br><span class="line">        "EventTakeAttemptCount": "97781706696",</span><br><span class="line">        "EventTakeSuccessCount": "97781675100",</span><br><span class="line">        "StartTime": "1563766387063",</span><br><span class="line">        "StopTime": "0",</span><br><span class="line">        "Type": "CHANNEL"</span><br><span class="line">    &#125;,</span><br><span class="line">    "SINK.hdfssink": &#123;</span><br><span class="line">        "BatchCompleteCount": "1936406",</span><br><span class="line">        "BatchEmptyCount": "20",</span><br><span class="line">        "BatchUnderflowCount": "32",</span><br><span class="line">        "ConnectionClosedCount": "9506",</span><br><span class="line">        "ConnectionCreatedCount": "9508",</span><br><span class="line">        "ConnectionFailedCount": "0",</span><br><span class="line">        "EventDrainAttemptCount": "5809260313",</span><br><span class="line">        "EventDrainSuccessCount": "5809259087",</span><br><span class="line">        "StartTime": "1563766387067",</span><br><span class="line">        "StopTime": "0",</span><br><span class="line">        "Type": "SINK"</span><br><span class="line">    &#125;,</span><br><span class="line">    ……</span><br><span class="line">    ……</span><br></pre></td></tr></table></figure></p>
 
       
 
