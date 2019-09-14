@@ -27,7 +27,7 @@
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913174314.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913174351.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190914111907.png">
-<meta property="og:updated_time" content="2019-09-14T03:35:49.841Z">
+<meta property="og:updated_time" content="2019-09-14T03:52:18.701Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Flume实战总结">
 <meta name="twitter:description" content="前言 Flume介绍 架构演进 Kafka topic覆盖问题 Flume重复读取日志问题 Memory Channel重启丢数据问题   Version：Flume 1.8.0 前言一直使用Flume进行日志收集，本文就使用Flume的过程中遇到的问题、知识点进行总结记录，不会涉及Flume的基本用法，读者需要对Flume有一定了解。 Flume介绍Flume是Cloudera开发的一个高可">
@@ -290,8 +290,11 @@
 <p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190914111907.png" alt=""></p>
 <p>但是在关闭sink组件时并没有判断memory channel中是否还有数据没有消费完，所以memory channel中的数据在重启时存在丢失风险。<br>解决方案：</p>
 <ol>
-<li>关闭进程之前，使用iptables禁掉source的数据接收端口或数据拉取端口，待memory channel中的数据全部消费完毕，再关闭进程。这个方法可以解决问题，但是操作比较麻烦。</li>
-<li>修改<a href="https://github.com/apache/flume/pull/296/files" target="_blank" rel="noopener">代码</a>，实现按照source、sink、channel的顺序关闭各组件，并且等待memory channel空之后再关闭sink。</li>
+<li><p>关闭进程之前，使用iptables禁掉source的数据接收端口或数据拉取端口，待memory channel中的数据全部消费完毕，再关闭进程。这个方法可以解决问题，但是操作比较麻烦。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">iptables -A INPUT -p tcp --dport 4141 -j REJECT</span><br><span class="line">关闭进程</span><br><span class="line">iptables -D INPUT 1</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>修改<a href="https://github.com/apache/flume/pull/296/files" target="_blank" rel="noopener">代码</a>，实现按照source、sink、channel的顺序关闭各组件，并且等待memory channel空之后再关闭sink。</p>
+</li>
 </ol>
 
       
