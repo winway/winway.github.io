@@ -588,19 +588,19 @@
 
 
   
-    <article id="post-tezRandomSlow" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+    <article id="post-tezProblems" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
       <header class="article-header">
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2019/09/07/tezRandomSlow/">Tez执行耗时随机陡增问题</a>
+      <a class="article-title" href="/2019/09/07/tezProblems/">Tez问题记录</a>
     </h1>
   
 
         
-        <a href="/2019/09/07/tezRandomSlow/" class="archive-article-date">
+        <a href="/2019/09/07/tezProblems/" class="archive-article-date">
   	<time datetime="2019-09-07T02:24:54.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-09-07</time>
 </a>
         
@@ -610,11 +610,19 @@
       
         <!-- toc -->
 <ul>
+<li><a href="#tez执行耗时随机陡增问题">Tez执行耗时随机陡增问题</a><ul>
 <li><a href="#问题">问题</a></li>
 <li><a href="#分析">分析</a></li>
 </ul>
+</li>
+<li><a href="#tez随机失败问题">Tez随机失败问题</a><ul>
+<li><a href="#问题-1">问题</a></li>
+<li><a href="#分析-1">分析</a></li>
+</ul>
+</li>
+</ul>
 <!-- tocstop -->
-<h2><span id="问题">问题</span></h2><p>最近遇到一个问题：同样的查询语句，同样的输入数据，Tez的执行耗时会随机陡增。正常5分钟执行完毕，偶尔会执行30-40分钟，即便是集群资源不紧张的时候。</p>
+<h1><span id="tez执行耗时随机陡增问题">Tez执行耗时随机陡增问题</span></h1><h2><span id="问题">问题</span></h2><p>同样的查询语句，同样的输入数据，Tez的执行耗时会随机陡增。正常5分钟执行完毕，偶尔会执行30-40分钟，即便是集群资源不紧张的时候。</p>
 <h2><span id="分析">分析</span></h2><p>通过Tez UI观察正常执行和异常执行的任务信息，发现问题出在task的数量上，如下图。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/image.png" alt=""></p>
 <p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/image2.png" alt=""></p>
 <p><strong>正常情况下的Map个数要远大于异常情况。</strong></p>
@@ -626,6 +634,9 @@
 <li>tez.grouping.split-count(not set by default)</li>
 </ul>
 <p>详见：<a href="http://www.openkb.info/2017/05/hive-on-tez-how-to-control-number-of.html" target="_blank" rel="noopener">http://www.openkb.info/2017/05/hive-on-tez-how-to-control-number-of.html</a></p>
+<h1><span id="tez随机失败问题">Tez随机失败问题</span></h1><h2><span id="问题">问题</span></h2><p>同样的查询语句，同样的输入数据，Tez执行会随机报错，重试有可能就成功了，改成使用mr执行就没问题。</p>
+<h2><span id="分析">分析</span></h2><p>通过分析和搜索报错堆栈信息，发现这是一个bug，牵涉到container reuse和使用window函数。详见：<a href="https://issues.apache.org/jira/browse/HIVE-18786?page=com.atlassian.jira.plugin.system.issuetabpanels%3Aall-tabpanel" target="_blank" rel="noopener">https://issues.apache.org/jira/browse/HIVE-18786?page=com.atlassian.jira.plugin.system.issuetabpanels%3Aall-tabpanel</a><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">Caused by: java.lang.RuntimeException: org.apache.hadoop.hive.ql.metadata.HiveException: Hive Runtime Error while processing row (tag=0) &lt;some row data here&gt;</span><br><span class="line">       at org.apache.hadoop.hive.ql.exec.tez.ReduceRecordSource.pushRecord(ReduceRecordSource.java:297)</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.ReduceRecordProcessor.run(ReduceRecordProcessor.java:317)</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezProcessor.initializeAndRunProcessor(TezProcessor.java:185)</span><br><span class="line">       ... 14 more</span><br><span class="line"></span><br><span class="line"> Caused by: org.apache.hadoop.hive.ql.metadata.HiveException: Hive Runtime Error while processing row (tag=0) &lt;some row data here&gt;</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.ReduceRecordSource$GroupIterator.next(ReduceRecordSource.java:365)</span><br><span class="line">       at org.apache.hadoop.hive.ql.exec.tez.ReduceRecordSource.pushRecord(ReduceRecordSource.java:287)</span><br><span class="line">        ... 16 more</span><br><span class="line"></span><br><span class="line">Caused by: java.lang.NullPointerException</span><br><span class="line">         at org.apache.hadoop.hive.ql.exec.persistence.PTFRowContainer.first(PTFRowContainer.java:115)</span><br><span class="line">         at org.apache.hadoop.hive.ql.exec.PTFPartition.iterator(PTFPartition.java:114)</span><br><span class="line">         at org.apache.hadoop.hive.ql.udf.ptf.BasePartitionEvaluator.getPartitionAgg(BasePartitionEvaluator.java:200)</span><br><span class="line">         at org.apache.hadoop.hive.ql.udf.ptf.WindowingTableFunction.evaluateFunctionOnPartition(WindowingTableFunction.java:155)</span><br><span class="line">         at org.apache.hadoop.hive.ql.udf.ptf.WindowingTableFunction.iterator(WindowingTableFunction.java:538)</span><br><span class="line">         at org.apache.hadoop.hive.ql.exec.PTFOperator$PTFInvocation.finishPartition(PTFOperator.java:349)</span><br><span class="line">         at org.apache.hadoop.hive.ql.exec.PTFOperator.process(PTFOperator.java:123)</span><br><span class="line">         at org.apache.hadoop.hive.ql.exec.Operator.forward(Operator.java:897)</span><br><span class="line">         at org.apache.hadoop.hive.ql.exec.SelectOperator.process(SelectOperator.java:95)</span><br><span class="line">         at org.apache.hadoop.hive.ql.exec.tez.ReduceRecordSource$GroupIterator.next(ReduceRecordSource.java:356)</span><br></pre></td></tr></table></figure></p>
+<p>解决方法是禁用container reuse，但是代价是性能会受到影响。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">SET tez.am.container.reuse.enabled=false;</span><br></pre></td></tr></table></figure></p>
 
       
 
@@ -660,7 +671,7 @@
 
       
         <p class="article-more-link">
-          <a class="article-more-a" href="/2019/09/07/tezRandomSlow/">展开全文 >></a>
+          <a class="article-more-a" href="/2019/09/07/tezProblems/">展开全文 >></a>
         </p>
       
 
