@@ -6,18 +6,20 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <link rel="dns-prefetch" href="https://winway.github.io">
-  <title>Archives: 2018 | winway&#39;s blog</title>
+  <title>HDFS文件压缩转储 | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="python, go, devops, hadoop, MongoDB">
-<meta property="og:type" content="website">
-<meta property="og:title" content="winway&#39;s blog">
-<meta property="og:url" content="https://winway.github.io/archives/2018/index.html">
+  <meta name="description" content="需求 步骤 选取压缩类型 转储 参考资料     需求定期将HDFS文件压缩转储到阿里云OSS。 步骤选取压缩类型Hadoop支持的主流压缩格式包括以下几种：    Codec File Extension Splittable? Degree of Compression Compression Speed     Gzip .gz No Medium Medium   Bzip2 .bz2">
+<meta name="keywords" content="hdfs">
+<meta property="og:type" content="article">
+<meta property="og:title" content="HDFS文件压缩转储">
+<meta property="og:url" content="https://winway.github.io/2020/06/06/hdfscompress/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:description" content="python, go, devops, hadoop, MongoDB">
+<meta property="og:description" content="需求 步骤 选取压缩类型 转储 参考资料     需求定期将HDFS文件压缩转储到阿里云OSS。 步骤选取压缩类型Hadoop支持的主流压缩格式包括以下几种：    Codec File Extension Splittable? Degree of Compression Compression Speed     Gzip .gz No Medium Medium   Bzip2 .bz2">
 <meta property="og:locale" content="default">
+<meta property="og:updated_time" content="2020-06-06T09:22:08.249Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="winway&#39;s blog">
-<meta name="twitter:description" content="python, go, devops, hadoop, MongoDB">
+<meta name="twitter:title" content="HDFS文件压缩转储">
+<meta name="twitter:description" content="需求 步骤 选取压缩类型 转储 参考资料     需求定期将HDFS文件压缩转储到阿里云OSS。 步骤选取压缩类型Hadoop支持的主流压缩格式包括以下几种：    Codec File Extension Splittable? Degree of Compression Compression Speed     Gzip .gz No Medium Medium   Bzip2 .bz2">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -153,222 +155,270 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            
-  
-  
+            <article id="post-hdfscompress" class="article article-type-post " itemscope="" itemprop="blogPost">
+  <div class="article-inner">
     
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      HDFS文件压缩转储
+    </h1>
+  
+
+        
+        <a href="/2020/06/06/hdfscompress/" class="archive-article-date">
+  	<time datetime="2020-06-06T09:00:01.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2020-06-06</time>
+</a>
+        
+      </header>
     
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#需求">需求</a></li>
+<li><a href="#步骤">步骤</a><ul>
+<li><a href="#选取压缩类型">选取压缩类型</a></li>
+<li><a href="#转储">转储</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h1><span id="需求">需求</span></h1><p>定期将HDFS文件压缩转储到阿里云OSS。</p>
+<h1><span id="步骤">步骤</span></h1><h2><span id="选取压缩类型">选取压缩类型</span></h2><p>Hadoop支持的主流压缩格式包括以下几种：</p>
+<table>
+<thead>
+<tr>
+<th>Codec</th>
+<th>File Extension</th>
+<th>Splittable?</th>
+<th>Degree of Compression</th>
+<th>Compression Speed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gzip</td>
+<td>.gz</td>
+<td>No</td>
+<td>Medium</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>Bzip2</td>
+<td>.bz2</td>
+<td>Yes</td>
+<td>High</td>
+<td>Slow</td>
+</tr>
+<tr>
+<td>Snappy</td>
+<td>.snappy</td>
+<td>No</td>
+<td>Medium</td>
+<td>Fast</td>
+</tr>
+<tr>
+<td>LZO</td>
+<td>.lzo</td>
+<td>No, unless indexed</td>
+<td>Medium</td>
+<td>Fast</td>
+</tr>
+</tbody>
+</table>
+<p>其中可分割的只有bzip2和lzo(indexed)。先是使用bizp2进行了测试，但是压缩速度实在是太慢了，于是决定使用lzo。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">hadoop jar $HADOOP_HOME/share/hadoop/tools/lib/hadoop-streaming-2.7.2.jar \</span><br><span class="line">    -Dmapreduce.map.java.opts=&apos;-Xmx768m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.map.memory.mb=1024 \</span><br><span class="line">    -Dmapreduce.reduce.java.opts=&apos;-Xmx1536m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.reduce.memory.mb=2048 \</span><br><span class="line">    -Dmapreduce.job.reduce.slowstart.completedmaps=0.9 \</span><br><span class="line">    -Dmapred.reduce.tasks=$parallelN \</span><br><span class="line">    -Dmapred.output.compress=true \</span><br><span class="line">    -Dmapred.compress.map.output=true \</span><br><span class="line">    -Dmapred.output.compression.codec=org.apache.hadoop.io.compress.BZip2Codec \</span><br><span class="line">    -input $hdfspath \</span><br><span class="line">    -output $hdfszippath \</span><br><span class="line">    -mapper /bin/cat \</span><br><span class="line">    -reducer /bin/cat \</span><br><span class="line">    -inputformat org.apache.hadoop.mapred.TextInputFormat \</span><br><span class="line">    -outputformat org.apache.hadoop.mapred.TextOutputFormat</span><br></pre></td></tr></table></figure></p>
+<p>lzo为了达到可分割，需要在压缩之后建立索引。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">hadoop jar $HADOOP_HOME/share/hadoop/tools/lib/hadoop-streaming-2.7.2.jar \</span><br><span class="line">    -Dmapreduce.map.java.opts=&apos;-Xmx768m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.map.memory.mb=1024 \</span><br><span class="line">    -Dmapreduce.reduce.java.opts=&apos;-Xmx1536m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.reduce.memory.mb=2048 \</span><br><span class="line">    -Dmapreduce.job.reduce.slowstart.completedmaps=0.9 \</span><br><span class="line">    -Dmapred.reduce.tasks=$parallelN \</span><br><span class="line">    -Dmapred.output.compress=true \</span><br><span class="line">    -Dmapred.compress.map.output=true \</span><br><span class="line">    -Dmapred.output.compression.codec=com.hadoop.compression.lzo.LzopCodec \</span><br><span class="line">    -input $hdfspath \</span><br><span class="line">    -output $hdfszippath \</span><br><span class="line">    -mapper /bin/cat \</span><br><span class="line">    -reducer /bin/cat \</span><br><span class="line">    -inputformat org.apache.hadoop.mapred.TextInputFormat \</span><br><span class="line">    -outputformat org.apache.hadoop.mapred.TextOutputFormat</span><br><span class="line"></span><br><span class="line">hadoop jar $HADOOP_HOME/lib/hadoop-lzo-0.4.21-SNAPSHOT.jar com.hadoop.compression.lzo.DistributedLzoIndexer $hdfszippath</span><br></pre></td></tr></table></figure></p>
+<h2><span id="转储">转储</span></h2><p>压缩完毕后，将文件拷贝到oss。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hadoop distcp -Dmapreduce.task.timeout=1200000 -m $parallelN $&#123;hdfszippath&#125;/* $&#123;osspath&#125;/</span><br></pre></td></tr></table></figure></p>
+<p><em>distcp过程中遇到一个问题：如果单个文件过大，在往oss拷贝的时候有可能失败，所以需要通过设置压缩任务reduce个数，控制最终单个文件的大小。</em></p>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://www.dummies.com/programming/big-data/hadoop/compressing-data-in-hadoop/" target="_blank" rel="noopener">https://www.dummies.com/programming/big-data/hadoop/compressing-data-in-hadoop/</a></li>
+<li><a href="https://data-flair.training/forums/topic/which-compression-is-used-in-hadoop-which-of-them-is-splittable/" target="_blank" rel="noopener">https://data-flair.training/forums/topic/which-compression-is-used-in-hadoop-which-of-them-is-splittable/</a></li>
+<li><a href="https://blog.csdn.net/fjssharpsword/article/details/74908251" target="_blank" rel="noopener">https://blog.csdn.net/fjssharpsword/article/details/74908251</a></li>
+<li><a href="https://www.jianshu.com/p/10fc6c511761" target="_blank" rel="noopener">https://www.jianshu.com/p/10fc6c511761</a></li>
+</ul>
+
+      
+
+      
+        <div class="page-reward">
+          <a href="javascript:;" class="page-reward-btn tooltip-top">
+            <div class="tooltip tooltip-east">
+            <span class="tooltip-item">
+              赏
+            </span>
+            <span class="tooltip-content">
+              <span class="tooltip-text">
+                <span class="tooltip-inner">
+                  <p class="reward-p"><i class="icon icon-quo-left"></i>谢谢你请我吃糖果<i class="icon icon-quo-right"></i></p>
+                  <div class="reward-box">
+                    
+                    <div class="reward-box-item">
+                      <img class="reward-img" src="/img/alipay.jpg">
+                      <span class="reward-type">支付宝</span>
+                    </div>
+                    
+                    
+                    <div class="reward-box-item">
+                      <img class="reward-img" src="/img/weixinpay.png">
+                      <span class="reward-type">微信</span>
+                    </div>
+                    
+                  </div>
+                </span>
+              </span>
+            </span>
+          </div>
+          </a>
+        </div>
+      
+    </div>
+    <div class="article-info article-info-index">
       
       
-      <section class="archives-wrap">
-        <div class="archive-year-wrap">
-          <a href="/archives/2018" class="archive-year">2018</a>
-        </div>
-        <div class="archives">
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2018/06/14/domain2ip/" class="archive-article-date">
-  	<time datetime="2018-06-14T07:59:06.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-06-14</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2018/06/14/domain2ip/">如何获取一个域名对应的所有IP地址</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
 	<div class="article-tag tagcloud">
 		<i class="icon-price-tags icon"></i>
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">shell</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">golang</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">hdfs</a>
         		</li>
       		
 		</ul>
 	</div>
 
-          
+      
 	<div class="article-category tagcloud">
 		<i class="icon-book icon"></i>
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
         		</li>
       		
 		</ul>
 	</div>
 
 
+      
+
+      
+        
+<div class="share-btn share-icons tooltip-left">
+  <div class="tooltip tooltip-east">
+    <span class="tooltip-item">
+      <a href="javascript:;" class="share-sns share-outer">
+        <i class="icon icon-share"></i>
+      </a>
+    </span>
+    <span class="tooltip-content">
+      <div class="share-wrap">
+        <div class="share-icons">
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="icon icon-weibo"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="icon icon-weixin"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="icon icon-qq"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="icon icon-douban"></i>
+          </a>
+          <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a>
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="icon icon-facebook"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="icon icon-twitter"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="icon icon-google"></i>
+          </a>
         </div>
-        <div class="clearfix"></div>
-    </header>
+      </div>
+    </span>
+  </div>
+</div>
+
+<div class="page-modal wx-share js-wx-box">
+    <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="http://s.jiathis.com/qrcode.php?url=https://winway.github.io/2020/06/06/hdfscompress/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div class="mask js-mask"></div>
+      
+      <div class="clearfix"></div>
+    </div>
   </div>
 </article>
+
   
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2018/06/03/kaggle-intro/" class="archive-article-date">
-  	<time datetime="2018-06-03T07:13:03.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-06-03</time>
-</a>
+<nav id="article-nav">
+  
+  
+    <a href="/2020/06/06/sparkProblems-md/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">Spark问题记录</div>
+      <i class="icon-circle-right"></i>
+    </a>
+  
+</nav>
+
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
         </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2018/06/03/kaggle-intro/">kaggle快速上手指南</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">kaggle</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/其他/" class="article-tag-list-link color3">其他</a>
-        		</li>
-      		
-		</ul>
-	</div>
+        
+        
+    </div>
+</aside>
 
 
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2018/04/22/open-falcon-graph/" class="archive-article-date">
-  	<time datetime="2018-04-22T14:34:17.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-04-22</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2018/04/22/open-falcon-graph/">open-falcon源码阅读之graph</a>
-    </h1>
-  
 
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">open-falcon</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
-  
-    
-    
-    <article class="archive-article archive-type-post">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      	<div class="article-meta">
-	      	<a href="/2018/02/23/AsimplePlugin/" class="archive-article-date">
-  	<time datetime="2018-02-23T12:53:49.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-02-23</time>
-</a>
-        </div>
-    	 
-  
-    <h1 itemprop="name">
-      <a class="archive-article-title" href="/2018/02/23/AsimplePlugin/">一个Python实现的简单插件机制</a>
-    </h1>
-  
-
-        <div class="article-info info-on-right">
-          
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">python</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-          
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-        </div>
-        <div class="clearfix"></div>
-    </header>
-  </div>
-</article>
   
   
-    </div></section>
   
 
-    
+  
+
+  
+
+  
+  
+<section class="comments" id="comments">
+    <div id="gitment_thread"></div>
+    <link rel="stylesheet" href="https://imsun.github.io/gitment/style/default.css">
+    <script src="https://imsun.github.io/gitment/dist/gitment.browser.js"></script>
+    <script>
+        var gitment = new Gitment({
+            owner: 'winway',
+            repo: 'winway.github.io',
+            oauth: {
+                client_id: 'ac205f1362174ccbdb1d',
+                client_secret: '42779eaec04b4f1765b777df3fa1c73e24b96943',
+            },
+        })
+        gitment.render('comments')
+    </script>
+</section>
+
+  
 
 
           </div>
@@ -393,8 +443,8 @@
 	var yiliaConfig = {
 		mathjax: false,
 		isHome: false,
-		isPost: false,
-		isArchive: true,
+		isPost: true,
+		isArchive: false,
 		isTag: false,
 		isCategory: false,
 		open_in_new: false,
