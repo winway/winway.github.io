@@ -155,6 +155,103 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-blogPicMigrate" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2019/08/20/blogPicMigrate/">图床迁移-七牛云到github</a>
+    </h1>
+  
+
+        
+        <a href="/2019/08/20/blogPicMigrate/" class="archive-article-date">
+  	<time datetime="2019-08-20T12:02:58.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-08-20</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<!-- tocstop -->
+<p><em>停了一年没有更新博客，我又回来了^_^。这一年在创业公司度过，时间比较紧，不过现在我又回来了，博客开始更新。<br>回来的第一件事就是把图床从七牛云迁到github，吐槽一下七牛，不实名认证连自己的图片都下载不了，哎，:-(</em></p>
+<ol>
+<li><p>迫不得已实名认证+绑定域名之后，终于将图片都下载了下来，立马告别七牛云，下载使用的七牛的批量下载工具<a href="https://developer.qiniu.com/kodo/tools/1302/qshell" target="_blank" rel="noopener">qshell</a>。</p>
+</li>
+<li><p>创建github仓库专门存储图片，使用<a href="https://juejin.im/entry/5c4ec5aaf265da614420689f" target="_blank" rel="noopener">PicGo</a>做上传工具。</p>
+</li>
+<li><p>将博客中的链接地址sed批量替换成新的图片地址，搞定！<br><code>sed -i &quot;&quot; &#39;s/ojbkfbvko.bkt.clouddn.com/raw.githubusercontent.com\/xxx\/pics\/master\/pic/g&#39; *</code></p>
+</li>
+<li><p>又恢复正常了^_^</p>
+</li>
+</ol>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">github</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/其他/" class="article-tag-list-link color3">其他</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2019/08/20/blogPicMigrate/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-domain2ip" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1207,127 +1304,9 @@
 
 
   
-    <article id="post-salt-job-flow" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/09/30/salt-job-flow/">saltstack源码解析之任务执行流程</a>
-    </h1>
-  
-
-        
-        <a href="/2017/09/30/salt-job-flow/" class="archive-article-date">
-  	<time datetime="2017-09-30T06:27:04.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-09-30</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p><em>ENV: Version: 2016.11.0, Transport: tcp, Multi-Master</em></p>
-<!-- toc -->
-<ul>
-<li><a href="#1-任务执行示意图">1. 任务执行示意图</a></li>
-<li><a href="#2-代码解析">2. 代码解析</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="1-任务执行示意图">1. 任务执行示意图</span></h2><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-job-flow.png" alt="salt-job-flow"></p>
-<p>以下内容摘自<a href="https://docs.saltstack.com/en/latest/topics/development/architecture.html" target="_blank" rel="noopener">https://docs.saltstack.com/en/latest/topics/development/architecture.html</a></p>
-<ul>
-<li><p>Job Flow: from the point of view of salt-master</p>
-<blockquote>
-<p>The Salt master works by always publishing commands to all connected minions and the minions decide if the command is meant for them by checking themselves against the command target.<br>The typical lifecycle of a salt job from the perspective of the master might be as follows:<br>1) A command is issued on the CLI. For example, ‘salt my_minion test.ping’.<br>2) The ‘salt’ command uses LocalClient to generate a request to the salt master by connecting to the ReqServer on TCP:4506 and issuing the job.<br>3) The salt-master ReqServer sees the request and passes it to an available MWorker over workers.ipc.<br>4) A worker picks up the request and handles it. First, it checks to ensure that the requested user has permissions to issue the command. Then, it sends the publish command to all connected minions. For the curious, this happens in ClearFuncs.publish().<br>5) The worker announces on the master event bus that it is about to publish a job to connected minions. This happens by placing the event on the master event bus (master_event_pull.ipc) where the EventPublisher picks it up and distributes it to all connected event listeners on master_event_pub.ipc.<br>6) The message to the minions is encrypted and sent to the Publisher via IPC on publish_pull.ipc.<br>7) Connected minions have a TCP session established with the Publisher on TCP port 4505 where they await commands. When the Publisher receives the job over publish_pull, it sends the jobs across the wire to the minions for processing.<br>8) After the minions receive the request, they decrypt it and perform any requested work, if they determine that they are targeted to do so.<br>9) When the minion is ready to respond, it publishes the result of its job back to the master by sending the encrypted result back to the master on TCP 4506 where it is again picked up by the ReqServer and forwarded to an available MWorker for processing. (Again, this happens by passing this message across workers.ipc to an available worker.)<br>10) When the MWorker receives the job it decrypts it and fires an event onto the master event bus (master_event_pull.ipc). (Again for the curious, this happens in AESFuncs._return().<br>11) The EventPublisher sees this event and re-publishes it on the bus to all connected listeners of the master event bus (on master_event_pub.ipc). This is where the LocalClient has been waiting, listening to the event bus for minion replies. It gathers the job and stores the result.<br>12) When all targeted minions have replied or the timeout has been exceeded, the salt client displays the results of the job to the user on the CLI.</p>
-</blockquote>
-</li>
-<li><p>Job Flow: from the point of view of salt-minion</p>
-<blockquote>
-<p>1) A master publishes a job that is received by a minion as outlined by the master’s job flow above.<br>2) The minion is polling its receive socket that’s connected to the master Publisher (TCP 4505 on master). When it detects an incoming message, it picks it up from the socket and decrypts it.<br>3) A new minion process or thread is created and provided with the contents of the decrypted message. The _thread_return() method is provided with the contents of the received message.<br>4) The new minion thread is created. The _thread_return() function starts up and actually calls out to the requested function contained in the job.<br>5) The requested function runs and returns a result. [Still in thread.]<br>6) The result of the function that’s run is encrypted and returned to the master’s ReqServer (TCP 4506 on master). [Still in thread.]<br>7) Thread exits. Because the main thread was only blocked for the time that it took to initialize the worker thread, many other requests could have been received and processed during this time.</p>
-</blockquote>
-</li>
-</ul>
-<h2><span id="2-代码解析">2. 代码解析</span></h2><p>下面对salt ‘*’ cmd.run ‘date’命令的执行流程进行分析<br>代码入口<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/script.py</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">salt_main</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    Publish commands to the salt system from the command line on the</span></span><br><span class="line"><span class="string">    master.</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    <span class="keyword">import</span> salt.cli.salt</span><br><span class="line">    <span class="keyword">if</span> <span class="string">''</span> <span class="keyword">in</span> sys.path:</span><br><span class="line">        sys.path.remove(<span class="string">''</span>)</span><br><span class="line">    client = salt.cli.salt.SaltCMD()</span><br><span class="line">    _install_signal_handlers(client)</span><br><span class="line">    client.run()</span><br></pre></td></tr></table></figure></p>
-<p>初始化一个salt.cli.salt.SaltCMD实例client，注册信号处理，调用client.run</p>
-<p>SaltCMD继承自parsers.SaltCMDOptionParser<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/cli/salt.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">SaltCMD</span><span class="params">(parsers.SaltCMDOptionParser)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    The execution of a salt command happens here</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">run</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Execute the salt command line</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="keyword">import</span> salt.client</span><br><span class="line">        self.parse_args()</span><br><span class="line"></span><br><span class="line">        <span class="comment"># Setup file logging!</span></span><br><span class="line">        self.setup_logfile_logger()</span><br><span class="line">        verify_log(self.config)</span><br><span class="line">		……</span><br></pre></td></tr></table></figure></p>
-<p>SaltCMDOptionParser类似于MasterOptionParser，由若干mixin类通过元类组合而成<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/utils/parsers.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">SaltCMDOptionParser</span><span class="params">(six.with_metaclass<span class="params">(OptionParserMeta,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                             OptionParser,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                             ConfigDirMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                             MergeConfigMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                             TimeoutMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                             ExtendedTargetOptionsMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                             OutputOptionsMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                             LogLevelMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                             HardCrashMixin,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                             SaltfileMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                             ArgsStdinMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                             EAuthMixIn)</span>)</span>:</span></span><br><span class="line"></span><br><span class="line">    default_timeout = <span class="number">5</span></span><br><span class="line"></span><br><span class="line">    usage = <span class="string">'%prog [options] \'&lt;target&gt;\' &lt;function&gt; [arguments]'</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># ConfigDirMixIn config filename attribute</span></span><br><span class="line">    _config_filename_ = <span class="string">'master'</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># LogLevelMixIn attributes</span></span><br><span class="line">    _default_logging_level_ = <span class="string">'warning'</span></span><br><span class="line">    _default_logging_logfile_ = os.path.join(syspaths.LOGS_DIR, <span class="string">'master'</span>)</span><br><span class="line">    _loglevel_config_setting_name_ = <span class="string">'cli_salt_log_file'</span></span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        os.getcwd()</span><br><span class="line">    <span class="keyword">except</span> OSError:</span><br><span class="line">        sys.exit(<span class="string">"Cannot access current working directory. Exiting!"</span>)</span><br><span class="line">		……</span><br></pre></td></tr></table></figure></p>
-<p>在ConfigDirMixIn.process_config_dir中将配置文件（这里是/etc/salt/master）内容加载到self.config<br>在OptionParser.parse_args中解析命令行选项保存到self.option<br>在MergeConfigMixIn.__merge_config_with_cli中将self.option合并到self.config<br>在SaltCMDOptionParser._mixin_after_parsed中分析命令函参数，如tgt，fun，arg，保存到self.config<br>详情请参考<a href="https://winway.github.io/2017/07/18/salt-master-option-parser/">saltstack源码解析之master选项解析-MasterOptionParser</a></p>
-<p>salt.cli.salt.SaltCMD.run<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/cli/salt.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">SaltCMD</span><span class="params">(parsers.SaltCMDOptionParser)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    The execution of a salt command happens here</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">run</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Execute the salt command line</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="keyword">import</span> salt.client</span><br><span class="line">        self.parse_args()</span><br><span class="line"></span><br><span class="line">        <span class="comment"># Setup file logging!</span></span><br><span class="line">        self.setup_logfile_logger()</span><br><span class="line">        verify_log(self.config)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            <span class="comment"># We don't need to bail on config file permission errors</span></span><br><span class="line">            <span class="comment"># if the CLI</span></span><br><span class="line">            <span class="comment"># process is run with the -a flag</span></span><br><span class="line">            skip_perm_errors = self.options.eauth != <span class="string">''</span></span><br><span class="line"></span><br><span class="line">            self.local_client = salt.client.get_local_client(</span><br><span class="line">                self.get_config_file_path(),</span><br><span class="line">                skip_perm_errors=skip_perm_errors,</span><br><span class="line">                auto_reconnect=<span class="keyword">True</span>)</span><br><span class="line">        <span class="keyword">except</span> SaltClientError <span class="keyword">as</span> exc:</span><br><span class="line">            self.exit(<span class="number">2</span>, <span class="string">'&#123;0&#125;\n'</span>.format(exc))</span><br><span class="line">            <span class="keyword">return</span></span><br><span class="line">			……</span><br></pre></td></tr></table></figure></p>
-<p>首先调用salt.client.get_local_client，获取一个LocalClient对象<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/client/__intit__.py</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">get_local_client</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">        c_path=os.path.join<span class="params">(syspaths.CONFIG_DIR, <span class="string">'master'</span>)</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">        mopts=None,</span></span></span><br><span class="line"><span class="function"><span class="params">        skip_perm_errors=False,</span></span></span><br><span class="line"><span class="function"><span class="params">        io_loop=None,</span></span></span><br><span class="line"><span class="function"><span class="params">        auto_reconnect=False)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    .. versionadded:: 2014.7.0</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    Read in the config and return the correct LocalClient object based on</span></span><br><span class="line"><span class="string">    the configured transport</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    :param IOLoop io_loop: io_loop used for events.</span></span><br><span class="line"><span class="string">                           Pass in an io_loop if you want asynchronous</span></span><br><span class="line"><span class="string">                           operation for obtaining events. Eg use of</span></span><br><span class="line"><span class="string">                           set_event_handler() API. Otherwise, operation</span></span><br><span class="line"><span class="string">                           will be synchronous.</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    <span class="keyword">if</span> mopts:</span><br><span class="line">        opts = mopts</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="comment"># Late import to prevent circular import</span></span><br><span class="line">        <span class="keyword">import</span> salt.config</span><br><span class="line">        opts = salt.config.client_config(c_path)</span><br><span class="line">    <span class="keyword">if</span> opts[<span class="string">'transport'</span>] == <span class="string">'raet'</span>:</span><br><span class="line">        <span class="keyword">import</span> salt.client.raet</span><br><span class="line">        <span class="keyword">return</span> salt.client.raet.LocalClient(mopts=opts)</span><br><span class="line">    <span class="comment"># <span class="doctag">TODO:</span> AIO core is separate from transport</span></span><br><span class="line">    <span class="keyword">elif</span> opts[<span class="string">'transport'</span>] <span class="keyword">in</span> (<span class="string">'zeromq'</span>, <span class="string">'tcp'</span>):</span><br><span class="line">        <span class="keyword">return</span> LocalClient(</span><br><span class="line">            mopts=opts,</span><br><span class="line">            skip_perm_errors=skip_perm_errors,</span><br><span class="line">            io_loop=io_loop,</span><br><span class="line">            auto_reconnect=auto_reconnect)</span><br></pre></td></tr></table></figure></p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/client/__init__.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">LocalClient</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    The interface used by the :command:`salt` CLI tool on the Salt Master</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    ``LocalClient`` is used to send a command to Salt minions to execute</span></span><br><span class="line"><span class="string">    :ref:`execution modules &lt;all-salt.modules&gt;` and return the results to the</span></span><br><span class="line"><span class="string">    Salt Master.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    Importing and using ``LocalClient`` must be done on the same machine as the</span></span><br><span class="line"><span class="string">    Salt Master and it must be done using the same user that the Salt Master is</span></span><br><span class="line"><span class="string">    running as. (Unless :conf_master:`external_auth` is configured and</span></span><br><span class="line"><span class="string">    authentication credentials are included in the execution).</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    .. note::</span></span><br><span class="line"><span class="string">        The LocalClient uses a Tornado IOLoop, this can create issues when</span></span><br><span class="line"><span class="string">        using the LocalClient inside an existing IOLoop. If creating the</span></span><br><span class="line"><span class="string">        LocalClient in partnership with another IOLoop either create the</span></span><br><span class="line"><span class="string">        IOLoop before creating the LocalClient, or when creating the IOLoop</span></span><br><span class="line"><span class="string">        use ioloop.current() which will return the ioloop created by</span></span><br><span class="line"><span class="string">        LocalClient.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    .. code-block:: python</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        import salt.client</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        local = salt.client.LocalClient()</span></span><br><span class="line"><span class="string">        local.cmd('*', 'test.fib', [10])</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self,</span></span></span><br><span class="line"><span class="function"><span class="params">                 c_path=os.path.join<span class="params">(syspaths.CONFIG_DIR, <span class="string">'master'</span>)</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">                 mopts=None, skip_perm_errors=False,</span></span></span><br><span class="line"><span class="function"><span class="params">                 io_loop=None, keep_loop=False, auto_reconnect=False)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        :param IOLoop io_loop: io_loop used for events.</span></span><br><span class="line"><span class="string">                               Pass in an io_loop if you want asynchronous</span></span><br><span class="line"><span class="string">                               operation for obtaining events. Eg use of</span></span><br><span class="line"><span class="string">                               set_event_handler() API. Otherwise,</span></span><br><span class="line"><span class="string">                               operation will be synchronous.</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="keyword">if</span> mopts:</span><br><span class="line">            self.opts = mopts</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">if</span> os.path.isdir(c_path):</span><br><span class="line">                log.warning(</span><br><span class="line">                    <span class="string">'&#123;0&#125; expects a file path not a directory path(&#123;1&#125;) to '</span></span><br><span class="line">                    <span class="string">'it\'s \'c_path\' keyword argument'</span>.format(</span><br><span class="line">                        self.__class__.__name__, c_path</span><br><span class="line">                    )</span><br><span class="line">                )</span><br><span class="line">            self.opts = salt.config.client_config(c_path)</span><br><span class="line">        self.serial = salt.payload.Serial(self.opts)</span><br><span class="line">        self.salt_user = salt.utils.get_specific_user()</span><br><span class="line">        self.skip_perm_errors = skip_perm_errors</span><br><span class="line">        self.key = self.__read_master_key()</span><br><span class="line">        self.auto_reconnect = auto_reconnect</span><br><span class="line">        self.event = salt.utils.event.get_event(</span><br><span class="line">                <span class="string">'master'</span>,</span><br><span class="line">                self.opts[<span class="string">'sock_dir'</span>],</span><br><span class="line">                self.opts[<span class="string">'transport'</span>],</span><br><span class="line">                opts=self.opts,</span><br><span class="line">                listen=<span class="keyword">False</span>,</span><br><span class="line">                io_loop=io_loop,</span><br><span class="line">                keep_loop=keep_loop)</span><br><span class="line">        self.utils = salt.loader.utils(self.opts)</span><br><span class="line">        self.functions = salt.loader.minion_mods(self.opts, utils=self.utils)</span><br><span class="line">        self.returners = salt.loader.returners(self.opts, self.functions)</span><br></pre></td></tr></table></figure>
-<p>在__init__中，读取/etc/salt/master配置到self.opts，读取key（self.opts[‘cachedir’]/.xxx_key），创建self.event用于与消息系统交互，加载utils、functions、returners模块</p>
-<p>回到run，调用对应的cmd_xxx执行任务，这里以cmd_cli为例<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/client/__init__.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">cmd_cli</span><span class="params">(</span></span></span><br><span class="line"><span class="function"><span class="params">            self,</span></span></span><br><span class="line"><span class="function"><span class="params">            tgt,</span></span></span><br><span class="line"><span class="function"><span class="params">            fun,</span></span></span><br><span class="line"><span class="function"><span class="params">            arg=<span class="params">()</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">            timeout=None,</span></span></span><br><span class="line"><span class="function"><span class="params">            expr_form=<span class="string">'glob'</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">            ret=<span class="string">''</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">            verbose=False,</span></span></span><br><span class="line"><span class="function"><span class="params">            kwarg=None,</span></span></span><br><span class="line"><span class="function"><span class="params">            progress=False,</span></span></span><br><span class="line"><span class="function"><span class="params">            **kwargs)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Used by the :command:`salt` CLI. This method returns minion returns as</span></span><br><span class="line"><span class="string">        they come back and attempts to block until all minions return.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        The function signature is the same as :py:meth:`cmd` with the</span></span><br><span class="line"><span class="string">        following exceptions.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        :param verbose: Print extra information about the running command</span></span><br><span class="line"><span class="string">        :returns: A generator</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        arg = salt.utils.args.condition_input(arg, kwarg)</span><br><span class="line">        was_listening = self.event.cpub</span><br><span class="line"></span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            self.pub_data = self.run_job(</span><br><span class="line">                tgt,</span><br><span class="line">                fun,</span><br><span class="line">                arg,</span><br><span class="line">                expr_form,</span><br><span class="line">                ret,</span><br><span class="line">                timeout,</span><br><span class="line">                listen=<span class="keyword">True</span>,</span><br><span class="line">                **kwargs)</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> <span class="keyword">not</span> self.pub_data:</span><br><span class="line">                <span class="keyword">yield</span> self.pub_data</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="keyword">try</span>:</span><br><span class="line">                    <span class="keyword">for</span> fn_ret <span class="keyword">in</span> self.get_cli_event_returns(</span><br><span class="line">                            self.pub_data[<span class="string">'jid'</span>],</span><br><span class="line">                            self.pub_data[<span class="string">'minions'</span>],</span><br><span class="line">                            self._get_timeout(timeout),</span><br><span class="line">                            tgt,</span><br><span class="line">                            expr_form,</span><br><span class="line">                            verbose,</span><br><span class="line">                            progress,</span><br><span class="line">                            **kwargs):</span><br><span class="line"></span><br><span class="line">                        <span class="keyword">if</span> <span class="keyword">not</span> fn_ret:</span><br><span class="line">                            <span class="keyword">continue</span></span><br><span class="line"></span><br><span class="line">                        <span class="keyword">yield</span> fn_ret</span><br><span class="line">                <span class="keyword">except</span> KeyboardInterrupt:</span><br><span class="line">                    <span class="keyword">raise</span> SystemExit(</span><br><span class="line">                        <span class="string">'\n'</span></span><br><span class="line">                        <span class="string">'This job\'s jid is: &#123;0&#125;\n'</span></span><br><span class="line">                        <span class="string">'Exiting gracefully on Ctrl-c\n'</span></span><br><span class="line">                        <span class="string">'The minions may not have all finished running and any '</span></span><br><span class="line">                        <span class="string">'remaining minions will return upon completion. To look '</span></span><br><span class="line">                        <span class="string">'up the return data for this job later, run the following '</span></span><br><span class="line">                        <span class="string">'command:\n\n'</span></span><br><span class="line">                        <span class="string">'salt-run jobs.lookup_jid &#123;0&#125;'</span>.format(self.pub_data[<span class="string">'jid'</span>])</span><br><span class="line">                    )</span><br><span class="line">        <span class="keyword">finally</span>:</span><br><span class="line">            <span class="keyword">if</span> <span class="keyword">not</span> was_listening:</span><br><span class="line">                self.event.close_pub()</span><br></pre></td></tr></table></figure></p>
-<p>cmd_cli调用run_job完成消息的构建、发送以及返回结果校验、事件订阅，并调用get_cli_event_returns读取相关jid的event<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line"># salt/client/__init__.py</span><br><span class="line">    def run_job(</span><br><span class="line">            self,</span><br><span class="line">            tgt,</span><br><span class="line">            fun,</span><br><span class="line">            arg=(),</span><br><span class="line">            expr_form=&apos;glob&apos;,</span><br><span class="line">            ret=&apos;&apos;,</span><br><span class="line">            timeout=None,</span><br><span class="line">            jid=&apos;&apos;,</span><br><span class="line">            kwarg=None,</span><br><span class="line">            listen=False,</span><br><span class="line">            **kwargs):</span><br><span class="line">        &apos;&apos;&apos;</span><br><span class="line">        Asynchronously send a command to connected minions</span><br><span class="line"></span><br><span class="line">        Prep the job directory and publish a command to any targeted minions.</span><br><span class="line"></span><br><span class="line">        :return: A dictionary of (validated) ``pub_data`` or an empty</span><br><span class="line">            dictionary on failure. The ``pub_data`` contains the job ID and a</span><br><span class="line">            list of all minions that are expected to return data.</span><br><span class="line"></span><br><span class="line">        .. code-block:: python</span><br><span class="line"></span><br><span class="line">            &gt;&gt;&gt; local.run_job(&apos;*&apos;, &apos;test.sleep&apos;, [300])</span><br><span class="line">            &#123;&apos;jid&apos;: &apos;20131219215650131543&apos;, &apos;minions&apos;: [&apos;jerry&apos;]&#125;</span><br><span class="line">        &apos;&apos;&apos;</span><br><span class="line">        arg = salt.utils.args.condition_input(arg, kwarg)</span><br><span class="line"></span><br><span class="line">        try:</span><br><span class="line">            pub_data = self.pub(</span><br><span class="line">                tgt,</span><br><span class="line">                fun,</span><br><span class="line">                arg,</span><br><span class="line">                expr_form,</span><br><span class="line">                ret,</span><br><span class="line">                jid=jid,</span><br><span class="line">                timeout=self._get_timeout(timeout),</span><br><span class="line">                listen=listen,</span><br><span class="line">                **kwargs)</span><br><span class="line">        except SaltClientError:</span><br><span class="line">            # Re-raise error with specific message</span><br><span class="line">            raise SaltClientError(</span><br><span class="line">                &apos;The salt master could not be contacted. Is master running?&apos;</span><br><span class="line">            )</span><br><span class="line">        except Exception as general_exception:</span><br><span class="line">            # Convert to generic client error and pass along message</span><br><span class="line">            raise SaltClientError(general_exception)</span><br><span class="line"></span><br><span class="line">        return self._check_pub_data(pub_data)</span><br></pre></td></tr></table></figure></p>
-<p>run_job调用pub发送任务信息给reqserver，并将返回结果保存到pub_data，返回结果是{‘jid’: payload[‘load’][‘jid’], ‘minions’: payload[‘load’][‘minions’]}，最后调用_check_pub_data检查返回结果的合法性同时订阅对应jid的event<br>self.event.subscribe(‘salt/job/{0}’.format(pub_data[‘jid’]))<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/client/__init__.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">pub</span><span class="params">(self,</span></span></span><br><span class="line"><span class="function"><span class="params">            tgt,</span></span></span><br><span class="line"><span class="function"><span class="params">            fun,</span></span></span><br><span class="line"><span class="function"><span class="params">            arg=<span class="params">()</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">            expr_form=<span class="string">'glob'</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">            ret=<span class="string">''</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">            jid=<span class="string">''</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">            timeout=<span class="number">5</span>,</span></span></span><br><span class="line"><span class="function"><span class="params">            listen=False,</span></span></span><br><span class="line"><span class="function"><span class="params">            **kwargs)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Take the required arguments and publish the given command.</span></span><br><span class="line"><span class="string">        Arguments:</span></span><br><span class="line"><span class="string">            tgt:</span></span><br><span class="line"><span class="string">                The tgt is a regex or a glob used to match up the ids on</span></span><br><span class="line"><span class="string">                the minions. Salt works by always publishing every command</span></span><br><span class="line"><span class="string">                to all of the minions and then the minions determine if</span></span><br><span class="line"><span class="string">                the command is for them based on the tgt value.</span></span><br><span class="line"><span class="string">            fun:</span></span><br><span class="line"><span class="string">                The function name to be called on the remote host(s), this</span></span><br><span class="line"><span class="string">                must be a string in the format "&lt;modulename&gt;.&lt;function name&gt;"</span></span><br><span class="line"><span class="string">            arg:</span></span><br><span class="line"><span class="string">                The arg option needs to be a tuple of arguments to pass</span></span><br><span class="line"><span class="string">                to the calling function, if left blank</span></span><br><span class="line"><span class="string">        Returns:</span></span><br><span class="line"><span class="string">            jid:</span></span><br><span class="line"><span class="string">                A string, as returned by the publisher, which is the job</span></span><br><span class="line"><span class="string">                id, this will inform the client where to get the job results</span></span><br><span class="line"><span class="string">            minions:</span></span><br><span class="line"><span class="string">                A set, the targets that the tgt passed should match.</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="comment"># Make sure the publisher is running by checking the unix socket</span></span><br><span class="line">        <span class="keyword">if</span> (self.opts.get(<span class="string">'ipc_mode'</span>, <span class="string">''</span>) != <span class="string">'tcp'</span> <span class="keyword">and</span></span><br><span class="line">                <span class="keyword">not</span> os.path.exists(os.path.join(self.opts[<span class="string">'sock_dir'</span>],</span><br><span class="line">                <span class="string">'publish_pull.ipc'</span>))):</span><br><span class="line">            log.error(</span><br><span class="line">                <span class="string">'Unable to connect to the salt master publisher at '</span></span><br><span class="line">                <span class="string">'&#123;0&#125;'</span>.format(self.opts[<span class="string">'sock_dir'</span>])</span><br><span class="line">            )</span><br><span class="line">            <span class="keyword">raise</span> SaltClientError</span><br><span class="line"></span><br><span class="line">        payload_kwargs = self._prep_pub(</span><br><span class="line">                tgt,</span><br><span class="line">                fun,</span><br><span class="line">                arg,</span><br><span class="line">                expr_form,</span><br><span class="line">                ret,</span><br><span class="line">                jid,</span><br><span class="line">                timeout,</span><br><span class="line">                **kwargs)</span><br><span class="line"></span><br><span class="line">        master_uri = <span class="string">'tcp://'</span> + salt.utils.ip_bracket(self.opts[<span class="string">'interface'</span>]) + \</span><br><span class="line">                     <span class="string">':'</span> + str(self.opts[<span class="string">'ret_port'</span>])</span><br><span class="line">        channel = salt.transport.Channel.factory(self.opts,</span><br><span class="line">                                                 crypt=<span class="string">'clear'</span>,</span><br><span class="line">                                                 master_uri=master_uri)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            <span class="comment"># Ensure that the event subscriber is connected.</span></span><br><span class="line">            <span class="comment"># If not, we won't get a response, so error out</span></span><br><span class="line">            <span class="keyword">if</span> listen <span class="keyword">and</span> <span class="keyword">not</span> self.event.connect_pub(timeout=timeout):</span><br><span class="line">                <span class="keyword">raise</span> SaltReqTimeoutError()</span><br><span class="line">            payload = channel.send(payload_kwargs, timeout=timeout)</span><br><span class="line">        <span class="keyword">except</span> SaltReqTimeoutError:</span><br><span class="line">            <span class="keyword">raise</span> SaltReqTimeoutError(</span><br><span class="line">                <span class="string">'Salt request timed out. The master is not responding. '</span></span><br><span class="line">                <span class="string">'If this error persists after verifying the master is up, '</span></span><br><span class="line">                <span class="string">'worker_threads may need to be increased.'</span></span><br><span class="line">            )</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> payload:</span><br><span class="line">            <span class="comment"># The master key could have changed out from under us! Regen</span></span><br><span class="line">            <span class="comment"># and try again if the key has changed</span></span><br><span class="line">            key = self.__read_master_key()</span><br><span class="line">            <span class="keyword">if</span> key == self.key:</span><br><span class="line">                <span class="keyword">return</span> payload</span><br><span class="line">            self.key = key</span><br><span class="line">            payload_kwargs[<span class="string">'key'</span>] = self.key</span><br><span class="line">            payload = channel.send(payload_kwargs)</span><br><span class="line"></span><br><span class="line">        error = payload.pop(<span class="string">'error'</span>, <span class="keyword">None</span>)</span><br><span class="line">        <span class="keyword">if</span> error <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span>:</span><br><span class="line">            <span class="keyword">raise</span> PublishError(error)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> payload:</span><br><span class="line">            <span class="keyword">return</span> payload</span><br><span class="line"></span><br><span class="line">        <span class="comment"># We have the payload, let's get rid of the channel fast(GC'ed faster)</span></span><br><span class="line">        <span class="keyword">del</span> channel</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> &#123;<span class="string">'jid'</span>: payload[<span class="string">'load'</span>][<span class="string">'jid'</span>],</span><br><span class="line">                <span class="string">'minions'</span>: payload[<span class="string">'load'</span>][<span class="string">'minions'</span>]&#125;</span><br></pre></td></tr></table></figure></p>
-<p>pub调用_prep_pub构造待发送的payload；创建salt.transport.tcp.AsyncTCPReqChannel，调用其send方法发送payload到reqserver，返回结果是{‘jid’: payload[‘load’][‘jid’], ‘minions’: payload[‘load’][‘minions’]}</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">saltstack</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/09/30/salt-job-flow/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
-      <a class="extend prev" rel="prev" href="/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><a class="page-number" href="/page/4/">4</a><span class="space">&hellip;</span><a class="page-number" href="/page/8/">8</a><a class="extend next" rel="next" href="/page/3/">Next &raquo;</a>
+      <a class="extend prev" rel="prev" href="/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><a class="page-number" href="/page/4/">4</a><span class="space">&hellip;</span><a class="page-number" href="/page/9/">9</a><a class="extend next" rel="next" href="/page/3/">Next &raquo;</a>
     </nav>
   
 
@@ -1339,7 +1318,7 @@
   <div class="outer">
     <div id="footer-info">
     	<div class="footer-left">
-    		&copy; 2020 winway
+    		&copy; 2021 winway
     	</div>
       	<div class="footer-right">
       		<a href="http://hexo.io/" target="_blank">Hexo</a>  Theme <a href="https://github.com/litten/hexo-theme-yilia" target="_blank">Yilia</a> by Litten
@@ -1424,15 +1403,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1460,11 +1439,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">github</a>
+                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
+                <a href="javascript:void(0)" class="js-tag color2">github</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1484,6 +1463,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">备份</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">influxdb</a>
               </li>
              
@@ -1492,11 +1475,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">备份</a>
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1505,10 +1488,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">github pages</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1544,6 +1523,22 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">tez</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">orc</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">snappy</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">手机号</a>
               </li>
              
@@ -1552,15 +1547,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">spark</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">tez</a>
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1596,15 +1587,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">flume</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
             
             <div class="clearfix"></div>
