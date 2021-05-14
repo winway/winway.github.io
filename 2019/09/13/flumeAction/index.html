@@ -30,7 +30,8 @@
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20191220192637.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20191220192343.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20191220193140.png">
-<meta property="og:updated_time" content="2020-02-27T04:35:16.320Z">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20210514-200149.png">
+<meta property="og:updated_time" content="2021-05-14T12:11:49.936Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Flume实战总结">
 <meta name="twitter:description" content="前言 Flume介绍 架构演进 Kafka topic覆盖问题 Flume重复读取日志问题 Memory Channel重启丢数据问题 Error while querying external table containing Flume stream Kafka Sink/Source 生产/消费大消息问题 Kafka Sink支持时间戳索引 低版本KafkaSource消费高版本Kafk">
@@ -204,6 +205,7 @@
 <li><a href="#低版本kafkasource消费高版本kafka消息问题">低版本KafkaSource消费高版本Kafka消息问题</a></li>
 <li><a href="#多节点消费kafka负载均衡问题">多节点消费kafka负载均衡问题</a></li>
 <li><a href="#kafka-sink吞吐量优化">Kafka Sink吞吐量优化</a></li>
+<li><a href="#吞吐量优化">吞吐量优化</a></li>
 <li><a href="#flume监控">Flume监控</a></li>
 </ul>
 <!-- tocstop -->
@@ -421,6 +423,7 @@
 <li>使用多个sink<br>定义多个KafkaSink消费同一个Channel</li>
 </ul>
 <p>参考：<a href="https://medium.com/data-collective/scaling-a-flume-agent-to-handle-120k-events-sec-11f70a428ca2" target="_blank" rel="noopener">https://medium.com/data-collective/scaling-a-flume-agent-to-handle-120k-events-sec-11f70a428ca2</a></p>
+<h1><span id="吞吐量优化">吞吐量优化</span></h1><p>将结构由上面改为下面，减少channel的锁竞争。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20210514-200149.png" alt=""><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">#configure for consume log from kafka to hdfs</span><br><span class="line">agent.sources = s1 s2</span><br><span class="line">agent.channels = c1 c2</span><br><span class="line">agent.sinks = k1 k2</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">#Describe/configure the source</span><br><span class="line">agent.sources.s1.type = org.apache.flume.source.kafka.KafkaSource</span><br><span class="line">agent.sources.s1.channels = c1</span><br><span class="line"></span><br><span class="line">#Describe/configure the source</span><br><span class="line">agent.sources.s2.type = org.apache.flume.source.kafka.KafkaSource</span><br><span class="line">agent.sources.s2.channels = c2</span><br><span class="line"></span><br><span class="line">#configure for channels</span><br><span class="line">agent.channels.c1.type = memory</span><br><span class="line">agent.channels.c1.capacity = 450000</span><br><span class="line">agent.channels.c1.transactionCapacity = 10000</span><br><span class="line">agent.channels.c1.byteCapacity = 0</span><br><span class="line">agent.channels.c1.byteCapacityBufferPercentage = 15</span><br><span class="line">agent.channels.c1.keep-alive = 15</span><br><span class="line"></span><br><span class="line">#configure for channels</span><br><span class="line">agent.channels.c2.type = memory</span><br><span class="line">agent.channels.c2.capacity = 450000</span><br><span class="line">agent.channels.c2.transactionCapacity = 10000</span><br><span class="line">agent.channels.c2.byteCapacity = 0</span><br><span class="line">agent.channels.c2.byteCapacityBufferPercentage = 15</span><br><span class="line">agent.channels.c2.keep-alive = 15</span><br><span class="line"></span><br><span class="line">#configure for sinks</span><br><span class="line">agent.sinks.k1.type = hdfs</span><br><span class="line">agent.sinks.hdfssink1.channel = c1</span><br><span class="line"></span><br><span class="line">#configure for sinks</span><br><span class="line">agent.sinks.k2.type = hdfs</span><br><span class="line">agent.sinks.hdfssink2.channel = c2</span><br></pre></td></tr></table></figure></p>
 <h1><span id="flume监控">Flume监控</span></h1><p>Flume提供了以下几种监控机制：</p>
 <ul>
 <li><a href="https://flume.apache.org/releases/content/1.8.0/FlumeUserGuide.html#jmx-reporting" target="_blank" rel="noopener">JMX Reporting</a></li>
@@ -712,6 +715,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
@@ -720,19 +727,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">shell</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">监控</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -772,10 +775,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">备份</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">influxdb</a>
               </li>
              
@@ -784,11 +783,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+                <a href="javascript:void(0)" class="js-tag color3">备份</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -800,7 +799,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -809,6 +808,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -828,19 +831,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">tez</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">orc</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">snappy</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -852,15 +847,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">spark</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">tez</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -885,6 +880,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">nagios</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">orc</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">snappy</a>
               </li>
              
               <li class="article-tag-list-item">
