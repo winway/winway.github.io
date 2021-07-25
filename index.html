@@ -155,6 +155,212 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-olapNotes" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2021/07/25/olapNotes/">OLAP笔记</a>
+    </h1>
+  
+
+        
+        <a href="/2021/07/25/olapNotes/" class="archive-article-date">
+  	<time datetime="2021-07-25T08:49:34.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-07-25</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#背景">背景</a></li>
+<li><a href="#olap概述">OLAP概述</a><ul>
+<li><a href="#mpp-与-hadoop是什么关系">MPP 与 Hadoop是什么关系？</a></li>
+<li><a href="#概念介绍olap和rolapmolapholap">概念介绍：OLAP和ROLAP,MOLAP,HOLAP</a></li>
+<li><a href="#浅谈rolap-molap和holap区别">浅谈ROLAP、MOLAP和HOLAP区别</a></li>
+<li><a href="#olap计算引擎怎么选">OLAP计算引擎怎么选？</a></li>
+<li><a href="#主流olap系统对比总结">主流OLAP系统对比总结</a></li>
+<li><a href="#常见开源olap技术架构对比">常见开源OLAP技术架构对比</a></li>
+<li><a href="#olap-技术选型-apache-kylin-apache-doris-clickhouse对比">OLAP 技术选型 Apache Kylin、Apache Doris、Clickhouse对比</a></li>
+<li><a href="#数仓olap技术">数仓OLAP技术</a></li>
+</ul>
+</li>
+<li><a href="#clickhouse">ClickHouse</a><ul>
+<li><a href="#极客星球clickhouse在数据智能公司的应用与实践">极客星球｜Clickhouse在数据智能公司的应用与实践</a></li>
+<li><a href="#clickhouse-在有赞的实践之路">ClickHouse 在有赞的实践之路</a></li>
+<li><a href="#百分点大数据技术团队clickhouse国家级项目最佳实践">百分点大数据技术团队：ClickHouse国家级项目最佳实践</a></li>
+<li><a href="#clickhouse深度揭秘">ClickHouse深度揭秘</a></li>
+<li><a href="#clickhouse表引擎到底怎么选">ClickHouse表引擎到底怎么选</a></li>
+<li><a href="#clickhouse集群搭建一">ClickHouse集群搭建（一）</a></li>
+<li><a href="#clickhouse分布式集群搭建指南">ClickHouse分布式集群搭建指南</a></li>
+<li><a href="#clickhouse复制表-分布式表机制与使用方法">ClickHouse复制表、分布式表机制与使用方法</a></li>
+<li><a href="#distributed-vs-shard-vs-replicated">Distributed vs Shard vs Replicated</a></li>
+<li><a href="#深入理解clickhouse-本地表和分布式表">深入理解ClickHouse-本地表和分布式表</a></li>
+<li><a href="#clickhouse优化最佳实践易企秀">clickhouse优化最佳实践(易企秀)</a></li>
+<li><a href="#物化视图简介与clickhouse中的应用示例">物化视图简介与ClickHouse中的应用示例</a></li>
+</ul>
+</li>
+<li><a href="#doris">Doris</a><ul>
+<li><a href="#另辟蹊径建数仓美团外卖为什么选用doris精品干货">另辟蹊径建数仓，美团外卖为什么选用Doris（精品干货）</a></li>
+<li><a href="#doris在美团点评的应用">Doris在美团点评的应用</a></li>
+<li><a href="#apache-doris在京东广告的应用实践">Apache Doris在京东广告的应用实践</a></li>
+<li><a href="#doris在作业帮实时数仓中的应用实践">Doris在作业帮实时数仓中的应用实践</a></li>
+<li><a href="#apache-doris-incubating-原理与实践">Apache Doris (Incubating) 原理与实践</a></li>
+<li><a href="#实时olap都选clickhouse我们用doris明明也很香">实时OLAP都选Clickhouse？我们用Doris明明也很香</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h2><span id="背景">背景</span></h2><p>之前一直在做数仓方面的工作内容，最近开始接触OLAP，系统的阅读了一些OLAP方面的资料，记录如下。</p>
+<h2><span id="olap概述">OLAP概述</span></h2><h3><span id="mpp-与-hadoop是什么关系">MPP 与 Hadoop是什么关系？</span></h3><p><a href="https://www.zhihu.com/question/22037987" target="_blank" rel="noopener">MPP 与 Hadoop是什么关系？</a></p>
+<blockquote>
+<p>综上所述，NUMA是一种体系结构，MPP是一种实时海量数据分析架构，而Hadoop是一个关于数据存储处理的项目群，其中的MapReduce是一种离线海量数据分析架构。</p>
+<ol start="2">
+<li>hive跟mpp的存储模型不一样，hive用的hdfs，而mpp需要自己做切分，自己做切分就带来动态调整的问题，hdfs的扩展是通过元数据来做的，他有中心节点用来存元数据，在加入新的节点的时候，只需要修改元数据就可以了，所以hdfs的扩展能力是受到管理元数据那台机器的性能限制的，一般来说可以到10k这个规模，再向上就不行了。但是mpp通常采用的是没有中心节点的存储模型，比如hash，你每次增加节点的时候，都需要rehash，这样当规模到了几百台的时候，扩展能力就下来了。当然，现在可以把存储架在hdfs上，这样在存储上就没有太大区别了。</li>
+<li>hive跟mpp的内存管理方式不大一样，mpp内存管理比较精细，他主要的想法是在每个机器上放个数据库，传统数据库的内存管理比较复杂，主要是内外存交互的东西，这样的架构决定了mpp在小数据量的时候，latency可以做的比较小，但是在大数据量的时候，throughput做不上去。而hive的内存管理非常粗放，他后来就是mapreduce的job，mr的job是没有太多精细的内存管理的，他就是拼了命地scan，完了顶多就是个spill，这样的架构导致throughput很大，但是latency很高，当你集群规模很大的时候，你一般会追求很大的throughput，当数据量很大的时候，如果你用mpp那种传统的内存管理的话，大批量的计算反而会慢，而且更加占资源，所以vertica这种一开始就考虑了列式存储就是这个道理。<br>4.事务，你可以认为hive不支持传统意义上的那种高并发的事务，而mpp试图想要支持，一旦你要上分布式事务，基本上你的可扩展性就上不去了，至于为啥，陈皓有一篇文章写的不错，建议看下。hive的ddl是可以多个并发的，但是dml不行，而ddl他是通过传统的数据库去做的，所以这个也是个中心节点，dml不行的话，就决定了他可以在底层跑mr这么重粒度的东西，他跑的时候，会在整个表上面加一把大锁。<br>5.failover机制，hive的failover就是mr的failover，job挂掉了重新换机器跑就完了，但是mpp如果采用传统架构的话，他的计算是要attach到数据节点上去的，如果你规模上去，那么fail的可能性就上去了，这样如果你每次计算都有台机器挂了，你一挂，别人就要等你，而不是换台机器继续跑，那么这个也限制了可扩展性，当然，如果mpp在底层用了统一的存储，完了计算也可以到处转移，再想个办法把中间状态记录下来，也可以扩展（这个实际上就是sparksql）</li>
+</ol>
+</blockquote>
+<h3><span id="概念介绍olap和rolapmolapholap">概念介绍：OLAP和ROLAP,MOLAP,HOLAP</span></h3><p><a href="https://www.zhihu.com/question/22037987" target="_blank" rel="noopener">概念介绍：OLAP和ROLAP,MOLAP,HOLAP</a></p>
+<blockquote>
+<pre><code>OLAP有多种实现方法，根据存储数据的方式不同可以分为ROLAP、MOLAP、HOLAP。
+ ROLAP表示基于关系数据库的OLAP实现（Relational OLAP）。以关系数据库为核心,以关系型结构进行多维数据的表示和存储。ROLAP将多维数据库的多维结构划分为两类表:一类是事实表,用来存储数据和维关键字;另一类是维表,即对每个维至少使用一个表来存放维的层次、成员类别等维的描述信息。维表和事实表通过主关键字和外关键字联系在一起,形成了&quot;星型模式&quot;。对于层次复杂的维,为避免冗余数据占用过大的存储空间,可以使用多个表来描述,这种星型模式的扩展称为&quot;雪花模式&quot;。特点是将细节数据保留在关系型数据库的事实表中，聚合后的数据也保存在关系型的数据库中。这种方式查询效率最低，不推荐使用。
+ MOLAP表示基于多维数据组织的OLAP实现（Multidimensional OLAP）。以多维数据组织方式为核心,也就是说,MOLAP使用多维数组存储数据。多维数据在存储中将形成&quot;立方块（Cube）&quot;的结构,在MOLAP 中对&quot;立方块&quot;的&quot;旋转&quot;、&quot;切块&quot;、&quot;切片&quot;是产生多维数据报表的主要技术。特点是将细节数据和聚合后的数据均保存在cube中，所以以空间换效率，查询时效率高，但生成cube时需要大量的时间和空间。
+ HOLAP表示基于混合数据组织的OLAP实现（Hybrid OLAP）。如低层是关系型的，高层是多维矩阵型的。这种方式具有更好的灵活性。特点是将细节数据保留在关系型数据库的事实表中，但是聚合后的数据保存在cube中,聚合时需要比ROLAP更多的时间,查询效率比ROLAP高，但低于MOLAP。
+</code></pre></blockquote>
+<h3><span id="浅谈rolap-molap和holap区别">浅谈ROLAP、MOLAP和HOLAP区别</span></h3><p><a href="https://blog.csdn.net/huanruiqi/article/details/51272789" target="_blank" rel="noopener">浅谈ROLAP、MOLAP和HOLAP区别</a></p>
+<blockquote>
+<p>ROLAP基于关系型数据库，它的OLAP引擎就是将用户的OLAP操作，如上钻下钻过滤合并等，转换成SQL语句提交到数据库中执行，并且提供聚集导航功能，根据用户操作的维度和度量将SQL查询定位到最粗粒度的事实表上去。<br>MOLAP事先将汇总数据计算好，存放在自己特定的多维数据库中，用户的OLAP操作可以直接映射到多维数据库的访问，不通过SQL访问。<br>ROLAP提供了更大的灵活度，MOLAP提供提供了更加快速的响应速度。但是带来的问题是，数据装载的效率非常低，但是带来的问题是，数据装载的效率非常低，因为其实就是将多维的数据预先填好，但是随着数据量过大维度成本越高，容易引起“数据爆炸” </p>
+</blockquote>
+<h3><span id="olap计算引擎怎么选">OLAP计算引擎怎么选？</span></h3><p><a href="https://cloud.tencent.com/developer/article/1757948" target="_blank" rel="noopener">OLAP计算引擎怎么选？</a></p>
+<blockquote>
+<p>Kylin 可以说是与市面上流行的RTOLAP走了一条完全不同的道路。Kylin在如何快速求得预计算结果，以及优化查询解析使得更多的查询能用上预计算结果方面在优化，后续Kylin的版本会优化预计算速度，使得Kylin可以变成一个近似实时的分析引擎。然而其缺点就是SQL支持方面可能在一定程度上会有所牺牲，存储开销也会比较大， 而像Presto，SparkSQL，Hawq等是着重于优化查询数据的过程环节，像一些其它的数据仓库一样，使用列存、压缩、并行查询等技术，优化查询。这种方案的好处就在于扩展性强、能适配更广泛的查询， 然而由于每次的聚合计算是 On Fly的，因此性能上相较Kylin还是有所不如。</p>
+</blockquote>
+<h3><span id="主流olap系统对比总结">主流OLAP系统对比总结</span></h3><p><a href="https://zhuanlan.zhihu.com/p/38767561" target="_blank" rel="noopener">主流OLAP系统对比总结</a></p>
+<blockquote>
+<p>在调研了市面上主流的开源OLAP引擎后发现，目前还没有一个系统能够满足各种场景的查询需求。其本质原因是，没有一个系统能同时在数据量、性能、和灵活性三个方面做到完美，每个系统在设计时都需要在这三者间做出取舍。<br>MPP架构的系统（Presto/Impala/SparkSQL/Drill等）有很好的数据量和灵活性支持，但是对响应时间是没有保证的。当数据量和计算复杂度增加后，响应时间会变慢，从秒级到分钟级，甚至小时级都有可能。<br>    MPP即大规模并行处理（Massively Parallel Processor ）。 在数据库非共享集群中，每个节点都有独立的磁盘存储系统和内存系统，业务数据根据数据库模型和应用特点划分到各个节点上，每台数据节点通过专用网络或者商业通用网络互相连接，彼此协同计算，作为整体提供数据 库服务。非共享数据库集群有完全的可伸缩性、高可用、高性能、优秀的性价比、资源共享等优势。<br>缺点：性能不稳定<br>搜索引擎架构的系统（Elasticsearch等）相对比MPP系统，在入库时将数据转换为倒排索引，采用Scatter-Gather计算模型，牺牲了灵活性换取很好的性能，在搜索类查询上能做到亚秒级响应。但是对于扫描聚合为主的查询，随着处理数据量的增加，响应时间也会退化到分钟级。<br>缺点：性能不稳定<br>预计算系统（Druid/Kylin等）则在入库时对数据进行预聚合，进一步牺牲灵活性换取性能，以实现对超大数据集的秒级响应。<br>缺点：不太灵活<br>MPP和搜索引擎系统无法满足超大数据集下的性能要求，因此很自然地会考虑预计算系统。而Druid主要面向的是实时Timeseries数据，我们虽然也有类似的场景，但主流的分析还是面向数仓中按天生产的结构化表，因此Kylin的MOLAP Cube方案是最适合作为大数据量时候的引擎。</p>
+</blockquote>
+<h3><span id="常见开源olap技术架构对比">常见开源OLAP技术架构对比</span></h3><p><a href="https://zhuanlan.zhihu.com/p/266402829" target="_blank" rel="noopener">常见开源OLAP技术架构对比</a></p>
+<blockquote>
+<p>MOLAP的典型代表是：Druid，Kylin，Doris，MOLAP一般会根据用户定义的数据维度、度量（也可以叫指标）在数据写入时生成预聚合数据；Query查询到来时，实际上查询的是预聚合的数据而不是原始明细数据，在查询模式相对固定的场景中，这种优化提速很明显。<br>MOLAP 的优点和缺点都来自于其数据预处理 ( pre-processing ) 环节。数据预处理，将原始数据按照指定的计算规则预先做聚合计算，这样避免了查询过程中出现大量的即使计算，提升了查询性能。<br>但是这样的预聚合处理，需要预先定义维度，会限制后期数据查询的灵活性；如果查询工作涉及新的指标，需要重新增加预处理流程，损失了灵活度，存储成本也很高；同时，这种方式不支持明细数据的查询，仅适用于聚合型查询（如：sum，avg，count）。<br>因此，MOLAP 适用于查询场景相对固定并且对查询性能要求非常高的场景。如广告主经常使用的广告投放报表分析。<br>ROLAP的典型代表是：Presto，Impala，GreenPlum，Clickhouse，Elasticsearch，Hive，Spark SQL，Flink SQL<br>数据写入时，ROLAP并未使用像MOLAP那样的预聚合技术；ROLAP收到Query请求时，会先解析Query，生成执行计划，扫描数据，执行关系型算子，在原始数据上做过滤(Where)、聚合(Sum, Avg, Count)、关联(Join)，分组（Group By)、排序（Order By）等，最后将结算结果返回给用户，整个过程都是即时计算，没有预先聚合好的数据可供优化查询速度，拼的都是资源和算力的大小。<br>ROLAP 不需要进行数据预处理 ( pre-processing )，因此查询灵活，可扩展性好。这类引擎使用 MPP 架构 ( 与Hadoop相似的大型并行处理架构，可以通过扩大并发来增加计算资源 )，可以高效处理大量数据。<br>但是当数据量较大或 query 较为复杂时，查询性能也无法像 MOLAP 那样稳定。所有计算都是即时触发 ( 没有预处理 )，因此会耗费更多的计算资源，带来潜在的重复计算。<br>因此，ROLAP 适用于对查询模式不固定、查询灵活性要求高的场景。如数据分析师常用的数据分析类产品，他们往往会对数据做各种预先不能确定的分析，所以需要更高的查询灵活性。</p>
+</blockquote>
+<h3><span id="olap-技术选型-apache-kylin-apache-doris-clickhouse对比">OLAP 技术选型 Apache Kylin、Apache Doris、Clickhouse对比</span></h3><p><a href="https://blog.csdn.net/qq_39945938/article/details/114013486" target="_blank" rel="noopener">OLAP 技术选型 Apache Kylin、Apache Doris、Clickhouse对比</a></p>
+<blockquote>
+<p>目前还没有一个系统能够满足各种场景的查询需求。其本质原因是，没有一个系统能同时在数据量、性能、和灵活性三个方面做到完美，每个系统在设计时都需要在这三者间做出取舍。<br>    Apache Kylin<br>    固定维度的聚合查询，并发量高，查询迅速响应（亚秒级-秒级），数量级支持TB-PB<br>    Apache Doris<br>    灵活的多维度查询，join表现比Clickhouse好，明细数据查询，数量级支持TP-PB，需要注意的是Doris是mysql语法，和hive等olap有一定差异，从hive切换到doris时有一定的切换成本<br>    Clickhouse<br>    大宽表，单表查询速度极佳，join表现差，明细数据查询</p>
+</blockquote>
+<h3><span id="数仓olap技术">数仓OLAP技术</span></h3><p><a href="https://www.cnblogs.com/tgzhu/p/14527652.html" target="_blank" rel="noopener">数仓OLAP技术</a><br><img src="https://img2020.cnblogs.com/blog/1004194/202103/1004194-20210313110426292-668919815.png" alt=""><br><img src="https://img2020.cnblogs.com/blog/1004194/202103/1004194-20210313114023420-1170729164.png" alt=""></p>
+<h2><span id="clickhouse">ClickHouse</span></h2><h3><span id="极客星球clickhouse在数据智能公司的应用与实践">极客星球｜Clickhouse在数据智能公司的应用与实践</span></h3><p><a href="https://segmentfault.com/a/1190000040084019" target="_blank" rel="noopener">极客星球｜Clickhouse在数据智能公司的应用与实践</a></p>
+<blockquote>
+<p>目前在OLAP领域内使用比较多的系统主要有：Presto、Druid、Kylin、Doris和Clickhouse等其他。整个OLAP系统主要分为两大类型：预聚合和实时聚合，这两种类型都有各自的优缺点。<br>预聚合数据库特点：<br>1.查询速度比较快，由于已经预聚合部分数据，整体的数据集会相对减少；<br>2.数据经过预聚合会导致明细数据丢失，这也是一大问题；<br>3.数据需要预先聚合，查询灵活性比较低，也会导致维度膨胀整体数据量偏大。<br>实时聚合数据库特点：<br>1.存储所有明细数据，查询响应时间会稍微偏大；<br>2.不需要预聚合，查询灵活度比较高。<br>上述数据库Druid，Kylin属于预聚合类型，而Presto，Doris，Clickhouse属于实时聚合类型。</p>
+</blockquote>
+<h3><span id="clickhouse-在有赞的实践之路">ClickHouse 在有赞的实践之路</span></h3><p><a href="https://tech.youzan.com/clickhouse-zai-you-zan-de-shi-jian-zhi-lu/" target="_blank" rel="noopener">ClickHouse 在有赞的实践之路</a></p>
+<blockquote>
+<p>2.4 ClickHouse 应用场景<br>    用户行为分析，精细化运营分析: 日活，留存率分析，路径分析，有序漏斗转化率分 析，Session 分析等。<br>    实时日志分析，监控分析。<br>    实时数仓。</p>
+</blockquote>
+<h3><span id="百分点大数据技术团队clickhouse国家级项目最佳实践">百分点大数据技术团队：ClickHouse国家级项目最佳实践</span></h3><p><a href="https://www.jiqizhixin.com/articles/2020-05-06-5" target="_blank" rel="noopener">百分点大数据技术团队：ClickHouse国家级项目最佳实践</a></p>
+<h3><span id="clickhouse深度揭秘">ClickHouse深度揭秘</span></h3><p><a href="https://zhuanlan.zhihu.com/p/98135840" target="_blank" rel="noopener">ClickHouse深度揭秘</a></p>
+<blockquote>
+<p>ClickHouse从OLAP场景需求出发，定制开发了一套全新的高效列式存储引擎，并且实现了数据有序存储、主键索引、稀疏索引、数据Sharding、数据Partitioning、TTL、主备复制等丰富功能。以上功能共同为ClickHouse极速的分析性能奠定了基础。<br>ClickHouse在计算层做了非常细致的工作，竭尽所能榨干硬件能力，提升查询速度。它实现了单机多核并行、分布式计算、向量化执行与SIMD指令、代码生成等多种重要技术。</p>
+</blockquote>
+<h3><span id="clickhouse表引擎到底怎么选">ClickHouse表引擎到底怎么选</span></h3><p><a href="https://developer.aliyun.com/article/739801?spm=a2c4g.11186623.2.11.f0206bcfXsVZeH&amp;groupCode=cloudproduct" target="_blank" rel="noopener">ClickHouse表引擎到底怎么选</a></p>
+<h3><span id="clickhouse集群搭建一">ClickHouse集群搭建（一）</span></h3><p><a href="https://segmentfault.com/a/1190000038318776" target="_blank" rel="noopener">ClickHouse集群搭建（一）</a></p>
+<h3><span id="clickhouse分布式集群搭建指南">ClickHouse分布式集群搭建指南</span></h3><p><a href="https://segmentfault.com/a/1190000039171654" target="_blank" rel="noopener">ClickHouse分布式集群搭建指南</a></p>
+<h3><span id="clickhouse复制表-分布式表机制与使用方法">ClickHouse复制表、分布式表机制与使用方法</span></h3><p><a href="https://blog.csdn.net/nazeniwaresakini/article/details/105858390" target="_blank" rel="noopener">ClickHouse复制表、分布式表机制与使用方法</a></p>
+<blockquote>
+<p>ClickHouse依靠ReplicatedMergeTree引擎族与ZooKeeper实现了复制表机制，成为其高可用的基础。<br>另外，笔者也提到，ClickHouse像ElasticSearch一样具有数据分片（shard）的概念，这也是分布式存储的特点之一，即通过并行读写提高效率。ClickHouse依靠Distributed引擎实现了分布式表机制，在所有分片（本地表）上建立视图进行分布式查询，使用很方便。<br>在实际操作中，为了最大化性能与稳定性，分片和副本几乎总是一同使用。</p>
+</blockquote>
+<h3><span id="distributed-vs-shard-vs-replicated">Distributed vs Shard vs Replicated</span></h3><p><a href="https://github.com/ClickHouse/ClickHouse/issues/2161" target="_blank" rel="noopener">Distributed vs Shard vs Replicated</a></p>
+<blockquote>
+<p>In ClickHouse each shard work independently and process its part of data, inside each shard replication can work. And later to query all the shards at the same time and combine the final result - Distributed engine is used. So Distributed work as loadbalancer inside each shard, and can combine the data coming from different shards together to make the ‘common’ result.</p>
+</blockquote>
+<h3><span id="深入理解clickhouse-本地表和分布式表">深入理解ClickHouse-本地表和分布式表</span></h3><p><a href="https://blog.csdn.net/jiangshouzhuang/article/details/100762451" target="_blank" rel="noopener">深入理解ClickHouse-本地表和分布式表</a></p>
+<blockquote>
+<p>分布式表本身并不存储数据，只是提供了一个可以分布式访问数据的框架，查询分布式表的时候clickhouse会自动去查询对应的每个本地表中的数据<br>注意AS bank_replica，它表明了分布式表所对应的本地表（本地表是存储数据的）<br>可以配置Distributed表引擎中的最后一个参数来设置数据条目的分配方式<br>可以直接往分布式表中写数据，clickhouse会自动按照上一点所说的方式来分配数据和自平衡<br>也可以自己写算法，然后往本地表中写数据（当然这个就比较高级了）</p>
+</blockquote>
+<h3><span id="clickhouse优化最佳实践易企秀">clickhouse优化最佳实践(易企秀)</span></h3><p><a href="https://www.jianshu.com/p/a72a4782a102" target="_blank" rel="noopener">clickhouse优化最佳实践(易企秀)</a></p>
+<h3><span id="物化视图简介与clickhouse中的应用示例">物化视图简介与ClickHouse中的应用示例</span></h3><p><a href="https://blog.csdn.net/nazeniwaresakini/article/details/106232278" target="_blank" rel="noopener">物化视图简介与ClickHouse中的应用示例</a></p>
+<h2><span id="doris">Doris</span></h2><h3><span id="另辟蹊径建数仓美团外卖为什么选用doris精品干货">另辟蹊径建数仓，美团外卖为什么选用Doris（精品干货）</span></h3><p><a href="https://dbaplus.cn/news-73-3346-1.html" target="_blank" rel="noopener">另辟蹊径建数仓，美团外卖为什么选用Doris（精品干货）</a></p>
+<blockquote>
+<p>既然变化维的历史数据预计算成本巨大，最好的办法就是现用现算，但现用现算需要强大的并行计算能力。OLAP的实现有MOLAP、ROLAP、HOLAP三种形式，MOLAP以Cube为表现形式，但计算与管理成本较高。ROLAP需要强大的关系型DB引擎支撑。长期以来，由于传统关系型DBMS的数据处理能力有限，所以ROLAP模式受到很大的局限性。<br>随着分布式、并行化技术成熟应用，MPP引擎逐渐表现出强大的高吞吐、低时延计算能力，号称“亿级秒开”的引擎不在少数，ROLAP模式可以得到更好的延伸。单从业务实际应用考虑，性能在千万量级关联查询现场计算秒开的情况下，已经可以覆盖到很多应用场景，具备应用的可能性。例如：日数据量的ROLAP现场计算，周、月趋势的计算，以及明细数据的浏览都可以较好的应对。</p>
+</blockquote>
+<h3><span id="doris在美团点评的应用">Doris在美团点评的应用</span></h3><p><a href="https://www.dorisdb.com/zh-CN/blog/meituan2" target="_blank" rel="noopener">Doris在美团点评的应用</a></p>
+<h3><span id="apache-doris在京东广告的应用实践">Apache Doris在京东广告的应用实践</span></h3><p><a href="https://www.dorisdb.com/zh-CN/blog/jingdong" target="_blank" rel="noopener">Apache Doris在京东广告的应用实践</a></p>
+<h3><span id="doris在作业帮实时数仓中的应用实践">Doris在作业帮实时数仓中的应用实践</span></h3><p><a href="https://cloud.tencent.com/developer/news/701512" target="_blank" rel="noopener">Doris在作业帮实时数仓中的应用实践</a></p>
+<h3><span id="apache-doris-incubating-原理与实践">Apache Doris (Incubating) 原理与实践</span></h3><p><a href="https://www.infoq.cn/article/vxup94ub59ya*k0tnefe" target="_blank" rel="noopener">Apache Doris (Incubating) 原理与实践</a></p>
+<blockquote>
+<p>这里有一点点技巧，就是说要根据用户的一个就是读写的一个密集程度做分区。如果是一个读很密集的一个场景，那样的话我们建议用户尽量选择一个区分度很大的列，也就是基数很大的列，我们就可以把这个数据均匀地打散到整个集群里面去，用户查询的时候就可以把整个集群的资源可以用上，相当于没有数据倾斜。如果是写很密集的情况下，就建议用户选择一个区分度少一点的列。这个可以在用户建表的时候根据自己的一个业务场景去选择。可以指定数据放到 SSD 上或者 SATA 盘上，也支持根据 TTL 将冷数据从 SSD 迁移到 SATA 上，高效利用 SSD 提高查询性能</p>
+</blockquote>
+<h3><span id="实时olap都选clickhouse我们用doris明明也很香">实时OLAP都选Clickhouse？我们用Doris明明也很香</span></h3><p><a href="https://toutiao.io/posts/mqrygq9/preview" target="_blank" rel="noopener">实时OLAP都选Clickhouse？我们用Doris明明也很香</a></p>
+<blockquote>
+<p>AB实验的效果监控，业务上需要10分钟、30分钟、60分钟以及全天累计等四个时间段，同时需要根据渠道、平台和一二三级品类等维度进行下钻分析，观测的指标则包含曝光PV、UV、曝光SKU件次、点击PV、点击UV等基础指标，以及CTR等衍生指标。<br>在数据建模阶段，我们将曝光实时数据建立聚合模型，其中K空间包含日期字段、分钟粒度的时间字段、渠道、平台、一二三级品类等，V空间则包含上述的指标列，其中UV和PV进行HLL近似计算，而SKU件次则采用SUM函数，每到来一条记录则加1。由于AB实验数据都是以AB实验位作为过滤条件，因此将实验位字段设置为分桶字段，查询时能够快速定位tablet分片。值得注意的是，HLL的近似度在目前PV和UV的基数下，实际情况误差在0.8%左右，符合预期。</p>
+</blockquote>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">olap</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2021/07/25/olapNotes/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-yarnapphang" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -223,11 +429,11 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">yarn</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">tez</a>
         		</li>
       		 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">tez</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">yarn</a>
         		</li>
       		
 		</ul>
@@ -1412,122 +1618,6 @@
 
 
   
-    <article id="post-ifx-api" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2019/08/24/ifx-api/">InfluxDB api使用介绍</a>
-    </h1>
-  
-
-        
-        <a href="/2019/08/24/ifx-api/" class="archive-article-date">
-  	<time datetime="2019-08-24T08:55:30.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-08-24</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#influxdb介绍">InfluxDB介绍</a></li>
-<li><a href="#使用curl操作influxdb">使用Curl操作InfluxDB</a></li>
-<li><a href="#使用python操作influxdb">使用Python操作InfluxDB</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="influxdb介绍">InfluxDB介绍</span></h2><p><a href="https://www.influxdata.com/" target="_blank" rel="noopener">InfluxDB</a>是一个由InfluxData开发的开源时序型数据库。它由Go写成，着力于高性能地查询与存储时序型数据。InfluxDB被广泛应用于存储系统的监控数据，IoT行业的实时数据等场景。<br>InfluxDB特别适合用于处理和分析资源监控数据这种时序相关数据，其自带的各种特殊函数如求标准差、随机取样数据、统计数据变化比等，使数据统计和实时分析变得十分方便，和传统数据库相比有不少不同的地方，同类型数据库有openTSDB、Graphite等。</p>
-<p>特性：</p>
-<ul>
-<li>时序性（Time Series）：与时间相关的函数的灵活使用（诸如最大、最小、求和等）</li>
-<li>度量（Metrics）：对实时大量数据进行计算</li>
-<li>事件（Event）：支持任意的事件数据，换句话说，任意事件的数据我们都可以做操作</li>
-</ul>
-<p>特点：</p>
-<ul>
-<li>schemaless(无结构)，可以是任意数量的列</li>
-<li>min, max, sum, count, mean, median 一系列函数，方便统计</li>
-<li>Native HTTP API, 内置http支持，使用http读写</li>
-<li>Powerful Query Language 类似sql</li>
-<li>Built-in Explorer 自带管理工具</li>
-</ul>
-<p>用途：</p>
-<ul>
-<li>一般用来储存实时数据，配合一套UI界面来展示信息。</li>
-</ul>
-<h2><span id="使用curl操作influxdb">使用Curl操作InfluxDB</span></h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 查数据</span><br><span class="line">curl -G -u winway:123456 'http://localhost:8086/query?db=mydb' --data-urlencode 'q=SELECT * FROM "mymeas"'</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 写数据</span><br><span class="line">curl -XPOST -u winway:123456 "http://localhost:8086/write?db=foo&amp;precision=s" --data-binary "bar,t=tagvalue f1=field1,f2=field2,f3=field3 1566637635"</span><br></pre></td></tr></table></figure>
-<p>完整api文档：<a href="https://docs.influxdata.com/influxdb/v1.7/tools/api/" target="_blank" rel="noopener">https://docs.influxdata.com/influxdb/v1.7/tools/api/</a></p>
-<h2><span id="使用python操作influxdb">使用Python操作InfluxDB</span></h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#!/usr/bin/env python</span></span><br><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">from</span> influxdb <span class="keyword">import</span> InfluxDBClient</span><br><span class="line"></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">InfluxDB</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="string">"""influxdb单例工具类"""</span></span><br><span class="line"></span><br><span class="line">    _instance = <span class="keyword">None</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__new__</span><span class="params">(cls, *args, **kw)</span>:</span></span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> cls._instance:</span><br><span class="line">            cls._instance = super(InfluxDB, cls).__new__(cls, *args, **kw)</span><br><span class="line">        <span class="keyword">return</span> cls._instance</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, host, port, username, password, database)</span>:</span></span><br><span class="line">        super(InfluxDB, self).__init__()</span><br><span class="line">        self.host = host</span><br><span class="line">        self.port = port</span><br><span class="line">        self.username = username</span><br><span class="line">        self.password = password</span><br><span class="line">        self.database = database</span><br><span class="line">        self.client = InfluxDBClient(host, port, username, password, database)</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">query</span><span class="params">(self, sql)</span>:</span></span><br><span class="line">        <span class="string">"""查询数据"""</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            data = self.client.query(sql)</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">True</span>, data</span><br><span class="line">        <span class="keyword">except</span> Exception <span class="keyword">as</span> e:</span><br><span class="line">            print(<span class="string">'connect redis error: %s'</span> % e)</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">False</span>, e</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line">    ifx = InfluxDB(<span class="string">'localhost'</span>, <span class="number">8086</span>, <span class="string">'winway'</span>, <span class="string">'123456'</span>, <span class="string">'mydb'</span>)</span><br><span class="line"></span><br><span class="line">    result = ifx.query(<span class="string">'show tag values on mydb from mytable with key = "logtype"'</span>)</span><br><span class="line"></span><br><span class="line">    logtypes = []</span><br><span class="line">    <span class="keyword">if</span> result[<span class="number">0</span>]:</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> result[<span class="number">1</span>].get_points():</span><br><span class="line">            logtypes.append(i[<span class="string">'value'</span>])</span><br><span class="line"></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'logtypes:'</span>, logtypes</span><br></pre></td></tr></table></figure>
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">python</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">influxdb</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2019/08/24/ifx-api/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/9/">9</a><a class="extend next" rel="next" href="/page/2/">Next &raquo;</a>
@@ -1627,7 +1717,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
+                <a href="javascript:void(0)" class="js-tag color1">shell</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">监控</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1639,11 +1733,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">shell</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">监控</a>
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1655,15 +1745,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">pig</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">github</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1683,15 +1773,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">备份</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1715,7 +1801,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1724,10 +1818,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1759,19 +1849,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">spark</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
+                <a href="javascript:void(0)" class="js-tag color4">tez</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">tez</a>
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1816,6 +1906,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">flume</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">olap</a>
               </li>
             
             <div class="clearfix"></div>
