@@ -8,20 +8,20 @@
   <link rel="dns-prefetch" href="https://winway.github.io">
   <title>OLAP笔记 | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="背景 OLAP概述 MPP 与 Hadoop是什么关系？ 概念介绍：OLAP和ROLAP,MOLAP,HOLAP 浅谈ROLAP、MOLAP和HOLAP区别 OLAP计算引擎怎么选？ 主流OLAP系统对比总结 常见开源OLAP技术架构对比 OLAP 技术选型 Apache Kylin、Apache Doris、Clickhouse对比 数仓OLAP技术   ClickHouse 极客星球｜Cl">
+  <meta name="description" content="背景 OLAP概述 MPP 与 Hadoop是什么关系？ OLTP与OLAP的区别 概念介绍：OLAP和ROLAP,MOLAP,HOLAP 浅谈ROLAP、MOLAP和HOLAP区别 OLAP计算引擎怎么选？ 主流OLAP系统对比总结 常见开源OLAP技术架构对比 OLAP 技术选型 Apache Kylin、Apache Doris、Clickhouse对比 数仓OLAP技术   Click">
 <meta name="keywords" content="olap">
 <meta property="og:type" content="article">
 <meta property="og:title" content="OLAP笔记">
 <meta property="og:url" content="https://winway.github.io/2021/07/25/olapNotes/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:description" content="背景 OLAP概述 MPP 与 Hadoop是什么关系？ 概念介绍：OLAP和ROLAP,MOLAP,HOLAP 浅谈ROLAP、MOLAP和HOLAP区别 OLAP计算引擎怎么选？ 主流OLAP系统对比总结 常见开源OLAP技术架构对比 OLAP 技术选型 Apache Kylin、Apache Doris、Clickhouse对比 数仓OLAP技术   ClickHouse 极客星球｜Cl">
+<meta property="og:description" content="背景 OLAP概述 MPP 与 Hadoop是什么关系？ OLTP与OLAP的区别 概念介绍：OLAP和ROLAP,MOLAP,HOLAP 浅谈ROLAP、MOLAP和HOLAP区别 OLAP计算引擎怎么选？ 主流OLAP系统对比总结 常见开源OLAP技术架构对比 OLAP 技术选型 Apache Kylin、Apache Doris、Clickhouse对比 数仓OLAP技术   Click">
 <meta property="og:locale" content="default">
 <meta property="og:image" content="https://img2020.cnblogs.com/blog/1004194/202103/1004194-20210313110426292-668919815.png">
 <meta property="og:image" content="https://img2020.cnblogs.com/blog/1004194/202103/1004194-20210313114023420-1170729164.png">
-<meta property="og:updated_time" content="2021-07-30T08:20:57.495Z">
+<meta property="og:updated_time" content="2021-08-08T03:24:36.879Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="OLAP笔记">
-<meta name="twitter:description" content="背景 OLAP概述 MPP 与 Hadoop是什么关系？ 概念介绍：OLAP和ROLAP,MOLAP,HOLAP 浅谈ROLAP、MOLAP和HOLAP区别 OLAP计算引擎怎么选？ 主流OLAP系统对比总结 常见开源OLAP技术架构对比 OLAP 技术选型 Apache Kylin、Apache Doris、Clickhouse对比 数仓OLAP技术   ClickHouse 极客星球｜Cl">
+<meta name="twitter:description" content="背景 OLAP概述 MPP 与 Hadoop是什么关系？ OLTP与OLAP的区别 概念介绍：OLAP和ROLAP,MOLAP,HOLAP 浅谈ROLAP、MOLAP和HOLAP区别 OLAP计算引擎怎么选？ 主流OLAP系统对比总结 常见开源OLAP技术架构对比 OLAP 技术选型 Apache Kylin、Apache Doris、Clickhouse对比 数仓OLAP技术   Click">
 <meta name="twitter:image" content="https://img2020.cnblogs.com/blog/1004194/202103/1004194-20210313110426292-668919815.png">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
@@ -183,6 +183,7 @@
 <li><a href="#背景">背景</a></li>
 <li><a href="#olap概述">OLAP概述</a><ul>
 <li><a href="#mpp-与-hadoop是什么关系">MPP 与 Hadoop是什么关系？</a></li>
+<li><a href="#oltp与olap的区别">OLTP与OLAP的区别</a></li>
 <li><a href="#概念介绍olap和rolapmolapholap">概念介绍：OLAP和ROLAP,MOLAP,HOLAP</a></li>
 <li><a href="#浅谈rolap-molap和holap区别">浅谈ROLAP、MOLAP和HOLAP区别</a></li>
 <li><a href="#olap计算引擎怎么选">OLAP计算引擎怎么选？</a></li>
@@ -227,6 +228,10 @@
 <li>hive跟mpp的存储模型不一样，hive用的hdfs，而mpp需要自己做切分，自己做切分就带来动态调整的问题，hdfs的扩展是通过元数据来做的，他有中心节点用来存元数据，在加入新的节点的时候，只需要修改元数据就可以了，所以hdfs的扩展能力是受到管理元数据那台机器的性能限制的，一般来说可以到10k这个规模，再向上就不行了。但是mpp通常采用的是没有中心节点的存储模型，比如hash，你每次增加节点的时候，都需要rehash，这样当规模到了几百台的时候，扩展能力就下来了。当然，现在可以把存储架在hdfs上，这样在存储上就没有太大区别了。</li>
 <li>hive跟mpp的内存管理方式不大一样，mpp内存管理比较精细，他主要的想法是在每个机器上放个数据库，传统数据库的内存管理比较复杂，主要是内外存交互的东西，这样的架构决定了mpp在小数据量的时候，latency可以做的比较小，但是在大数据量的时候，throughput做不上去。而hive的内存管理非常粗放，他后来就是mapreduce的job，mr的job是没有太多精细的内存管理的，他就是拼了命地scan，完了顶多就是个spill，这样的架构导致throughput很大，但是latency很高，当你集群规模很大的时候，你一般会追求很大的throughput，当数据量很大的时候，如果你用mpp那种传统的内存管理的话，大批量的计算反而会慢，而且更加占资源，所以vertica这种一开始就考虑了列式存储就是这个道理。<br>4.事务，你可以认为hive不支持传统意义上的那种高并发的事务，而mpp试图想要支持，一旦你要上分布式事务，基本上你的可扩展性就上不去了，至于为啥，陈皓有一篇文章写的不错，建议看下。hive的ddl是可以多个并发的，但是dml不行，而ddl他是通过传统的数据库去做的，所以这个也是个中心节点，dml不行的话，就决定了他可以在底层跑mr这么重粒度的东西，他跑的时候，会在整个表上面加一把大锁。<br>5.failover机制，hive的failover就是mr的failover，job挂掉了重新换机器跑就完了，但是mpp如果采用传统架构的话，他的计算是要attach到数据节点上去的，如果你规模上去，那么fail的可能性就上去了，这样如果你每次计算都有台机器挂了，你一挂，别人就要等你，而不是换台机器继续跑，那么这个也限制了可扩展性，当然，如果mpp在底层用了统一的存储，完了计算也可以到处转移，再想个办法把中间状态记录下来，也可以扩展（这个实际上就是sparksql）</li>
 </ol>
+</blockquote>
+<h3><span id="oltp与olap的区别">OLTP与OLAP的区别</span></h3><p><a href="https://blog.csdn.net/bitcarmanlee/article/details/51011515" target="_blank" rel="noopener">OLTP与OLAP的区别</a></p>
+<blockquote>
+<p>OLTP即联机事务处理，就是我们经常说的关系数据库，增删查改就是我们经常应用的东西，这是数据库的基础；TPCC(Transaction Processing Performance Council)属于此类。<br>OLAP即联机分析处理，是数据仓库的核心部心，所谓数据仓库是对于大量已经由OLTP形成的数据的一种分析型的数据库，用于处理商业智能、决策支持等重要的决策信息；数据仓库是在数据库应用到一定程序之后而对历史数据的加工与分析，读取较多，更新较少，TPCH属于此类。<br>随着大数据时代的到来，对于OLAP，列存储模式或者说nosql模式比传统意义的行存储模式可能更具优势。</p>
 </blockquote>
 <h3><span id="概念介绍olap和rolapmolapholap">概念介绍：OLAP和ROLAP,MOLAP,HOLAP</span></h3><p><a href="https://www.zhihu.com/question/22037987" target="_blank" rel="noopener">概念介绍：OLAP和ROLAP,MOLAP,HOLAP</a></p>
 <blockquote>
