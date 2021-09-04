@@ -155,6 +155,112 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-mongo-php-driver-not-support-different-replicasets-with-the-same-name" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2015/10/21/mongo-php-driver-not-support-different-replicasets-with-the-same-name/">RockMongo管理多个名字相同的副本集问题</a>
+    </h1>
+  
+
+        
+        <a href="/2015/10/21/mongo-php-driver-not-support-different-replicasets-with-the-same-name/" class="archive-article-date">
+  	<time datetime="2015-10-21T12:23:26.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2015-10-21</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#1-缘起">1. 缘起</a></li>
+<li><a href="#2-解决方法">2. 解决方法</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="1-缘起">1. 缘起</span></h2><p>使用<a href="https://github.com/iwind/rockmongo" target="_blank" rel="noopener">RockMongo</a>管理MongoDB集群，发现对于不同的副本集，如果配置了相同的名字，则RockMongo无法正确处理。原因在于RockMongo连接MongoDB使用的mongo-php-driver不支持这种情况。<br>以下摘自<a href="http://php.net/manual/en/mongo.connecting.rs.php" target="_blank" rel="noopener">http://php.net/manual/en/mongo.connecting.rs.php</a></p>
+<blockquote>
+<p>Warning<br>The driver does not support connecting to different replica sets with the same name. This extends beyond one script so make sure to have separate names for each of your replica sets. That also means that you can not do this:</p>
+<p>Example #2 Wrong replica set name duplication<br><figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?php</span></span><br><span class="line">$m = <span class="keyword">new</span> MongoClient(<span class="string">"mongodb://devserver1,devserver2,devserver3/?replicaSet=repset"</span>);</span><br><span class="line">$m = <span class="keyword">new</span> MongoClient(<span class="string">"mongodb://prodserver1,prodserver2,prodserver3/?replicaSet=repset"</span>);</span><br><span class="line"><span class="meta">?&gt;</span></span><br></pre></td></tr></table></figure></p>
+</blockquote>
+<blockquote>
+<p>Instead, you need to have two different names for your replica sets:</p>
+<p>Example #3 Correct use of two replica set names<br><figure class="highlight php"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?php</span></span><br><span class="line">$m = <span class="keyword">new</span> MongoClient(<span class="string">"mongodb://devserver1,devserver2,devserver3/?replicaSet=devset"</span>);</span><br><span class="line">$m = <span class="keyword">new</span> MongoClient(<span class="string">"mongodb://prodserver1,prodserver2,prodserver3/?replicaSet=prodset"</span>);</span><br><span class="line"><span class="meta">?&gt;</span></span><br></pre></td></tr></table></figure></p>
+</blockquote>
+<blockquote>
+</blockquote>
+<h2><span id="2-解决方法">2. 解决方法</span></h2><p>在阅读了mongo-php-driver的代码后，发现mongo-php-driver使用副本集名称作为哈希键值，保存副本集各节点的信息。所以如果不同的副本集具有相同的名字，则集群信息发生混乱，对代码进行了简单修改，绕过了该问题，详见<a href="https://github.com/winway/mongo-php-driver-legacy/tree/v1.6.10.1" target="_blank" rel="noopener">https://github.com/winway/mongo-php-driver-legacy/tree/v1.6.10.1</a></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">RockMongo</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/数据库/" class="article-tag-list-link color4">数据库</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2015/10/21/mongo-php-driver-not-support-different-replicasets-with-the-same-name/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-nagios-deploy-practice" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1133,103 +1239,6 @@
 
 
   
-    <article id="post-python-telnetlib-operate-network-device" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/05/22/python-telnetlib-operate-network-device/">使用telnetlib与网络设备交互</a>
-    </h1>
-  
-
-        
-        <a href="/2013/05/22/python-telnetlib-operate-network-device/" class="archive-article-date">
-  	<time datetime="2013-05-22T08:00:43.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-05-22</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<!-- tocstop -->
-<p>需求：自动登录到交换机或路由器，抓取acl规则命中统计信息。</p>
-<p>Python可以使用telnetlib来方便的完成与网络设备的telnet交互，先看个简单的demo。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> sys</span><br><span class="line"><span class="keyword">import</span> telnetlib</span><br><span class="line"></span><br><span class="line">HOST = <span class="string">"localhost"</span></span><br><span class="line">user = raw_input(<span class="string">"Enter your remote account: "</span>)</span><br><span class="line">password = raw_input(<span class="string">"Enter your password: "</span>)</span><br><span class="line"></span><br><span class="line">tn = telnetlib.Telnet(HOST)</span><br><span class="line"></span><br><span class="line">tn.read_until(<span class="string">"login: "</span>)</span><br><span class="line">tn.write(user + <span class="string">"n"</span>)</span><br><span class="line"><span class="keyword">if</span> password:</span><br><span class="line">    tn.read_until(<span class="string">"Password: "</span>)</span><br><span class="line">    tn.write(password + <span class="string">"n"</span>)</span><br><span class="line"></span><br><span class="line">tn.write(<span class="string">"lsn"</span>)</span><br><span class="line">tn.write(<span class="string">"exitn"</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">print</span> tn.read_all()</span><br></pre></td></tr></table></figure></p>
-<p>这样就可以获取远程设备上的信息了，很简单。不过这里可能有个问题，就是当输出信息比较多时，如：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span>show security acl-group hits global</span><br><span class="line">Rule Interface Hits Total Percentage</span><br><span class="line">-------------------------------------------------------------------------</span><br><span class="line">1 pos192_6/12 0 838241480577 0.00%</span><br><span class="line">pos192_6/11 155468324 604476632172 0.03%</span><br><span class="line">pos192_6/10 0 829312701821 0.00%</span><br><span class="line">pos192_6/9 145907985 559951471369 0.03%</span><br><span class="line">pos192_5/12 270735061 566305900680 0.05%</span><br><span class="line">pos192_5/11 0 835172285111 0.00%</span><br><span class="line">pos192_5/10 129708863 422783963455 0.03%</span><br><span class="line">pos192_5/9 0 808295923141 0.00%</span><br><span class="line">pos192_4/12 0 813428777843 0.00%</span><br><span class="line">pos192_4/11 93424461 458341514305 0.02%</span><br><span class="line">pos192_4/10 0 0 0.00%</span><br><span class="line">pos192_4/9 0 0 0.00%</span><br><span class="line">pos192_3/10 0 698106360004 0.00%</span><br><span class="line">pos192_3/9 32986094 361399485011 0.01%</span><br><span class="line">pos192_2/9 0 716388812751 0.00%</span><br><span class="line">pos192_1/10 0 821077292172 0.00%</span><br><span class="line">pos192_1/9 1065993977 1235032965369 0.09%</span><br><span class="line">pos192_2/10 713658786 1560654454583 0.05%</span><br><span class="line">2 pos192_6/12 0 838241480577 0.00%</span><br><span class="line">pos192_6/10 0 829312701821 0.00%</span><br><span class="line">--More—</span><br></pre></td></tr></table></figure></p>
-<p>这种情况下，输出信息是不完整的，所以需要模拟敲空格的过程。但是我应该模拟敲多少次空格呢？？？先看代码。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> sys</span><br><span class="line"><span class="keyword">import</span> time</span><br><span class="line"><span class="keyword">import</span> telnetlib</span><br><span class="line"></span><br><span class="line">user = sys.argv[<span class="number">1</span>]</span><br><span class="line">passwd = sys.argv[<span class="number">2</span>]</span><br><span class="line">ip = sys.argv[<span class="number">3</span>]</span><br><span class="line">cmd = sys.argv[<span class="number">4</span>]</span><br><span class="line"></span><br><span class="line">tn = telnetlib.Telnet(ip)</span><br><span class="line">tn.read_until(<span class="string">'Username:'</span>)</span><br><span class="line">tn.write(user + <span class="string">"n"</span>)</span><br><span class="line">tn.read_until(<span class="string">'Password:'</span>)</span><br><span class="line">tn.write(passwd + <span class="string">"n"</span>)</span><br><span class="line">tn.read_until(<span class="string">'&gt;'</span>)</span><br><span class="line">tn.write(<span class="string">"enn"</span>)</span><br><span class="line">tn.read_until(<span class="string">"Password:"</span>)</span><br><span class="line">tn.write(passwd + <span class="string">"n"</span>)</span><br><span class="line">tn.read_until(<span class="string">'#'</span>)</span><br><span class="line"></span><br><span class="line">tn.write(cmd + <span class="string">"n"</span>)</span><br><span class="line"><span class="keyword">while</span> <span class="keyword">True</span>:</span><br><span class="line">    ret = tn.read_until(<span class="string">'#'</span>, <span class="number">1</span>)</span><br><span class="line">    <span class="keyword">print</span> ret</span><br><span class="line">    <span class="keyword">if</span> <span class="string">'#'</span> <span class="keyword">in</span> ret:</span><br><span class="line">        <span class="keyword">break</span></span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">10</span>):</span><br><span class="line">            tn.write(<span class="string">' '</span>)</span><br><span class="line">            time.sleep(<span class="number">0.1</span>)</span><br><span class="line"></span><br><span class="line">tn.close()</span><br></pre></td></tr></table></figure></p>
-<p>我这里的处理方法是使用read_until方法，每次判断返回的信息是否包含命令行提示符“#”，如果不包含，说明信息还没输出完整，“敲一个空格”；如果包含，则说明信息已经输出完整。read_until是阻塞式的，所以这里加了个超时值。经测试，在输出比较多时，一次输入10个空格可以提高效率。</p>
-<p>另外一个问题是，返回的信息里是含有more以及^H、^M这些额外的字符的，可以借助col和grep命令等自行处理一下，所以最终的使用方法是：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span>python telnet.py winway 123456 192.168.101.37 'show security acl-group hits global' | col -b</span><br></pre></td></tr></table></figure></p>
-<p>这样我们就获得了所需要的信息了，接下来就是针对信息进行文本处理了。如果针对这个需求，哪位有更elegant的解决方法，还望不吝赐教^_^</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">python</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">telent</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/05/22/python-telnetlib-operate-network-device/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/7/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/6/">6</a><a class="page-number" href="/page/7/">7</a><span class="page-number current">8</span><a class="page-number" href="/page/9/">9</a><a class="extend next" rel="next" href="/page/9/">Next &raquo;</a>
@@ -1329,15 +1338,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1361,11 +1370,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">github</a>
+                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
+                <a href="javascript:void(0)" class="js-tag color2">github</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1377,11 +1386,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1417,6 +1426,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
               </li>
              
@@ -1445,15 +1462,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">手机号</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">归属地</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
