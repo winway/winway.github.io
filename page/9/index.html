@@ -155,6 +155,106 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-python-parse-ini-json-xml-configuration" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2013/06/03/python-parse-ini-json-xml-configuration/">Python解析ini、json、xml格式配置文件</a>
+    </h1>
+  
+
+        
+        <a href="/2013/06/03/python-parse-ini-json-xml-configuration/" class="archive-article-date">
+  	<time datetime="2013-06-03T12:18:06.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-06-03</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>最近借做项目的机会，了解了几个常用的配置文件类型，包括ini、json、xml。<br>我所需要的配置文件大概是这样，包括属性id、port等，以及若干个ip、pwd对，以下尝试了ini、json、xml三种配置文件。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">id = 6</span><br><span class="line">port = 22</span><br><span class="line">ip = 1.1.1.1</span><br><span class="line">pwd = 123456</span><br><span class="line">ip = 1.1.1.2</span><br><span class="line">pwd = 123456</span><br><span class="line">ip = 2.2.2.1</span><br><span class="line">pwd = 123456</span><br></pre></td></tr></table></figure></p>
+<!-- toc -->
+<ul>
+<li><a href="#1-使用ini格式">1. 使用ini格式</a></li>
+<li><a href="#2-使用json格式">2. 使用json格式</a></li>
+<li><a href="#3-使用xml格式">3. 使用xml格式</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="1-使用ini格式">1. 使用ini格式</span></h2><figure class="highlight ini"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">[common]</span></span><br><span class="line"><span class="attr">id</span> = <span class="string">'5'</span></span><br><span class="line"><span class="attr">port</span> = <span class="number">22</span></span><br><span class="line"><span class="section">[node]</span></span><br><span class="line"><span class="attr">ip</span> = <span class="number">1.1</span>.<span class="number">1.1</span></span><br><span class="line"><span class="attr">pwd</span> = <span class="number">123456</span></span><br><span class="line"><span class="section">[node]</span></span><br><span class="line"><span class="attr">ip</span> = <span class="number">1.1</span>.<span class="number">1.2</span></span><br><span class="line"><span class="attr">pwd</span> = <span class="number">123456</span></span><br><span class="line"><span class="section">[node]</span></span><br><span class="line"><span class="attr">ip</span> = <span class="number">2.2</span>.<span class="number">2.1</span></span><br><span class="line"><span class="attr">pwd</span> = <span class="number">123456</span></span><br></pre></td></tr></table></figure>
+<p>配置文件格式简洁明了，但是很遗憾，这不是合法的ini格式，python的ConfigParser无法正确处理。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">In [<span class="number">12</span>]: <span class="keyword">import</span> ConfigParser</span><br><span class="line">In [<span class="number">13</span>]: cf = ConfigParser.ConfigParser()</span><br><span class="line">In [<span class="number">14</span>]: cf.read(<span class="string">'config.ini'</span>)</span><br><span class="line">Out[<span class="number">14</span>]: [<span class="string">'config.ini'</span>]</span><br><span class="line">In [<span class="number">15</span>]: cf.sections()</span><br><span class="line">Out[<span class="number">15</span>]: [<span class="string">'common'</span>, <span class="string">'node'</span>]</span><br><span class="line">In [<span class="number">16</span>]: cf.options(<span class="string">'node'</span>)</span><br><span class="line">Out[<span class="number">16</span>]: [<span class="string">'ip'</span>, <span class="string">'pwd'</span>]</span><br><span class="line">In [<span class="number">17</span>]: cf.get(<span class="string">'node'</span>, <span class="string">'ip'</span>)</span><br><span class="line">Out[<span class="number">17</span>]: <span class="string">'2.2.2.1'</span></span><br></pre></td></tr></table></figure></p>
+<h2><span id="2-使用json格式">2. 使用json格式</span></h2><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[</span><br><span class="line">  &#123;<span class="attr">"id"</span> : <span class="string">"5"</span>&#125;,</span><br><span class="line">  &#123;<span class="attr">"port"</span> : <span class="number">22</span>&#125;,</span><br><span class="line">  &#123;<span class="attr">"node"</span> : [</span><br><span class="line">    &#123;<span class="attr">"ip"</span> : <span class="string">"1.1.1.1"</span>, <span class="attr">"pwd"</span> : <span class="string">"123456"</span>&#125;,</span><br><span class="line">    &#123;<span class="attr">"ip"</span> : <span class="string">"1.1.1.2"</span>, <span class="attr">"pwd"</span> : <span class="string">"123456"</span>&#125;,</span><br><span class="line">    &#123;<span class="attr">"ip"</span> : <span class="string">"2.2.2.1"</span>, <span class="attr">"pwd"</span> : <span class="string">"123456"</span>&#125;</span><br><span class="line">	]</span><br><span class="line">  &#125;</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+<p>这不就是标准的python变量吗？<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">In [<span class="number">20</span>]: <span class="keyword">import</span> json</span><br><span class="line">In [<span class="number">21</span>]: v = json.load(file(<span class="string">'config.json'</span>))</span><br><span class="line">In [<span class="number">22</span>]: v</span><br><span class="line">Out[<span class="number">22</span>]:</span><br><span class="line">[&#123;<span class="string">u'id'</span>: <span class="string">u'5'</span>&#125;,</span><br><span class="line">&#123;<span class="string">u'port'</span>: <span class="number">22</span>&#125;,</span><br><span class="line">&#123;<span class="string">u'node'</span>: [&#123;<span class="string">u'ip'</span>: <span class="string">u'1.1.1.1'</span>, <span class="string">u'pwd'</span>: <span class="string">u'123456'</span>&#125;,</span><br><span class="line">&#123;<span class="string">u'ip'</span>: <span class="string">u'1.1.1.2'</span>, <span class="string">u'pwd'</span>: <span class="string">u'123456'</span>&#125;,</span><br><span class="line">&#123;<span class="string">u'ip'</span>: <span class="string">u'2.2.2.1'</span>, <span class="string">u'pwd'</span>: <span class="string">u'123456'</span>&#125;]&#125;]</span><br></pre></td></tr></table></figure></p>
+<p>这个虽然能满足需求，但是感觉读取的时候不够灵活。比如我想直接获取id的值吗，前提是我必须知道配置文件各项的准确顺序。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">In [<span class="number">31</span>]: v[<span class="number">0</span>][<span class="string">'id'</span>]</span><br><span class="line">Out[<span class="number">31</span>]: <span class="string">u'5'</span></span><br></pre></td></tr></table></figure></p>
+<h2><span id="3-使用xml格式">3. 使用xml格式</span></h2><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="php"><span class="meta">&lt;?</span>xml version=<span class="string">"1.0"</span> encoding=<span class="string">"utf-8"</span><span class="meta">?&gt;</span></span></span><br><span class="line"><span class="tag">&lt;<span class="name">config</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">id</span>&gt;</span>5<span class="tag">&lt;/<span class="name">id</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">port</span>&gt;</span>22<span class="tag">&lt;/<span class="name">port</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">node</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">ip</span>&gt;</span>1.1.1.1<span class="tag">&lt;/<span class="name">ip</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">pwd</span>&gt;</span>123456<span class="tag">&lt;/<span class="name">pwd</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">node</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">node</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">ip</span>&gt;</span>1.1.1.2<span class="tag">&lt;/<span class="name">ip</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">pwd</span>&gt;</span>123456<span class="tag">&lt;/<span class="name">pwd</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">node</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">node</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">ip</span>&gt;</span>2.2.2.1<span class="tag">&lt;/<span class="name">ip</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">pwd</span>&gt;</span>123456<span class="tag">&lt;/<span class="name">pwd</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">node</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">config</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<p>可以满足需求，但是比起前两种稍显臃肿。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line">$ cat config.py</span><br><span class="line"><span class="comment">#! /usr/bin/env python</span></span><br><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> xml.etree.ElementTree <span class="keyword">as</span> ET</span><br><span class="line"></span><br><span class="line">id = <span class="keyword">None</span></span><br><span class="line">port = <span class="keyword">None</span></span><br><span class="line">ipset = []</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">load_config</span><span class="params">(file)</span>:</span></span><br><span class="line">    root = ET.parse(file).getroot()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">global</span> id, port</span><br><span class="line">    id = root.find(<span class="string">'id'</span>).text</span><br><span class="line">    port = root.find(<span class="string">'port'</span>).text</span><br><span class="line"></span><br><span class="line">    nodes = root.findall(<span class="string">'node'</span>)</span><br><span class="line">    <span class="keyword">for</span> node <span class="keyword">in</span> nodes:</span><br><span class="line">        d = &#123;&#125;</span><br><span class="line">        d[<span class="string">'ip'</span>] = node.find(<span class="string">'ip'</span>).text</span><br><span class="line">        d[<span class="string">'pwd'</span>] = node.find(<span class="string">'pwd'</span>).text</span><br><span class="line">        ipset.append(d)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line">    <span class="keyword">print</span> id</span><br><span class="line">    <span class="keyword">print</span> port</span><br><span class="line">    <span class="keyword">print</span> ipset</span><br><span class="line">    load_config(<span class="string">'config.xml'</span>)</span><br><span class="line">    <span class="keyword">print</span> id</span><br><span class="line">    <span class="keyword">print</span> port</span><br><span class="line">    <span class="keyword">print</span> ipset</span><br><span class="line"></span><br><span class="line">$ ./config.py</span><br><span class="line"><span class="keyword">None</span></span><br><span class="line"><span class="keyword">None</span></span><br><span class="line">[]</span><br><span class="line"><span class="number">5</span></span><br><span class="line"><span class="number">22</span></span><br><span class="line">[&#123;<span class="string">'ip'</span>: <span class="string">'1.1.1.1'</span>, <span class="string">'pwd'</span>: <span class="string">'123456'</span>&#125;, &#123;<span class="string">'ip'</span>: <span class="string">'1.1.1.2'</span>, <span class="string">'pwd'</span>: <span class="string">'123456'</span>&#125;, &#123;<span class="string">'ip'</span>: <span class="string">'2.2.2.1'</span>, <span class="string">'pwd'</span>: <span class="string">'123456'</span>&#125;]</span><br></pre></td></tr></table></figure></p>
+<p>以上是本人自己理解，不知是否有误，如果针对这个问题还有更好的选择，还望大家多多指教！！</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">python</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2013/06/03/python-parse-ini-json-xml-configuration/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-python-telnetlib-operate-network-device" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -735,10 +835,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
@@ -759,6 +855,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hive</a>
               </li>
              
@@ -767,11 +867,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
+                <a href="javascript:void(0)" class="js-tag color2">github</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">github</a>
+                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -799,15 +899,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">influxdb</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">grafana</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -820,14 +920,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">github pages</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -847,6 +939,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
               </li>
              
@@ -856,6 +956,46 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">storm</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">iptables</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">olap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -871,10 +1011,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">spark</a>
               </li>
              
@@ -887,35 +1023,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">storm</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">olap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">iptables</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
+                <a href="javascript:void(0)" class="js-tag color1">flume</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -931,15 +1039,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">flume</a>
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
               </li>
             
             <div class="clearfix"></div>
