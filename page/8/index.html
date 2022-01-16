@@ -155,6 +155,560 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-mongodb-change-oplogsize" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2016/01/28/mongodb-change-oplogsize/">MongoDB在线修改oplogSize</a>
+    </h1>
+  
+
+        
+        <a href="/2016/01/28/mongodb-change-oplogsize/" class="archive-article-date">
+  	<time datetime="2016-01-28T06:27:30.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-01-28</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#oplog简介">oplog简介</a></li>
+<li><a href="#修改oplogsize大小">修改oplogSize大小</a></li>
+<li><a href="#回滚">回滚</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="oplog简介">oplog简介</span></h2><p>oplog（operations log）是一个特殊的固定集合（capped collection），用来记录所有的“写”（insert、update、delete以及修改索引等）操作纪录。MongoDB将数据库操作应用到primary然后记录到primary的oplog。secondary从primary复制oplog并将操作应用到自己（异步，有一定延迟，如果oplog大小不当，可能出现oplog溢出，从节点不可用）。所有的副本集成员维持一个oplog的副本来维持数据库的当前状态。<br>对于64位的Linux, Solaris, FreeBSD和Windows, MongoDB默认分配可用磁盘空间的5%作为oplog。如果这个值小于1G，则分配1G作为oplog。<br>oplog是一个固定集合（capped collection）,所以在正常操作期间不能修改他的大小。在集群初始化的时候最好考虑好该值的大小，因为后续修改起来比较麻烦。<br>在大多数情况下默认的oplog大小是可接受的。Oplog的大小由应用的操作行为决定。如果应用经常在短时间内执行大量的批量update、delete操作，从而产生大量的“写”操作纪录，则应该适当增大oplog的大小，避免primary的旧的oplog记录在被secondary同步走之前被新产生的oplog纪录覆盖掉。</p>
+<h2><span id="修改oplogsize大小">修改oplogSize大小</span></h2><p><strong>注意：尽量选择集群较空闲的时间段进行，减少单节点的操作时间，确保重启后的节点能够跟得上集群的oplog。最好先操作所有的secondary节点再操作primary节点。操作primary时，先使用stepdown降级，待集群选举出新的primary后再shutdown。</strong></p>
+<p>对副本集中所有的节点执行以下操作：</p>
+<ol>
+<li><p>查看当前oplogsize大小</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">demo:SECONDARY&gt; db.printReplicationInfo()</span><br><span class="line">configured oplog size:   25000MB</span><br><span class="line">log length start to end: 1290396secs (358.44hrs)</span><br><span class="line">oplog first event time:  Tue Dec 09 2014 15:33:05 GMT+0800 (CST)</span><br><span class="line">oplog last event time:   Wed Dec 24 2014 13:59:41 GMT+0800 (CST)</span><br><span class="line">now:                     Mon Jan 26 2015 15:28:44 GMT+0800 (CST)</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>关闭当前节点，登陆其他节点查看集群状态是否正常</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">demo:SECONDARY&gt; use admin</span><br><span class="line">switched to db admin</span><br><span class="line">demo:SECONDARY&gt; db.shutdownServer()</span><br><span class="line">Mon Jan 26 15:30:46 DBClientCursor::init call() failed</span><br><span class="line">Mon Jan 26 15:30:46 query failed : admin.$cmd &#123; shutdown: 1.0 &#125; to: 127.0.0.1:4422</span><br><span class="line">server should be down...</span><br><span class="line">Mon Jan 26 15:30:46 trying reconnect to 127.0.0.1:4422</span><br><span class="line">Mon Jan 26 15:30:46 reconnect 127.0.0.1:4422 ok</span><br><span class="line">Mon Jan 26 15:30:46 Socket recv() errno:104 Connection reset by peer 127.0.0.1:4422</span><br><span class="line">Mon Jan 26 15:30:46 SocketException: remote: 127.0.0.1:4422 error: 9001 socket exception [1] server [127.0.0.1:4422]</span><br><span class="line">Mon Jan 26 15:30:46 DBClientCursor::init call() failed</span><br></pre></td></tr></table></figure>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line">demo:PRIMARY&gt; rs.status()</span><br><span class="line">&#123;</span><br><span class="line">        &quot;set&quot; : &quot;demo&quot;,</span><br><span class="line">        &quot;date&quot; : ISODate(&quot;2015-01-26T07:30:58Z&quot;),</span><br><span class="line">        &quot;myState&quot; : 1,</span><br><span class="line">        &quot;members&quot; : [</span><br><span class="line">                &#123;</span><br><span class="line">                        &quot;_id&quot; : 0,</span><br><span class="line">                        &quot;name&quot; : &quot;demo01.mongodb:4422&quot;,</span><br><span class="line">                        &quot;health&quot; : 1,</span><br><span class="line">                        &quot;state&quot; : 1,</span><br><span class="line">                        &quot;stateStr&quot; : &quot;PRIMARY&quot;,</span><br><span class="line">                        &quot;uptime&quot; : 4147819,</span><br><span class="line">                        &quot;optime&quot; : Timestamp(1419400781000, 2),</span><br><span class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2014-12-24T05:59:41Z&quot;),</span><br><span class="line">                        &quot;self&quot; : true</span><br><span class="line">                &#125;,</span><br><span class="line">                &#123;</span><br><span class="line">                        &quot;_id&quot; : 1,</span><br><span class="line">                        &quot;name&quot; : &quot;demo02.mongodb:4422&quot;,</span><br><span class="line">                        &quot;health&quot; : 0,</span><br><span class="line">                        &quot;state&quot; : 8,</span><br><span class="line">                        &quot;stateStr&quot; : &quot;(not reachable/healthy)&quot;,</span><br><span class="line">                        &quot;uptime&quot; : 0,</span><br><span class="line">                        &quot;optime&quot; : Timestamp(1419400781000, 2),</span><br><span class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2014-12-24T05:59:41Z&quot;),</span><br><span class="line">                        &quot;lastHeartbeat&quot; : ISODate(&quot;2015-01-26T07:30:45Z&quot;),</span><br><span class="line">                        &quot;pingMs&quot; : 0,</span><br><span class="line">                        &quot;errmsg&quot; : &quot;socket exception [CONNECT_ERROR] for demo02.mongodb:4422&quot;</span><br><span class="line">                &#125;,</span><br><span class="line">                &#123;</span><br><span class="line">                        &quot;_id&quot; : 2,</span><br><span class="line">                        &quot;name&quot; : &quot;demo03.mongodb:4422&quot;,</span><br><span class="line">                        &quot;health&quot; : 1,</span><br><span class="line">                        &quot;state&quot; : 2,</span><br><span class="line">                        &quot;stateStr&quot; : &quot;SECONDARY&quot;,</span><br><span class="line">                        &quot;uptime&quot; : 4147071,</span><br><span class="line">                        &quot;optime&quot; : Timestamp(1419400781000, 2),</span><br><span class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2014-12-24T05:59:41Z&quot;),</span><br><span class="line">                        &quot;lastHeartbeat&quot; : ISODate(&quot;2015-01-26T07:30:58Z&quot;),</span><br><span class="line">                        &quot;pingMs&quot; : 1</span><br><span class="line">                &#125;</span><br><span class="line">        ],</span><br><span class="line">        &quot;ok&quot; : 1</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>以standalone的方式用另外的端口（确保端口空闲）启动</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mongod --port 1988 --dbpath /data/mongodb/demo-data/</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>备份当前的oplog</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mongodump --db local --collection &apos;oplog.rs&apos; --port 1988</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>连接mongd</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mongo --port 1988</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>保存oplog的最后一条纪录</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&gt; use local</span><br><span class="line">switched to db local</span><br><span class="line">&gt; db.temp.drop()</span><br><span class="line">false</span><br><span class="line">&gt; db.temp.save( db.oplog.rs.find( &#123; &#125;, &#123; ts: 1, h: 1 &#125; ).sort( &#123;$natural : -1&#125; ).limit(1).next() )</span><br><span class="line">&gt; db.temp.find()</span><br><span class="line">&#123; &quot;_id&quot; : ObjectId(&quot;54c5efb26833f799aead55f8&quot;), &quot;ts&quot; : Timestamp(1419400781000, 2), &quot;h&quot; : NumberLong(&quot;-6774720947739689692&quot;) &#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>删除oplog.rs</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">&gt; db.oplog.rs.drop()</span><br><span class="line">true</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>创建新的oplog，并指定大小，如1073741824 = 1GB</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">&gt; db.runCommand( &#123; create : &quot;oplog.rs&quot;, capped : true, size : 1073741824 &#125; )</span><br><span class="line">&#123; &quot;ok&quot; : 1 &#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>插入之前保存的旧oplog的最后一条纪录</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&gt; db.oplog.rs.save( db.temp.findOne() )</span><br><span class="line">&gt; db.oplog.rs.find()</span><br><span class="line">&#123; &quot;_id&quot; : ObjectId(&quot;54c5efb26833f799aead55f8&quot;), &quot;ts&quot; : Timestamp(1419400781000, 2), &quot;h&quot; : NumberLong(&quot;-6774720947739689692&quot;) &#125;</span><br><span class="line">&gt; db.temp.drop()</span><br><span class="line">true</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>关闭该节点</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&gt; use admin</span><br><span class="line">switched to db admin</span><br><span class="line">&gt; db.shutdownServer()</span><br><span class="line">Mon Jan 26 15:49:46 DBClientCursor::init call() failed</span><br><span class="line">Mon Jan 26 15:49:46 query failed : admin.$cmd &#123; shutdown: 1.0 &#125; to: 127.0.0.1:1988</span><br><span class="line">server should be down...</span><br><span class="line">Mon Jan 26 15:49:46 trying reconnect to 127.0.0.1:1988</span><br><span class="line">Mon Jan 26 15:49:46 reconnect 127.0.0.1:1988 ok</span><br><span class="line">Mon Jan 26 15:49:46 Socket recv() errno:104 Connection reset by peer 127.0.0.1:1988</span><br><span class="line">Mon Jan 26 15:49:46 SocketException: remote: 127.0.0.1:1988 error: 9001 socket exception [1] server [127.0.0.1:1988] </span><br><span class="line">Mon Jan 26 15:49:46 DBClientCursor::init call() failed</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>修改配置文件中的oplogSize大小（不是必须）</p>
+</li>
+<li><p>以副本集的形式重启该节点</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mongod -f /data/mongodb/conf/demo-mongo-conf</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>查看oplogsize大小和集群状态</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line">demo:SECONDARY&gt; db.printReplicationInfo()</span><br><span class="line">configured oplog size:   1024MB</span><br><span class="line">log length start to end: 0secs (0hrs)</span><br><span class="line">oplog first event time:  Wed Dec 24 2014 13:59:41 GMT+0800 (CST)</span><br><span class="line">oplog last event time:   Wed Dec 24 2014 13:59:41 GMT+0800 (CST)</span><br><span class="line">now:                     Mon Jan 26 2015 15:53:54 GMT+0800 (CST)</span><br><span class="line">demo:SECONDARY&gt; rs.status()</span><br><span class="line">&#123;</span><br><span class="line">        &quot;set&quot; : &quot;demo&quot;,</span><br><span class="line">        &quot;date&quot; : ISODate(&quot;2015-01-26T08:09:43Z&quot;),</span><br><span class="line">        &quot;myState&quot; : 2,</span><br><span class="line">        &quot;syncingTo&quot; : &quot;demo01.mongodb:4422&quot;,</span><br><span class="line">        &quot;members&quot; : [</span><br><span class="line">                &#123;</span><br><span class="line">                        &quot;_id&quot; : 0,</span><br><span class="line">                        &quot;name&quot; : &quot;demo01.mongodb:4422&quot;,</span><br><span class="line">                        &quot;health&quot; : 1,</span><br><span class="line">                        &quot;state&quot; : 1,</span><br><span class="line">                        &quot;stateStr&quot; : &quot;PRIMARY&quot;,</span><br><span class="line">                        &quot;uptime&quot; : 492,</span><br><span class="line">                        &quot;optime&quot; : Timestamp(1422259325000, 1),</span><br><span class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2015-01-26T08:02:05Z&quot;),</span><br><span class="line">                        &quot;lastHeartbeat&quot; : ISODate(&quot;2015-01-26T08:09:43Z&quot;),</span><br><span class="line">                        &quot;pingMs&quot; : 1</span><br><span class="line">                &#125;,</span><br><span class="line">                &#123;</span><br><span class="line">                        &quot;_id&quot; : 1,</span><br><span class="line">                        &quot;name&quot; : &quot;demo02.mongodb:4422&quot;,</span><br><span class="line">                        &quot;health&quot; : 1,</span><br><span class="line">                        &quot;state&quot; : 2,</span><br><span class="line">                        &quot;stateStr&quot; : &quot;SECONDARY&quot;,</span><br><span class="line">                        &quot;uptime&quot; : 490,</span><br><span class="line">                        &quot;optime&quot; : Timestamp(1422259325000, 1),</span><br><span class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2015-01-26T08:02:05Z&quot;),</span><br><span class="line">                        &quot;lastHeartbeat&quot; : ISODate(&quot;2015-01-26T08:09:43Z&quot;),</span><br><span class="line">                        &quot;pingMs&quot; : 1</span><br><span class="line">                &#125;,</span><br><span class="line">                &#123;</span><br><span class="line">                        &quot;_id&quot; : 2,</span><br><span class="line">                        &quot;name&quot; : &quot;demo03.mongodb:4422&quot;,</span><br><span class="line">                        &quot;health&quot; : 1,</span><br><span class="line">                        &quot;state&quot; : 2,</span><br><span class="line">                        &quot;stateStr&quot; : &quot;SECONDARY&quot;,</span><br><span class="line">                        &quot;uptime&quot; : 493,</span><br><span class="line">                        &quot;optime&quot; : Timestamp(1422259325000, 1),</span><br><span class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2015-01-26T08:02:05Z&quot;),</span><br><span class="line">                        &quot;self&quot; : true</span><br><span class="line">                &#125;</span><br><span class="line">        ],</span><br><span class="line">        &quot;ok&quot; : 1</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<h2><span id="回滚">回滚</span></h2><p>使用mongorestore恢复oplog.rs<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">mongorestore --port 1988 --db local --collection &apos;oplog.rs&apos; --drop dump/local/oplog.rs.bson</span><br><span class="line">connected to: 127.0.0.1:1988</span><br><span class="line">Mon Jan 26 16:25:09 dump/local/oplog.rs.bson</span><br><span class="line">Mon Jan 26 16:25:09     going into namespace [local.oplog.rs]</span><br><span class="line">Mon Jan 26 16:25:09      dropping</span><br><span class="line">Mon Jan 26 16:25:53     Created collection local.oplog.rs with options: &#123; &quot;create&quot; : &quot;oplog.rs&quot;, &quot;size&quot; : 26214400000, &quot;capped&quot; : true, &quot;autoIndexId&quot; : false &#125;</span><br><span class="line">Mon Jan 26 16:25:56             47602202/1453381602     3%      (bytes)</span><br><span class="line">Mon Jan 26 16:26:00             87000058/1453381602     5%      (bytes)</span><br><span class="line">Mon Jan 26 16:26:03             129556190/1453381602    8%      (bytes)</span><br><span class="line">Mon Jan 26 16:26:06             193797635/1453381602    13%     (bytes)</span><br><span class="line">Mon Jan 26 16:26:09             386061413/1453381602    26%     (bytes)</span><br><span class="line">Mon Jan 26 16:26:12             526376708/1453381602    36%     (bytes)</span><br><span class="line">Mon Jan 26 16:26:15             697955917/1453381602    48%     (bytes)</span><br><span class="line">Mon Jan 26 16:26:18             867686914/1453381602    59%     (bytes)</span><br><span class="line">Mon Jan 26 16:26:21             930218947/1453381602    64%     (bytes)</span><br><span class="line">Mon Jan 26 16:26:24             990493767/1453381602    68%     (bytes)</span><br><span class="line">Mon Jan 26 16:26:27             1037063408/1453381602   71%     (bytes)</span><br><span class="line">Mon Jan 26 16:26:30             1092791895/1453381602   75%     (bytes)</span><br><span class="line">Mon Jan 26 16:26:33             1130693201/1453381602   77%     (bytes)</span><br><span class="line">Mon Jan 26 16:26:36             1204092371/1453381602   82%     (bytes)</span><br><span class="line">Mon Jan 26 16:26:39             1378685459/1453381602   94%     (bytes)</span><br><span class="line">1427593 objects found</span><br></pre></td></tr></table></figure></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/数据库/" class="article-tag-list-link color4">数据库</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2016/01/28/mongodb-change-oplogsize/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-mongodb-ops-introduce" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2016/01/28/mongodb-ops-introduce/">MongoDB OPS Manager介绍</a>
+    </h1>
+  
+
+        
+        <a href="/2016/01/28/mongodb-ops-introduce/" class="archive-article-date">
+  	<time datetime="2016-01-28T06:27:17.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-01-28</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#1-简介">1. 简介</a></li>
+<li><a href="#2-安装配置ops">2. 安装配置OPS</a></li>
+<li><a href="#3-安装automation-agent">3. 安装Automation Agent</a></li>
+<li><a href="#4-配置监控功能">4. 配置监控功能</a></li>
+<li><a href="#5-配置管理功能">5. 配置管理功能</a></li>
+<li><a href="#6-总结">6. 总结</a></li>
+<li><a href="#7-参考资料">7. 参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="1-简介">1. 简介</span></h2><p>MongoDB OPS Manager是随MongoDB Enterprise版本发布的MongoDB管理、监控、备份系统(但是也可以用于community版本)，是MMS(MongoDB Management Service)的内网版本。</p>
+<blockquote>
+<p>MongoDB Management Service (MMS) is a suite of services for managing MongoDB deployments. Engineered by the team who develops MongoDB, MMS makes it easier to operate MongoDB at any scale. MMS provides monitoring, backup and recovery, helping users optimize clusters and mitigate operational risk. MMS users can visualize database performance and set custom alerts that notify when particular metrics are out of normal range. MMS is also the only continuous backup solution for MongoDB, providing point-in-time recovery for replica sets and cluster-wide snapshots of sharded systems.<br>MMS is available as a fully managed cloud service, or as on-prem software included with your MongoDB Enterprise subscription.</p>
+</blockquote>
+<p>MMS工作原理如下：</p>
+<ol>
+<li>在MMS服务器上配置你的MongoDB信息（Host，Port，User，Passwd等）</li>
+<li>在一台能够访问你MongoDB服务的内网机器上运行其提供的Agent</li>
+<li>Agent脚本从MMS服务器获取到你配置的MongoDB信息</li>
+<li>Agent脚本连接到相应的MongoDB获取必要的监控数据</li>
+<li>Agent脚本将监控数据上传到MMS的服务器</li>
+<li>登录MMS网站查看整理过后的监控数据图表了</li>
+</ol>
+<p><img src="https://docs.opsmanager.mongodb.com/current/_images/opsmanager-network-diagram-fullsize.png" alt="MMS"></p>
+<p><strong>MMS是收费的！！！！OPS可以自己在内网部署使用。</strong></p>
+<p>OPS主要功能：</p>
+<ol>
+<li>监控：实时的数据可视化展示，关键数据库指标监控报警</li>
+<li>管理：自动部署，修改配置，启停等</li>
+<li>备份：数据备份、恢复，支持scheduled snapshots and point-in-time recovery</li>
+</ol>
+<p><strong>本文档只针对管理和部署功能进行实际部署试用。</strong></p>
+<h2><span id="2-安装配置ops">2. 安装配置OPS</span></h2><ol>
+<li><p>部署一个mongodb，用于存储ops manager本身的数据。生产环境建议使用副本集，这里使用单机。Mongodb版本有一定限制，需要使用&gt;=3.0。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mongod --fork --dbpath /data/mongodb/mms/ --logpath /opt/logs/mms/mms.log --port 1999</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>下载Ops Manager Application package</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">wget https://downloads.mongodb.com/on-prem-mms/rpm/mongodb-mms-1.8.0.276-1.x86_64.rpm</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>安装Ops Manager Application package</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">rpm -ivh mongodb-mms-1.8.0.276-1.x86_64.rpm</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>配置Ops Manager<br>vim /opt/mongodb/mms/conf/conf-mms.properties修改：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">mms.centralUrl=http://10.144.59.88:8080 //前端访问输入该地址</span><br><span class="line">mms.backupCentralUrl=http://10.144.59.88:8081</span><br><span class="line">mms.fromEmailAddr=winway1988@163.com</span><br><span class="line">mms.replyToEmailAddr=winway1988@163.com</span><br><span class="line">mms.adminFromEmailAddr=winway1988@163.com</span><br><span class="line">mms.adminEmailAddr=winway1988@163.com</span><br><span class="line">mms.bounceEmailAddr=winway1988@163.com</span><br><span class="line">mongo.mongoUri=mongodb://127.0.0.1:1999/ //之前部署的mongodb</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>启动Ops Manager</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">service mongodb-mms start</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>访问<a href="http://10.144.59.88:8080，注册用户，开始使用。" target="_blank" rel="noopener">http://10.144.59.88:8080，注册用户，开始使用。</a><br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/ops-login.png" alt=""></p>
+</li>
+</ol>
+<h2><span id="3-安装automation-agent">3. 安装Automation Agent</span></h2><p>Automation Agent用于管理、部署mongodb以及其他agent，需要首先进行安装。按照指示进行安装。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/ops-agent-install1.png" alt=""><br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/ops-agent-install2.png" alt=""></p>
+<h2><span id="4-配置监控功能">4. 配置监控功能</span></h2><ol>
+<li>使用Automation Agent安装Monitoring Agent，这样才能进行监控<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/ops-moniting1.png" alt=""></li>
+<li>添加需要被监控的集群<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/ops-moniting2.png" alt=""><br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/ops-moniting3.png" alt=""></li>
+<li>查看集群状态<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/ops-moniting4.png" alt=""></li>
+<li>添加告警策略<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/ops-moniting5.png" alt=""><br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/ops-moniting6.png" alt=""><br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/ops-moniting7.png" alt=""></li>
+</ol>
+<h2><span id="5-配置管理功能">5. 配置管理功能</span></h2><ol>
+<li><p>下载mongodb安装包到本地</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">ll /opt/mongodb/mms/mongodb-releases/</span><br><span class="line">total 1846536</span><br><span class="line">-rw-r--r-- 1 mongodb-mms mongodb-mms  55960674 Jul 26 18:56 mongodb-linux-x86_64-2.2.2.tgz</span><br><span class="line">-rw-r--r-- 1 mongodb-mms mongodb-mms  55960674 May 25 17:33 mongodb-linux-x86_64-2.4.0.tgz</span><br><span class="line">-rw-r--r-- 1 mongodb-mms mongodb-mms  55960674 Jul 26 18:56 mongodb-linux-x86_64-2.4.10.tgz</span><br><span class="line">-rw-r--r-- 1 mongodb-mms mongodb-mms  55960674 Jul 26 18:56 mongodb-linux-x86_64-2.4.11.tgz</span><br><span class="line">-rw-r--r-- 1 mongodb-mms mongodb-mms  55960674 Jul 26 18:56 mongodb-linux-x86_64-2.4.12.tgz</span><br><span class="line">-rw-r--r-- 1 mongodb-mms mongodb-mms  55960674 Jul 26 18:56 mongodb-linux-x86_64-2.4.13.tgz</span><br><span class="line">-rw-r--r-- 1 mongodb-mms mongodb-mms  55960674 Jul 26 18:56 mongodb-linux-x86_64-2.4.14.tgz</span><br><span class="line">-rw-r--r-- 1 mongodb-mms mongodb-mms  55960674 Jul 26 18:56 mongodb-linux-x86_64-2.4.1.tgz</span><br><span class="line">-rw-r--r-- 1 mongodb-mms mongodb-mms  55960674 Jul 26 18:56 mongodb-linux-x86_64-2.4.2.tgz</span><br><span class="line">-rw-r--r-- 1 mongodb-mms mongodb-mms  55960674 Jul 26 18:56 mongodb-linux-x86_64-2.4.3.tgz</span><br><span class="line">-rw-r--r-- 1 mongodb-mms mongodb-mms  55960674 Jul 26 18:56 mongodb-linux-x86_64-2.4.4.tgz</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>修改配置文件，这样才能在内网环境进行自动部署。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">vim  /opt/mongodb/mms/conf/conf-mms.properties</span><br><span class="line">automation.versions.source=local</span><br><span class="line">automation.versions.directory=/opt/mongodb/mms/mongodb-releases/</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>自动部署mongodb，需要首先在待安装的机器上部署automation agent<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/ops-manage1.png" alt=""></p>
+</li>
+<li>填写集群配置信息<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/ops-manage2.png" alt=""></li>
+<li>自动部署<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/ops-manage3.png" alt=""></li>
+<li>部署完成，可以进行修改配置，启停等操作<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/ops-manage4.png" alt=""></li>
+</ol>
+<h2><span id="6-总结">6. 总结</span></h2><p>Ops manager的监控功能是比较有价值的功能。备份功能虽然很强大，但是配置麻烦。<br>但是虽然ops manager可以在内网部署并使用，但是存在一定license方面的限制。</p>
+<blockquote>
+<p>If you download our Software for a free trial, MongoDB grants you a royalty-free, nontransferable (except to your Affiliates), and nonexclusive license to use and reproduce the Software in your internal environment for evaluation and development purposes. You will not use the Software for any other purpose, including testing, quality assurance or production purposes without purchasing an Enterprise Advanced Subscription.</p>
+</blockquote>
+<h2><span id="7-参考资料">7. 参考资料</span></h2><p><a href="https://docs.opsmanager.mongodb.com/v1.8/" target="_blank" rel="noopener">https://docs.opsmanager.mongodb.com/v1.8/</a></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/数据库/" class="article-tag-list-link color4">数据库</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2016/01/28/mongodb-ops-introduce/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-mongodb-create-index-offline" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2016/01/28/mongodb-create-index-offline/">MongoDB离线创建索引</a>
+    </h1>
+  
+
+        
+        <a href="/2016/01/28/mongodb-create-index-offline/" class="archive-article-date">
+  	<time datetime="2016-01-28T06:27:15.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-01-28</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#目的">目的</a></li>
+<li><a href="#原理">原理</a></li>
+<li><a href="#步骤">步骤</a><ul>
+<li><a href="#1-部署新的hidden节点">1. 部署新的hidden节点</a></li>
+<li><a href="#2-添加hidden节点">2. 添加hidden节点</a></li>
+<li><a href="#3-等待hidden节点完成initial-sync此方法耗时很长但可以获得一份压缩后的数据">3. 等待hidden节点完成initial sync（此方法耗时很长，但可以获得一份压缩后的数据）</a></li>
+<li><a href="#4-检查集群状态确认一切正常继续">4. 检查集群状态，确认一切正常，继续</a></li>
+<li><a href="#5-关闭hidden节点检查集群状态确认一切正常继续">5. 关闭hidden节点，检查集群状态，确认一切正常，继续</a></li>
+<li><a href="#6-以standalone方式启动hidden节点">6. 以standalone方式启动hidden节点</a></li>
+<li><a href="#7-登陆hidden节点执行创建索引动作">7. 登陆hidden节点，执行创建索引动作</a></li>
+<li><a href="#8-待创建完毕关闭hidden节点以副本集方式启动">8. 待创建完毕，关闭hidden节点，以副本集方式启动</a></li>
+<li><a href="#9-检查集群状态和索引状态确认一切正常继续">9. 检查集群状态和索引状态，确认一切正常，继续</a></li>
+<li><a href="#10-将hidden节点的新数据逐个拷贝到集群中的其他secondary节点并使用新数据重启mongod-对于primary节点先使用rsstepdown待新的primary节点产生后再进行重启">10. 将hidden节点的新数据，逐个拷贝到集群中的其他secondary节点，并使用新数据重启mongod。对于primary节点，先使用rs.stepdown()，待新的primary节点产生后再进行重启。</a></li>
+<li><a href="#11-移除hidden节点">11. 移除hidden节点</a></li>
+<li><a href="#12-清理线上关于hidden节点的hosts-iptables配置">12. 清理线上关于hidden节点的hosts、iptables配置</a></li>
+</ul>
+</li>
+<li><a href="#回滚">回滚</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="目的">目的</span></h2><p>阐述一种风险较低，耗时较少的MongodDB创建大量索引的方案。<br>适用于 MongodDB2.x副本集。</p>
+<h2><span id="原理">原理</span></h2><p> MongodDB2.2前台创建索引命令会阻塞实例的复制和读写操作，虽然可以通过指定background选项来避免，但是从节点依然是前台创建索引，而且在大数据集上建立索引耗时很长。<br>官方建议将副本集的节点摘下之后进行创建索引操作，然后再加入集群。<br>通过initial sync或者复制集群其他节点的数据在副本集中临时添加hidden节点，摘下hidden节点创建索引，然后将hidden节点的数据依次拷贝到集群中的其他节点，实现整个集群的索引创建。</p>
+<p>参考资料：<br><a href="https://docs.mongodb.org/v2.2/core/indexes/#index-creation-background" target="_blank" rel="noopener">https://docs.mongodb.org/v2.2/core/indexes/#index-creation-background</a><br><a href="https://docs.mongodb.org/v2.2/administration/indexes/#index-building-replica-sets" target="_blank" rel="noopener">https://docs.mongodb.org/v2.2/administration/indexes/#index-building-replica-sets</a></p>
+<h2><span id="步骤">步骤</span></h2><h3><span id="1-部署新的hidden节点">1. 部署新的hidden节点</span></h3><ul>
+<li>配置hosts、iptables，保证新节点可以顺利与集群其他节点通信</li>
+<li>配置mongodb并启动，配置文件参考集群其他节点</li>
+</ul>
+<h3><span id="2-添加hidden节点">2. 添加hidden节点</span></h3><ul>
+<li><p>登陆到集群的primary，执行</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">rs.add(&#123;_id: 3, host: "hidden.Test.mongodb:6681", priority: 0, hidden: true&#125;)</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>检查集群状态</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rs.conf()</span><br><span class="line">rs.status()</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h3><span id="3-等待hidden节点完成initial-sync此方法耗时很长但可以获得一份压缩后的数据">3. 等待hidden节点完成initial sync（此方法耗时很长，但可以获得一份压缩后的数据）</span></h3><h3><span id="4-检查集群状态确认一切正常继续">4. 检查集群状态，确认一切正常，继续</span></h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rs.conf()</span><br><span class="line">rs.status()</span><br></pre></td></tr></table></figure>
+<h3><span id="5-关闭hidden节点检查集群状态确认一切正常继续">5. 关闭hidden节点，检查集群状态，确认一切正常，继续</span></h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rs.conf()</span><br><span class="line">rs.status()</span><br></pre></td></tr></table></figure>
+<h3><span id="6-以standalone方式启动hidden节点">6. 以standalone方式启动hidden节点</span></h3><h3><span id="7-登陆hidden节点执行创建索引动作">7. 登陆hidden节点，执行创建索引动作</span></h3><h3><span id="8-待创建完毕关闭hidden节点以副本集方式启动">8. 待创建完毕，关闭hidden节点，以副本集方式启动</span></h3><h3><span id="9-检查集群状态和索引状态确认一切正常继续">9. 检查集群状态和索引状态，确认一切正常，继续</span></h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">rs.conf()</span><br><span class="line">rs.status()</span><br><span class="line">db.xxx.getIndexKeys()</span><br></pre></td></tr></table></figure>
+<h3><span id="10-将hidden节点的新数据逐个拷贝到集群中的其他secondary节点并使用新数据重启mongod-对于primary节点先使用rsstepdown待新的primary节点产生后再进行重启">10. 将hidden节点的新数据，逐个拷贝到集群中的其他secondary节点，并使用新数据重启mongod。对于primary节点，先使用rs.stepdown()，待新的primary节点产生后再进行重启。</span></h3><h3><span id="11-移除hidden节点">11. 移除hidden节点</span></h3><ul>
+<li>关闭hidden节点的mongod</li>
+<li>登陆primary节点执行<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">rs.remove("hidden.Test.mongodb:6681")</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h3><span id="12-清理线上关于hidden节点的hosts-iptables配置">12. 清理线上关于hidden节点的hosts、iptables配置</span></h3><blockquote>
+<p>至此，完成整个集群的索引创建</p>
+</blockquote>
+<h2><span id="回滚">回滚</span></h2><p>由于原始数据会进行备份，所以回滚只需替换回原来的数据启动。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/数据库/" class="article-tag-list-link color4">数据库</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2016/01/28/mongodb-create-index-offline/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-mongodb-diskspace-shrink" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2016/01/28/mongodb-diskspace-shrink/">MongoDB硬盘空间紧缩</a>
+    </h1>
+  
+
+        
+        <a href="/2016/01/28/mongodb-diskspace-shrink/" class="archive-article-date">
+  	<time datetime="2016-01-28T06:27:11.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-01-28</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#目的">目的</a></li>
+<li><a href="#原理">原理</a></li>
+<li><a href="#步骤">步骤</a><ul>
+<li><a href="#1-部署新的hidden节点">1. 部署新的hidden节点</a></li>
+<li><a href="#2-添加hidden节点">2. 添加hidden节点</a></li>
+<li><a href="#3-等待hidden节点完成initial-sync">3. 等待hidden节点完成initial sync</a></li>
+<li><a href="#4-检查集群状态确认一切正常继续">4. 检查集群状态，确认一切正常，继续</a></li>
+<li><a href="#5-将hidden节点的新数据逐个拷贝到集群中的其他secondary节点并使用新的数据文件启动mongod原始数据文件进行备份-对于primary节点先使用rsstepdown待新的primary节点产生后再进行操作">5. 将hidden节点的新数据，逐个拷贝到集群中的其他secondary节点，并使用新的数据文件启动mongod（原始数据文件进行备份）。对于primary节点，先使用rs.stepdown()，待新的primary节点产生后再进行操作。</a></li>
+<li><a href="#6-移除hidden节点">6. 移除hidden节点</a></li>
+<li><a href="#7-清理线上关于hidden节点的hosts-iptables配置">7. 清理线上关于hidden节点的hosts、iptables配置</a></li>
+</ul>
+</li>
+<li><a href="#回滚">回滚</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="目的">目的</span></h2><p>阐述一种风险较低，耗时较少的MongoDB硬盘空间紧缩方案。<br>适用于MongoDB2.x副本集。</p>
+<h2><span id="原理">原理</span></h2><p>MongoDB2.2只有在dropdatabase时才会释放硬盘空间，删除document和collection不会释放硬盘空间，而是重复利用。而且随着数据库数据的增、删、改，会产生大量碎片，导致100G的数据可能占用300G的空间，数据紧缩的需求应运而生。<br>数据紧缩实际是通过MongoDB的initial sync数据重建来实现的。<br>通过在副本集中临时添加hidden节点，通过hidden节点的initial sync获得一份紧缩后的全量数据，然后将这份数据依次拷贝到集群中的其他节点，实现整个集群的硬盘空间紧缩。</p>
+<p>参考资料：<br><a href="https://docs.mongodb.org/v2.2/administration/replica-sets/#resyncing-a-member-of-a-replica-set" target="_blank" rel="noopener">https://docs.mongodb.org/v2.2/administration/replica-sets/#resyncing-a-member-of-a-replica-set</a></p>
+<h2><span id="步骤">步骤</span></h2><h3><span id="1-部署新的hidden节点">1. 部署新的hidden节点</span></h3><ul>
+<li>配置hosts、iptables，保证新节点可以顺利与集群其他节点通信</li>
+<li>配置mongodb并启动，配置文件参考集群其他节点<h3><span id="2-添加hidden节点">2. 添加hidden节点</span></h3></li>
+<li><p>登陆到集群的primary，执行</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">rs.add(&#123;_id: 3, host: &quot;hidden.Test.mongodb:6681&quot;, priority: 0, hidden: true&#125;)</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>检查集群状态</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rs.conf()</span><br><span class="line">rs.status()</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h3><span id="3-等待hidden节点完成initial-sync">3. 等待hidden节点完成initial sync</span></h3><h3><span id="4-检查集群状态确认一切正常继续">4. 检查集群状态，确认一切正常，继续</span></h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rs.conf()</span><br><span class="line">rs.status()</span><br></pre></td></tr></table></figure>
+<h3><span id="5-将hidden节点的新数据逐个拷贝到集群中的其他secondary节点并使用新的数据文件启动mongod原始数据文件进行备份-对于primary节点先使用rsstepdown待新的primary节点产生后再进行操作">5. 将hidden节点的新数据，逐个拷贝到集群中的其他secondary节点，并使用新的数据文件启动mongod（原始数据文件进行备份）。对于primary节点，先使用rs.stepdown()，待新的primary节点产生后再进行操作。</span></h3><h3><span id="6-移除hidden节点">6. 移除hidden节点</span></h3><ul>
+<li>关闭hidden节点的mongod</li>
+<li>登陆primary节点执行<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">rs.remove("hidden.Test.mongodb:6681")</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h3><span id="7-清理线上关于hidden节点的hosts-iptables配置">7. 清理线上关于hidden节点的hosts、iptables配置</span></h3><blockquote>
+<p>至此，完成整个集群的硬盘空间压缩</p>
+</blockquote>
+<h2><span id="回滚">回滚</span></h2><p>由于原始数据会进行备份，所以回滚只需替换回原来的数据启动。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/数据库/" class="article-tag-list-link color4">数据库</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2016/01/28/mongodb-diskspace-shrink/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-hadoop-moniting-strategy" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1092,443 +1646,6 @@
 
 
   
-    <article id="post-a-LAN-arp-attacker" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/07/09/a-LAN-arp-attacker/">局域网ARP欺骗程序</a>
-    </h1>
-  
-
-        
-        <a href="/2013/07/09/a-LAN-arp-attacker/" class="archive-article-date">
-  	<time datetime="2013-07-09T10:29:46.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-07-09</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p><a href="https://github.com/winway/a-LAN-arp-attacker" target="_blank" rel="noopener">https://github.com/winway/a-LAN-arp-attacker</a></p>
-<!-- toc -->
-<ul>
-<li><a href="#1-工作原理">1. 工作原理</a></li>
-<li><a href="#2-使用方法">2. 使用方法</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="1-工作原理">1. 工作原理</span></h2><ol>
-<li>构造ARP请求包（广播）给目的主机，并分析返回的ARP应答包，获取目的主机的MAC地址。</li>
-<li>构造ARP应答包（单播）给目的主机，其中携带虚假的IP - MAC映射关系。</li>
-<li>目的主机的ARP缓存中多了一条错误的IP - MAC映射关系。</li>
-</ol>
-<h2><span id="2-使用方法">2. 使用方法</span></h2><ol>
-<li>make，生成arp_attacker</li>
-<li>./arp_attacker [dst ip] 针对单一主机进行攻击</li>
-<li>./arp_attacker 发送广播，影响局域网所有主机</li>
-</ol>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">C</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">ARP欺骗</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/07/09/a-LAN-arp-attacker/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-a-simple-Linux-app-monitor-framework-1" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/07/01/a-simple-Linux-app-monitor-framework-1/">一个简易的服务器监控框架(1)</a>
-    </h1>
-  
-
-        
-        <a href="/2013/07/01/a-simple-Linux-app-monitor-framework-1/" class="archive-article-date">
-  	<time datetime="2013-07-01T13:14:09.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-07-01</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>花了两天时间写了个监控服务器各项指标的框架，主要功能包括：根据设置产生各指标项的数据报表，并可以根据阈值的设定产生警告信息。<br><a href="https://github.com/winway/a-simple-monitor-framework/tree/v1.0" target="_blank" rel="noopener">https://github.com/winway/a-simple-monitor-framework/tree/v1.0</a></p>
-<!-- toc -->
-<ul>
-<li><a href="#1-简介">1. 简介</a></li>
-<li><a href="#2-配置">2. 配置</a></li>
-<li><a href="#3-数据存储">3. 数据存储</a></li>
-<li><a href="#4-展示">4. 展示</a></li>
-<li><a href="#5-使用">5. 使用</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="1-简介">1. 简介</span></h2><p>主要功能包括：根据设置产生各指标项的数据报表，并可以根据阈值的设定产生警告信息。程序包括以下文件和文件夹：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">$ ls -l</span><br><span class="line">总计 88</span><br><span class="line">-rwxrw-r-- 1 winway winway 277 06-27 19:30 analyse.sh</span><br><span class="line">-rwxrw-r-- 1 winway winway 122 06-29 10:18 config.sh</span><br><span class="line">drwxrwxr-x 5 winway winway 4096 07-01 20:08 data</span><br><span class="line">drwxrwxr-x 2 winway winway 4096 07-01 20:08 display</span><br><span class="line">-rwxrw-r-- 1 winway winway 148 06-28 09:39 display.sh</span><br><span class="line">drwxrwxr-x 5 winway winway 4096 07-01 20:07 etc</span><br><span class="line">-rwxrw-r-- 1 winway winway 471 06-28 09:33 format.sh</span><br><span class="line">-rwxrw-r-- 1 winway winway 253 06-27 19:28 monitor.sh</span><br><span class="line">-rw-rw-r-- 1 winway winway 3036 06-29 15:19 raw2html.py</span><br><span class="line">-rw-rw-r-- 1 winway winway 2107 06-29 13:44 raw_analyse.py</span><br><span class="line">-rwxrw-r-- 1 winway winway 849 06-29 10:24 snatch.sh</span><br></pre></td></tr></table></figure></p>
-<ul>
-<li>monitor.sh<br>主程序，会依次调用snatch.sh、analyse.sh、format.sh、display.sh</li>
-<li>snatch.sh<br>数据采集，基于mussh（不了解的可以参考下这里）实现，周期性抓取各服务器上感兴趣的数据项，存储到data文件夹中</li>
-<li>analyse.sh<br>数据分析，根据etc文件夹中的阈值配置文件，产生需要告警的条目，主要工作由raw_analyse.py完成</li>
-<li>format.sh<br>数据格式化，将原始的纯文本数据格式化为html格式，主要工作由raw2html.py完成</li>
-<li>display.sh<br>数据展示，更新display文件夹下的软连接，指向最新的html文件</li>
-<li>config.sh<br>一些变量的定义</li>
-</ul>
-<h2><span id="2-配置">2. 配置</span></h2><p>配置文件结构如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">etc/</span><br><span class="line">|-- lst.d</span><br><span class="line">| `-- database.lst</span><br><span class="line">|-- monitor.conf</span><br><span class="line">|-- sh.d</span><br><span class="line">| `-- database.sh</span><br><span class="line">`-- thv.d</span><br><span class="line">`-- database.thv</span><br></pre></td></tr></table></figure></p>
-<p>其中monitor.conf是主配置文件<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> cat monitor.conf</span><br><span class="line"><span class="meta">#</span> 类型 IP列表文件 检查脚本文件 阈值文件</span><br><span class="line">database database.lst database.sh database.thv</span><br></pre></td></tr></table></figure></p>
-<p>类型是指服务器的角色，如数据库服务器，web服务器等；IP列表文件是对应这一角色的服务器的ip集合，格式为<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 归属地 用户@IP</span><br><span class="line">哈尔滨 root@x.x.x.x</span><br><span class="line">哈尔滨 root@x.x.x.x</span><br></pre></td></tr></table></figure></p>
-<p>这里“<a href="mailto:root@x.x.x.x" target="_blank" rel="noopener">root@x.x.x.x</a>”的格式是为了mussh执行起来方便而这么写的。<br>检查脚本文件是获取这个服务器数据应该执行的脚本。在目标机器上执行这个脚本，就可以获得我们关心的各项数据，这个脚本根据需要而定制，且输出信息的格式有要求。demo:<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> cat sh.d/database.sh</span><br><span class="line"><span class="meta">#</span>! /bin/bash</span><br><span class="line"><span class="meta">#</span></span><br><span class="line">echo -n "&lt;hostname&gt;"</span><br><span class="line">hostname</span><br><span class="line">echo -n '&lt;time&gt;'</span><br><span class="line">date '+%Y-%m-%d %H:%M:%S'</span><br><span class="line">echo -n '&lt;uptime&gt;'</span><br><span class="line">uptime | sed -r 's/.*up\s*([^,]*).*/\1/'</span><br><span class="line">echo -n '&lt;interface&gt;'</span><br><span class="line">/sbin/ifconfig | sed -nr '/^\S/&#123;N;s/\s+.*inet addr:(\S+).*/ \1/;H&#125;;$&#123;x;s/^\s*//g;s/\n/+/g;p&#125;'</span><br><span class="line">echo -n '&lt;process_number&gt;'</span><br><span class="line">ps -e | wc -l</span><br><span class="line">echo -n '&lt;disk_usage&gt;'</span><br><span class="line">df -h | awk -F'[ %]+' '$NF == "/"&#123;print $(NF-1)&#125;'</span><br></pre></td></tr></table></figure></p>
-<p>由于mussh具有远程执行本地脚本的能力，所以我们不需要把这个脚本拷贝到远程主机上。<br>阈值文件用来判断某项数据是否超标。比如如下示例，进程数超过180，我们认为要告警；磁盘使用率超过80%，也需要告警。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> cat etc/thv.d/database.thv</span><br><span class="line"><span class="meta">#</span>###########################################</span><br><span class="line"><span class="meta">#</span> 注意!!! #</span><br><span class="line"><span class="meta">#</span> 指标要与检查脚本里的名字一致 #</span><br><span class="line"><span class="meta">#</span>###########################################</span><br><span class="line"><span class="meta">#</span> 指标 最小值 最大值</span><br><span class="line">process_number 180 300</span><br><span class="line">disk_usage 0 80</span><br></pre></td></tr></table></figure></p>
-<p>这里需要注意的是检查脚本中出现的数据项的名字要和这里保持一致，这样程序才能找到关联。<br>所以，如果你想加入对一批相同类型的机器的监控，你需要：</p>
-<ol>
-<li>编辑一个IP列表文件，将他们的IP地址按合法的格式编辑</li>
-<li>根据自己关心的数据项，定制一个检查脚本，脚本的输出信息格式如示例脚本所示</li>
-<li>给你所关心数据项设置告警阈值</li>
-<li>在monitor.conf里添加一条配置</li>
-</ol>
-<h2><span id="3-数据存储">3. 数据存储</span></h2><p>所有数据存储在data文件夹中<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">data/</span><br><span class="line">|-- all_html</span><br><span class="line">| `-- 20130701</span><br><span class="line">| `-- 2008</span><br><span class="line">| `-- database_all.html</span><br><span class="line">|-- newest.txt</span><br><span class="line">|-- raw</span><br><span class="line">| `-- 20130701</span><br><span class="line">| `-- 2008</span><br><span class="line">| |-- database_all.raw</span><br><span class="line">| `-- database_warn.raw</span><br><span class="line">`-- warn_html</span><br><span class="line">`-- 20130701</span><br><span class="line">`-- 2008</span><br><span class="line">`-- database_warn.html</span><br></pre></td></tr></table></figure></p>
-<p>raw文件夹用于存储原始的数据<br>all_html用于存储包含所有数据项的html文件<br>warn_html用于存储只包含警告数据项的html文件<br>newest.txt用于记录最新的数据所在的文件夹<br>执行完snatch.sh，会在相应的日期时间目录下生成<em>_all.raw文件<br>执行完analyse.sh，会在相应的日期时间目录下生成</em>_warn.raw文件<br>执行完format.sh，会在相应的日期时间目录下生成<em>_all.html和</em>_warn.html文件</p>
-<h2><span id="4-展示">4. 展示</span></h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">display</span><br><span class="line">|-- new_warning -&gt; ../data/warn_html/20130701/2008</span><br><span class="line">|-- overall -&gt; ../data/all_html/</span><br><span class="line">`-- warning -&gt; ../data/warn_html/</span><br></pre></td></tr></table></figure>
-<p>display文件夹包含三个软连接<br>new_warning指向最新的警告数据<br>overall指向all_html文件夹<br>warning指向warn_html文件夹<br>在display目录下执行<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">nohup python -m SimpleHTTPServer 80 &amp;&gt;/dev/null &amp;</span><br></pre></td></tr></table></figure></p>
-<p>就可以在浏览器中查看这些数据了。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/monitor_v1_list.png" alt="monitor_v1_list"><br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/monito_v1_demo.bmp" alt="monitor_v1_demo"></p>
-<h2><span id="5-使用">5. 使用</span></h2><p>运行环境需要需要安装mussh和python的PyH模块。根据需要编辑crontab文件，如<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">*/30 8-16 * * * cd ~winway/monitor &amp;&amp; ./monitor.sh</span><br><span class="line">0 0-7,17-23 * * * cd ~winway/monitor &amp;&amp; ./monitor.sh</span><br></pre></td></tr></table></figure></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">shell</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">监控</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/07/01/a-simple-Linux-app-monitor-framework-1/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-python-multiprocessing-demo" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/06/24/python-multiprocessing-demo/">一个基于multiprocessing的并发模型</a>
-    </h1>
-  
-
-        
-        <a href="/2013/06/24/python-multiprocessing-demo/" class="archive-article-date">
-  	<time datetime="2013-06-24T08:23:44.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-06-24</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<!-- tocstop -->
-<p>需求：</p>
-<ol>
-<li>周期性对一批机器执行某操作；</li>
-<li>该操作执行所需时间不固定，有波动；</li>
-<li>每次操作机器数量较多，需用多进程实现，但又不宜针对每个机器单独开启进程，否则进程太多；</li>
-</ol>
-<p>由于每个周期的操作时间不固定，难免出现两个周期重叠在一起，所以每个周期的操作尽量保持独立，这样不会彼此影响。基于以上考虑，程序的大体思路是：<em>主进程周期性fork一个子进程，子进程使用multiprocessing创建多进程执行具体操作</em>。代码如下：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#! /usr/bin/env python</span></span><br><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">import</span> sys</span><br><span class="line"><span class="keyword">import</span> time</span><br><span class="line"><span class="keyword">import</span> random</span><br><span class="line"><span class="keyword">import</span> multiprocessing</span><br><span class="line"></span><br><span class="line"><span class="comment"># 目标机器集合，少则几百，多则上千</span></span><br><span class="line">hosts = [ <span class="string">'192.168.1.1'</span>,</span><br><span class="line">          <span class="string">'192.168.1.2'</span>,</span><br><span class="line">          <span class="string">'192.168.1.3'</span>,</span><br><span class="line">          <span class="string">'192.168.1.4'</span>,</span><br><span class="line">          <span class="string">'192.168.1.5'</span>,</span><br><span class="line">          <span class="string">'192.168.1.6'</span>,</span><br><span class="line">          <span class="string">'192.168.1.7'</span>,</span><br><span class="line">          <span class="string">'192.168.1.8'</span>,</span><br><span class="line">          <span class="string">'192.168.1.9'</span>,</span><br><span class="line">          <span class="string">'192.168.1.10'</span>,</span><br><span class="line">         ]</span><br><span class="line"></span><br><span class="line"><span class="comment"># 针对每个机器的具体操作，这里没有进行任何处理</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">handle</span><span class="params">(host)</span>:</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'Handling %s'</span> % host</span><br><span class="line">    time.sleep(random.randint(<span class="number">10</span>, <span class="number">15</span>))</span><br><span class="line">    <span class="keyword">return</span> host</span><br><span class="line"></span><br><span class="line"><span class="comment"># 循环从task_queue取一个待处理的机器进行处理，并将结果放入done_queue，直到遇到'STOP'</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">grandchild</span><span class="params">(task_queue, done_queue)</span>:</span></span><br><span class="line">    <span class="keyword">for</span> item <span class="keyword">in</span> iter(task_queue.get, <span class="string">'STOP'</span>):</span><br><span class="line">        result = handle(item)</span><br><span class="line">        done_queue.put(result)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 每个周期的操作在这个单独的子进程中进行</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">child</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'Hi! This is child %d, my father is %d'</span> %\</span><br><span class="line">                        (os.getpid(), os.getppid())</span><br><span class="line"></span><br><span class="line">    task_queue = multiprocessing.Queue()</span><br><span class="line">    done_queue = multiprocessing.Queue()</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 将待处理的机器放入task_queue</span></span><br><span class="line">    <span class="keyword">for</span> host <span class="keyword">in</span> hosts:</span><br><span class="line">        <span class="keyword">print</span> <span class="string">'put %s in task_queue'</span> % host</span><br><span class="line">        task_queue.put(host)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 创建固定数量进程，并发处理</span></span><br><span class="line">    PN = <span class="number">6</span></span><br><span class="line">    processes = []</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> range(PN):</span><br><span class="line">        process = multiprocessing.Process(target=grandchild, args=(task_queue, done_queue))</span><br><span class="line">        process.start()</span><br><span class="line">        processes.append(process)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 打印done_queue中的结果，这里可以针对结果在进行处理，如存数据库</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'Unordered results:'</span></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> range(len(hosts)):</span><br><span class="line">        <span class="keyword">print</span> <span class="string">'get %s from done_queue'</span> % done_queue.get()</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 结束处理进程</span></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> range(PN):</span><br><span class="line">        task_queue.put(<span class="string">'STOP'</span>)</span><br><span class="line">        <span class="keyword">print</span> <span class="string">'Stopping process #%d'</span> % i</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 避免处理进程成为僵尸</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'joining.....'</span></span><br><span class="line">    <span class="keyword">for</span> process <span class="keyword">in</span> processes:</span><br><span class="line">        process.join()</span><br><span class="line">    </span><br><span class="line">    sys.exit()</span><br><span class="line"></span><br><span class="line">children = []</span><br><span class="line"></span><br><span class="line"><span class="comment"># 清理僵尸进程</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">clear_defunct</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="keyword">for</span> child <span class="keyword">in</span> children:</span><br><span class="line">        pid, status = os.waitpid(child, os.WNOHANG)</span><br><span class="line">        <span class="keyword">if</span> pid:</span><br><span class="line">            children.remove(pid)</span><br><span class="line">            <span class="keyword">print</span> <span class="string">'clear defunct'</span>, pid</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line">    <span class="comment"># 周期性创建子进程</span></span><br><span class="line">    <span class="keyword">while</span> <span class="keyword">True</span>:</span><br><span class="line">        pid = os.fork()</span><br><span class="line">        <span class="keyword">if</span> pid &lt; <span class="number">0</span>:</span><br><span class="line">            <span class="keyword">print</span> <span class="string">'fork error'</span></span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">if</span> pid == <span class="number">0</span>:</span><br><span class="line">                child()</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                children.append(pid)</span><br><span class="line">                <span class="keyword">print</span> <span class="string">'Hi! This is parent %d'</span> % os.getpid()</span><br><span class="line"></span><br><span class="line">        clear_defunct()</span><br><span class="line"></span><br><span class="line">        time.sleep(<span class="number">30</span>)</span><br></pre></td></tr></table></figure></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">python</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">multiprocessing</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/06/24/python-multiprocessing-demo/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-mussh-pdsh-pssh-usage" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/06/24/mussh-pdsh-pssh-usage/">mussh、pdsh、pssh的简单使用</a>
-    </h1>
-  
-
-        
-        <a href="/2013/06/24/mussh-pdsh-pssh-usage/" class="archive-article-date">
-  	<time datetime="2013-06-24T03:16:06.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-06-24</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>在<a href="https://winway.github.io/2013/05/11/server-batch-manage-tool-introduction/">服务器批量管理工具</a>一文中，提到了几款服务器批量管理工具，本文就其中的mussh、pdsh、pssh简单介绍其使用方法。</p>
-<!-- toc -->
-<ul>
-<li><a href="#1-mussh">1. mussh</a></li>
-<li><a href="#2-pdsh">2. pdsh</a></li>
-<li><a href="#3-pssh">3. pssh</a></li>
-<li><a href="#4-总结">4. 总结</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="1-mussh">1. mussh</span></h2><p>mussh的安装过程不再赘述，要使用mussh要先做好主机间的信任（方法自己查询）。mussh的使用较简单，要查询mussh的使用方法，可以<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mussh --help</span><br></pre></td></tr></table></figure></p>
-<p>常用的方法如下：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">mussh -m -u -b -t 6 -h user@x.x.x.x.. -c cmd</span><br><span class="line">mussh -m -u -b -t 6 -h user@x.x.x.x.. -C scriptfile</span><br><span class="line">mussh -m -u -b -t 6 -H hostlist -c cmd</span><br><span class="line">mussh -m -u -b -t 6 -H hostlist -C scriptfile</span><br></pre></td></tr></table></figure></p>
-<p>其中hostlist的格式为：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">user@x.x.x.x</span><br><span class="line">user@x.x.x.x</span><br><span class="line">user@x.x.x.x</span><br><span class="line">..</span><br></pre></td></tr></table></figure></p>
-<p>常见命令行参数意义：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">-m [n] Run concurrently on 'n' hosts at a time (asynchronous).</span><br><span class="line">Use '0' (zero) for infinite. (default if -m)</span><br><span class="line">-b Print each hosts' output in a block without mingling</span><br><span class="line">with other hosts' output.</span><br><span class="line">-B Allow hosts' output to mingle. (default)</span><br><span class="line">-u Unique. Eliminate duplicate hosts. (default)</span><br><span class="line">-U Do NOT make host list unique.</span><br><span class="line">-t &lt;secs&gt; Timeout setting for each session.</span><br><span class="line">(requires openssh 3.8 or newer)</span><br></pre></td></tr></table></figure></p>
-<h2><span id="2-pdsh">2. pdsh</span></h2><p>pdsh的安装过程不再赘述，要使用pdsh有两个前提：</p>
-<ol>
-<li>做好主机间的信任（方法自己查询）</li>
-<li>管理机和目标机均安装pdsh（不然无法使用pdcp和rpdcp）</li>
-</ol>
-<p>可以通过<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">man pdsh 或 pdsh -h</span><br><span class="line">man pdcp 或 pdcp -h</span><br><span class="line">man rpdcp 或 rpdcp -h</span><br></pre></td></tr></table></figure></p>
-<p>来查询使用方法。常用的方法如下:<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">pdsh -R ssh -l root -w x.x.x.x cmd</span><br><span class="line">pdsh -R ssh -l root -w hostname cmd</span><br><span class="line">pdsh -R ssh -l root -w ^hostlist cmd</span><br></pre></td></tr></table></figure></p>
-<p>其中hostlist的格式为：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">x.x.x.x</span><br><span class="line">hostname</span><br><span class="line">..</span><br></pre></td></tr></table></figure></p>
-<p><strong>若不加cmd，则进入交互模式，我觉得这个是pdsh的亮点。</strong></p>
-<h2><span id="3-pssh">3. pssh</span></h2><p>pssh的安装不再赘述，要使用pssh要先做好主机间的信任（方法自己查询）。<br>pssh安装完成，会出现一下五个命令：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">pssh parallel-ssh 在多个主机上并行地运行命令。</span><br><span class="line">pscp parallel-scp 把文件并行地复制到多个主机上。</span><br><span class="line">prsync parallel-rsync 通过 rsync 协议把文件高效地并行复制到多个主机上。</span><br><span class="line">pslurp parallel-slurp 把文件并行地从多个远程主机复制到中心主机上。</span><br><span class="line">pnuke parallel-nuke 并行地在多个远程主机上杀死进程。</span><br></pre></td></tr></table></figure></p>
-<p>要查各个命令的使用方法，可以不加任何参数运行该命令，这样就会出现各选项的意义。如：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">[winway@winway test]$ pssh</span><br><span class="line">Usage: pssh [OPTIONS] -h hosts.txt prog [arg0] ..</span><br><span class="line">-h --hosts hosts file (each line "host[:port] [user]")</span><br><span class="line">-l --user username (OPTIONAL)</span><br><span class="line">-p --par max number of parallel threads (OPTIONAL)</span><br><span class="line">-o --outdir output directory for stdout files (OPTIONAL)</span><br><span class="line">-e --errdir output directory for stderr files (OPTIONAL)</span><br><span class="line">-t --timeout timeout (secs) (-1 = no timeout) per host (OPTIONAL)</span><br><span class="line">-O --options SSH options (OPTIONAL)</span><br><span class="line">-v --verbose turn on warning and diagnostic messages (OPTIONAL)</span><br><span class="line">-P --print print output as we get it (OPTIONAL)</span><br><span class="line">-i --inline inline aggregated output for each server (OPTIONAL)</span><br><span class="line">Example: pssh -h nodes.txt -l irb2 -o /tmp/foo uptime</span><br></pre></td></tr></table></figure></p>
-<p>常用的方法如下：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">pssh -h hostlist -i cmd</span><br><span class="line">pscp -h hostlist src dest</span><br><span class="line">pslurp -h hostlist -L . dest src</span><br></pre></td></tr></table></figure></p>
-<h2><span id="4-总结">4. 总结</span></h2><p>综上所述，mussh、pdsh、pssh各有优缺点，我的选择是：<br>批量在远程主机上执行比较固定的操作时，用mussh，特别是它支持本机脚本远程执行；<br>批量在远程主机上执行不确定的操作时，用pdsh，因为它支持交互模式；<br>批量在远程主机上上传、下载文件时用pssh的pscp或prsync、pslurp；<br>个人愚见，欢迎指正。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">批量管理</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/06/24/mussh-pdsh-pssh-usage/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/7/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/6/">6</a><a class="page-number" href="/page/7/">7</a><span class="page-number current">8</span><a class="page-number" href="/page/9/">9</a><a class="extend next" rel="next" href="/page/9/">Next &raquo;</a>
@@ -1543,7 +1660,7 @@
   <div class="outer">
     <div id="footer-info">
     	<div class="footer-left">
-    		&copy; 2021 winway
+    		&copy; 2022 winway
     	</div>
       	<div class="footer-right">
       		<a href="http://hexo.io/" target="_blank">Hexo</a>  Theme <a href="https://github.com/litten/hexo-theme-yilia" target="_blank">Yilia</a> by Litten
@@ -1636,6 +1753,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">shell</a>
               </li>
              
@@ -1644,15 +1769,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hive</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1661,10 +1782,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">github</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1684,18 +1801,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">备份</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">influxdb</a>
               </li>
              
@@ -1704,7 +1809,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">备份</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1716,19 +1837,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+                <a href="javascript:void(0)" class="js-tag color4">tez</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
+                <a href="javascript:void(0)" class="js-tag color3">gc</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1740,7 +1853,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1748,39 +1869,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">storm</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">iptables</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">olap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1788,11 +1881,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1808,15 +1901,43 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">小文件</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">tez</a>
+                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">flume</a>
+                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">storm</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">olap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">iptables</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">nagios</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1832,11 +1953,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
+                <a href="javascript:void(0)" class="js-tag color1">flume</a>
               </li>
             
             <div class="clearfix"></div>
