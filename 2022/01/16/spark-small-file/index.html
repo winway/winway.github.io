@@ -8,18 +8,18 @@
   <link rel="dns-prefetch" href="https://winway.github.io">
   <title>Spark-sql生成小文件问题 | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="问题 Spark2.x处理小文件问题的两种方式   问题大数据领域有一个经典的问题——小文件问题。小文件过多不仅会对HDFS NameNode的内存造成压力，还会导致数据处理过程中因为任务数量不合理，导致资源浪费，影响效率。在使用spark-sql处理数据时，也会遇到这个问题。 Spark2.x处理小文件问题的两种方式 使用hint通过在sql中指定REPARTITION(n) hint，决定">
+  <meta name="description" content="问题 Spark2.x处理小文件问题的两种方式   问题大数据领域有一个经典的问题——小文件问题。小文件过多不仅会对HDFS NameNode的内存造成压力，还会导致数据处理过程中因为任务数量不合理，导致资源浪费，影响效率。在使用spark-sql处理数据时，也会遇到这个问题。 Spark2.x处理小文件问题的两种方式 使用hint通过在sql中指定COALESCE(n) hint，决定最终产">
 <meta name="keywords" content="spark,小文件">
 <meta property="og:type" content="article">
 <meta property="og:title" content="Spark-sql生成小文件问题">
 <meta property="og:url" content="https://winway.github.io/2022/01/16/spark-small-file/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:description" content="问题 Spark2.x处理小文件问题的两种方式   问题大数据领域有一个经典的问题——小文件问题。小文件过多不仅会对HDFS NameNode的内存造成压力，还会导致数据处理过程中因为任务数量不合理，导致资源浪费，影响效率。在使用spark-sql处理数据时，也会遇到这个问题。 Spark2.x处理小文件问题的两种方式 使用hint通过在sql中指定REPARTITION(n) hint，决定">
+<meta property="og:description" content="问题 Spark2.x处理小文件问题的两种方式   问题大数据领域有一个经典的问题——小文件问题。小文件过多不仅会对HDFS NameNode的内存造成压力，还会导致数据处理过程中因为任务数量不合理，导致资源浪费，影响效率。在使用spark-sql处理数据时，也会遇到这个问题。 Spark2.x处理小文件问题的两种方式 使用hint通过在sql中指定COALESCE(n) hint，决定最终产">
 <meta property="og:locale" content="default">
-<meta property="og:updated_time" content="2022-01-16T02:27:35.468Z">
+<meta property="og:updated_time" content="2022-02-08T12:09:48.002Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Spark-sql生成小文件问题">
-<meta name="twitter:description" content="问题 Spark2.x处理小文件问题的两种方式   问题大数据领域有一个经典的问题——小文件问题。小文件过多不仅会对HDFS NameNode的内存造成压力，还会导致数据处理过程中因为任务数量不合理，导致资源浪费，影响效率。在使用spark-sql处理数据时，也会遇到这个问题。 Spark2.x处理小文件问题的两种方式 使用hint通过在sql中指定REPARTITION(n) hint，决定">
+<meta name="twitter:description" content="问题 Spark2.x处理小文件问题的两种方式   问题大数据领域有一个经典的问题——小文件问题。小文件过多不仅会对HDFS NameNode的内存造成压力，还会导致数据处理过程中因为任务数量不合理，导致资源浪费，影响效率。在使用spark-sql处理数据时，也会遇到这个问题。 Spark2.x处理小文件问题的两种方式 使用hint通过在sql中指定COALESCE(n) hint，决定最终产">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -183,10 +183,10 @@
 <!-- tocstop -->
 <h2><span id="问题">问题</span></h2><p>大数据领域有一个经典的问题——小文件问题。<br>小文件过多不仅会对HDFS NameNode的内存造成压力，还会导致数据处理过程中因为任务数量不合理，导致资源浪费，影响效率。<br>在使用spark-sql处理数据时，也会遇到这个问题。</p>
 <h2><span id="spark2x处理小文件问题的两种方式">Spark2.x处理小文件问题的两种方式</span></h2><ul>
-<li>使用hint<br>通过在sql中指定REPARTITION(n) hint，决定最终产生的文件数量<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ COALESCE(3) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION(3) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION(c) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION(3, c) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION_BY_RANGE(c) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION_BY_RANGE(3, c) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REBALANCE */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REBALANCE(c) */</span> * <span class="keyword">FROM</span> t</span><br></pre></td></tr></table></figure>
+<li>使用hint<br>通过在sql中指定COALESCE(n) hint，决定最终产生的文件数量<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ COALESCE(3) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION(3) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION(c) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION(3, c) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION_BY_RANGE(c) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION_BY_RANGE(3, c) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REBALANCE */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REBALANCE(c) */</span> * <span class="keyword">FROM</span> t</span><br></pre></td></tr></table></figure>
 </li>
 </ul>
-<p><strong>这种方式使用代价太高，需要每个数据开发关注每个任务最终产生的文件个数。</strong></p>
+<p><strong>这种方式使用代价太高，需要每个数据开发关注每个任务最终产生的文件个数。</strong><br><em>笔者遇到过使用REPARTITION(n)导致数据文件增大的情况，使用COALESCE(n)则不会，所以优先使用COALESCE(n)。参见<a href="https://stackoverflow.com/questions/54218006/why-does-the-repartition-method-increase-file-size-on-disk" target="_blank" rel="noopener">https://stackoverflow.com/questions/54218006/why-does-the-repartition-method-increase-file-size-on-disk</a></em></p>
 <ul>
 <li>开启aqe特性<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">set</span> spark.sql.adaptive.enabled=<span class="literal">true</span>;</span><br><span class="line"><span class="keyword">set</span> spark.sql.adaptive.shuffle.targetPostShuffleInputSize=<span class="number">512000000</span>;</span><br><span class="line"><span class="keyword">set</span> spark.sql.adaptive.maxNumPostShufflePartitions=<span class="number">800</span>;</span><br></pre></td></tr></table></figure>
 </li>
@@ -195,6 +195,10 @@
 <blockquote>
 <p>不管是Spark2.x，还是Spark3.x，都没能从根本上解决小文件问题。因为没有像hive那样的机制，启动单独的job根据设置的文件大小合并小文件。</p>
 </blockquote>
+<ul>
+<li>distribute by<br>对于使用动态分区的任务，使用distribute by。<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">insert</span> overwrite <span class="keyword">table</span> dm.dm_grw_retain_abtest_sd <span class="keyword">partition</span> (<span class="keyword">year</span>, <span class="keyword">month</span>, <span class="keyword">day</span>, retain_days)</span><br><span class="line"><span class="keyword">select</span> ……</span><br><span class="line"><span class="keyword">distribute</span> <span class="keyword">by</span> retain_days <span class="comment">-- 最终每个子分区一个文件</span></span><br><span class="line"><span class="keyword">distribute</span> <span class="keyword">by</span> retain_days, <span class="keyword">cast</span>(<span class="keyword">rand</span>()*<span class="number">7</span> <span class="keyword">as</span> <span class="built_in">int</span>) <span class="comment">-- 最终每个子分区7个文件</span></span><br></pre></td></tr></table></figure>
+</li>
+</ul>
 
       
 
