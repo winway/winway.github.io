@@ -786,9 +786,9 @@
 <li>Timestamp: 时间戳，每次数据操作对应的时间戳，可以看作是数据的version number</li>
 <li>Column Family：列簇，Table在水平方向有一个或者多个Column Family组成，一个Column Family中可以由任意多个Column组成，即Column Family支持动态扩展，无需预先定义Column的数量以及类型，所有Column均以二进制格式存储，用户需要自行进行类型转换</li>
 </ul>
-<h3><span id="hbase架构">HBase架构</span></h3><p><img src="https://material.coderap.com/2017/11/KAKY98S5BgO0ufx656acDSXVpihMkHBTCj9c1WLYIb6X6YstF8KHGRuqXBVyQtlB" alt=""><br>HBase是由三种类型的服务器组成的主从式结构。Region server提供读取和写入数据的服务。当访问数据时，客户端直接与HBase RegionServers通信。Region分配，DDL（创建，删除表）操作由HBase Master处理。Zookeeper，维护着集群运行状态。<br>Hadoop DataNode存储Region Server管理的数据。所有HBase数据存储在HDFS文件中。 Region Server与HDFS DataNode共存，这使得RegionServer管理的数据具有数据本地化特性。HBase数据在写入时是本地化的，但是当region移动时，就不再是本地的，除非发生compaction。</p>
-<p><strong>Region</strong><br><img src="https://material.coderap.com/2017/11/cK5R62a9SjMkzYA3fYMNWuxPDvfE0F6E6Rx9RsprU2V5IWEScW1OWqW2bFC8wTU0" alt=""><br>HBase表按照row key水平划分为“Region”。一个Region包含表中Region的开始键和结束键之间的所有行。Region分配给集群中“Region Servers”，Region Server提供读取和写入数据的服务。Region Server可以提供大约1,000个region。</p>
-<p><strong>Hmaster</strong><br><img src="https://material.coderap.com/2017/11/iEcZqvxeM4RMGRcRXKS2pTvRrUjtDRp1Rj1EOe1JjbLxank3CVqlCfGJBB68ZuMv" alt=""><br>Region分配，DDL（创建，删除表）操作由HBase Master处理。</p>
+<h3><span id="hbase架构">HBase架构</span></h3><p><img src="https://inotgo.com/imagesLocal/202106/17/20210617103335450c_1.jpg" alt=""><br>HBase是由三种类型的服务器组成的主从式结构。Region server提供读取和写入数据的服务。当访问数据时，客户端直接与HBase RegionServers通信。Region分配，DDL（创建，删除表）操作由HBase Master处理。Zookeeper，维护着集群运行状态。<br>Hadoop DataNode存储Region Server管理的数据。所有HBase数据存储在HDFS文件中。 Region Server与HDFS DataNode共存，这使得RegionServer管理的数据具有数据本地化特性。HBase数据在写入时是本地化的，但是当region移动时，就不再是本地的，除非发生compaction。</p>
+<p><strong>Region</strong><br><img src="https://inotgo.com/imagesLocal/202106/17/20210617103335450c_2.jpg" alt=""><br>HBase表按照row key水平划分为“Region”。一个Region包含表中Region的开始键和结束键之间的所有行。Region分配给集群中“Region Servers”，Region Server提供读取和写入数据的服务。Region Server可以提供大约1,000个region。</p>
+<p><strong>Hmaster</strong><br><img src="https://inotgo.com/imagesLocal/202106/17/20210617103335450c_3.jpg" alt=""><br>Region分配，DDL（创建，删除表）操作由HBase Master处理。</p>
 <ul>
 <li>协调region servers<ul>
 <li>在集群启动时分配region，重新分配region以进行故障恢复或负载平衡</li>
@@ -800,46 +800,46 @@
 </ul>
 </li>
 </ul>
-<p><strong>ZooKeeper: The Coordinator</strong><br><img src="https://material.coderap.com/2017/11/Do2Ofralux4UaJqVrxDhMAvYbiRorTEDJKe1BrOiHx6amW888WWAgssDPblWdbsK" alt=""><br>HBase使用ZooKeeper作为分布式协调服务来维护集群中的服务器状态。Zookeeper维护着哪些服务器是活动的和可用的，并提供服务器故障的通知。</p>
-<p><strong>How the Components Work Together</strong><br><img src="https://material.coderap.com/2017/11/K3GkWTQjdTOY9XoixJL9ywH0IoNSfm3jykq69TQwKaQvFkJEtRFwAMmIapobjk6E" alt=""><br>Zookeeper用于协调分布式系统成员间的共享状态信息。Region server和主HMaster通过建立会话连接到ZooKeeper并创建临时节点。ZooKeeper通过心跳机制监视临时节点的状态。</p>
+<p><strong>ZooKeeper: The Coordinator</strong><br><img src="https://inotgo.com/imagesLocal/202106/17/20210617103335450c_4.jpg" alt=""><br>HBase使用ZooKeeper作为分布式协调服务来维护集群中的服务器状态。Zookeeper维护着哪些服务器是活动的和可用的，并提供服务器故障的通知。</p>
+<p><strong>How the Components Work Together</strong><br><img src="https://inotgo.com/imagesLocal/202106/17/20210617103335450c_5.jpg" alt=""><br>Zookeeper用于协调分布式系统成员间的共享状态信息。Region server和主HMaster通过建立会话连接到ZooKeeper并创建临时节点。ZooKeeper通过心跳机制监视临时节点的状态。</p>
 <p>每个Region Server创建一个临时节点。HMaster监视这些节点以发现可用的Region Server，并监控这些节点判断服务器是否故障。HMaster也会创建一个临时节点。 Zookeeper确定第一个创建成功的HMaster，以确保只有一个HMaster是活跃的。主HMaster向Zookeeper发送心跳，备HMaster监听主HMaster的故障通知。<br>如果region server或主HMaster未能发送心跳，则会话过期，相应的临时节点被删除。 这些临时节点上的侦听器将被通知。主HMaster侦听region servers，并在故障时恢复region。备HMaster监听主HMaster故障，如果主HMaster失败，则备HMaster变为活动状态。</p>
-<h3><span id="数据读写">数据读写</span></h3><p><strong>HBase First Read or Write</strong><br><img src="https://material.coderap.com/2017/11/PgbobLCuqJgWPV2KjcIUNJNk5kr9Qpr36BJpPl9vBxk6wJTuwZ5XAXPHsG7nvZXt" alt=""><br>有一个称为META表的特殊HBase表，它保存集群中region的位置信息。ZooKeeper存储META表的位置。<br>客户端第一次读取或写入HBase时发生的情况：</p>
+<h3><span id="数据读写">数据读写</span></h3><p><strong>HBase First Read or Write</strong><br><img src="https://inotgo.com/imagesLocal/202106/17/20210617103335450c_6.jpg" alt=""><br>有一个称为META表的特殊HBase表，它保存集群中region的位置信息。ZooKeeper存储META表的位置。<br>客户端第一次读取或写入HBase时发生的情况：</p>
 <ol>
 <li>客户端从ZooKeeper获取存储META表的Region server。</li>
 <li>客户端查询META表获取其想要访问的row key对应的Region server。客户端将此信息与META表位置一起缓存。</li>
 <li>客户端从相应的Region server读取行。</li>
 </ol>
 <p>对于后续的读取，客户端使用缓存来检索META位置和先前读取的row keys，不需要查询META表。除非发生了未命中（region移动）， 那么它会重新查询META和更新缓存。</p>
-<p><strong>HBase Meta Table</strong><br><img src="https://material.coderap.com/2017/11/O7a9IsF1RM6Ztj27lZ02CoAZZtGvEwHi44sQ8wCEYOGSpcXyDghdsvqXyIWXuH8T" alt=""><br>META表是存储系统中所有region信息的HBase表。</p>
-<p><strong>Region Server</strong><br><img src="https://material.coderap.com/2017/11/XdjgkfuIRNoSG6iPVgGUMPR4a6FMV76FM0Lfi20MfVMUGoUTpNUVznISzNnGACA3" alt=""><br>Region Server在HDFS数据节点上运行，具有以下组件：</p>
+<p><strong>HBase Meta Table</strong><br><img src="https://inotgo.com/imagesLocal/202106/17/20210617103335450c_7.jpg" alt=""><br>META表是存储系统中所有region信息的HBase表。</p>
+<p><strong>Region Server</strong><br><img src="https://inotgo.com/imagesLocal/202106/17/20210617103335450c_8.jpg" alt=""><br>Region Server在HDFS数据节点上运行，具有以下组件：</p>
 <ul>
 <li>WAL：预写日志是分布式文件系统上的一个文件。WAL用于存储尚未持久保存到永久存储器的新数据; 它用于在故障的情况下恢复数据。</li>
 <li>BlockCache：是读取缓存。它将经常读取的数据存储在内存。当缓存满时，最近最少使用的数据被换出。</li>
 <li>MemStore：是写缓存。它存储尚未写入磁盘的新数据。它在数据写入磁盘之前进行排序。每个region的每个列族有一个MemStore。</li>
 <li>Hfiles：是存储在硬盘上的已排序的KeyValues。</li>
 </ul>
-<p><strong>HBase Write Steps</strong><br><img src="https://material.coderap.com/2017/11/XPnwBd9dUEOFzVxqY9CUCkxD9cHXrI6L46aixX17ufyVeOCtv6RNyupRZNdUwaWS" alt=""><br>当客户端发出Put请求时，第一步是将数据写入WAL：</p>
+<p><strong>HBase Write Steps</strong><br><img src="https://inotgo.com/imagesLocal/202106/17/20210617103335450c_9.jpg" alt=""><br>当客户端发出Put请求时，第一步是将数据写入WAL：</p>
 <ul>
 <li>修改被追加到存储在磁盘上的WAL文件的末尾。</li>
 <li>WAL用于在服务器崩溃的情况下恢复尚未持久化的数据。</li>
 </ul>
 <p>HBase的数据写入采用WAL(write ahead log)的形式，先写log，后写数据。HBase是一个append类型的数据库，没有关系型数据库那么复杂的操作，所以记录HLog的操作都是简单的put操作(delete/update操作都被转化为put进行)</p>
-<p><img src="https://material.coderap.com/2017/11/7ne0MPrs9z5ap6nO8gXs6mn3espJj48Xmqiumjk7VJtnz5MZmzGQPHzq5GDkQTho" alt=""></p>
+<p><img src="https://inotgo.com/imagesLocal/202106/17/20210617103335450c_10.jpg" alt=""></p>
 <ul>
 <li>一旦修改写入WAL，它被更新到MemStore中。然后，put请求返回确认到客户端</li>
 </ul>
 <p>memstore在HBase内部通过LSM-tree结构组织，所以能够合并大量对于相同rowkey上的更新操作。正是由于memstore的存在，HBase的数据写入都是异步的，而且性能非常不错，写入到memstore后，该次写入请求就可以被返回，HBase即认为该次数据写入成功。这里有一点需要说明，写入到memstore中的数据都是预先按照rowkey的值进行排序的，这样有利于后续数据查找。</p>
-<p><strong>HBase MemStore</strong><br><img src="https://material.coderap.com/2017/11/J2EPUWJWwohrkvxCHGQepSyFeOs5ardzCEwhUFbpHyq2VpqmkfJdw9Ak3A9BXMMw" alt=""><br>MemStore将修改作为排序的KeyValues存储在内存中。<br>每个列簇对应一个MemStore。 更新按列簇进行排序。</p>
-<p><strong>HBase Region Flush</strong><br><img src="https://material.coderap.com/2017/11/9Or17uTFz8ajqzykA9aMB94Xght1JdWiPqlwz2gVkADhol3PH859TgRWopH51iC9" alt=""><br>当MemStore累积了足够的数据，整个数据集排序后写入HDFS中的新的HFile。每个列族会有多个HFile，其中包含实际的cells或KeyValues。随着时间的推移，MemStore中排序的KeyValue被不断刷新到硬盘，形成hfile。请注意，这是HBase中列族数量有限制的一个原因。<br>每个列族有一个MemStore; 当MemStore满了，它被刷新到硬盘。它还保存了最后写入的序列号，这样系统就知道到目前为止持久化的WAL。最高的序列号作为元字段存储在每个HFile中，以反映开始和结束的位置。在region启动时，将读取序列号，并将最高值用作新更新的序列号。</p>
-<p><strong>HBase Hfile</strong><br><img src="https://material.coderap.com/2017/11/rTZ9KOkUO0K6lS8cF9KKLs8aMsPYHgtzJtSPFC6pFUDxmG9j8i00wyrGfwLUysST" alt=""><br>数据以排序的key/values形式存储在HFile中。当MemStore累积足够的数据时，整个排序的KeyValue集合被写入HDFS中的新Hfile。这是顺序写入，所以它非常快。</p>
-<p><strong>HBase Read Merge</strong><br><img src="https://material.coderap.com/2017/11/XYK7nXH5By0Y1nkzSO5AuPcxNF4lcB986uBAJoNsNAyc0ltKxtYJg9mv1CpVamES" alt=""><br>一行数据可能存在多个地方，已经持久化的cell在Hfile，最近更新的cell在memstore，最近读取的cell在Block cache。所以，当你读取一行，系统怎样得到相应的cell并返回？<br>首先，扫描器在Block cache中寻找Row cell。 最近读取的cell被缓存在这里，并且当Block cache满时，使用LRU进行换出。接下来，扫描器在MemStore中查找，最近写入的数据存在于内存中的MemStore。如果扫描器在MemStore和Block cache中没有找到所有row cells，则HBase将使用Block Cache indexes和bloom filters将HFiles加载到内存中查找目标row cell。<br>每个MemStore可能有许多HFile，这意味着要进行读取，可能需要检查多个文件，这可能会影响性能。<br><img src="https://material.coderap.com/2017/11/SfNQlAX2HpnNMytGfiv057MYapGbHgIJphSGAfhNjM7R6Bz6maO4TUxnVtflFD0Q" alt=""></p>
-<h3><span id="合并和分裂">合并和分裂</span></h3><p><strong>HBase Minor Compaction</strong><br><img src="https://material.coderap.com/2017/11/pJEjLYfoegXzoSmV1N6yW7Ucv0z9tgf1o6pwU6BCmm8dkBOfCXe8kwLDOOS3zWZ2" alt=""><br>HBase将自动选择一些较小的HFile并将其重写为一些较大的Hfile。 这个过程称为minor compaction。<br>minor compaction通过将较多较小的文件重写为较少但较大的文件（合并排序），从而减少存储文件数。</p>
-<p><strong>HBase Major Compaction</strong><br><img src="https://material.coderap.com/2017/11/LXaAPQBfSVmH6IWaj5OwwHKdc4uaERRcMJy4JdT3PuKkNCVs5j8d3171ePWKQgwy" alt=""><br>Major compaction将一个region中的所有同一列簇的HFile合并并重写为一个HFile，此过程会删除deleted 和 expired cells。 这提高了读取性能; 但是，由于Major compaction会重写所有文件，因此在此过程中可能消耗大量磁盘I/O和网络流量。<br>Major compaction可以设置成自动运行。由于性能影响，Major compaction通常在周末或晚上进行。Major compaction可以恢复数据的本地化特性。</p>
-<p><strong>Region Split</strong><br><img src="https://material.coderap.com/2017/11/vOYgufIThzpnNYXoiy5eKUo8BCtSNr6AezhsqLgGNYIykJoyswHUlZkEnnUbA1k0" alt=""><br>最初，每个表只有一个region。 当一个region变得太大时，它分裂成两个子region。 两个子region分别代表原始region的一半，并在同一个region server上并行打开，然后将分裂信息报告给Hmaster。出于负载平衡的原因，Hmaster会安排将新region移动到另一个region server。</p>
-<p><strong>Read Load Balancing</strong><br><img src="https://material.coderap.com/2017/11/tkczko2DDOgOCM2z2xAALNut0zPYqlGZxmRWqFcAhjae6zFVJjfeT7vjUBDlti8y" alt=""><br>分裂最初发生在同一region server上，但是出于负载平衡的原因，HMaster可以安排将新region移动到其他region server。 这导致新的region server提供来自远程HDFS节点的数据，直到Major compaction将数据文件移动到region server的本地节点。 HBase数据在写入时是本地的，但是当region被移动（用于负载平衡或恢复）时，在Major compaction之前它不是本地的。</p>
-<h3><span id="容错">容错</span></h3><p><strong>HBase Crash Recovery</strong><br><img src="https://material.coderap.com/2017/11/3vrDfLMxX9WKAQ4IJS2EWwqfHI8e8XgVe2ZlG5Hg12EHfnIMJZ67cnw6Ik4EpqKn" alt=""><br>当RegionServer失败时，崩溃的Regions不可用，直到检测和恢复步骤发生。当Zookeeper失去region server的心跳时，它将确定节点失败。然后HMaster将被告知Region Server已失败。</p>
+<p><strong>HBase MemStore</strong><br><img src="https://inotgo.com/imagesLocal/202106/17/20210617103335450c_11.jpg" alt=""><br>MemStore将修改作为排序的KeyValues存储在内存中。<br>每个列簇对应一个MemStore。 更新按列簇进行排序。</p>
+<p><strong>HBase Region Flush</strong><br><img src="https://inotgo.com/imagesLocal/202106/17/20210617103335450c_12.jpg" alt=""><br>当MemStore累积了足够的数据，整个数据集排序后写入HDFS中的新的HFile。每个列族会有多个HFile，其中包含实际的cells或KeyValues。随着时间的推移，MemStore中排序的KeyValue被不断刷新到硬盘，形成hfile。请注意，这是HBase中列族数量有限制的一个原因。<br>每个列族有一个MemStore; 当MemStore满了，它被刷新到硬盘。它还保存了最后写入的序列号，这样系统就知道到目前为止持久化的WAL。最高的序列号作为元字段存储在每个HFile中，以反映开始和结束的位置。在region启动时，将读取序列号，并将最高值用作新更新的序列号。</p>
+<p><strong>HBase Hfile</strong><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220425110813.png" alt=""><br>数据以排序的key/values形式存储在HFile中。当MemStore累积足够的数据时，整个排序的KeyValue集合被写入HDFS中的新Hfile。这是顺序写入，所以它非常快。</p>
+<p><strong>HBase Read Merge</strong><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220425110917.png" alt=""><br>一行数据可能存在多个地方，已经持久化的cell在Hfile，最近更新的cell在memstore，最近读取的cell在Block cache。所以，当你读取一行，系统怎样得到相应的cell并返回？<br>首先，扫描器在Block cache中寻找Row cell。 最近读取的cell被缓存在这里，并且当Block cache满时，使用LRU进行换出。接下来，扫描器在MemStore中查找，最近写入的数据存在于内存中的MemStore。如果扫描器在MemStore和Block cache中没有找到所有row cells，则HBase将使用Block Cache indexes和bloom filters将HFiles加载到内存中查找目标row cell。<br>每个MemStore可能有许多HFile，这意味着要进行读取，可能需要检查多个文件，这可能会影响性能。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220425111009.png" alt=""></p>
+<h3><span id="合并和分裂">合并和分裂</span></h3><p><strong>HBase Minor Compaction</strong><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220425111105.png" alt=""><br>HBase将自动选择一些较小的HFile并将其重写为一些较大的Hfile。 这个过程称为minor compaction。<br>minor compaction通过将较多较小的文件重写为较少但较大的文件（合并排序），从而减少存储文件数。</p>
+<p><strong>HBase Major Compaction</strong><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220425111159.png" alt=""><br>Major compaction将一个region中的所有同一列簇的HFile合并并重写为一个HFile，此过程会删除deleted 和 expired cells。 这提高了读取性能; 但是，由于Major compaction会重写所有文件，因此在此过程中可能消耗大量磁盘I/O和网络流量。<br>Major compaction可以设置成自动运行。由于性能影响，Major compaction通常在周末或晚上进行。Major compaction可以恢复数据的本地化特性。</p>
+<p><strong>Region Split</strong><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220425111232.png" alt=""><br>最初，每个表只有一个region。 当一个region变得太大时，它分裂成两个子region。 两个子region分别代表原始region的一半，并在同一个region server上并行打开，然后将分裂信息报告给Hmaster。出于负载平衡的原因，Hmaster会安排将新region移动到另一个region server。</p>
+<p><strong>Read Load Balancing</strong><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220425111300.png" alt=""><br>分裂最初发生在同一region server上，但是出于负载平衡的原因，HMaster可以安排将新region移动到其他region server。 这导致新的region server提供来自远程HDFS节点的数据，直到Major compaction将数据文件移动到region server的本地节点。 HBase数据在写入时是本地的，但是当region被移动（用于负载平衡或恢复）时，在Major compaction之前它不是本地的。</p>
+<h3><span id="容错">容错</span></h3><p><strong>HBase Crash Recovery</strong><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220425111318.png" alt=""><br>当RegionServer失败时，崩溃的Regions不可用，直到检测和恢复步骤发生。当Zookeeper失去region server的心跳时，它将确定节点失败。然后HMaster将被告知Region Server已失败。</p>
 <p>当HMaster检测到Region Server崩溃时，HMaster将崩溃Region Server中的Regions重新分配给活动Region Server。为了恢复崩溃的Region Server的memstore中没有刷新到磁盘的操作。HMaster将属于崩溃Region Server的WAL拆分为单独的文件，并将这些文件存储在新Region Server的数据节点中。 然后，每个Region Server重放相应的WAL，以重建该Region的memstore。</p>
-<p><strong>Data Recovery</strong><br><img src="https://material.coderap.com/2017/11/iCffdLx7CbOapFv5TR6w3lJTjfWl0JNUZD5QIY03OCI0xhQebUWfKIiQDLtjDTC3" alt=""><br>WAL文件包含写操作列表，其中一个写操作表示一个put或delete。写操作是按时间顺序记录的，以追加的形式写到存储在磁盘上的WAL文件的末尾。如果数据仍在内存中并且未持久保存到HFile时出现故障，会发生什么情况？<br>重放WAL。通过读取WAL，将包含的写操作更新到当前的MemStore中。最后，MemStore刷新将更改写入HFile。</p>
+<p><strong>Data Recovery</strong><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220425111334.png" alt=""><br>WAL文件包含写操作列表，其中一个写操作表示一个put或delete。写操作是按时间顺序记录的，以追加的形式写到存储在磁盘上的WAL文件的末尾。如果数据仍在内存中并且未持久保存到HFile时出现故障，会发生什么情况？<br>重放WAL。通过读取WAL，将包含的写操作更新到当前的MemStore中。最后，MemStore刷新将更改写入HFile。</p>
 
       
 
