@@ -155,6 +155,268 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-ck-intro" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2021/09/04/ck-intro/">ClickHouse入门介绍</a>
+    </h1>
+  
+
+        
+        <a href="/2021/09/04/ck-intro/" class="archive-article-date">
+  	<time datetime="2021-09-04T12:13:29.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-09-04</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#olap技术概述">OLAP技术概述</a><ul>
+<li><a href="#oltp-vs-olap">OLTP vs OLAP</a></li>
+<li><a href="#olap场景特点">OLAP场景特点</a></li>
+<li><a href="#olap分类">OLAP分类</a></li>
+<li><a href="#主流olap系统比较">主流OLAP系统比较</a></li>
+</ul>
+</li>
+<li><a href="#clickhouse特性介绍">ClickHouse特性介绍</a><ul>
+<li><a href="#简介">简介</a></li>
+<li><a href="#列式存储">列式存储</a></li>
+<li><a href="#分区">分区</a></li>
+<li><a href="#主键索引">主键索引</a></li>
+<li><a href="#跳数索引">跳数索引</a></li>
+<li><a href="#向量化引擎">向量化引擎</a></li>
+<li><a href="#动态代码生成">动态代码生成</a></li>
+<li><a href="#多核并行">多核并行</a></li>
+<li><a href="#分布式计算">分布式计算</a></li>
+<li><a href="#表引擎megretree">表引擎MegreTree</a></li>
+<li><a href="#复制表replicated-table">复制表Replicated Table</a></li>
+<li><a href="#集群cluster">集群Cluster</a></li>
+<li><a href="#分布式表distributed-table">分布式表Distributed Table</a></li>
+<li><a href="#物化视图">物化视图</a></li>
+</ul>
+</li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="olap技术概述">OLAP技术概述</span></h2><h3><span id="oltp-vs-olap">OLTP vs OLAP</span></h3><pre><code>联机事务处理OLTP（On-Line Transaction Processing）
+    主要是事务处理，如数据库记录的增删改。比如用户的一笔充值记录，就是一个典型的事务。
+
+联机分析处理OLAP（On-Line Analytical Processing）
+    数仓的主要应用，支持复杂的分析操作。典型的应用就是复杂、动态的报表系统。
+</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904201708.png" alt=""></p>
+<h3><span id="olap场景特点">OLAP场景特点</span></h3><pre><code>数据规模巨大
+
+实时性要求不高
+
+并发不高（一般面向内部或toB，而非toC）
+
+无需事务，数据一致性要求低
+
+数据批量写入，且数据不更新或少更新：历史数据往往作为存档，不会再做更新、删除操作
+
+读多于写：数据一次性写入后，分析师需要尝试从各个角度对数据做挖掘、分析
+
+大宽表，读大量行少量列，按照维度列聚合成一个小的结果集
+
+查询灵活多变：分析维度灵活，预先建模技术适用场景有限
+</code></pre><h3><span id="olap分类">OLAP分类</span></h3><pre><code>1.MOLAP（Multi-Dimensional OLAP）
+   OLAP最初的形态，基于多维数组的存储模型，特点是对数据进行预计算，以空间换时间，但生成cube需要大量时间和空间。
+
+   MOLAP 的优点和缺点都来自于其数据预处理环节。数据预处理，将原始数据按照指定的计算规则预先做聚合计算，这样避免了查询过程中出现大量的即时计算，提升了查询性能。但是这样的预聚合处理，需要预先定义维度，会限制后期数据查询的灵活性，存储成本也很高；同时，这种方式不支持明细数据的查询，仅适用于聚合型查询（如：sum，avg，count）。
+
+   因此，MOLAP适用于查询场景相对固定并且对查询性能要求非常高的场景。如广告主经常使用的广告投放报表分析。
+
+   代表技术有Kylin、Druid
+
+2.ROLAP（Relational OLAP）
+   基于关系模型进行存储数据（事实表、维度表），不需要预计算，按需即时查询。
+
+   ROLAP收到Query请求时，会先解析Query，生成执行计划，扫描数据，执行关系型算子（过滤(Where)、聚合(Sum, Avg, Count)、关联(Join)，分组（Group By)、排序（Order By）等），最后将结果返回给用户，整个过程都是即时计算，没有预先聚合好的数据，拼的就是资源和算力。但是当数据量较大或 query 较为复杂时，查询性能无法像 MOLAP 那样稳定。所有计算都是即时触发 ( 没有预处理 )，因此会耗费更多的计算资源，带来潜在的重复计算。
+
+   因此，ROLAP适用于对查询模式不固定、查询灵活性要求高的场景。如数据分析师常用的数据分析类产品，他们往往会对数据做各种预先不能确定的分析，所以需要更高的查询灵活性。
+
+   代表技术栈有Presto、Impala、Clickhouse等
+</code></pre><h3><span id="主流olap系统比较">主流OLAP系统比较</span></h3><pre><code>目前还没有一个系统能够满足各种场景的查询需求。其本质原因是，没有一个系统能同时在数据量、性能、和灵活性三个方面做到完美，每个系统在设计时都需要在这三者间做出取舍。
+</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202146.png" alt=""></p>
+<pre><code>Apache Kylin
+固定维度的聚合查询，并发量高，查询迅速响应（亚秒级~秒级），数量级支持TB-PB
+
+ClickHouse
+大宽表，单表查询速度极佳，join表现差，支持明细数据查询，数量级支持TP-PB
+
+Apache Doris
+灵活的多维度查询，join表现比ClickHouse好，支持明细数据查询，数量级支持TP-PB，mysql语法，易运维
+</code></pre><h2><span id="clickhouse特性介绍">ClickHouse特性介绍</span></h2><h3><span id="简介">简介</span></h3><pre><code>ClickHouse是一个用于在线分析处理（OLAP）的列式数据库管理系统（DBMS）。是由俄罗斯的Yandex公司为了Yandex Metrica网络分析服务而开发。它支持分析实时更新的数据，以高性能著称。
+
+特性：
+    PB级数据处理能力
+    列式数据存储
+    优秀的数据压缩
+    向量化引擎
+    多核并行处理
+    多服务器分布式处理
+    支持实时数据更新
+    高吞吐写入
+    SQL支持（部分语句有差异）
+    近似计算
+    少依赖，上手容易
+</code></pre><h3><span id="列式存储">列式存储</span></h3><pre><code>列存模式下，只需要读取参与计算的列即可，极大的降低了IO cost，加速了查询。
+同一列中的数据属于同一类型，压缩效果显著。列存往往有着高达十倍甚至更高的压缩比，节省了大量的存储空间，降低了存储成本。
+自由的压缩算法选择。不同列的数据具有不同的数据类型，适用的压缩算法也就不尽相同。可以针对不同列类型，选择最合适的压缩算法。
+更高的压缩比意味着更小的data size，从磁盘中读取相应数据耗时更短；同等大小的内存能够存放更多数据，系统cache效果更好。
+</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202353.png" alt=""></p>
+<h3><span id="分区">分区</span></h3><pre><code>PARTITION BY toYYYYMMDD(ts)
+PARTITION BY toStartOfHour(ts)
+
+数据分区在ClickHouse中主要有两方面应用：
+
+    在partition key上进行分区裁剪，只查询必要的数据。
+    对partition进行TTL管理，淘汰过期的分区数据。
+
+每个分区在文件系统中都是以目录的形式存在。
+常用时间字段作为分区字段，数据量大的表可以按照小时分区，数据量小的表可以在按照天分区或者月分区，查询时，使用分区字段作为Where条件，可以有效的过滤掉大量非结果集数据。
+</code></pre><h3><span id="主键索引">主键索引</span></h3><pre><code>ORDER BY (CounterID, Date)  -- 排序键，排序键用于在数据片段中进行排序
+PRIMARY KEY (CounterID, Date) -- 主键，主键用于在索引文件中进行标记的写入
+
+ClickHouse将每列数据按照index granularity（默认8192行）进行划分，每个index granularity的开头第一行被称为一个mark行。主键索引存储该mark行对应的primary key的值。
+
+对于where条件中含有primary key的查询，查询时通过对主键索引进行二分查找，定位到对应的 mrk 标记文件，进而找到对应的 bin 文件的偏移量，最终扫描得到相应的数据，避免了全表扫描，从而加速查询。 值得注意的是，ClickHouse 的主键与 MySQL 等数据库不同，主键不是唯一的。
+</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202440.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202520.png" alt=""></p>
+<h3><span id="跳数索引">跳数索引</span></h3><pre><code>ClickHouse支持对任意列创建任意数量的跳数索引（二级索引）。其中被索引的value可以是任意的合法SQL Expression，并不仅仅局限于对column value本身进行索引。
+
+目前支持的索引类型包括：
+    minmax: 以index granularity为单位，存储指定表达式计算后的min、max值；在等值和范围查询中能够帮助快速跳过不满足要求的块，减少IO。
+    set(max_rows)：以index granularity为单位，存储指定表达式的distinct value集合，用于快速判断等值查询是否命中该块，减少IO。
+    ngrambf_v1(n, size_of_bloom_filter_in_bytes, number_of_hash_functions, random_seed)：将string进行ngram分词后，构建bloom filter，能够优化等值、like、in等查询条件。
+    tokenbf_v1(size_of_bloom_filter_in_bytes, number_of_hash_functions, random_seed)： 与ngrambf_v1类似，区别是不使用ngram进行分词，而是通过标点符号进行词语分割。
+    bloom_filter([false_positive])：对指定列构建bloom filter，用于加速等值、like、in等查询条件的执行。
+</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202609.png" alt=""></p>
+<h3><span id="向量化引擎">向量化引擎</span></h3><pre><code>ClickHouse实现了向量执行引擎（Vectorized execution engine），对内存中的列式数据，一个batch调用一次SIMD（Single Instruction, Multiple Data，即单条指令操作多条数据）指令（而非每一行调用一次），不仅减少了函数调用次数、降低了cache miss，而且可以充分发挥SIMD指令的并行能力，大幅缩短了计算耗时。
+
+向量执行引擎，通常能够带来数倍的性能提升。
+</code></pre><h3><span id="动态代码生成">动态代码生成</span></h3><pre><code>在经典的数据库实现中，通常对表达式计算采用火山模型(将整个 SQL 构建成一个 Operator 树)。为了连接不同算子（如HashJoin、Scan、IndexScan、Aggregation等），operator之间采用统一的接口（如open/next/close），在每个算子内部都实现了父类的这些虚函数。在分析场景中单条SQL要处理数据通常高达数亿行，虚函数的调用开销不再可以忽略不计。另外，在每个算子内部都要考虑多种变量，比如列类型、列的size、列的个数等，存在着大量的if-else分支判断导致CPU分支预测失效。
+
+ClickHouse实现了Expression级别的runtime codegen，动态地根据当前SQL直接生成代码，然后编译执行。不仅消除了大量的虚函数调用（即图中多个function pointer的调用），而且由于在运行时表达式的参数类型、个数等都是已知的，也消除了不必要的if-else分支判断。
+</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202656.png" alt=""></p>
+<h3><span id="多核并行">多核并行</span></h3><pre><code>ClickHouse将数据划分为多个partition，每个partition再进一步划分为多个index granularity，然后通过多个CPU核心分别处理其中的一部分来实现并行数据处理。
+
+在这种设计下，单条Query就能利用整机所有CPU。极致的并行处理能力，极大的降低了查询延时。
+</code></pre><h3><span id="分布式计算">分布式计算</span></h3><pre><code>除了优秀的单机并行处理能力，ClickHouse还提供了可线性拓展的分布式计算能力。ClickHouse会自动将查询拆解为多个task下发到集群中，然后进行多机并行处理，最后把结果汇聚到一起。
+
+在存在多副本的情况下，ClickHouse还提供了多种query下发策略。
+</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202746.png" alt=""></p>
+<h3><span id="表引擎megretree">表引擎MegreTree</span></h3><pre><code>MergeTree 和 LSM 结构类似，数据按照主键排序，每次写入数据分区形成一个个的 Parts 文件，Parts 内部有序。
+
+ClickHouse在数据导入时全部是顺序append写，写入后数据段不可更改，在后台compaction时也是多个段merge sort后顺序写回磁盘。顺序写的特性，充分利用了磁盘的吞吐能力，即便在HDD上也有着优异的写入性能。
+
+官方公开benchmark测试显示能够达到50MB-200MB/s的写入吞吐能力，按照每行100Byte估算，大约相当于50W-200W条/s的写入速度。
+</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202818.png" alt=""></p>
+<pre><code>ReplacingMergeTree: 会根据主键进行去重，但是这是后台合并时才会去重，无法控制合并时机，尽管可以用 OPTIMIZE … FINAL 语句来强制合并执行，但是由于性能原因一般不会使用。
+
+CollapsingMergeTree: 异步的删除（折叠）这些除了特定列 Sign 有 1 和 -1 的值以外，其余所有字段的值都相等的成对的行。没有成对的行会被保留。
+
+VersionedCollapsingMergeTree: 类似于 CollapsingMergeTree, 多了 Version 列，支持多线程乱序插入的场景，相比之下, CollapsingMergeTree 只允许严格连续插入。
+
+AggregatingMergeTree: 做增量数据的聚合统计，包括物化视图的数据聚。
+
+ReplicatedXXXMergeTree: 使得以上 MergeTree 家族拥有副本机制，保证高可用，用于生产环境。
+</code></pre><h3><span id="复制表replicated-table">复制表Replicated Table</span></h3><pre><code>简单理解就是相同的数据备份。
+
+先写入一个副本，再通过内部端口将数据复制到其他实例上去，同时更新ZK集群上记录的信息。
+
+在ClickHouse中通过复制表，我们实现保障了数据可靠性外，也通过多副本的方式，增加了ClickHouse查询的并发能力。
+</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202917.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202935.png" alt=""></p>
+<h3><span id="集群cluster">集群Cluster</span></h3><p>分片<br>一个分片本身就是ClickHouse一个实例节点，分片的本质就是为了提高查询效率，将一份全量的数据分成多份（片），从而降低单节点的数据扫描数量，提高查询性能。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203009.png" alt=""></p>
+<p>ClickHouse的分布式是一个有意思的设计方式，多个节点部署完成后，节点与节点之间并没有联系。通过ClickHouse集群的配置文件来形成集群。配置中包含集群的节点信息，复制节点，分片节点，同构成一个Cluster。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203045.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203032.png" alt=""></p>
+<p>这样就形成了一个有意思的现象。我们可以抽象为：”集群定义节点和节点的关系，节点不知道集群”。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203112.png" alt=""></p>
+<h3><span id="分布式表distributed-table">分布式表Distributed Table</span></h3><p>ClickHouse分布式表的本质并不是一张表，而是一些本地物理表（分片）的分布式视图（集群配置），本身并不存储数据。<br>Distributed表引擎的定位就好比是一个中间件，能自动的将SQL查询路由到每个分片。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203138.png" alt=""></p>
+<p>在分布式表上执行查询的流程简图如下所示。<br>发出查询后，分布式表引擎将我们的查询请求发送到所有分片进行查询，最终汇总到同一个实例上返回给用户。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203201.png" alt=""></p>
+<p>（1） 写本地表<br>数据写入时，可以由客户端控制数据分布，直接写入集群中ClickHouse实例的本地表。也可以通过LB组件（如LVS，Nginx）进行控制。</p>
+<p>（2） 写分布式表<br>数据写入时，先写入集群中的分布式表下的节点临时目录，再由分布式表将Insert语句分发到集群各个节点上执行，分布式表不存储实际数据。</p>
+<p>推荐的数据写入方式：本地表写入。</p>
+<h3><span id="物化视图">物化视图</span></h3><p>物化视图是查询结果集的一份持久化存储。产生物化视图的过程就叫做“物化”（materialization）。广义地讲，物化视图是数据库中的预计算逻辑+显式缓存，典型的空间换时间思路。所以用得好的话，它可以避免对基础表的频繁查询并复用结果，从而显著提升查询的性能。</p>
+<p>物化视图会计算当前批次的数据汇总一次，然后根据维度自动merge聚合统计的指标，但是不会跨节点和分区</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203240.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203252.png" alt=""></p>
+<h2><span id="参考资料">参考资料</span></h2><p><a href="https://winway.github.io/2021/07/25/olapNotes/">https://winway.github.io/2021/07/25/olapNotes/</a></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">olap</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">clickhouse</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2021/09/04/ck-intro/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-olapNotes" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1538,93 +1800,6 @@
 
 
   
-    <article id="post-sendmail" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2019/08/25/sendmail/">一个邮件发送脚本</a>
-    </h1>
-  
-
-        
-        <a href="/2019/08/25/sendmail/" class="archive-article-date">
-  	<time datetime="2019-08-25T10:08:57.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-08-25</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<!-- tocstop -->
-<p>工作中经常需要发送各种报表邮件，于是简单写了一个发送邮件的Python脚本。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#!/usr/bin/env python</span></span><br><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"><span class="comment"># @Date : 2019-03-03 16:35:03</span></span><br><span class="line"><span class="comment"># @Author : winway(winway1988@163.com)</span></span><br><span class="line"><span class="comment"># @Link : https://winway.github.io</span></span><br><span class="line"><span class="comment"># @Version : 0.1</span></span><br><span class="line"><span class="comment"># @Description : 这个家伙很懒，没有留下任何信息</span></span><br><span class="line"><span class="comment"># @History :</span></span><br><span class="line"><span class="comment"># @Other:</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"><span class="comment">#      ┏┛ ┻━━━━━┛ ┻┓</span></span><br><span class="line"><span class="comment">#      ┃　　　　　　 ┃</span></span><br><span class="line"><span class="comment">#      ┃　　　━　　　┃</span></span><br><span class="line"><span class="comment">#      ┃　┳┛　  ┗┳　┃</span></span><br><span class="line"><span class="comment">#      ┃　　　　　　 ┃</span></span><br><span class="line"><span class="comment">#      ┃　　　┻　　　┃</span></span><br><span class="line"><span class="comment">#      ┃　　　　　　 ┃</span></span><br><span class="line"><span class="comment">#      ┗━┓　　　┏━━━┛</span></span><br><span class="line"><span class="comment">#        ┃　　　┃   GOD BLESS!</span></span><br><span class="line"><span class="comment">#        ┃　　　┃    NO BUG！</span></span><br><span class="line"><span class="comment">#        ┃　　　┗━━━━━━━━━┓</span></span><br><span class="line"><span class="comment">#        ┃　　　　　　　    ┣┓</span></span><br><span class="line"><span class="comment">#        ┃　　　　         ┏┛</span></span><br><span class="line"><span class="comment">#        ┗━┓ ┓ ┏━━━┳ ┓ ┏━┛</span></span><br><span class="line"><span class="comment">#          ┃ ┫ ┫   ┃ ┫ ┫</span></span><br><span class="line"><span class="comment">#          ┗━┻━┛   ┗━┻━┛</span></span><br><span class="line"></span><br><span class="line"><span class="string">r"""</span></span><br><span class="line"><span class="string">邮件发送脚本</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">参数说明：</span></span><br><span class="line"><span class="string">-t &lt;TEXT|PLAIN|TABLE&gt;     发送模式</span></span><br><span class="line"><span class="string">-s subject                主题</span></span><br><span class="line"><span class="string">-c content                正文</span></span><br><span class="line"><span class="string">-i bodyheader             正文列标题，逗号分隔</span></span><br><span class="line"><span class="string">-f bodyFile               正文，文件形式</span></span><br><span class="line"><span class="string">-r receivers              收件人，逗号分隔</span></span><br><span class="line"><span class="string">-a attachment             附件</span></span><br><span class="line"><span class="string">-x ccreceivers            抄送人，逗号分隔</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">模式说明：</span></span><br><span class="line"><span class="string">TEXT模式</span></span><br><span class="line"><span class="string">    通过-c content指定邮件正文内容</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">PLAIN模式</span></span><br><span class="line"><span class="string">    通过-f bodyFile指定邮件正文内容</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">TABLE模式</span></span><br><span class="line"><span class="string">    通过-i bodyheader -f bodyFile指定邮件正文内容，格式为表格</span></span><br><span class="line"><span class="string">"""</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">import</span> sys</span><br><span class="line"><span class="keyword">import</span> getopt</span><br><span class="line"><span class="keyword">import</span> smtplib</span><br><span class="line"><span class="keyword">from</span> email.header <span class="keyword">import</span> Header</span><br><span class="line"><span class="keyword">from</span> email.mime.text <span class="keyword">import</span> MIMEText</span><br><span class="line"><span class="keyword">from</span> email.mime.multipart <span class="keyword">import</span> MIMEMultipart</span><br><span class="line"><span class="keyword">from</span> email.mime.application <span class="keyword">import</span> MIMEApplication</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">reload(sys)</span><br><span class="line">sys.setdefaultencoding(<span class="string">'utf8'</span>)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">MAILSERVER = <span class="string">'smtp.163.com'</span></span><br><span class="line">SENDER = <span class="string">'winway@163.com'</span></span><br><span class="line">PASSWORD = <span class="string">'123456'</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">usage</span><span class="params">()</span>:</span></span><br><span class="line">    print(<span class="string">"Usage: %s -t &lt;TEXT|PLAIN|TABLE&gt; -s subject -c content -i bodyheader -f bodyFile -r receivers -a attachment -x ccreceivers"</span> %</span><br><span class="line">          sys.argv[<span class="number">0</span>])</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sendmail</span><span class="params">(host, sender, pwd, receivers, ccReceivers, subject, mailbody, attachmentFile)</span>:</span></span><br><span class="line">    print(<span class="string">'send mail ...'</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 第三方 SMTP 服务</span></span><br><span class="line">    mail_host = host  <span class="comment"># 设置服务器</span></span><br><span class="line">    mail_user = sender  <span class="comment"># 用户名</span></span><br><span class="line">    mail_pass = pwd  <span class="comment"># 口令</span></span><br><span class="line"></span><br><span class="line">    theMail = MIMEMultipart()</span><br><span class="line"></span><br><span class="line">    theMail[<span class="string">'Subject'</span>] = Header(subject, <span class="string">'utf-8'</span>)</span><br><span class="line"></span><br><span class="line">    message = MIMEText(mailbody, <span class="string">'html'</span>, <span class="string">'utf-8'</span>)</span><br><span class="line">    theMail.attach(message)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> attachmentFile <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span>:</span><br><span class="line">        attachment = MIMEApplication(open(attachmentFile, <span class="string">'rb'</span>).read())</span><br><span class="line">        attachment.add_header(<span class="string">'Content-Disposition'</span>, <span class="string">'attachment'</span>,</span><br><span class="line">                              filename=os.path.basename(attachmentFile))</span><br><span class="line">        theMail.attach(attachment)</span><br><span class="line"></span><br><span class="line">    theMail[<span class="string">'From'</span>] = Header(SENDER, <span class="string">'utf-8'</span>)</span><br><span class="line">    theMail[<span class="string">'To'</span>] = <span class="string">','</span>.join(receivers)</span><br><span class="line">    <span class="keyword">if</span> ccReceivers:</span><br><span class="line">        theMail[<span class="string">'Cc'</span>] = Header(<span class="string">','</span>.join(ccReceivers), <span class="string">'utf-8'</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        smtpObj = smtplib.SMTP()</span><br><span class="line">        smtpObj.connect(mail_host, <span class="number">25</span>)  <span class="comment"># 25 为 SMTP 端口号</span></span><br><span class="line">        smtpObj.login(mail_user, mail_pass)</span><br><span class="line">        smtpObj.sendmail(sender, receivers + ccReceivers, theMail.as_string())</span><br><span class="line">        print(<span class="string">"邮件发送成功"</span>)</span><br><span class="line">    <span class="keyword">except</span> smtplib.SMTPException, e:</span><br><span class="line">        print(<span class="string">"Error: 无法发送邮件"</span>)</span><br><span class="line">        print(e)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">construct_body</span><span class="params">(type, bodyHeader, bodyFile)</span>:</span></span><br><span class="line">    <span class="keyword">if</span> type == <span class="string">'TABLE'</span>:</span><br><span class="line">        <span class="keyword">return</span> construct_table(bodyHeader, bodyFile)</span><br><span class="line">    <span class="keyword">elif</span> type == <span class="string">'PLAIN'</span>:</span><br><span class="line">        <span class="keyword">return</span> construct_plain(bodyFile)</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        print(<span class="string">"Error: 未知发送类型"</span>)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">construct_plain</span><span class="params">(bodyFile)</span>:</span></span><br><span class="line">    <span class="keyword">with</span> open(bodyFile, <span class="string">'r'</span>) <span class="keyword">as</span> f:</span><br><span class="line">        lines = f.readlines()</span><br><span class="line">        <span class="keyword">return</span> <span class="string">''</span>.join(lines)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">construct_table</span><span class="params">(bodyHeader, bodyFile)</span>:</span></span><br><span class="line">    table = <span class="string">'&lt;table border="1"&gt;'</span></span><br><span class="line"></span><br><span class="line">    table += <span class="string">'  &lt;tr&gt;'</span></span><br><span class="line">    <span class="keyword">for</span> h <span class="keyword">in</span> bodyHeader.split(<span class="string">','</span>):</span><br><span class="line">        table += <span class="string">'&lt;th&gt;%s&lt;/th&gt;'</span> % h</span><br><span class="line">    table += <span class="string">'  &lt;/tr&gt;'</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">with</span> open(bodyFile, <span class="string">'r'</span>) <span class="keyword">as</span> f:</span><br><span class="line">        <span class="keyword">for</span> l <span class="keyword">in</span> f:</span><br><span class="line">            table += <span class="string">'  &lt;tr&gt;'</span></span><br><span class="line">            <span class="keyword">for</span> c <span class="keyword">in</span> l.split(<span class="string">'\t'</span>):</span><br><span class="line">                table += <span class="string">'&lt;td&gt;%s&lt;/td&gt;'</span> % c</span><br><span class="line">            table += <span class="string">'  &lt;/tr&gt;'</span></span><br><span class="line"></span><br><span class="line">    table += <span class="string">'&lt;/table&gt;'</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> table</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line">    sendType = <span class="keyword">None</span></span><br><span class="line">    subject = <span class="keyword">None</span></span><br><span class="line">    content = <span class="keyword">None</span></span><br><span class="line">    bodyHeader = <span class="keyword">None</span></span><br><span class="line">    bodyFile = <span class="keyword">None</span></span><br><span class="line">    attachment = <span class="keyword">None</span></span><br><span class="line">    receivers = <span class="keyword">None</span></span><br><span class="line">    ccReceivers = <span class="keyword">None</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        opts, args = getopt.getopt(sys.argv[<span class="number">1</span>:], <span class="string">"t:s:c:i:f:a:r:x:h"</span>,</span><br><span class="line">                                   [<span class="string">"sendtype="</span>, <span class="string">"subject="</span>, <span class="string">"content="</span>, <span class="string">"bodyHeader="</span>, <span class="string">"attachment="</span>,</span><br><span class="line">                                    <span class="string">"bodyFile="</span>, <span class="string">"receivers="</span>, <span class="string">"ccreceivers="</span>, <span class="string">"help"</span>])</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> opt, arg <span class="keyword">in</span> opts:</span><br><span class="line">            <span class="keyword">if</span> opt <span class="keyword">in</span> (<span class="string">"-h"</span>, <span class="string">"--help"</span>):</span><br><span class="line">                usage()</span><br><span class="line">                sys.exit(<span class="number">1</span>)</span><br><span class="line">            <span class="keyword">elif</span> opt <span class="keyword">in</span> (<span class="string">"-t"</span>, <span class="string">"--sendtype"</span>):</span><br><span class="line">                sendType = arg</span><br><span class="line">            <span class="keyword">elif</span> opt <span class="keyword">in</span> (<span class="string">"-s"</span>, <span class="string">"--subject"</span>):</span><br><span class="line">                subject = arg</span><br><span class="line">            <span class="keyword">elif</span> opt <span class="keyword">in</span> (<span class="string">"-c"</span>, <span class="string">"--content"</span>):</span><br><span class="line">                content = arg</span><br><span class="line">            <span class="keyword">elif</span> opt <span class="keyword">in</span> (<span class="string">"-i"</span>, <span class="string">"--fileheader"</span>):</span><br><span class="line">                bodyHeader = arg</span><br><span class="line">            <span class="keyword">elif</span> opt <span class="keyword">in</span> (<span class="string">"-f"</span>, <span class="string">"--file"</span>):</span><br><span class="line">                bodyFile = arg</span><br><span class="line">            <span class="keyword">elif</span> opt <span class="keyword">in</span> (<span class="string">"-a"</span>, <span class="string">"--attachment"</span>):</span><br><span class="line">                attachment = arg</span><br><span class="line">            <span class="keyword">elif</span> opt <span class="keyword">in</span> (<span class="string">"-r"</span>, <span class="string">"--receivers"</span>):</span><br><span class="line">                receivers = arg</span><br><span class="line">            <span class="keyword">elif</span> opt <span class="keyword">in</span> (<span class="string">"-x"</span>, <span class="string">"--ccreceivers"</span>):</span><br><span class="line">                ccReceivers = arg</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                print(<span class="string">"%s ==&gt; %s"</span> % (opt, arg))</span><br><span class="line">    <span class="keyword">except</span> getopt.GetoptError:</span><br><span class="line">        print(<span class="string">"getopt error!"</span>)</span><br><span class="line">        usage()</span><br><span class="line">        sys.exit(<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> sendType <span class="keyword">is</span> <span class="keyword">None</span> <span class="keyword">or</span> subject <span class="keyword">is</span> <span class="keyword">None</span> <span class="keyword">or</span> receivers <span class="keyword">is</span> <span class="keyword">None</span>:</span><br><span class="line">        print(<span class="string">"sendType is None or subject is None or receivers is None"</span>)</span><br><span class="line">        usage()</span><br><span class="line">        sys.exit(<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    receiverList = receivers.split(<span class="string">','</span>)</span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        ccReceiverList = ccReceivers.split(<span class="string">','</span>)</span><br><span class="line">    <span class="keyword">except</span> Exception:</span><br><span class="line">        ccReceiverList = []</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> sendType == <span class="string">'TEXT'</span>:</span><br><span class="line">        <span class="keyword">if</span> content <span class="keyword">is</span> <span class="keyword">None</span>:</span><br><span class="line">            print(<span class="string">"content == None"</span>)</span><br><span class="line">            usage()</span><br><span class="line">            sys.exit(<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">        sendmail(MAILSERVER, SENDER, PASSWORD,</span><br><span class="line">                 receiverList, ccReceiverList, subject, content, attachment)</span><br><span class="line">    <span class="keyword">elif</span> sendType == <span class="string">'PLAIN'</span>:</span><br><span class="line">        <span class="keyword">if</span> bodyFile <span class="keyword">is</span> <span class="keyword">None</span>:</span><br><span class="line">            print(<span class="string">"bodyFile is None"</span>)</span><br><span class="line">            usage()</span><br><span class="line">            sys.exit(<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">        sendmail(MAILSERVER, SENDER, PASSWORD,</span><br><span class="line">                 receiverList, ccReceiverList, subject, construct_body(sendType, <span class="keyword">None</span>, bodyFile), attachment)</span><br><span class="line">    <span class="keyword">elif</span> sendType == <span class="string">'TABLE'</span>:</span><br><span class="line">        <span class="keyword">if</span> bodyHeader <span class="keyword">is</span> <span class="keyword">None</span> <span class="keyword">or</span> bodyFile <span class="keyword">is</span> <span class="keyword">None</span>:</span><br><span class="line">            print(<span class="string">"bodyHeader is None or bodyFile is None"</span>)</span><br><span class="line">            usage()</span><br><span class="line">            sys.exit(<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">        sendmail(MAILSERVER, SENDER, PASSWORD,</span><br><span class="line">                 receiverList, ccReceiverList, subject, construct_body(sendType, bodyHeader, bodyFile), attachment)</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        print(<span class="string">"unknown sendType"</span>)</span><br><span class="line">        usage()</span><br><span class="line">        sys.exit(<span class="number">1</span>)</span><br></pre></td></tr></table></figure>
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">python</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2019/08/25/sendmail/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><a class="page-number" href="/page/4/">4</a><span class="space">&hellip;</span><a class="page-number" href="/page/10/">10</a><a class="extend next" rel="next" href="/page/3/">Next &raquo;</a>
@@ -1732,10 +1907,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">shell</a>
               </li>
              
@@ -1744,7 +1915,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1752,11 +1923,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">flume</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1784,19 +1963,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">influxdb</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">grafana</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">备份</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">influxdb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">grafana</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1812,6 +1991,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">tez</a>
               </li>
              
@@ -1820,7 +2003,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1832,14 +2015,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
               </li>
              
@@ -1848,7 +2023,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1864,11 +2043,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1876,11 +2051,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
+                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1896,7 +2075,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">小文件</a>
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1904,19 +2083,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+                <a href="javascript:void(0)" class="js-tag color4">小文件</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">storm</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">olap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1925,6 +2096,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">olap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1944,15 +2123,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">flume</a>
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
               </li>
             
             <div class="clearfix"></div>
