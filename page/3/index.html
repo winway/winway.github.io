@@ -155,6 +155,132 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-gfaIfxActoin" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2019/08/30/gfaIfxActoin/">InfluxDB&amp;Grafana实战总结</a>
+    </h1>
+  
+
+        
+        <a href="/2019/08/30/gfaIfxActoin/" class="archive-article-date">
+  	<time datetime="2019-08-30T10:18:33.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-08-30</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#前言">前言</a></li>
+<li><a href="#下拉框动态取值">下拉框动态取值</a></li>
+<li><a href="#下拉框支持中文">下拉框支持中文</a></li>
+<li><a href="#增加timeshift功能">增加timeshift功能</a></li>
+<li><a href="#influxdb-timeshift-proxy优化">influxdb-timeshift-proxy优化</a></li>
+<li><a href="#cq预聚合">CQ预聚合</a></li>
+<li><a href="#控制tag数量和取值范围">控制tag数量和取值范围</a></li>
+<li><a href="#influxdb数据覆盖问题">InfluxDB数据覆盖问题</a></li>
+</ul>
+<!-- tocstop -->
+<h1><span id="前言">前言</span></h1><p>本文就使用InfluxDB和Grafana的过程中遇到的问题、知识点进行总结记录，不会涉及InfluxDB和Grafana的基本用法，读者需要对InfluxDB和Grafana有一定了解。</p>
+<ul>
+<li><a href="https://www.influxdata.com" target="_blank" rel="noopener">InfluxDB</a>是一个开源的时序数据库，使用GO语言开发，特别适合用于处理和分析资源监控数据这种时序相关数据。InfluxDB自带的各种特殊函数如求标准差、随机取样数据、统计数据变化比等，使数据统计和实时分析变得十分方便。</li>
+<li><a href="https://grafana.com/" target="_blank" rel="noopener">Grafana</a>是一个跨平台的开源度量分析和可视化工具，可以查询采集的数据然后可视化展示。Grafana支持许多不同的数据源，官方支持以下数据源：Graphite，InfluxDB，OpenTSDB，Prometheus，Elasticsearch，CloudWatch和KairosDB。</li>
+<li>基于InfluxDB和Grafana可以快速搭建一套时序数据存储、展示系统。</li>
+</ul>
+<h1><span id="下拉框动态取值">下拉框动态取值</span></h1><p>表metric_data存储有监控数据，有两个tag：hostname和metric_type。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&gt;</span> select * from metric_data;</span><br><span class="line">name: metric_data</span><br><span class="line">time                hostname metric_type value</span><br><span class="line">----                -------- ----------- -----</span><br><span class="line">1567094400000000000 hostA    cpu         1</span><br><span class="line">1567094400000000000 hostA    mem         2</span><br><span class="line">1567094400000000000 hostB    cpu         3</span><br><span class="line">1567094400000000000 hostB    mem         4</span><br><span class="line">1567094400000000000 hostC    cpu         5</span><br><span class="line">1567094400000000000 hostC    mem         6</span><br><span class="line"></span><br><span class="line"><span class="meta">&gt;</span> show tag values from metric_data with key="hostname"</span><br><span class="line">name: metric_data</span><br><span class="line">key      value</span><br><span class="line">---      -----</span><br><span class="line">hostname hostA</span><br><span class="line">hostname hostB</span><br><span class="line">hostname hostC</span><br><span class="line"><span class="meta">&gt;</span> show tag values from metric_data with key="metric_type"</span><br><span class="line">name: metric_data</span><br><span class="line">key         value</span><br><span class="line">---         -----</span><br><span class="line">metric_type cpu</span><br><span class="line">metric_type mem</span><br></pre></td></tr></table></figure></p>
+<p>希望查看数据时可以选择hostname和metric_type。效果如下图：<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20190830-194316.png" alt=""></p>
+<p>首先配置数据源<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831113134.png" alt=""></p>
+<p>针对tag hostname和metric_type定义两个Variables，将tag的取值作为下拉选项<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20190830-194537.png" alt=""></p>
+<p>然后在Query的where语句中使用变量作为条件<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20190830-200023.png" alt=""></p>
+<h1><span id="下拉框支持中文">下拉框支持中文</span></h1><p>如图实现“metric类型”下拉框显示“CPU使用率”和“内存使用率”。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831100904.png" alt=""></p>
+<p>首先创建一张映射表，将“cpu”映射成“CPU使用率”；“mem”映射成“内存使用率”<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&gt;</span> select * from metric_type_name_mapping</span><br><span class="line">name: metric_type_name_mapping</span><br><span class="line">time                metric_type name     value</span><br><span class="line">----                ----------- ----     -----</span><br><span class="line">1567216170324226055 cpu         'CPU使用率' 1</span><br><span class="line">1567216170356800234 mem         '内存使用率'  1</span><br></pre></td></tr></table></figure></p>
+<p>然后创建两个Variables，metric_type_name和metric_type<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831100300.png" alt=""></p>
+<p>metric_type_name的取值对应中文名，定义如下图<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831100710.png" alt=""></p>
+<p>metric_type的取值根据中文名映射成原始名，定义如下图<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831100800.png" alt=""></p>
+<p>最后，修改Query<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831101449.png" alt=""></p>
+<p>参考资料：<a href="https://community.grafana.com/t/how-to-alias-a-template-variable-value/10929/7" target="_blank" rel="noopener">https://community.grafana.com/t/how-to-alias-a-template-variable-value/10929/7</a></p>
+<p><strong>注意：这个方案需要在metric_type_name_mapping中维护metric_type的信息</strong></p>
+<h1><span id="增加timeshift功能">增加timeshift功能</span></h1><p>如图，希望对比展示今日和昨日同一时间点的数据。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831110639.png" alt=""></p>
+<p>InfluxDB默认不支持timeshift的功能，要实现这个功能需要借助一个代理<a href="https://github.com/maxsivanov/influxdb-timeshift-proxy" target="_blank" rel="noopener">influxdb-timeshift-proxy</a>。其原理是修改查询sql的时间区间，再转发给InfluxDB。<br>参照<a href="https://github.com/maxsivanov/influxdb-timeshift-proxy" target="_blank" rel="noopener">https://github.com/maxsivanov/influxdb-timeshift-proxy</a>安装完成后，配置新的数据源连接influxdb-timeshift-proxy。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831112919.png" alt=""></p>
+<p>修改查询数据源，并使用alias指定shift信息<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190831113629.png" alt=""></p>
+<h1><span id="influxdb-timeshift-proxy优化">influxdb-timeshift-proxy优化</span></h1><p>在使用influxdb-timeshift-proxy实现timeshift功能时，发现查询性能存在问题，原因是influxdb-timeshift-proxy会查询多余的数据，导致性能问题，详见<a href="https://github.com/maxsivanov/influxdb-timeshift-proxy/pull/21" target="_blank" rel="noopener">bug fix: avoid query unnecessary data</a>。<br>修改了sql替换逻辑，解决了该问题，代码见：<a href="https://github.com/winway/influxdb-timeshift-proxy" target="_blank" rel="noopener">https://github.com/winway/influxdb-timeshift-proxy</a></p>
+<h1><span id="cq预聚合">CQ预聚合</span></h1><p>为了提高查询性能，可以使用<a href="https://docs.influxdata.com/influxdb/v1.7/query_language/continuous_queries/" target="_blank" rel="noopener">CONTINUOUS QUERY</a>对原始数据进行预聚合，将秒/分钟级数据聚合成更粗粒度的分钟/小时级数据，减少查询数据量。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 查看现有CQ</span><br><span class="line"><span class="meta">&gt;</span> SHOW CONTINUOUS QUERIES</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 创建CQ</span><br><span class="line"><span class="meta">&gt;</span> CREATE CONTINUOUS QUERY metric_data_min ON test RESAMPLE EVERY 1m FOR 3m BEGIN SELECT MEAN(value) AS value INTO metric_data_min FROM metric_data GROUP BY time(1m), * END</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 删除CQ</span><br><span class="line"><span class="meta">&gt;</span> DROP CONTINUOUS QUERY metric_data_min ON test</span><br></pre></td></tr></table></figure></p>
+<h1><span id="控制tag数量和取值范围">控制tag数量和取值范围</span></h1><p>tag的数量太多，tag的取值范围太广会严重影响InfluxDB的性能，因为这些信息会占用大量内存。详见<a href="https://docs.influxdata.com/influxdb/v1.7/concepts/schema_and_data_layout/#discouraged-schema-design" target="_blank" rel="noopener">Discouraged schema design</a></p>
+<h1><span id="influxdb数据覆盖问题">InfluxDB数据覆盖问题</span></h1><p>具有相同时间戳和tag取值的记录在插入InfluxDB时会产生覆盖，这一点需要结合业务逻辑来考虑处理方式。详见<a href="https://github.com/influxdata/influxdb/issues/4150" target="_blank" rel="noopener">data with same timestamp and tags gets overwritten </a></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">influxdb</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">grafana</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2019/08/30/gfaIfxActoin/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-sendmail" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1094,102 +1220,6 @@
 
 
   
-    <article id="post-open-falcon-judge" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/12/03/open-falcon-judge/">open-falcon源码阅读之judge</a>
-    </h1>
-  
-
-        
-        <a href="/2017/12/03/open-falcon-judge/" class="archive-article-date">
-  	<time datetime="2017-12-03T11:27:04.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-12-03</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p><em>Version：0.2.0</em></p>
-<!-- toc -->
-<ul>
-<li><a href="#1-架构图">1. 架构图</a></li>
-<li><a href="#2-流程图">2. 流程图</a></li>
-<li><a href="#3-源码解析">3. 源码解析</a></li>
-</ul>
-<!-- tocstop -->
-<h1><span id="1-架构图">1. 架构图</span></h1><p>Judge接收Transfer上报的metric，在内存中维护。在有metric到来时，根据配置的strategy和expression判断是否触发报警阈值。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/judge%20arch.png" alt=""><br>Judge将metric、strategy、expression、event在内存中维护，数据结构如下图所示。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/judge%20struct.png" alt=""><br>计算函数均实现了Function接口，根据配置的计算策略，返回对应的struct，然后统一调用compute方法。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/judge%20function%20interface.png" alt=""></p>
-<h1><span id="2-流程图">2. 流程图</span></h1><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/judge%20flow.png" alt=""></p>
-<h1><span id="3-源码解析">3. 源码解析</span></h1><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">"flag"</span></span><br><span class="line">	<span class="string">"fmt"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/judge/cron"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/judge/g"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/judge/http"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/judge/rpc"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/judge/store"</span></span><br><span class="line">	<span class="string">"os"</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	cfg := flag.String(<span class="string">"c"</span>, <span class="string">"cfg.json"</span>, <span class="string">"configuration file"</span>)</span><br><span class="line">	version := flag.Bool(<span class="string">"v"</span>, <span class="literal">false</span>, <span class="string">"show version"</span>)</span><br><span class="line">	flag.Parse()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> *version &#123;</span><br><span class="line">		fmt.Println(g.VERSION)</span><br><span class="line">		os.Exit(<span class="number">0</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	g.ParseConfig(*cfg) <span class="comment">// 加载配置文件到config *GlobalConfig</span></span><br><span class="line"></span><br><span class="line">	g.InitRedisConnPool() <span class="comment">// 初始化redis连接池</span></span><br><span class="line">	g.InitHbsClient() <span class="comment">// 初始化rpc客户端，用于连接hbs</span></span><br><span class="line"></span><br><span class="line">	store.InitHistoryBigMap() <span class="comment">// 创建HistoryBigMap，用于存放最近的metrics，用于报警判断</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">go</span> http.Start() <span class="comment">// 启动http server，在init中注册处理函数configCommonRoutes和configInfoRoutes</span></span><br><span class="line">	<span class="keyword">go</span> rpc.Start() <span class="comment">// 启动rpc server，接收数据并更新到HistoryBigMap，然后进行judge判断，报警事件写入redis</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">go</span> cron.SyncStrategies() <span class="comment">// 周期性从hbs下载strategy和expression的配置</span></span><br><span class="line">	<span class="keyword">go</span> cron.CleanStale() <span class="comment">// 周期性清理近7天没有新数据上报的key</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">select</span> &#123;&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>详细代码注释请参考<a href="https://github.com/winway/falcon-plus-learn，持续更新中" target="_blank" rel="noopener">https://github.com/winway/falcon-plus-learn，持续更新中</a></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">open-falcon</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/12/03/open-falcon-judge/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/2/">&laquo; Prev</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/10/">10</a><a class="extend next" rel="next" href="/page/4/">Next &raquo;</a>
@@ -1289,15 +1319,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1317,11 +1347,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
+                <a href="javascript:void(0)" class="js-tag color4">pig</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1337,11 +1367,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1357,19 +1391,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">influxdb</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">grafana</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">tez</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1385,11 +1415,27 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">tez</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">gc</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1409,18 +1455,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
               </li>
              
@@ -1433,11 +1467,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1445,11 +1475,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
+                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1469,11 +1503,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1513,11 +1547,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
+                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
             
             <div class="clearfix"></div>
