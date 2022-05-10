@@ -155,6 +155,106 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-centos-7-tmp-file-removed-when-logout" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/08/01/centos-7-tmp-file-removed-when-logout/">systemd-logind.service的RemoveIPC参数影响</a>
+    </h1>
+  
+
+        
+        <a href="/2017/08/01/centos-7-tmp-file-removed-when-logout/" class="archive-article-date">
+  	<time datetime="2017-08-01T09:48:21.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-01</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#1-背景">1. 背景</a></li>
+<li><a href="#2-原因">2. 原因</a></li>
+<li><a href="#3-解决方法">3. 解决方法</a></li>
+<li><a href="#4-参考资料">4. 参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="1-背景">1. 背景</span></h2><p>最近在centos7.2上遇到一个奇怪的问题，用户在/tmp目录下创建的文件，在用户logout后会被删除，具体场景如下：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">Last login: Tue Aug  1 17:47:23 2017 from 192.168.37.12</span><br><span class="line"><span class="meta">$</span> ll /tmp/test.file</span><br><span class="line">ls: cannot access /tmp/test.file: No such file or directory</span><br><span class="line"><span class="meta">$</span> touch /tmp/test.file</span><br><span class="line"><span class="meta">$</span> ll /tmp/test.file</span><br><span class="line">-rw-rw-r-- 1 biztech biztech 0 Aug  1 17:52 /tmp/test.file</span><br><span class="line"><span class="meta">$</span> logout</span><br><span class="line">Connection to 10.144.103.141 closed.</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Last login: Tue Aug  1 17:52:09 2017 from 192.168.37.12</span><br><span class="line"><span class="meta">$</span> ll /tmp/test.file</span><br><span class="line">ls: cannot access /tmp/test.file: No such file or directory</span><br></pre></td></tr></table></figure></p>
+<h2><span id="2-原因">2. 原因</span></h2><p>经过艰苦卓绝的google，发现是systemd-logind.service的RemoveIPC参数导致的。因为我的系统里/tmp是共享内存实现的，刚好满足了这个场景。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">RemoveIPC=</span><br><span class="line"></span><br><span class="line">    Controls whether System V and POSIX IPC objects belonging to the user shall be removed when the user fully logs out. Takes a boolean argument. If enabled, the user may not consume IPC resources after the last of the user's sessions terminated. This covers System V semaphores, shared memory and message queues, as well as POSIX shared memory and message queues. Note that IPC objects of the root user and other system users are excluded from the effect of this setting. Defaults to "yes".</span><br></pre></td></tr></table></figure></p>
+<h2><span id="3-解决方法">3. 解决方法</span></h2><p>如果想关闭这个特性，可以按如下操作：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> sed -i 's/.*RemoveIPC.*/RemoveIPC=no/' /etc/systemd/logind.conf </span><br><span class="line"><span class="meta">#</span> grep RemoveIPC /etc/systemd/logind.conf</span><br><span class="line">RemoveIPC=no</span><br><span class="line"><span class="meta">#</span> systemctl restart systemd-logind.service</span><br></pre></td></tr></table></figure></p>
+<h2><span id="4-参考资料">4. 参考资料</span></h2><ol>
+<li><a href="https://bbs.archlinux.org/viewtopic.php?id=191409" target="_blank" rel="noopener">https://bbs.archlinux.org/viewtopic.php?id=191409</a></li>
+<li><a href="https://www.freedesktop.org/software/systemd/man/logind.conf.html" target="_blank" rel="noopener">https://www.freedesktop.org/software/systemd/man/logind.conf.html</a></li>
+<li><a href="https://docs.oracle.com/cd/E52668_01/E67200/html/section-t51_kcn_f5.html" target="_blank" rel="noopener">https://docs.oracle.com/cd/E52668_01/E67200/html/section-t51_kcn_f5.html</a></li>
+</ol>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">systemd</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/08/01/centos-7-tmp-file-removed-when-logout/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-salt-master-publisher" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1349,170 +1449,6 @@
 
 
   
-    <article id="post-big-data-storm" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/01/21/big-data-storm/">Hadoop生态系统介绍-Storm</a>
-    </h1>
-  
-
-        
-        <a href="/2017/01/21/big-data-storm/" class="archive-article-date">
-  	<time datetime="2017-01-21T06:00:12.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-01-21</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#前言">前言</a></li>
-<li><a href="#工作原理">工作原理</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="前言">前言</span></h2><p>提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。</p>
-<ol>
-<li><a href="https://winway.github.io/2017/01/07/big-data-intro/">Hadoop生态系统介绍-概览</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-kerberos/">Hadoop生态系统介绍-Kerberos</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-zookeeper/">Hadoop生态系统介绍-Zookeeper</a></li>
-<li><a href="https://winway.github.io/2017/01/11/big-data-hdfs/">Hadoop生态系统介绍-HDFS</a></li>
-<li><a href="https://winway.github.io/2017/01/12/big-data-yarn/">Hadoop生态系统介绍-YARN</a></li>
-<li><a href="https://winway.github.io/2017/01/12/big-data-mapreduce/">Hadoop生态系统介绍-MapReduce</a></li>
-<li><a href="https://winway.github.io/2017/01/13/big-data-hive/">Hadoop生态系统介绍-Hive</a></li>
-<li><a href="https://winway.github.io/2017/01/13/big-data-pig/">Hadoop生态系统介绍-Pig</a></li>
-<li><strong><a href="https://winway.github.io/2017/01/21/big-data-storm/">Hadoop生态系统介绍-Storm</a></strong></li>
-<li><a href="https://winway.github.io/2017/01/26/big-data-hbase/">Hadoop生态系统介绍-Hbase</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-phoenix/">Hadoop生态系统介绍-Phoenix</a></li>
-</ol>
-<p>本文对流式处理框架Storm的工作原理进行介绍。</p>
-<h2><span id="工作原理">工作原理</span></h2><p><strong>Storm计算模型</strong><br><img src="http://www.uml.org.cn/yunjisuan/images/2015101231.jpg" alt=""><br>Storm 实现了一种数据流模型，其中数据持续地流经一个拓扑结构。一个数据流是一个无限的元组序列。元组就像一种使用一些附加的序列化代码来表示标准数据类型（比如整数、浮点和字节数组）或用户定义类型的结构。每个流由一个惟一 ID 定义，这个 ID 可用于构建数据源和接收器 (sink) 的拓扑结构。流起源于spout，spout将数据从外部来源流入 Storm 拓扑结构中。</p>
-<p>bolt实现了一个流上的单一转换和一个 Storm 拓扑结构中的所有处理。bolt既可以实现 MapReduce 之类的传统功能，也可以实现更复杂的操作），比如过滤、聚合或与数据库等外部实体通信。典型的 Storm 拓扑结构会实现多个转换，因此需要多个具有独立元组流的bolt。</p>
-<p><strong>Storm集群架构</strong><br><img src="http://www.uml.org.cn/yunjisuan/images/2016102621.png" alt=""><br>Storm集群采用主从架构，主节点是Nimbus，从节点是Supervisor，有关调度相关的信息存储到ZooKeeper集群中</p>
-<ul>
-<li>Nimbus<br>Storm集群的Master节点，负责分发用户代码，指派给具体的Supervisor节点上的Worker进程，去运行Topology对应的组件（Spout/Bolt）的Task</li>
-<li>Supervisor<br>Storm集群的从节点，负责管理运行在Supervisor节点上的每一个Worker进程的启动和终止。通过Storm的配置文件中的supervisor.slots.ports配置项，可以指定在一个Supervisor上最大允许多少个Slot，每个Slot通过端口号来唯一标识，一个端口号对应一个Worker进程</li>
-<li>ZooKeeper<br>用来协调Nimbus和Supervisor，如果Supervisor因故障出现问题而无法运行Topology，Nimbus会第一时间感知到，并重新分配Topology到其它可用的Supervisor上运行。</li>
-</ul>
-<p><strong>术语</strong></p>
-<ul>
-<li>Nimbus：负责资源分配和任务调度的主节点。</li>
-<li>Supervisor：负责接受nimbus分配的任务，启动和停止属于自己管理的worker进程。</li>
-<li>Worker：运行具体处理组件逻辑的进程。</li>
-<li>Task：worker中每一个spout/bolt的线程称为一个task. 在storm0.8之后，task不再与物理线程对应，同一个spout/bolt的task可能会共享一个物理线程，该线程称为executor。</li>
-<li>Topology：storm中运行的一个实时应用程序，因为各个组件间的消息流动形成逻辑上的一个拓扑结构。</li>
-<li>Spout：在一个topology中产生源数据流的组件。通常情况下spout会从外部数据源中读取数据，然后转换为topology内部的源数据。Spout是一个主动的角色，其接口中有个nextTuple()函数，storm框架会不停地调用此函数，用户只要在其中生成源数据即可。</li>
-<li>Bolt：在一个topology中接受数据然后执行处理的组件。Bolt可以执行过滤、转换、合并、写数据库等操作。Bolt是一个被动的角色，其接口中有个execute(Tuple input)函数,在接受到消息后会调用此函数，用户可以在其中执行自己想要的操作。</li>
-<li>Tuple：一次消息传递的基本单元。本来应该是一个key-value的map，但是由于各个组件间传递的tuple的字段名称已经事先定义好，所以tuple中只要按序填入各个value就行了，所以就是一个value list.</li>
-<li>Stream：源源不断传递的tuple就组成了stream。</li>
-</ul>
-<p><strong>Hadoop vs Storm</strong></p>
-<p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/storm1.png" alt=""></p>
-<p><strong>Storm设计：组件抽象</strong></p>
-<p>我们编写的处理业务逻辑的Topology提交到Storm集群后，就会发生任务的调度和资源的分配，从而也会基于Storm的设计，出现各种各样的组件。<br><img src="http://www.uml.org.cn/yunjisuan/images/2016102624.png" alt=""><br>一个Topology的Spout/Bolt对应的多个Task可能分布在多个Supervisor的多个Worker内部。而每个Worker内部又存在多个Executor，根据实际的Topology配置在运行时进行计算并分配。</p>
-<ul>
-<li>Topology：Storm对一个分布式计算应用程序的抽象，目的是通过实现一个Topology能够完整地完成一件事情（从业务角度来看）。一个Topology是由一组静态程序组件（Spout/Bolt）、组件关系Streaming Groups这两部分组成。</li>
-<li>Spout：描述了数据是如何从外部系统（或者组件内部直接产生）进入到Storm集群，并由该Spout所属的Topology来处理，通常是从一个数据源读取数据，也可以做一些简单的处理（为了不影响数据连续地、实时地、快速地进入到系统，通常不建议把复杂逻辑放在这里）。</li>
-<li>Bolt：描述了与业务相关的处理逻辑。</li>
-<li>Task：Spout/Bolt在运行时所表现出来的实体，都称为Task，一个Spout/Bolt在运行时可能对应一个或多个Spout Task/Bolt Task，与实际在编写Topology时进行配置有关。</li>
-<li>Worker：运行时Task所在的一级容器，Executor运行于Worker中，一个Worker对应于Supervisor上创建的一个JVM实例</li>
-<li>Executor：运行时Task所在的直接容器，在Executor中执行Task的处理逻辑；一个或多个Executor实例可以运行在同一个Worker进程中，一个或多个Task可以运行于同一个Executor中；在Worker进程并行的基础上，Executor可以并行，进而Task也能够基于Executor实现并行计算</li>
-</ul>
-<p><strong>Topology并行度计算</strong></p>
-<p>在编写代码设置并行度的时候，并行度只是一个提示信息，Storm会根据这个提示信息并结合其他一些参数配置（Task个数、Worker个数），去计算运行时的并行度。<br>这个并行度实际上描述的是，组成一个Topology的多个Spout/Bolt的运行时表现实体Task的分布<br><img src="http://www.uml.org.cn/yunjisuan/images/2016102625.png" alt=""></p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">conf.setNumWorkers(<span class="number">2</span>); <span class="comment">// 该Topology运行在Supervisor节点的2个Worker进程中</span></span><br><span class="line"></span><br><span class="line">topologyBuilder.setSpout(<span class="string">"blue-spout"</span>, <span class="keyword">new</span> BlueSpout(), <span class="number">2</span>); <span class="comment">// 设置并行度为2，则Task个数为2*1</span></span><br><span class="line"></span><br><span class="line">topologyBuilder.setBolt(<span class="string">"green-bolt"</span>, <span class="keyword">new</span> GreenBolt(), <span class="number">2</span>)</span><br><span class="line">               .setNumTasks(<span class="number">4</span>)</span><br><span class="line">               .shuffleGrouping(<span class="string">"blue-spout"</span>); <span class="comment">// 设置并行度为2，设置Task个数为4 ，则Task个数为2*2</span></span><br><span class="line"></span><br><span class="line">topologyBuilder.setBolt(<span class="string">"yellow-bolt"</span>, <span class="keyword">new</span> YellowBolt(), <span class="number">6</span>)</span><br><span class="line">               .shuffleGrouping(<span class="string">"green-bolt"</span>); <span class="comment">// 设置并行度为6，则Task个数为6*1</span></span><br></pre></td></tr></table></figure>
-<p>Storm是如何计算一个Topology运行时的并行度，并分配到2个Worker中的？<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">计算Task总数：2*1+4+6*1=12（总计创建12个Task实例）</span><br><span class="line">计算运行时Topology并行度：(2+2+6)/2=5（每个Worker对应5个Executor）</span><br><span class="line">将12个Task分配到2个Worker中的5*2个Executor中：应该是每个Worker上5个Executor，将6个Task分配到5个Executor中</span><br><span class="line">每个Worker中分配6个Task，应该是分配3个Yellow Task、2个Green Task、1个Blue Task</span><br></pre></td></tr></table></figure></p>
-<p>分配过程：从Task个数最少的开始，1个Blue Task只能放到一个Executor，总计1个Executor被占用；2个Green Task可以放到同一个Executor中，总计2个Executor被占用；最后看剩下的3个Yellow Task能否分配到5-2=3个Executor中，显然每个Yellow Task对应一个Executor<br><img src="http://www.uml.org.cn/yunjisuan/images/2016102626.png" alt=""></p>
-<p><strong>Storm记录级容错的基本原理</strong></p>
-<p>storm允许用户在spout中发射一个新的源tuple时为其指定一个message id, 这个message id可以是任意的object对象。多个源tuple可以共用一个message id，表示这多个源 tuple对用户来说是同一个消息单元。</p>
-<p>storm中记录级容错的意思是说，storm会告知用户每一个消息单元是否在指定时间内被完全处理了。</p>
-<p>那什么叫做完全处理呢，就是该message id绑定的源tuple及由该源tuple后续生成的tuple经过了topology中每一个应该到达的bolt的处理。</p>
-<p>举个例子。在spout由message 1绑定的tuple1和tuple2经过了bolt1和bolt2的处理生成两个新的tuple，并最终都流向了bolt3。当这个过程完成处理完时，称message 1被完全处理了。<br><img src="http://www.uml.org.cn/sjjm/images/2014092851.png" alt=""><br>在storm的topology中有一个系统级组件，叫做acker。这个acker的任务就是追踪从spout中流出来的每一个message id绑定的若干tuple的处理路径，如果在用户设置的最大超时时间内这些tuple没有被完全处理，那么acker就会告知spout该消息处理失败，相反则会告知spout该消息处理成功了。</p>
-<p>”记录tuple的处理路径”，如果曾经尝试过这么做的同学可以仔细地思考一下这件事的复杂程度。但是storm中却是使用了一种非常巧妙的方法做到了。</p>
-<p>在说明这个方法之前，我们来复习一个数学知识：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">A xor A = 0</span><br><span class="line">A xor B…xor B xor A = 0，其中每一个操作数出现且仅出现两次</span><br></pre></td></tr></table></figure></p>
-<p>storm中使用的巧妙方法就是基于这个理论。具体过程是这样的：在spout中系统会为用户指定的message id生成一个对应的64位整数，作为一个root id。root id会传递给acker及后续的bolt作为该消息单元的唯一标识。同时无论是spout还是bolt每次新生成一个tuple的时候，都会赋予该tuple一个64位的整数的id。Spout发射完某个message id对应的源tuple之后，会告知acker自己发射的root id及生成的那些源tuple的id。而bolt呢，每次接受到一个输入tuple处理完之后，也会告知acker自己处理的输入tuple的id及新生成的那些tuple的id。Acker只需要对这些id做一个简单的异或运算，就能判断出该root id对应的消息单元是否处理完成了。</p>
-<ol>
-<li><p>spout中绑定message 1生成了两个源tuple，id分别是0010和1011.<br><img src="http://static.oschina.net/uploads/space/2016/0125/181043_eKPq_2000675.jpg" alt=""></p>
-</li>
-<li><p>bolt1处理tuple 0010时生成了一个新的tuple，id为0110<br><img src="http://static.oschina.net/uploads/space/2016/0126/150057_Hsa2_2000675.jpg" alt=""></p>
-</li>
-<li><p>bolt2处理tuple 1011时生成了一个新的tuple，id为0111<br><img src="http://static.oschina.net/uploads/space/2016/0125/181207_baaW_2000675.jpg" alt=""></p>
-</li>
-<li><p>bolt3中接收到tuple 0110和tuple 0111，没有生成新的tuple<br><img src="http://static.oschina.net/uploads/space/2016/0125/181243_xKy0_2000675.jpg" alt=""></p>
-</li>
-</ol>
-<p><strong>容错过程存在一个可能出错的地方</strong></p>
-<p>如果生成的tuple id并不是完全各异的，acker可能会在消息单元完全处理完成之前就错误的计算为0。这个错误在理论上的确是存在的，但是在实际中其概率是极低极低的，完全可以忽略。</p>
-<p><strong>Storm的事务拓扑</strong></p>
-<p>事务拓扑(transactional topology)是storm0.7引入的特性，在最近发布的0.8版本中已经被封装为Trident，提供了更加便利和直观的接口。<br>事务拓扑的目的是为了满足对消息处理有着极其严格要求的场景，例如实时计算某个用户的成交笔数，要求结果完全精确，不能多也不能少。Storm的事务拓扑是完全基于它底层的spout/bolt/acker原语实现的，通过一层巧妙的封装得出一个优雅的实现。<br>事务拓扑简单来说就是将消息分为一个个的批(batch)，同一批内的消息以及批与批之间的消息可以并行处理，另一方面，用户可以设置某些bolt为committer，storm可以保证committer的finishBatch()操作是按严格不降序的顺序执行的。用户可以利用这个特性通过简单的编程技巧实现消息处理的精确。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">storm</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/01/21/big-data-storm/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/5/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/4/">4</a><a class="page-number" href="/page/5/">5</a><span class="page-number current">6</span><a class="page-number" href="/page/7/">7</a><a class="page-number" href="/page/8/">8</a><span class="space">&hellip;</span><a class="page-number" href="/page/10/">10</a><a class="extend next" rel="next" href="/page/7/">Next &raquo;</a>
@@ -1612,6 +1548,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
@@ -1628,15 +1568,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hive</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1676,7 +1612,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">备份</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1685,14 +1629,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">grafana</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1708,23 +1644,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">tez</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">tez</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">gc</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1748,6 +1676,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
               </li>
              
@@ -1764,7 +1700,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
+                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1772,11 +1712,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1796,6 +1732,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
@@ -1805,14 +1745,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">storm</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">olap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1833,6 +1765,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">snappy</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">olap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">
