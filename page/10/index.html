@@ -155,6 +155,103 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-python-multiprocessing-demo" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2013/06/24/python-multiprocessing-demo/">一个基于multiprocessing的并发模型</a>
+    </h1>
+  
+
+        
+        <a href="/2013/06/24/python-multiprocessing-demo/" class="archive-article-date">
+  	<time datetime="2013-06-24T08:23:44.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-06-24</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<!-- tocstop -->
+<p>需求：</p>
+<ol>
+<li>周期性对一批机器执行某操作；</li>
+<li>该操作执行所需时间不固定，有波动；</li>
+<li>每次操作机器数量较多，需用多进程实现，但又不宜针对每个机器单独开启进程，否则进程太多；</li>
+</ol>
+<p>由于每个周期的操作时间不固定，难免出现两个周期重叠在一起，所以每个周期的操作尽量保持独立，这样不会彼此影响。基于以上考虑，程序的大体思路是：<em>主进程周期性fork一个子进程，子进程使用multiprocessing创建多进程执行具体操作</em>。代码如下：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#! /usr/bin/env python</span></span><br><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">import</span> sys</span><br><span class="line"><span class="keyword">import</span> time</span><br><span class="line"><span class="keyword">import</span> random</span><br><span class="line"><span class="keyword">import</span> multiprocessing</span><br><span class="line"></span><br><span class="line"><span class="comment"># 目标机器集合，少则几百，多则上千</span></span><br><span class="line">hosts = [ <span class="string">'192.168.1.1'</span>,</span><br><span class="line">          <span class="string">'192.168.1.2'</span>,</span><br><span class="line">          <span class="string">'192.168.1.3'</span>,</span><br><span class="line">          <span class="string">'192.168.1.4'</span>,</span><br><span class="line">          <span class="string">'192.168.1.5'</span>,</span><br><span class="line">          <span class="string">'192.168.1.6'</span>,</span><br><span class="line">          <span class="string">'192.168.1.7'</span>,</span><br><span class="line">          <span class="string">'192.168.1.8'</span>,</span><br><span class="line">          <span class="string">'192.168.1.9'</span>,</span><br><span class="line">          <span class="string">'192.168.1.10'</span>,</span><br><span class="line">         ]</span><br><span class="line"></span><br><span class="line"><span class="comment"># 针对每个机器的具体操作，这里没有进行任何处理</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">handle</span><span class="params">(host)</span>:</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'Handling %s'</span> % host</span><br><span class="line">    time.sleep(random.randint(<span class="number">10</span>, <span class="number">15</span>))</span><br><span class="line">    <span class="keyword">return</span> host</span><br><span class="line"></span><br><span class="line"><span class="comment"># 循环从task_queue取一个待处理的机器进行处理，并将结果放入done_queue，直到遇到'STOP'</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">grandchild</span><span class="params">(task_queue, done_queue)</span>:</span></span><br><span class="line">    <span class="keyword">for</span> item <span class="keyword">in</span> iter(task_queue.get, <span class="string">'STOP'</span>):</span><br><span class="line">        result = handle(item)</span><br><span class="line">        done_queue.put(result)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 每个周期的操作在这个单独的子进程中进行</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">child</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'Hi! This is child %d, my father is %d'</span> %\</span><br><span class="line">                        (os.getpid(), os.getppid())</span><br><span class="line"></span><br><span class="line">    task_queue = multiprocessing.Queue()</span><br><span class="line">    done_queue = multiprocessing.Queue()</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 将待处理的机器放入task_queue</span></span><br><span class="line">    <span class="keyword">for</span> host <span class="keyword">in</span> hosts:</span><br><span class="line">        <span class="keyword">print</span> <span class="string">'put %s in task_queue'</span> % host</span><br><span class="line">        task_queue.put(host)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 创建固定数量进程，并发处理</span></span><br><span class="line">    PN = <span class="number">6</span></span><br><span class="line">    processes = []</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> range(PN):</span><br><span class="line">        process = multiprocessing.Process(target=grandchild, args=(task_queue, done_queue))</span><br><span class="line">        process.start()</span><br><span class="line">        processes.append(process)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 打印done_queue中的结果，这里可以针对结果在进行处理，如存数据库</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'Unordered results:'</span></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> range(len(hosts)):</span><br><span class="line">        <span class="keyword">print</span> <span class="string">'get %s from done_queue'</span> % done_queue.get()</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 结束处理进程</span></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> range(PN):</span><br><span class="line">        task_queue.put(<span class="string">'STOP'</span>)</span><br><span class="line">        <span class="keyword">print</span> <span class="string">'Stopping process #%d'</span> % i</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 避免处理进程成为僵尸</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'joining.....'</span></span><br><span class="line">    <span class="keyword">for</span> process <span class="keyword">in</span> processes:</span><br><span class="line">        process.join()</span><br><span class="line">    </span><br><span class="line">    sys.exit()</span><br><span class="line"></span><br><span class="line">children = []</span><br><span class="line"></span><br><span class="line"><span class="comment"># 清理僵尸进程</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">clear_defunct</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="keyword">for</span> child <span class="keyword">in</span> children:</span><br><span class="line">        pid, status = os.waitpid(child, os.WNOHANG)</span><br><span class="line">        <span class="keyword">if</span> pid:</span><br><span class="line">            children.remove(pid)</span><br><span class="line">            <span class="keyword">print</span> <span class="string">'clear defunct'</span>, pid</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line">    <span class="comment"># 周期性创建子进程</span></span><br><span class="line">    <span class="keyword">while</span> <span class="keyword">True</span>:</span><br><span class="line">        pid = os.fork()</span><br><span class="line">        <span class="keyword">if</span> pid &lt; <span class="number">0</span>:</span><br><span class="line">            <span class="keyword">print</span> <span class="string">'fork error'</span></span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">if</span> pid == <span class="number">0</span>:</span><br><span class="line">                child()</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                children.append(pid)</span><br><span class="line">                <span class="keyword">print</span> <span class="string">'Hi! This is parent %d'</span> % os.getpid()</span><br><span class="line"></span><br><span class="line">        clear_defunct()</span><br><span class="line"></span><br><span class="line">        time.sleep(<span class="number">30</span>)</span><br></pre></td></tr></table></figure></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">python</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">multiprocessing</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2013/06/24/python-multiprocessing-demo/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-mussh-pdsh-pssh-usage" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -953,15 +1050,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">shell</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">监控</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -981,7 +1078,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
+                <a href="javascript:void(0)" class="js-tag color1">datax</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -993,15 +1090,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">systemd</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color2">Python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1021,19 +1122,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">influxdb</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">grafana</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1057,18 +1158,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
               </li>
              
@@ -1077,11 +1166,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">ranger</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1133,11 +1234,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">

@@ -155,6 +155,134 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-bigdata-stack-flume-datax" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/05/11/bigdata-stack-flume-datax/">大数据开发之路-datax</a>
+    </h1>
+  
+
+        
+        <a href="/2022/05/11/bigdata-stack-flume-datax/" class="archive-article-date">
+  	<time datetime="2022-05-11T11:51:53.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-11</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#datax-多种异构数据源间的高效数据同步工具">datax-多种异构数据源间的高效数据同步工具</a></li>
+<li><a href="#datax核心组件">datax核心组件</a></li>
+<li><a href="#datax优点">datax优点</a></li>
+<li><a href="#datax不足">datax不足</a></li>
+<li><a href="#sqoopdatax如何选择">sqoop/datax如何选择</a></li>
+<li><a href="#示例">示例</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<blockquote>
+<p>导引<br><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></p>
+</blockquote>
+<h2><span id="datax-多种异构数据源间的高效数据同步工具">datax-多种异构数据源间的高效数据同步工具</span></h2><p><img src="https://upload-images.jianshu.io/upload_images/25044609-c7230d68a895bb59.png?imageMogr2/auto-orient/strip|imageView2/2/w/1037/format/webp" alt=""></p>
+<p>同样作为数据同步工具，datax不仅支持rdbms和hadoop之间的数据同步，还支持任意两种异构数据源（主流的RDBMS数据库、NOSQL、大数据系统）间的数据同步。<br>datax没有使用mr，而是采用单机多线程的方式同步数据。<br><img src="https://upload-images.jianshu.io/upload_images/25044609-496a992e5502b24d.png?imageMogr2/auto-orient/strip|imageView2/2/w/829/format/webp" alt=""></p>
+<h2><span id="datax核心组件">datax核心组件</span></h2><ul>
+<li>Reader：数据采集模块，负责采集数据源的数据，将数据发送给 Framework；</li>
+<li>Writer： 数据写入模块，负责不断向 Framework 取数据，并将数据写入到目的端；</li>
+<li>Framework：用于连接 reader 和 writer，作为两者的数据传输通道，并处理缓冲，流控，并发，数据转换等核心技术问题。</li>
+</ul>
+<h2><span id="datax优点">datax优点</span></h2><ul>
+<li>支持的数据源更丰富</li>
+<li>支持分库分表场景</li>
+<li>支持写orc格式文件</li>
+<li>有数据转换功能</li>
+<li>可以控制速度（避免读爆源库）</li>
+</ul>
+<h2><span id="datax不足">datax不足</span></h2><ul>
+<li>写hive没有sqoop友好，不会自动创建hive表，目标路径必须存在</li>
+<li>由于采用的是单机多线程模式，扩展性没有sqoop好</li>
+<li>配置文件略繁琐，没有sqoop命令简洁</li>
+</ul>
+<h2><span id="sqoopdatax如何选择">sqoop/datax如何选择</span></h2><p>对于rdbms到hive/hdfs的需求，分库分表场景、源库压力敏感、日志量偏小的情况选datax，否则选sqoop</p>
+<h2><span id="示例">示例</span></h2><figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> <span class="keyword">EXTERNAL</span> <span class="keyword">TABLE</span> <span class="string">`tmp.log_schema`</span>(</span><br><span class="line">  <span class="string">`id`</span> <span class="built_in">BIGINT</span>, </span><br><span class="line">  <span class="string">`log_hdfs_path`</span> <span class="keyword">STRING</span>, </span><br><span class="line">  <span class="string">`log_demo`</span> <span class="keyword">STRING</span></span><br><span class="line">)</span><br><span class="line">PARTITIONED <span class="keyword">BY</span> (<span class="string">`day`</span> <span class="keyword">STRING</span>)</span><br><span class="line"><span class="keyword">STORED</span> <span class="keyword">AS</span> ORC</span><br><span class="line">TBLPROPERTIES (<span class="string">'orc.compress'</span>=<span class="string">'SNAPPY'</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> tmp.log_schema <span class="keyword">ADD</span> <span class="keyword">IF</span> <span class="keyword">NOT</span> <span class="keyword">EXISTS</span> <span class="keyword">PARTITION</span> (<span class="keyword">day</span>=<span class="string">'2022-04-12'</span>) LOCATION <span class="string">'hdfs://emr-cluster/tmp/log_schema/day=2022-04-12'</span>;</span><br><span class="line"></span><br><span class="line">&#123;</span><br><span class="line">    "job": &#123;</span><br><span class="line">        "content": [</span><br><span class="line">            &#123;</span><br><span class="line">                "reader": &#123;</span><br><span class="line">                    "name": "mysqlreader", </span><br><span class="line">                    "parameter": &#123;</span><br><span class="line">                        "username": "bob", </span><br><span class="line">                        "password": "123456", </span><br><span class="line">                        "connection": [</span><br><span class="line">                            &#123;</span><br><span class="line">                                "jdbcUrl": ["jdbc:mysql://x.x.x.x:3306/test?tinyInt1isBit=false"], </span><br><span class="line">                                "table": ["log_schema"]</span><br><span class="line">                            &#125;</span><br><span class="line">                        ], </span><br><span class="line">                        "column": ["id", "log_hdfs_path", "log_demo"], </span><br><span class="line">                        "where": "id&gt;10"</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;, </span><br><span class="line">                "writer": &#123;</span><br><span class="line">                    "name": "hdfswriter", </span><br><span class="line">                    "parameter": &#123;</span><br><span class="line">                        "column": [&#123;"name":"id", "type":"bigint"&#125;,</span><br><span class="line">                                   &#123;"name":"log_hdfs_path", "type":"string"&#125;,</span><br><span class="line">                                   &#123;"name":"log_demo", "type":"string"&#125;], </span><br><span class="line">                        "compress":"SNAPPY",</span><br><span class="line">                        "defaultFS": "hdfs://emr-cluster", </span><br><span class="line">                        "fieldDelimiter": "\t", </span><br><span class="line">                        "fileName": "log_schema", </span><br><span class="line">                        "fileType": "orc", </span><br><span class="line">                        "path": "/tmp/log_schema/day=2022-04-12", </span><br><span class="line">                        "writeMode": "nonConflict",</span><br><span class="line">                        "hadoopConfig":&#123;</span><br><span class="line">                            "dfs.nameservices": "emr-cluster",</span><br><span class="line">                            "dfs.ha.namenodes.emr-cluster": "nn1,nn2",</span><br><span class="line">                            "dfs.namenode.rpc-address.emr-cluster.nn1": "emr-header-1:8020",</span><br><span class="line">                            "dfs.namenode.rpc-address.emr-cluster.nn2": "emr-header-2:8020",</span><br><span class="line">                            "dfs.client.failover.proxy.provider.emr-cluster": "org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider"</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        ], </span><br><span class="line">        "setting": &#123;</span><br><span class="line">            "speed": &#123;</span><br><span class="line">                "channel": "1"</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://www.jianshu.com/p/56f25c699ec1" target="_blank" rel="noopener">DataX 快速入门</a></li>
+<li><a href="https://blog.csdn.net/weixin_42487460/article/details/113753186" target="_blank" rel="noopener">DataX入门———用法及一些简单的案例介绍</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/81817787" target="_blank" rel="noopener">DataX介绍以及优缺点分析</a></li>
+<li><a href="https://github.com/alibaba/DataX/blob/master/introduction.md" target="_blank" rel="noopener">阿里云开源离线同步工具DataX3.0介绍</a></li>
+<li><a href="https://segmentfault.com/a/1190000022951666" target="_blank" rel="noopener">DataX HIVE分区同步</a></li>
+<li><a href="https://blog.csdn.net/qq_46893497/article/details/110110808" target="_blank" rel="noopener">datax–分库分表mysql同步数据到hive中</a></li>
+<li><a href="https://blog.csdn.net/u013289115/article/details/106277937" target="_blank" rel="noopener">异构数据源导redis不用找了!DataX二次开发插件rediswriter已上菜</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">datax</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2022/05/11/bigdata-stack-flume-datax/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-bigdata-stack-flume-sqoop" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1258,108 +1386,6 @@
 
 
   
-    <article id="post-hs2-gc" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/01/16/hs2-gc/">HiveServer2 gc问题引发的幽灵问题</a>
-    </h1>
-  
-
-        
-        <a href="/2022/01/16/hs2-gc/" class="archive-article-date">
-  	<time datetime="2022-01-16T02:24:09.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-01-16</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#问题">问题</a></li>
-<li><a href="#排查">排查</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="问题">问题</span></h2><p>数仓批处理任务有很多是使用TEZ引擎执行的，TEZ经常偶发一个报错，但是找不到具体的报错信息，而且重试基本能成功。<br>提交客户端只能看到以下信息。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">07-01-2022 13:31:29 CST - FAILED: Execution Error, return code 1 from org.apache.hadoop.hive.ql.exec.tez.TezTask</span><br><span class="line">07-01-2022 13:31:29 CST - Error: org.apache.hive.service.cli.HiveSQLException: Error while processing statement: FAILED: Execution Error, return code 1 from org.apache.hadoop.hive.ql.exec.tez.TezTask</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.Operation.toSQLException(Operation.java:380)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.SQLOperation.runQuery(SQLOperation.java:257)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.SQLOperation.access$800(SQLOperation.java:91)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.SQLOperation$BackgroundWork$1.run(SQLOperation.java:348)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.security.AccessController.doPrivileged(Native Method)</span><br><span class="line">07-01-2022 13:31:29 CST -   at javax.security.auth.Subject.doAs(Subject.java:422)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hadoop.security.UserGroupInformation.doAs(UserGroupInformation.java:1734)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.SQLOperation$BackgroundWork.run(SQLOperation.java:362)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.util.concurrent.FutureTask.run(FutureTask.java:266)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.lang.Thread.run(Thread.java:748) (state=08S01,code=1)</span><br></pre></td></tr></table></figure></p>
-<p>以下是对应时间点HiveServer2的日志报错信息。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">2022-01-07T13:31:27,255 ERROR [Thread-308969] exec.Task: Failed to execute tez graph.</span><br><span class="line">org.apache.tez.dag.api.SessionNotRunning: TezSession has already shutdown. No cluster diagnostics found.</span><br><span class="line">        at org.apache.tez.client.TezClient.waitTillReady(TezClient.java:1019) ~[tez-api-0.9.2.jar:0.9.2]</span><br><span class="line">        at org.apache.tez.client.TezClient.waitTillReady(TezClient.java:988) ~[tez-api-0.9.2.jar:0.9.2]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezSessionState.startSessionAndContainers(TezSessionState.java:396) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezSessionState.openInternal(TezSessionState.java:323) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezSessionPoolManager$TezSessionPoolSession.openInternal(TezSessionPoolManager.java:703) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezSessionState.open(TezSessionState.java:196) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezTask.updateSession(TezTask.java:303) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezTask.execute(TezTask.java:168) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.Task.executeTask(Task.java:199) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.TaskRunner.runSequential(TaskRunner.java:100) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.TaskRunner.run(TaskRunner.java:79) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">2022-01-07T13:31:29,241 ERROR [HiveServer2-Background-Pool: Thread-397923] ql.Driver: FAILED: Execution Error, return code 1 from org.apache.hadoop.hive.ql.exec.tez.TezTask</span><br><span class="line">2022-01-07T13:31:29,241  INFO [HiveServer2-Background-Pool: Thread-403158] hive.metastore: Closed a connection to metastore, current connections: 15</span><br><span class="line">2022-01-07T13:31:29,242  INFO [HiveServer2-Background-Pool: Thread-397923] hive.metastore: Closed a connection to metastore, current connections: 14</span><br><span class="line">2022-01-07T13:31:29,242  INFO [HiveServer2-Background-Pool: Thread-397923] ql.Driver: Completed executing command(queryId=hadoop_20220107131226_b26d6e21-7b1f-460c-b383-15a8541f57d4); Time taken: 1135.311 seconds</span><br><span class="line">2022-01-07T13:31:29,243  INFO [HiveServer2-Background-Pool: Thread-403158] hive.metastore: Opened a connection to metastore, current connections: 15</span><br><span class="line">2022-01-07T13:31:29,243 ERROR [HiveServer2-Background-Pool: Thread-397923] operation.Operation: Error running hive query: </span><br><span class="line">org.apache.hive.service.cli.HiveSQLException: Error while processing statement: FAILED: Execution Error, return code 1 from org.apache.hadoop.hive.ql.exec.tez.TezTask</span><br><span class="line">        at org.apache.hive.service.cli.operation.Operation.toSQLException(Operation.java:380) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hive.service.cli.operation.SQLOperation.runQuery(SQLOperation.java:257) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hive.service.cli.operation.SQLOperation.access$800(SQLOperation.java:91) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hive.service.cli.operation.SQLOperation$BackgroundWork$1.run(SQLOperation.java:348) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at java.security.AccessController.doPrivileged(Native Method) ~[?:1.8.0_151]</span><br><span class="line">        at javax.security.auth.Subject.doAs(Subject.java:422) ~[?:1.8.0_151]</span><br><span class="line">        at org.apache.hadoop.security.UserGroupInformation.doAs(UserGroupInformation.java:1734) ~[hadoop-common-2.7.2.jar:?]</span><br><span class="line">        at org.apache.hive.service.cli.operation.SQLOperation$BackgroundWork.run(SQLOperation.java:362) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511) ~[?:1.8.0_151]</span><br><span class="line">        at java.util.concurrent.FutureTask.run(FutureTask.java:266) ~[?:1.8.0_151]</span><br><span class="line">        at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149) [?:1.8.0_151]</span><br><span class="line">        at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624) [?:1.8.0_151]</span><br><span class="line">        at java.lang.Thread.run(Thread.java:748) [?:1.8.0_151]</span><br></pre></td></tr></table></figure></p>
-<p>由于报错信息中没有关键信息，甚至找不到application id，很难直接判断出问题根源。<br>但是怀疑，这种没法稳定复现的问题，大概率是触发了某个未知的瓶颈点引起的。</p>
-<h2><span id="排查">排查</span></h2><p>仔细翻看HiveServer2的日志，注意到以下日志信息。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220116111408.png" alt=""><br>而且一般在出现报错的时间点附近，也会出现这种长时间pause的日志，遂怀疑是因为HiveServer2长时间gc导致服务无响应。<br>对HiveServer2 gc参数进行调整，增加了以下参数，果然这个报错的出现频率大大降低。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">-XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:+UseCMSInitiatingOccupancyOnly -XX:CMSInitiatingOccupancyFraction=68 -XX:+CMSClassUnloadingEnabled -XX:+CMSParallelRemarkEnabled -XX:+UseCMSCompactAtFullCollection -XX:CMSFullGCsBeforeCompaction=3</span><br></pre></td></tr></table></figure></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">hive</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">tez</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">gc</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/01/16/hs2-gc/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/10/">10</a><a class="extend next" rel="next" href="/page/2/">Next &raquo;</a>
@@ -1467,15 +1493,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">shell</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">监控</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1495,7 +1521,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
+                <a href="javascript:void(0)" class="js-tag color1">datax</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1507,15 +1533,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">systemd</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color2">Python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1535,19 +1565,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">influxdb</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">grafana</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1571,18 +1601,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
               </li>
              
@@ -1591,11 +1609,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">ranger</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1647,11 +1677,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
