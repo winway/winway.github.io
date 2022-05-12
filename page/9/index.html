@@ -155,6 +155,518 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-mongodb-diskspace-reclaim" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2016/06/25/mongodb-diskspace-reclaim/">MongoDB磁盘空间回收</a>
+    </h1>
+  
+
+        
+        <a href="/2016/06/25/mongodb-diskspace-reclaim/" class="archive-article-date">
+  	<time datetime="2016-06-25T01:52:17.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-06-25</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#背景">背景</a></li>
+<li><a href="#可用方案">可用方案</a><ul>
+<li><a href="#一-repairdatabase">一、 repairDatabase</a></li>
+<li><a href="#二-copydatabase">二、 copyDatabase</a></li>
+<li><a href="#三-mongodumpmongorestore">三、 mongodump/mongorestore</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h2><span id="背景">背景</span></h2><p>MongoDB-2.2版本只有在dropDatabase的时候才会释放磁盘空间，drop collection并不会减少磁盘占用。如果需要回收磁盘空间，需要采取一些措施。</p>
+<h2><span id="可用方案">可用方案</span></h2><h3><span id="一-repairdatabase">一、 repairDatabase</span></h3><p>repairDatabase是官方给出的唯一可以释放磁盘空间的方法。repairDatabase只能在master或者primary上执行，对于secondary只能以standalone的方式启动，然后执行repairDatabase。<br>repairDatabase对剩余可用磁盘空间有要求，必须大于等于原库的大小才能执行。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&gt;</span> db.repairDatabase()</span><br><span class="line">&#123;</span><br><span class="line">        "errmsg" : "Cannot repair database test having size: 691102810112 (bytes) because free disk space is: 479286095872 (bytes)",</span><br><span class="line">        "ok" : 0</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>数据量大的话耗时会比较长，而且会阻塞所有操作，所以不能在线上提供服务的节点上直接执行。</p>
+<h3><span id="二-copydatabase">二、 copyDatabase</span></h3><p>为了绕过方案一对空间的要求，可以采用copyDatabase。因为copyDatabase只需要占用实际data set的空间，一般在删除collection后，剩余数据会比较小。由于copyDatabase支持远程拷贝，如果空间实在不足，可以使用一个临时的mongod中转。copyDatabase不会阻塞操作。大致步骤：</p>
+<ol>
+<li>删除不需要的collection</li>
+<li>db.copyDatabase(‘databasename’, ‘databasename_tmp’)</li>
+<li>use databasename; db.dropDatabase()</li>
+<li>db.copyDatabase(‘databasename_tmp’, ‘databasename’)</li>
+</ol>
+<h3><span id="三-mongodumpmongorestore">三、 mongodump/mongorestore</span></h3><p>解决思路与方案二相同。大致步骤：</p>
+<ol>
+<li>删除不需要的collection</li>
+<li>mongodump –port 1988 -uread -pread -d databasename -o tmp</li>
+<li>echo ‘db.dropDatabase()’ | mongo databasename</li>
+<li>mongorestore –port 1988 -u’write’ -p’write’ -d databasename tmp/databasename/</li>
+</ol>
+<p>四、    使用副本集的initial sync<br>需要重建所有库，耗时较长</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/数据库/" class="article-tag-list-link color4">数据库</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2016/06/25/mongodb-diskspace-reclaim/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-mongodb-performance-test" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2016/01/28/mongodb-performance-test/">MongoDB2.2 vs MongoDB3.0性能对比测试</a>
+    </h1>
+  
+
+        
+        <a href="/2016/01/28/mongodb-performance-test/" class="archive-article-date">
+  	<time datetime="2016-01-28T06:28:22.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-01-28</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#一-概述">一、 概述</a></li>
+<li><a href="#二-测试方法">二、 测试方法</a><ul>
+<li><a href="#1-测试环境">1. 测试环境</a></li>
+<li><a href="#2-测试方案">2. 测试方案</a></li>
+</ul>
+</li>
+<li><a href="#三-测试结果">三、 测试结果</a></li>
+<li><a href="#四-结论">四、 结论</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="一-概述">一、 概述</span></h2><p>MongoDB3.0的重要特性是新增了wiretigger存储引擎。该存储引擎支持文档级锁和数据压缩，使MongoDB3.0较MongoDB2.x在性能上有很大提升。官方给出的测试结果显示：在YCSB测试中，MongoDB3.0在多线程、批量插入场景下较之于MongoDB2.6有大约7倍的增长。</p>
+<h2><span id="二-测试方法">二、 测试方法</span></h2><h3><span id="1-测试环境">1. 测试环境</span></h3><p>3台实体机组成的副本集。单机配置如下：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>cpu</td>
+<td>Intel(R) Xeon(R) CPU E5-2630 0 @ 2.30GHz，12 cores</td>
+</tr>
+<tr>
+<td>ram</td>
+<td>128G</td>
+</tr>
+<tr>
+<td>storage</td>
+<td>16 * 300G SAS</td>
+</tr>
+<tr>
+<td>network</td>
+<td>1 Gbps</td>
+</tr>
+<tr>
+<td>os</td>
+<td>RHEL 5.8 64bit</td>
+</tr>
+<tr>
+<td>MongoDB version</td>
+<td>monogdb 2.2.2，MongoDB 3.0.6</td>
+</tr>
+</tbody>
+</table>
+<h3><span id="2-测试方案">2. 测试方案</span></h3><p>测试使用ycsb进行。<br>导入同样的数据量到MongoDB2.2.2和MongoDB3.0.6，针对该数据集进行读写比分别为0/100，20/80，50/50，80/20的并发量和延迟测试。<br>ycsb部分参数如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">recordcount=20000000	#记录数</span><br><span class="line">operationcount=20000000	#操作次数</span><br><span class="line">fieldlength=50	#字段长度</span><br><span class="line">fieldcount=10	#单个文档的字段数</span><br><span class="line">threadcount=48	#并发线程数，相当于客户端数</span><br></pre></td></tr></table></figure></p>
+<h2><span id="三-测试结果">三、 测试结果</span></h2><ol>
+<li>并发量<br> 如图所示，读写比越小，MongoDB3.0的性能优势越明显，大概是2.2的3-4倍。<br> <img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/mongodb-performance-test1.png" alt=""></li>
+<li>延迟<br> <img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/mongodb-performance-test2.png" alt=""><br> <img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/mongodb-performance-test3.png" alt=""><br> 如图所示，在并发量提升的情况下，平均延迟和99th百分位数也比2.2有很大优化。99th百分位数表示这个数值（响应延迟）比99%的其他操作都要糟糕（慢）</li>
+</ol>
+<h2><span id="四-结论">四、 结论</span></h2><p>从测试结果的并发量和延迟情况来看，MongoDB3.0的性能比起MongoDB2.x的性能确实有比较明显的提升。并发量提升3-4倍，延迟降低了90%。升级到新版本的MongoDB确实会带来性能上的很大提升。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/数据库/" class="article-tag-list-link color4">数据库</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2016/01/28/mongodb-performance-test/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-mongodb-change-nssize" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2016/01/28/mongodb-change-nssize/">MongoDB在线修改nsSize</a>
+    </h1>
+  
+
+        
+        <a href="/2016/01/28/mongodb-change-nssize/" class="archive-article-date">
+  	<time datetime="2016-01-28T06:27:31.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-01-28</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#简介">简介</a></li>
+<li><a href="#修改nssize大小">修改nssize大小</a></li>
+<li><a href="#回滚">回滚</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="简介">简介</span></h2><p>默认情况下，MongoDB(MMAP)的每个数据库的命名空间保存在一个 16MB 的 .ns 文件中，平均每个命名占用约 628 字节，也即整个数据库的命名空间的上限约为 24000。<br>每一个集合、索引都将占用一个命名。所以，如果每个集合有一个索引（比如默认的 _id 索引），那么最多可以创建 12000 个集合。如果索引数更多，则可创建的集合数就更少了。同时，如果集合数太多，一些操作也会变慢。<br>不过，如果真的需要建立更多的集合的话，MongoDB 也是支持的，只需要在启动时加上“–nssize”参数，这样对应数据库的命名空间文件就可以变得更大以便保存更多的命名。这个命名空间文件（.ns 文件）最大可以为 2G，也就是说最大可以支持约 340 万个命名，如果每个集合有一个索引的话，最多可创建约 170 万个集合。<br>还需要注意，–nssize 只设置新创建的 .ns 文件的大小，如果想改变已经存在的数据库的命名空间，在使用这个参数启动后，还需要运行 db.repairDatabase() 命令来调整尺寸。</p>
+<h2><span id="修改nssize大小">修改nssize大小</span></h2><p><strong>注意：尽量选择集群较空闲的时间段进行，减少单节点的操作时间，确保重启后的节点能够跟得上集群的oplog。最好先操作所有的secondary节点再操作primary节点。操作primary时，先使用stepdown降级，待集群选举出新的primary后再shutdown。</strong></p>
+<p>对副本集中所有的节点执行以下操作：</p>
+<ol>
+<li><p>查看当前库的nssize大小</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">winway:SECONDARY&gt; use test</span><br><span class="line">winway:SECONDARY&gt; db.stats()</span><br><span class="line">&#123;</span><br><span class="line">        &quot;db&quot; : &quot;admin&quot;,</span><br><span class="line">        &quot;collections&quot; : 3,</span><br><span class="line">        &quot;objects&quot; : 6,</span><br><span class="line">        &quot;avgObjSize&quot; : 62,</span><br><span class="line">        &quot;dataSize&quot; : 372,</span><br><span class="line">        &quot;storageSize&quot; : 16384,</span><br><span class="line">        &quot;numExtents&quot; : 3,</span><br><span class="line">        &quot;indexes&quot; : 1,</span><br><span class="line">        &quot;indexSize&quot; : 8176,</span><br><span class="line">        &quot;fileSize&quot; : 201326592,</span><br><span class="line">        &quot;nsSizeMB&quot; : 16,</span><br><span class="line">        &quot;ok&quot; : 1</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>关闭当前节点，同时登陆其他节点查看集群状态是否正常</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">winway:SECONDARY&gt; use admin</span><br><span class="line">switched to db admin</span><br><span class="line">winway:SECONDARY &gt; db.shutdownServer()</span><br><span class="line">Mon Jan 26 15:30:46 DBClientCursor::init call() failed</span><br><span class="line">Mon Jan 26 15:30:46 query failed : admin.$cmd &#123; shutdown: 1.0 &#125; to: 127.0.0.1:4422</span><br><span class="line">server should be down...</span><br><span class="line">Mon Jan 26 15:30:46 trying reconnect to 127.0.0.1:4422</span><br><span class="line">Mon Jan 26 15:30:46 reconnect 127.0.0.1:4422 ok</span><br><span class="line">Mon Jan 26 15:30:46 Socket recv() errno:104 Connection reset by peer 127.0.0.1:4422</span><br><span class="line">Mon Jan 26 15:30:46 SocketException: remote: 127.0.0.1:4422 error: 9001 socket exception [1] server [127.0.0.1:4422]</span><br><span class="line">Mon Jan 26 15:30:46 DBClientCursor::init call() failed</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>以standalone的方式用另外的端口（确保端口空闲）启动</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mongod --dbpath /data/mongodb/winway-data/ --port 1988 --nssize 32</span><br></pre></td></tr></table></figure>
+<p> nssize是要修改成为的值</p>
+</li>
+<li><p>连接mongd</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mongo --port 1988</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>使用repairDatabase修改现存库的nssize</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">&gt; use test</span><br><span class="line">switched to db test</span><br><span class="line">&gt; db.stats()</span><br><span class="line">&#123;</span><br><span class="line">        &quot;db&quot; : &quot;test&quot;,</span><br><span class="line">        &quot;collections&quot; : 11,</span><br><span class="line">        &quot;objects&quot; : 348,</span><br><span class="line">        &quot;avgObjSize&quot; : 272.7241379310345,</span><br><span class="line">        &quot;dataSize&quot; : 94908,</span><br><span class="line">        &quot;storageSize&quot; : 446464,</span><br><span class="line">        &quot;numExtents&quot; : 13,</span><br><span class="line">        &quot;indexes&quot; : 10,</span><br><span class="line">        &quot;indexSize&quot; : 98112,</span><br><span class="line">        &quot;fileSize&quot; : 201326592,</span><br><span class="line">        &quot;nsSizeMB&quot; : 16,</span><br><span class="line">        &quot;ok&quot; : 1</span><br><span class="line">&#125;</span><br><span class="line">&gt; db.repairDatabase()</span><br><span class="line">&#123; &quot;ok&quot; : 1 &#125;</span><br><span class="line">&gt; db.stats()</span><br><span class="line">&#123;</span><br><span class="line">        &quot;db&quot; : &quot;test&quot;,</span><br><span class="line">        &quot;collections&quot; : 11,</span><br><span class="line">        &quot;objects&quot; : 348,</span><br><span class="line">        &quot;avgObjSize&quot; : 272.8045977011494,</span><br><span class="line">        &quot;dataSize&quot; : 94936,</span><br><span class="line">        &quot;storageSize&quot; : 245760,</span><br><span class="line">        &quot;numExtents&quot; : 13,</span><br><span class="line">        &quot;indexes&quot; : 10,</span><br><span class="line">        &quot;indexSize&quot; : 98112,</span><br><span class="line">        &quot;fileSize&quot; : 201326592,</span><br><span class="line">        &quot;nsSizeMB&quot; : 32,</span><br><span class="line">        &quot;ok&quot; : 1</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>关闭该节点</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&gt; use admin</span><br><span class="line">switched to db admin</span><br><span class="line">&gt; db.shutdownServer()</span><br><span class="line">Mon Jan 26 15:49:46 DBClientCursor::init call() failed</span><br><span class="line">Mon Jan 26 15:49:46 query failed : admin.$cmd &#123; shutdown: 1.0 &#125; to: 127.0.0.1:1988</span><br><span class="line">server should be down...</span><br><span class="line">Mon Jan 26 15:49:46 trying reconnect to 127.0.0.1:1988</span><br><span class="line">Mon Jan 26 15:49:46 reconnect 127.0.0.1:1988 ok</span><br><span class="line">Mon Jan 26 15:49:46 Socket recv() errno:104 Connection reset by peer 127.0.0.1:1988</span><br><span class="line">Mon Jan 26 15:49:46 SocketException: remote: 127.0.0.1:1988 error: 9001 socket exception [1] server [127.0.0.1:1988]</span><br><span class="line">Mon Jan 26 15:49:46 DBClientCursor::init call() failed</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>修改配置文件中的nssize大小</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">nssize=32</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>以副本集的形式重启该节点</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mongod -f /data/mongodb/conf/winway-mongo-conf</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>查看nssize大小和集群状态</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">&gt; use test</span><br><span class="line">switched to db test</span><br><span class="line">&gt; db.stats()</span><br><span class="line">&#123;</span><br><span class="line">        &quot;db&quot; : &quot;test&quot;,</span><br><span class="line">        &quot;collections&quot; : 11,</span><br><span class="line">        &quot;objects&quot; : 348,</span><br><span class="line">        &quot;avgObjSize&quot; : 272.8045977011494,</span><br><span class="line">        &quot;dataSize&quot; : 94936,</span><br><span class="line">        &quot;storageSize&quot; : 245760,</span><br><span class="line">        &quot;numExtents&quot; : 13,</span><br><span class="line">        &quot;indexes&quot; : 10,</span><br><span class="line">        &quot;indexSize&quot; : 98112,</span><br><span class="line">        &quot;fileSize&quot; : 201326592,</span><br><span class="line">        &quot;nsSizeMB&quot; : 32,</span><br><span class="line">        &quot;ok&quot; : 1</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<h2><span id="回滚">回滚</span></h2><p>本操作逐个节点进行，如果在某个节点失败则重新初始化该节点即可，不影响集群对外服务</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/数据库/" class="article-tag-list-link color4">数据库</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2016/01/28/mongodb-change-nssize/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-mongodb-change-oplogsize" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2016/01/28/mongodb-change-oplogsize/">MongoDB在线修改oplogSize</a>
+    </h1>
+  
+
+        
+        <a href="/2016/01/28/mongodb-change-oplogsize/" class="archive-article-date">
+  	<time datetime="2016-01-28T06:27:30.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-01-28</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#oplog简介">oplog简介</a></li>
+<li><a href="#修改oplogsize大小">修改oplogSize大小</a></li>
+<li><a href="#回滚">回滚</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="oplog简介">oplog简介</span></h2><p>oplog（operations log）是一个特殊的固定集合（capped collection），用来记录所有的“写”（insert、update、delete以及修改索引等）操作纪录。MongoDB将数据库操作应用到primary然后记录到primary的oplog。secondary从primary复制oplog并将操作应用到自己（异步，有一定延迟，如果oplog大小不当，可能出现oplog溢出，从节点不可用）。所有的副本集成员维持一个oplog的副本来维持数据库的当前状态。<br>对于64位的Linux, Solaris, FreeBSD和Windows, MongoDB默认分配可用磁盘空间的5%作为oplog。如果这个值小于1G，则分配1G作为oplog。<br>oplog是一个固定集合（capped collection）,所以在正常操作期间不能修改他的大小。在集群初始化的时候最好考虑好该值的大小，因为后续修改起来比较麻烦。<br>在大多数情况下默认的oplog大小是可接受的。Oplog的大小由应用的操作行为决定。如果应用经常在短时间内执行大量的批量update、delete操作，从而产生大量的“写”操作纪录，则应该适当增大oplog的大小，避免primary的旧的oplog记录在被secondary同步走之前被新产生的oplog纪录覆盖掉。</p>
+<h2><span id="修改oplogsize大小">修改oplogSize大小</span></h2><p><strong>注意：尽量选择集群较空闲的时间段进行，减少单节点的操作时间，确保重启后的节点能够跟得上集群的oplog。最好先操作所有的secondary节点再操作primary节点。操作primary时，先使用stepdown降级，待集群选举出新的primary后再shutdown。</strong></p>
+<p>对副本集中所有的节点执行以下操作：</p>
+<ol>
+<li><p>查看当前oplogsize大小</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">demo:SECONDARY&gt; db.printReplicationInfo()</span><br><span class="line">configured oplog size:   25000MB</span><br><span class="line">log length start to end: 1290396secs (358.44hrs)</span><br><span class="line">oplog first event time:  Tue Dec 09 2014 15:33:05 GMT+0800 (CST)</span><br><span class="line">oplog last event time:   Wed Dec 24 2014 13:59:41 GMT+0800 (CST)</span><br><span class="line">now:                     Mon Jan 26 2015 15:28:44 GMT+0800 (CST)</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>关闭当前节点，登陆其他节点查看集群状态是否正常</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">demo:SECONDARY&gt; use admin</span><br><span class="line">switched to db admin</span><br><span class="line">demo:SECONDARY&gt; db.shutdownServer()</span><br><span class="line">Mon Jan 26 15:30:46 DBClientCursor::init call() failed</span><br><span class="line">Mon Jan 26 15:30:46 query failed : admin.$cmd &#123; shutdown: 1.0 &#125; to: 127.0.0.1:4422</span><br><span class="line">server should be down...</span><br><span class="line">Mon Jan 26 15:30:46 trying reconnect to 127.0.0.1:4422</span><br><span class="line">Mon Jan 26 15:30:46 reconnect 127.0.0.1:4422 ok</span><br><span class="line">Mon Jan 26 15:30:46 Socket recv() errno:104 Connection reset by peer 127.0.0.1:4422</span><br><span class="line">Mon Jan 26 15:30:46 SocketException: remote: 127.0.0.1:4422 error: 9001 socket exception [1] server [127.0.0.1:4422]</span><br><span class="line">Mon Jan 26 15:30:46 DBClientCursor::init call() failed</span><br></pre></td></tr></table></figure>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line">demo:PRIMARY&gt; rs.status()</span><br><span class="line">&#123;</span><br><span class="line">        &quot;set&quot; : &quot;demo&quot;,</span><br><span class="line">        &quot;date&quot; : ISODate(&quot;2015-01-26T07:30:58Z&quot;),</span><br><span class="line">        &quot;myState&quot; : 1,</span><br><span class="line">        &quot;members&quot; : [</span><br><span class="line">                &#123;</span><br><span class="line">                        &quot;_id&quot; : 0,</span><br><span class="line">                        &quot;name&quot; : &quot;demo01.mongodb:4422&quot;,</span><br><span class="line">                        &quot;health&quot; : 1,</span><br><span class="line">                        &quot;state&quot; : 1,</span><br><span class="line">                        &quot;stateStr&quot; : &quot;PRIMARY&quot;,</span><br><span class="line">                        &quot;uptime&quot; : 4147819,</span><br><span class="line">                        &quot;optime&quot; : Timestamp(1419400781000, 2),</span><br><span class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2014-12-24T05:59:41Z&quot;),</span><br><span class="line">                        &quot;self&quot; : true</span><br><span class="line">                &#125;,</span><br><span class="line">                &#123;</span><br><span class="line">                        &quot;_id&quot; : 1,</span><br><span class="line">                        &quot;name&quot; : &quot;demo02.mongodb:4422&quot;,</span><br><span class="line">                        &quot;health&quot; : 0,</span><br><span class="line">                        &quot;state&quot; : 8,</span><br><span class="line">                        &quot;stateStr&quot; : &quot;(not reachable/healthy)&quot;,</span><br><span class="line">                        &quot;uptime&quot; : 0,</span><br><span class="line">                        &quot;optime&quot; : Timestamp(1419400781000, 2),</span><br><span class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2014-12-24T05:59:41Z&quot;),</span><br><span class="line">                        &quot;lastHeartbeat&quot; : ISODate(&quot;2015-01-26T07:30:45Z&quot;),</span><br><span class="line">                        &quot;pingMs&quot; : 0,</span><br><span class="line">                        &quot;errmsg&quot; : &quot;socket exception [CONNECT_ERROR] for demo02.mongodb:4422&quot;</span><br><span class="line">                &#125;,</span><br><span class="line">                &#123;</span><br><span class="line">                        &quot;_id&quot; : 2,</span><br><span class="line">                        &quot;name&quot; : &quot;demo03.mongodb:4422&quot;,</span><br><span class="line">                        &quot;health&quot; : 1,</span><br><span class="line">                        &quot;state&quot; : 2,</span><br><span class="line">                        &quot;stateStr&quot; : &quot;SECONDARY&quot;,</span><br><span class="line">                        &quot;uptime&quot; : 4147071,</span><br><span class="line">                        &quot;optime&quot; : Timestamp(1419400781000, 2),</span><br><span class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2014-12-24T05:59:41Z&quot;),</span><br><span class="line">                        &quot;lastHeartbeat&quot; : ISODate(&quot;2015-01-26T07:30:58Z&quot;),</span><br><span class="line">                        &quot;pingMs&quot; : 1</span><br><span class="line">                &#125;</span><br><span class="line">        ],</span><br><span class="line">        &quot;ok&quot; : 1</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>以standalone的方式用另外的端口（确保端口空闲）启动</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mongod --port 1988 --dbpath /data/mongodb/demo-data/</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>备份当前的oplog</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mongodump --db local --collection &apos;oplog.rs&apos; --port 1988</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>连接mongd</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mongo --port 1988</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>保存oplog的最后一条纪录</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&gt; use local</span><br><span class="line">switched to db local</span><br><span class="line">&gt; db.temp.drop()</span><br><span class="line">false</span><br><span class="line">&gt; db.temp.save( db.oplog.rs.find( &#123; &#125;, &#123; ts: 1, h: 1 &#125; ).sort( &#123;$natural : -1&#125; ).limit(1).next() )</span><br><span class="line">&gt; db.temp.find()</span><br><span class="line">&#123; &quot;_id&quot; : ObjectId(&quot;54c5efb26833f799aead55f8&quot;), &quot;ts&quot; : Timestamp(1419400781000, 2), &quot;h&quot; : NumberLong(&quot;-6774720947739689692&quot;) &#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>删除oplog.rs</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">&gt; db.oplog.rs.drop()</span><br><span class="line">true</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>创建新的oplog，并指定大小，如1073741824 = 1GB</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">&gt; db.runCommand( &#123; create : &quot;oplog.rs&quot;, capped : true, size : 1073741824 &#125; )</span><br><span class="line">&#123; &quot;ok&quot; : 1 &#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>插入之前保存的旧oplog的最后一条纪录</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">&gt; db.oplog.rs.save( db.temp.findOne() )</span><br><span class="line">&gt; db.oplog.rs.find()</span><br><span class="line">&#123; &quot;_id&quot; : ObjectId(&quot;54c5efb26833f799aead55f8&quot;), &quot;ts&quot; : Timestamp(1419400781000, 2), &quot;h&quot; : NumberLong(&quot;-6774720947739689692&quot;) &#125;</span><br><span class="line">&gt; db.temp.drop()</span><br><span class="line">true</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>关闭该节点</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&gt; use admin</span><br><span class="line">switched to db admin</span><br><span class="line">&gt; db.shutdownServer()</span><br><span class="line">Mon Jan 26 15:49:46 DBClientCursor::init call() failed</span><br><span class="line">Mon Jan 26 15:49:46 query failed : admin.$cmd &#123; shutdown: 1.0 &#125; to: 127.0.0.1:1988</span><br><span class="line">server should be down...</span><br><span class="line">Mon Jan 26 15:49:46 trying reconnect to 127.0.0.1:1988</span><br><span class="line">Mon Jan 26 15:49:46 reconnect 127.0.0.1:1988 ok</span><br><span class="line">Mon Jan 26 15:49:46 Socket recv() errno:104 Connection reset by peer 127.0.0.1:1988</span><br><span class="line">Mon Jan 26 15:49:46 SocketException: remote: 127.0.0.1:1988 error: 9001 socket exception [1] server [127.0.0.1:1988] </span><br><span class="line">Mon Jan 26 15:49:46 DBClientCursor::init call() failed</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>修改配置文件中的oplogSize大小（不是必须）</p>
+</li>
+<li><p>以副本集的形式重启该节点</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mongod -f /data/mongodb/conf/demo-mongo-conf</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>查看oplogsize大小和集群状态</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line">demo:SECONDARY&gt; db.printReplicationInfo()</span><br><span class="line">configured oplog size:   1024MB</span><br><span class="line">log length start to end: 0secs (0hrs)</span><br><span class="line">oplog first event time:  Wed Dec 24 2014 13:59:41 GMT+0800 (CST)</span><br><span class="line">oplog last event time:   Wed Dec 24 2014 13:59:41 GMT+0800 (CST)</span><br><span class="line">now:                     Mon Jan 26 2015 15:53:54 GMT+0800 (CST)</span><br><span class="line">demo:SECONDARY&gt; rs.status()</span><br><span class="line">&#123;</span><br><span class="line">        &quot;set&quot; : &quot;demo&quot;,</span><br><span class="line">        &quot;date&quot; : ISODate(&quot;2015-01-26T08:09:43Z&quot;),</span><br><span class="line">        &quot;myState&quot; : 2,</span><br><span class="line">        &quot;syncingTo&quot; : &quot;demo01.mongodb:4422&quot;,</span><br><span class="line">        &quot;members&quot; : [</span><br><span class="line">                &#123;</span><br><span class="line">                        &quot;_id&quot; : 0,</span><br><span class="line">                        &quot;name&quot; : &quot;demo01.mongodb:4422&quot;,</span><br><span class="line">                        &quot;health&quot; : 1,</span><br><span class="line">                        &quot;state&quot; : 1,</span><br><span class="line">                        &quot;stateStr&quot; : &quot;PRIMARY&quot;,</span><br><span class="line">                        &quot;uptime&quot; : 492,</span><br><span class="line">                        &quot;optime&quot; : Timestamp(1422259325000, 1),</span><br><span class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2015-01-26T08:02:05Z&quot;),</span><br><span class="line">                        &quot;lastHeartbeat&quot; : ISODate(&quot;2015-01-26T08:09:43Z&quot;),</span><br><span class="line">                        &quot;pingMs&quot; : 1</span><br><span class="line">                &#125;,</span><br><span class="line">                &#123;</span><br><span class="line">                        &quot;_id&quot; : 1,</span><br><span class="line">                        &quot;name&quot; : &quot;demo02.mongodb:4422&quot;,</span><br><span class="line">                        &quot;health&quot; : 1,</span><br><span class="line">                        &quot;state&quot; : 2,</span><br><span class="line">                        &quot;stateStr&quot; : &quot;SECONDARY&quot;,</span><br><span class="line">                        &quot;uptime&quot; : 490,</span><br><span class="line">                        &quot;optime&quot; : Timestamp(1422259325000, 1),</span><br><span class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2015-01-26T08:02:05Z&quot;),</span><br><span class="line">                        &quot;lastHeartbeat&quot; : ISODate(&quot;2015-01-26T08:09:43Z&quot;),</span><br><span class="line">                        &quot;pingMs&quot; : 1</span><br><span class="line">                &#125;,</span><br><span class="line">                &#123;</span><br><span class="line">                        &quot;_id&quot; : 2,</span><br><span class="line">                        &quot;name&quot; : &quot;demo03.mongodb:4422&quot;,</span><br><span class="line">                        &quot;health&quot; : 1,</span><br><span class="line">                        &quot;state&quot; : 2,</span><br><span class="line">                        &quot;stateStr&quot; : &quot;SECONDARY&quot;,</span><br><span class="line">                        &quot;uptime&quot; : 493,</span><br><span class="line">                        &quot;optime&quot; : Timestamp(1422259325000, 1),</span><br><span class="line">                        &quot;optimeDate&quot; : ISODate(&quot;2015-01-26T08:02:05Z&quot;),</span><br><span class="line">                        &quot;self&quot; : true</span><br><span class="line">                &#125;</span><br><span class="line">        ],</span><br><span class="line">        &quot;ok&quot; : 1</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+</li>
+</ol>
+<h2><span id="回滚">回滚</span></h2><p>使用mongorestore恢复oplog.rs<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">mongorestore --port 1988 --db local --collection &apos;oplog.rs&apos; --drop dump/local/oplog.rs.bson</span><br><span class="line">connected to: 127.0.0.1:1988</span><br><span class="line">Mon Jan 26 16:25:09 dump/local/oplog.rs.bson</span><br><span class="line">Mon Jan 26 16:25:09     going into namespace [local.oplog.rs]</span><br><span class="line">Mon Jan 26 16:25:09      dropping</span><br><span class="line">Mon Jan 26 16:25:53     Created collection local.oplog.rs with options: &#123; &quot;create&quot; : &quot;oplog.rs&quot;, &quot;size&quot; : 26214400000, &quot;capped&quot; : true, &quot;autoIndexId&quot; : false &#125;</span><br><span class="line">Mon Jan 26 16:25:56             47602202/1453381602     3%      (bytes)</span><br><span class="line">Mon Jan 26 16:26:00             87000058/1453381602     5%      (bytes)</span><br><span class="line">Mon Jan 26 16:26:03             129556190/1453381602    8%      (bytes)</span><br><span class="line">Mon Jan 26 16:26:06             193797635/1453381602    13%     (bytes)</span><br><span class="line">Mon Jan 26 16:26:09             386061413/1453381602    26%     (bytes)</span><br><span class="line">Mon Jan 26 16:26:12             526376708/1453381602    36%     (bytes)</span><br><span class="line">Mon Jan 26 16:26:15             697955917/1453381602    48%     (bytes)</span><br><span class="line">Mon Jan 26 16:26:18             867686914/1453381602    59%     (bytes)</span><br><span class="line">Mon Jan 26 16:26:21             930218947/1453381602    64%     (bytes)</span><br><span class="line">Mon Jan 26 16:26:24             990493767/1453381602    68%     (bytes)</span><br><span class="line">Mon Jan 26 16:26:27             1037063408/1453381602   71%     (bytes)</span><br><span class="line">Mon Jan 26 16:26:30             1092791895/1453381602   75%     (bytes)</span><br><span class="line">Mon Jan 26 16:26:33             1130693201/1453381602   77%     (bytes)</span><br><span class="line">Mon Jan 26 16:26:36             1204092371/1453381602   82%     (bytes)</span><br><span class="line">Mon Jan 26 16:26:39             1378685459/1453381602   94%     (bytes)</span><br><span class="line">1427593 objects found</span><br></pre></td></tr></table></figure></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/数据库/" class="article-tag-list-link color4">数据库</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2016/01/28/mongodb-change-oplogsize/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-mongodb-ops-introduce" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1204,420 +1716,9 @@
 
 
   
-    <article id="post-a-simple-Linux-app-monitor-framework-2" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/09/12/a-simple-Linux-app-monitor-framework-2/">一个简易的服务器监控框架(2)</a>
-    </h1>
-  
-
-        
-        <a href="/2013/09/12/a-simple-Linux-app-monitor-framework-2/" class="archive-article-date">
-  	<time datetime="2013-09-12T12:53:44.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-09-12</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>在<a href="https://winway.github.io/2013/07/01/a-simple-Linux-app-monitor-framework-1/">一个简易的服务器监控框架(1)</a>一文中，我们介绍了一个简单的服务器监控框架，可以监控服务器的某些状态，但是有一个前提，必须将关心的状态量化，比如磁盘空间使用率定义在一个数值范围内。但是有些信息很难量化，或者如果量化，就显得很繁琐。这里在一个简易的服务器监控框架(1)的基础上，稍作修改，将状态正常与否的判断放到脚本里面完成。<br><a href="https://github.com/winway/a-simple-monitor-framework/tree/v2.0" target="_blank" rel="noopener">https://github.com/winway/a-simple-monitor-framework/tree/v2.0</a></p>
-<!-- toc -->
-<ul>
-<li><a href="#1-简介">1. 简介</a></li>
-<li><a href="#2-配置">2. 配置</a></li>
-<li><a href="#3-数据存储">3. 数据存储</a></li>
-<li><a href="#4-展示">4. 展示</a></li>
-<li><a href="#5-使用">5. 使用</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="1-简介">1. 简介</span></h2><p>程序包括以下文件和文件夹<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">$ ls -l</span><br><span class="line">总计 140</span><br><span class="line">-rwxrw-r-- 1 winway winway 976 07-28 21:22 analyse.sh</span><br><span class="line">-rwxrw-r-- 1 winway winway 122 07-28 14:04 config.sh</span><br><span class="line">drwxrwxr-x 4 winway winway 4096 08-09 23:40 data</span><br><span class="line">-rwxr--r-- 1 winway winway 411 08-09 18:54 data_clear.sh</span><br><span class="line">drwxrwxr-x 2 winway winway 4096 08-15 16:08 display</span><br><span class="line">-rwxrw-r-- 1 winway winway 499 07-28 21:27 display.sh</span><br><span class="line">drwxrwxr-x 4 winway winway 4096 08-09 19:37 etc</span><br><span class="line">-rwxrw-r-- 1 winway winway 1377 07-28 21:25 format.sh</span><br><span class="line">-rwxrw-r-- 1 winway winway 527 07-31 21:18 monitor.sh</span><br><span class="line">-rwxrwxr-x 1 winway winway 20815 06-30 11:57 mussh</span><br><span class="line">-rw-rw-r-- 1 winway winway 3718 08-04 17:10 raw2html.py</span><br><span class="line">-rw-rw-r-- 1 winway winway 1684 07-30 19:19 raw_analyse.py</span><br><span class="line">-rwxrw-r-- 1 winway winway 1796 08-09 19:37 snatch.sh</span><br><span class="line">-rwxr--r-- 1 winway winway 1059 08-09 19:40 time_sync.sh</span><br><span class="line">-rwxr--r-- 1 winway winway 584 08-09 19:21 verify.sh</span><br></pre></td></tr></table></figure></p>
-<ul>
-<li>monitor.sh<br>主程序，会依次调用snatch.sh、analyse.sh、format.sh、verify.sh、display.sh</li>
-<li>snatch.sh<br>数据采集，基于mussh（不了解的可以参考下<a href="https://winway.github.io/2013/06/24/mussh-pdsh-pssh-usage/">这里</a>）实现，周期性抓取各服务器上感兴趣的数据项，存储到data文件夹中</li>
-<li>analyse.sh<br>数据分析，根据etc文件夹中的阈值配置文件，产生需要告警的条目，主要工作由raw_analyse.py完成</li>
-<li>format.sh<br>数据格式化，将原始的纯文本数据格式化为html格式，主要工作由raw2html.py完成</li>
-<li>verify.sh<br>数据完整性检查，将抓取的数据与配置文件进行对比，确定有误漏掉的监控对象</li>
-<li>display.sh<br>数据展示，更新display文件夹下的软连接，指向最新的html文件</li>
-<li>time_sync.sh<br>时间同步，由于某种原因，无法使用ntp，所以使用脚本设置被监控服务器的时间</li>
-<li>data_clear.sh<br>数据清理，清除data目录下的旧文件</li>
-<li>config.sh<br>一些变量的定义<h2><span id="2-配置">2. 配置</span></h2>配置文件结构如下：<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">etc/</span><br><span class="line">|-- lst.d</span><br><span class="line">|-- monitor.conf</span><br><span class="line">`-- sh.d</span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>其中monitor.conf是主配置文件<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> cat monitor.conf</span><br><span class="line"><span class="meta">#</span> 类型 IP列表文件 检查脚本文件</span><br><span class="line">database database.lst database.sh</span><br></pre></td></tr></table></figure></p>
-<p>类型是指服务器的角色，如数据库服务器，web服务器等；IP列表文件是对应这一角色的服务器的ip集合，格式为<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 归属地 用户@IP</span><br><span class="line">哈尔滨 root@x.x.x.x</span><br><span class="line">哈尔滨 root@x.x.x.x</span><br></pre></td></tr></table></figure></p>
-<p>这里“<a href="mailto:root@x.x.x.x" target="_blank" rel="noopener">root@x.x.x.x</a>”的格式是为了mussh执行起来方便而这么写的。<br>检查脚本文件是获取这个服务器数据应该执行的脚本。在目标机器上执行这个脚本，就可以获得我们关心的各项数据，这个脚本根据需要而定制，且对输出信息的格式有要求。示例脚本如下，其中有问题的数据条目以“**”结尾，而这个条目中真正有问题的项被“^^^^”和“&amp;&amp;&amp;&amp;”包裹,同一项数据组织成一行，行与行之间用“+”连接。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span>! /bin/bash</span><br><span class="line"><span class="meta">#</span></span><br><span class="line"></span><br><span class="line">echo -n '&lt;app1&gt;'</span><br><span class="line">n=$(pgrep app1 | wc -l)</span><br><span class="line">if [[ n -ge 1 ]] &amp;&amp; [[ n -le 4 ]]</span><br><span class="line">then</span><br><span class="line">    echo "$n"</span><br><span class="line">else</span><br><span class="line">    echo "$&#123;n&#125;**"</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">echo -n '&lt;app2&gt;'</span><br><span class="line">n=$(pgrep app2 | wc -l)</span><br><span class="line">if [[ n -ge 1 ]] &amp;&amp; [[ n -le 4 ]]</span><br><span class="line">then</span><br><span class="line">    echo "$n"</span><br><span class="line">else</span><br><span class="line">    echo "$&#123;n&#125;**"</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">echo -n '&lt;monitor&gt;'</span><br><span class="line">n=$(pgrep monitor | wc -l)</span><br><span class="line">if [[ n -ge 1 ]]</span><br><span class="line">then</span><br><span class="line">    echo "$n"</span><br><span class="line">else</span><br><span class="line">    echo "$&#123;n&#125;**"</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">echo -n '&lt;links_to_db&gt;'</span><br><span class="line">n=$(netstat -ant | grep -c '1521.*ESTABLISHED')</span><br><span class="line">if [[ $n -ge 1 ]]</span><br><span class="line">then</span><br><span class="line">    echo "$&#123;n&#125;"</span><br><span class="line">else</span><br><span class="line">    echo "$&#123;n&#125;**"</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">echo -n '&lt;backup&gt;'</span><br><span class="line">du -sm /backup/* | \</span><br><span class="line">awk -F'[ \t/]+' '&#123;pref = suff = ""; if($1 &gt;= 7168)&#123;warn = "**"; pref = "^^^^"; suff = "&amp;&amp;&amp;&amp;"&#125;;res = res ? res "+" pref $1 "M" OFS $NF suff : pref $1 "M" OFS $NF suff&#125;END&#123;print res warn&#125;'</span><br><span class="line"></span><br><span class="line">echo -n '&lt;ORA_ERROR&gt;'</span><br><span class="line">start=$(date -d '5min ago' '+%s')</span><br><span class="line">export start</span><br><span class="line">tail -1500 /var/log/messages | while read a b c d; do e=$(date -d "$a $b $c" '+%s'); [[ $e -ge $start ]] &amp;&amp; echo "$a $b $c $d"; done | \</span><br><span class="line">LANG="C" sed -n '/ORA/s/.*\(ORA-[^:]*\):.*$/\1/p' | \</span><br><span class="line">awk '&#123;a[$0]; warn = "**"&#125;END&#123;for(i in a)res = res ? res "+" i : i; if(res)print res warn; else print "OK"&#125;'</span><br><span class="line">unset start</span><br><span class="line"></span><br><span class="line">echo -n '&lt;disk_usage&gt;'</span><br><span class="line">df -h | awk 'NR &gt; 1&#123;pref = suff = ""; if(int($(NF-1)) &gt;= 80)&#123;warn = "**"; pref = "^^^^"; suff = "&amp;&amp;&amp;&amp;"&#125;;res = res ? res "+" pref $(NF-1) OFS $NF suff : pref $(NF-1) OFS $NF suff&#125;END&#123;print res warn&#125;'</span><br><span class="line"></span><br><span class="line">echo -n '&lt;sys_time&gt;'</span><br><span class="line">date '+%Y-%m-%d %H:%M:%S'</span><br><span class="line"></span><br><span class="line">echo -n '&lt;uptime&gt;'</span><br><span class="line">uptime 2&gt;/dev/null | sed -n '/up/s/^.*up[ \t]*\([^,]*\),.*$/\1/p'</span><br></pre></td></tr></table></figure></p>
-<p>由于mussh具有远程执行本地脚本的能力，所以我们不需要把这个脚本拷贝到远程主机上。<br>所以，如果你想加入对一批相同类型的机器的监控，你需要：</p>
-<ol>
-<li>编辑一个IP列表文件，将他们的IP地址按合法的格式编辑</li>
-<li>根据自己关心的数据项，定制一个检查脚本，脚本的输出信息格式如示例脚本所示</li>
-<li>在monitor.conf里添加一条配置</li>
-</ol>
-<h2><span id="3-数据存储">3. 数据存储</span></h2><p>数据存储类似于一个<a href="https://winway.github.io/2013/07/01/a-simple-Linux-app-monitor-framework-1/">简易的服务器监控框架(1)</a>中描述的。</p>
-<h2><span id="4-展示">4. 展示</span></h2><p>展示类似于<a href="https://winway.github.io/2013/07/01/a-simple-Linux-app-monitor-framework-1/">简易的服务器监控框架(1)</a>中描述的。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/monito_v2_demo.bmp" alt="monitor_v2_demo"></p>
-<h2><span id="5-使用">5. 使用</span></h2><p>需要安装mussh和python的PyH模块。根据需要编辑crontab文件。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">shell</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">监控</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/09/12/a-simple-Linux-app-monitor-framework-2/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-mutt-send-mail-usage" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/07/10/mutt-send-mail-usage/">使用mutt自动发送邮件</a>
-    </h1>
-  
-
-        
-        <a href="/2013/07/10/mutt-send-mail-usage/" class="archive-article-date">
-  	<time datetime="2013-07-10T01:15:17.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-07-10</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<!-- tocstop -->
-<p>使用方法：将要发送的内容以下面的形式组织<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> tree mails/</span><br><span class="line">mails/</span><br><span class="line">|-- mail1</span><br><span class="line">| |-- attach1</span><br><span class="line">| |-- attach2</span><br><span class="line">| |-- attach3</span><br><span class="line">| |-- attachment.lst</span><br><span class="line">| |-- body.txt</span><br><span class="line">| |-- receiver.lst</span><br><span class="line">| `-- subject.txt</span><br><span class="line">|-- mail2</span><br><span class="line">| |-- attach1</span><br><span class="line">| |-- attach2</span><br><span class="line">| |-- attach3</span><br><span class="line">| |-- attachment.lst</span><br><span class="line">| |-- body.txt</span><br><span class="line">| |-- receiver.lst</span><br><span class="line">| `-- subject.txt</span><br><span class="line">`-- mail3</span><br><span class="line">|-- attach1</span><br><span class="line">|-- attach2</span><br><span class="line">|-- attach3</span><br><span class="line">|-- attachment.lst</span><br><span class="line">|-- body.txt</span><br><span class="line">|-- receiver.lst</span><br><span class="line">`-- subject.txt</span><br></pre></td></tr></table></figure></p>
-<p>其中receiver.lst是收件人列表，subject.txt是主题，body.txt是正文，attachment.lst是附件列表，attach1、attach2、attach3是attachment.lst中列出的附件，每个mailN文件夹是一封邮件。</p>
-<p>脚本很简单：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span>! /bin/bash</span><br><span class="line"><span class="meta">#</span> Auto send email</span><br><span class="line"><span class="meta">#</span></span><br><span class="line">if [[ $# &lt; 1 ]]</span><br><span class="line">then</span><br><span class="line">    echo "Usage: $0 &lt;maildir&gt;"</span><br><span class="line">    exit</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">DIR="$1"</span><br><span class="line">cd "$DIR" || &#123; echo "Enter $DIR failed"; exit; &#125;</span><br><span class="line"></span><br><span class="line">for dir in $(ls -d */)</span><br><span class="line">do</span><br><span class="line">    cd "$dir" || &#123; echo "Enter $dir failed"; continue; &#125;</span><br><span class="line">    receiver=$(cat receiver.lst | sed ':a; $!N; s/\n/ /; ta')</span><br><span class="line">    subject=$(cat subject.txt)</span><br><span class="line">    body=$(cat body.txt)</span><br><span class="line">    attachment=$(cat attachment.lst | sed ':a; $!N; s/\n/ -a /; ta')</span><br><span class="line">    echo "$body" | mutt -s "$subject" -a $attachment $receiver</span><br><span class="line">    echo "Send $dir"</span><br><span class="line">    cd ..</span><br><span class="line">done</span><br></pre></td></tr></table></figure></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">shell</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">mutt</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/07/10/mutt-send-mail-usage/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-c-debug-macro" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/07/09/c-debug-macro/">一个方便打印C程序调试信息的宏</a>
-    </h1>
-  
-
-        
-        <a href="/2013/07/09/c-debug-macro/" class="archive-article-date">
-  	<time datetime="2013-07-09T12:24:25.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-07-09</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<!-- tocstop -->
-<p>为了方便调试C程序，写了个打印信息的宏，能够打印错误信息，以及错误发生的文件名、行号。<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">ifndef</span> _DEBUG_H_</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> _DEBUG_H_</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;malloc.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> ERRBUFLEN 1024</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> DEBUG_ON</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> ERR_PRINT(str) \</span></span><br><span class="line">    <span class="keyword">do</span> \</span><br><span class="line">    &#123; \</span><br><span class="line">        <span class="keyword">char</span> errbuf[ERRBUFLEN] = &#123;<span class="string">'\0'</span>&#125;; \</span><br><span class="line">        <span class="built_in">snprintf</span>(errbuf, ERRBUFLEN, <span class="string">"[file: %s line: %d] %s"</span>, \</span><br><span class="line">                                    __FILE__, __LINE__, str); \</span><br><span class="line">        <span class="built_in">fprintf</span>(<span class="built_in">stderr</span>, <span class="string">"\033[31m"</span>); \</span><br><span class="line">        perror(errbuf); \</span><br><span class="line">        <span class="built_in">fprintf</span>(<span class="built_in">stderr</span>, <span class="string">"\033[0m"</span>); \</span><br><span class="line">    &#125; <span class="keyword">while</span> (<span class="number">0</span>)</span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> INFO_PRINT(str) \</span></span><br><span class="line">    <span class="keyword">do</span> \</span><br><span class="line">    &#123; \</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"\033[31m"</span>); \</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"[file: %s line: %d] %s\n"</span>, __FILE__, __LINE__, str); \</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"\033[0m"</span>); \</span><br><span class="line">    &#125; <span class="keyword">while</span>(<span class="number">0</span>)</span><br><span class="line"><span class="meta">#<span class="meta-keyword">else</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> ERR_PRINT(str)</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> INFO_PRINT(str)</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br></pre></td></tr></table></figure></p>
-<p>测试程序：<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">"debug.h"</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">int</span></span><br><span class="line">main()</span><br><span class="line">&#123;</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"test\n"</span>);</span><br><span class="line"></span><br><span class="line">        FILE *fp = <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line">        fp = fopen(<span class="string">"./none.txt"</span>, <span class="string">"r"</span>);</span><br><span class="line">        <span class="keyword">if</span> (fp == <span class="literal">NULL</span>)</span><br><span class="line">        &#123;</span><br><span class="line">                ERR_PRINT(<span class="string">"fopen error"</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">int</span> i = <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (i &lt; <span class="number">2</span>)</span><br><span class="line">        &#123;</span><br><span class="line">                INFO_PRINT(<span class="string">"i &lt; 2"</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">[winway@s211 err_print]$ gcc test.c</span><br><span class="line">[winway@s211 err_print]$ ./a.out</span><br><span class="line">test</span><br><span class="line">[winway@s211 err_print]$ gcc test.c -DDEBUG_ON</span><br><span class="line">[winway@s211 err_print]$ ./a.out</span><br><span class="line">test</span><br><span class="line">[file: test.c line: 13] fopen error: No such file or directory</span><br><span class="line">[file: test.c line: 20] i &lt; 2</span><br></pre></td></tr></table></figure>
-<p>欢迎使用。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">C</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/07/09/c-debug-macro/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-a-LAN-arp-attacker" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/07/09/a-LAN-arp-attacker/">局域网ARP欺骗程序</a>
-    </h1>
-  
-
-        
-        <a href="/2013/07/09/a-LAN-arp-attacker/" class="archive-article-date">
-  	<time datetime="2013-07-09T10:29:46.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-07-09</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p><a href="https://github.com/winway/a-LAN-arp-attacker" target="_blank" rel="noopener">https://github.com/winway/a-LAN-arp-attacker</a></p>
-<!-- toc -->
-<ul>
-<li><a href="#1-工作原理">1. 工作原理</a></li>
-<li><a href="#2-使用方法">2. 使用方法</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="1-工作原理">1. 工作原理</span></h2><ol>
-<li>构造ARP请求包（广播）给目的主机，并分析返回的ARP应答包，获取目的主机的MAC地址。</li>
-<li>构造ARP应答包（单播）给目的主机，其中携带虚假的IP - MAC映射关系。</li>
-<li>目的主机的ARP缓存中多了一条错误的IP - MAC映射关系。</li>
-</ol>
-<h2><span id="2-使用方法">2. 使用方法</span></h2><ol>
-<li>make，生成arp_attacker</li>
-<li>./arp_attacker [dst ip] 针对单一主机进行攻击</li>
-<li>./arp_attacker 发送广播，影响局域网所有主机</li>
-</ol>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">C</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">ARP欺骗</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/07/09/a-LAN-arp-attacker/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
-      <a class="extend prev" rel="prev" href="/page/8/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/7/">7</a><a class="page-number" href="/page/8/">8</a><span class="page-number current">9</span><a class="page-number" href="/page/10/">10</a><a class="extend next" rel="next" href="/page/10/">Next &raquo;</a>
+      <a class="extend prev" rel="prev" href="/page/8/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/7/">7</a><a class="page-number" href="/page/8/">8</a><span class="page-number current">9</span><a class="page-number" href="/page/10/">10</a><a class="page-number" href="/page/11/">11</a><a class="extend next" rel="next" href="/page/10/">Next &raquo;</a>
     </nav>
   
 
@@ -1750,11 +1851,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
+                <a href="javascript:void(0)" class="js-tag color1">canal</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">canal</a>
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1762,7 +1863,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">github</a>
+                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1770,7 +1871,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">github</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1782,23 +1891,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">数仓</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">snmp</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">备份</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1810,7 +1911,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">备份</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1842,15 +1947,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1874,7 +1979,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1882,15 +1991,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">telent</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1910,15 +2015,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">yarn</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
