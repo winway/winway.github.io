@@ -8,21 +8,23 @@
   <link rel="dns-prefetch" href="https://winway.github.io">
   <title>大数据开发之路-离线任务优化 | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="离线任务优化-数据开发的看家本领 优化方向 优化层面 hive常用优化手段&amp;amp;参数 spark常用优化手段&amp;amp;参数 参考资料    导引大数据开发之路-概述  离线任务优化-数据开发的看家本领离线任务优化是数据开发的重要内容，下面从优化方向和优化层面两个角度总结一下优化的思路。这些优化的思想具有普适性，跟具体的计算引擎无关，普遍适用于hive mapreduce、hive on t">
+  <meta name="description" content="离线任务优化-数据开发的看家本领 优化方向 优化层面 hive常用优化手段&amp;amp;参数 spark常用优化手段&amp;amp;参数 spark-sql常用优化手段&amp;amp;参数 参考资料    导引大数据开发之路-概述  离线任务优化-数据开发的看家本领离线任务优化是数据开发的重要内容，下面从优化方向和优化层面两个角度总结一下优化的思路。这些优化的思想具有普适性，跟具体的计算引擎无关，普遍适用于h">
 <meta name="keywords" content="hive,tez,spark,spark-sql">
 <meta property="og:type" content="article">
 <meta property="og:title" content="大数据开发之路-离线任务优化">
 <meta property="og:url" content="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:description" content="离线任务优化-数据开发的看家本领 优化方向 优化层面 hive常用优化手段&amp;amp;参数 spark常用优化手段&amp;amp;参数 参考资料    导引大数据开发之路-概述  离线任务优化-数据开发的看家本领离线任务优化是数据开发的重要内容，下面从优化方向和优化层面两个角度总结一下优化的思路。这些优化的思想具有普适性，跟具体的计算引擎无关，普遍适用于hive mapreduce、hive on t">
+<meta property="og:description" content="离线任务优化-数据开发的看家本领 优化方向 优化层面 hive常用优化手段&amp;amp;参数 spark常用优化手段&amp;amp;参数 spark-sql常用优化手段&amp;amp;参数 参考资料    导引大数据开发之路-概述  离线任务优化-数据开发的看家本领离线任务优化是数据开发的重要内容，下面从优化方向和优化层面两个角度总结一下优化的思路。这些优化的思想具有普适性，跟具体的计算引擎无关，普遍适用于h">
 <meta property="og:locale" content="default">
+<meta property="og:image" content="https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/5ebe0848.png">
+<meta property="og:image" content="https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/a6c7d4c4.png">
 <meta property="og:image" content="http://www.jasongj.com/img/spark/spark4_ae/spark_ae_auto_reducer_detail_1.png">
 <meta property="og:image" content="http://www.jasongj.com/img/spark/spark4_ae/spark_ae_skew_join.png">
-<meta property="og:updated_time" content="2022-05-13T11:42:55.324Z">
+<meta property="og:updated_time" content="2022-05-13T11:48:42.155Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="大数据开发之路-离线任务优化">
-<meta name="twitter:description" content="离线任务优化-数据开发的看家本领 优化方向 优化层面 hive常用优化手段&amp;amp;参数 spark常用优化手段&amp;amp;参数 参考资料    导引大数据开发之路-概述  离线任务优化-数据开发的看家本领离线任务优化是数据开发的重要内容，下面从优化方向和优化层面两个角度总结一下优化的思路。这些优化的思想具有普适性，跟具体的计算引擎无关，普遍适用于hive mapreduce、hive on t">
-<meta name="twitter:image" content="http://www.jasongj.com/img/spark/spark4_ae/spark_ae_auto_reducer_detail_1.png">
+<meta name="twitter:description" content="离线任务优化-数据开发的看家本领 优化方向 优化层面 hive常用优化手段&amp;amp;参数 spark常用优化手段&amp;amp;参数 spark-sql常用优化手段&amp;amp;参数 参考资料    导引大数据开发之路-概述  离线任务优化-数据开发的看家本领离线任务优化是数据开发的重要内容，下面从优化方向和优化层面两个角度总结一下优化的思路。这些优化的思想具有普适性，跟具体的计算引擎无关，普遍适用于h">
+<meta name="twitter:image" content="https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/5ebe0848.png">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -185,6 +187,7 @@
 <li><a href="#优化层面">优化层面</a></li>
 <li><a href="#hive常用优化手段参数">hive常用优化手段&amp;参数</a></li>
 <li><a href="#spark常用优化手段参数">spark常用优化手段&amp;参数</a></li>
+<li><a href="#spark-sql常用优化手段参数">spark-sql常用优化手段&amp;参数</a></li>
 <li><a href="#参考资料">参考资料</a></li>
 </ul>
 <!-- tocstop -->
@@ -278,10 +281,30 @@
  <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">--driver-memory</span><br><span class="line">--executor-memory</span><br><span class="line">--executor-cores</span><br></pre></td></tr></table></figure>
 </li>
 <li><p>合理设置并并行度</p>
- <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"> - 使用repartition增加并行度</span><br><span class="line"> - coalesce()取代repartition()降低并行度</span><br><span class="line"> - mapPartitions()取代map()，foreachPartitions替代foreach</span><br><span class="line"> - 优先使用DataFrame/Dataset取代RDD</span><br><span class="line"> - 使用rdd cache或checkpoint，提高复用率</span><br><span class="line"> - 减少shuffle操作gropByKey(), reducebyKey(), join(), distinct()，使用map类的非shuffle算子</span><br><span class="line"> - 使用reduceByKey/aggregateByKey替代groupByKey，使用预聚合操作</span><br><span class="line">![](https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/5ebe0848.png)</span><br><span class="line">![](https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/a6c7d4c4.png)</span><br><span class="line"> - 数据倾斜</span><br><span class="line">	 - 调整并行度或自定义 Partitioner 从而分散分配给同一 Task 的大量不同 Key</span><br><span class="line">	 - 使用 BroadcastJoin 代替 ReduceJoin 消除 Shuffle 从而避免 Shuffle 引起的数据倾斜</span><br><span class="line">	 - 对倾斜 Key 使用随机前缀或后缀从而分散大量倾斜 Key，同时将参与 Join 的小表扩容，从而保证 Join 结果的正确性</span><br><span class="line"> - 使用HashShuffleManager时，设置spark.shuffle.consolidateFiles=true，减少shuffle write的文件数量</span><br><span class="line"></span><br><span class="line">## spark-sql常用优化手段&amp;参数</span><br><span class="line"> - 合理设置单partition读取数据量</span><br><span class="line">	```SET spark.sql.files.maxPartitionBytes=xxxx;</span><br></pre></td></tr></table></figure>
+ <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">--spark.default.parallelism</span><br></pre></td></tr></table></figure>
 </li>
-<li><p>合理设置shuffle partition的数量</p>
- <figure class="highlight plain"><figcaption><span>spark.sql.shuffle.partitions</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">- 使用coalesce &amp; repartition调整partition数量</span><br><span class="line">```sql</span><br><span class="line">	SELECT /*+ COALESCE(3) */ * FROM EMP_TABLE</span><br><span class="line">	SELECT /*+ REPARTITION(3) */ * FROM EMP_TABLE</span><br><span class="line">	SELECT /*+ REPARTITION(c) */ * FROM EMP_TABLE</span><br><span class="line">	SELECT /*+ REPARTITION(3, dept_col) */ * FROM EMP_TABLE</span><br><span class="line">	SELECT /*+ REPARTITION_BY_RANGE(dept_col) */ * FROM EMP_TABLE</span><br><span class="line">	SELECT /*+ REPARTITION_BY_RANGE(3, dept_col) */ * FROM EMP_TABLE</span><br></pre></td></tr></table></figure>
+<li><p>使用repartition增加并行度</p>
+</li>
+<li>coalesce()取代repartition()降低并行度</li>
+<li>mapPartitions()取代map()，foreachPartitions替代foreach</li>
+<li>优先使用DataFrame/Dataset取代RDD</li>
+<li>使用rdd cache或checkpoint，提高复用率</li>
+<li>减少shuffle操作gropByKey(), reducebyKey(), join(), distinct()，使用map类的非shuffle算子</li>
+<li>使用reduceByKey/aggregateByKey替代groupByKey，使用预聚合操作<br> <img src="https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/5ebe0848.png" alt=""><br> <img src="https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/a6c7d4c4.png" alt=""></li>
+<li>数据倾斜<ul>
+<li>调整并行度或自定义 Partitioner 从而分散分配给同一 Task 的大量不同 Key</li>
+<li>使用 BroadcastJoin 代替 ReduceJoin 消除 Shuffle 从而避免 Shuffle 引起的数据倾斜</li>
+<li>对倾斜 Key 使用随机前缀或后缀从而分散大量倾斜 Key，同时将参与 Join 的小表扩容，从而保证 Join 结果的正确性</li>
+</ul>
+</li>
+<li>使用HashShuffleManager时，设置spark.shuffle.consolidateFiles=true，减少shuffle write的文件数量</li>
+</ul>
+<h2><span id="spark-sql常用优化手段amp参数">spark-sql常用优化手段&amp;参数</span></h2><ul>
+<li><p>合理设置单partition读取数据量</p>
+ <figure class="highlight plain"><figcaption><span>spark.sql.files.maxPartitionBytes</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">- 合理设置shuffle partition的数量</span><br><span class="line">```SET spark.sql.shuffle.partitions=xxxx;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>使用coalesce &amp; repartition调整partition数量</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ COALESCE(3) */</span> * <span class="keyword">FROM</span> EMP_TABLE</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION(3) */</span> * <span class="keyword">FROM</span> EMP_TABLE</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION(c) */</span> * <span class="keyword">FROM</span> EMP_TABLE</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION(3, dept_col) */</span> * <span class="keyword">FROM</span> EMP_TABLE</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION_BY_RANGE(dept_col) */</span> * <span class="keyword">FROM</span> EMP_TABLE</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION_BY_RANGE(3, dept_col) */</span> * <span class="keyword">FROM</span> EMP_TABLE</span><br></pre></td></tr></table></figure>
 </li>
 <li><p>使用broadcast join</p>
 </li>
