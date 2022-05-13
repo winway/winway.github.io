@@ -16,15 +16,16 @@
 <meta property="og:site_name" content="winway&#39;s blog">
 <meta property="og:description" content="离线任务优化-数据开发的看家本领 优化方向 优化层面 hive常用优化手段&amp;amp;参数 spark常用优化手段&amp;amp;参数 spark-sql常用优化手段&amp;amp;参数 参考资料    导引大数据开发之路-概述  离线任务优化-数据开发的看家本领离线任务优化是数据开发的重要内容，下面从优化方向和优化层面两个角度总结一下优化的思路。这些优化的思想具有普适性，跟具体的计算引擎无关，普遍适用于h">
 <meta property="og:locale" content="default">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220513195135.png">
 <meta property="og:image" content="https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/5ebe0848.png">
 <meta property="og:image" content="https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/a6c7d4c4.png">
-<meta property="og:image" content="http://www.jasongj.com/img/spark/spark4_ae/spark_ae_auto_reducer_detail_1.png">
-<meta property="og:image" content="http://www.jasongj.com/img/spark/spark4_ae/spark_ae_skew_join.png">
-<meta property="og:updated_time" content="2022-05-13T11:48:42.155Z">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220513195229.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220513195250.png">
+<meta property="og:updated_time" content="2022-05-13T11:54:53.600Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="大数据开发之路-离线任务优化">
 <meta name="twitter:description" content="离线任务优化-数据开发的看家本领 优化方向 优化层面 hive常用优化手段&amp;amp;参数 spark常用优化手段&amp;amp;参数 spark-sql常用优化手段&amp;amp;参数 参考资料    导引大数据开发之路-概述  离线任务优化-数据开发的看家本领离线任务优化是数据开发的重要内容，下面从优化方向和优化层面两个角度总结一下优化的思路。这些优化的思想具有普适性，跟具体的计算引擎无关，普遍适用于h">
-<meta name="twitter:image" content="https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/5ebe0848.png">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220513195135.png">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -237,13 +238,34 @@
 </ul>
 <h2><span id="hive常用优化手段amp参数">hive常用优化手段&amp;参数</span></h2><ul>
 <li><p>使用tez引擎</p>
- <figure class="highlight plain"><figcaption><span>hive.execution.engine</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">- 列裁剪和分区裁剪</span><br><span class="line">- 谓词下推，过滤操作尽可能提前执行</span><br><span class="line">- sort by代替order by。避免单个reduce，配合distribute by控制map端数据的分配</span><br><span class="line">- group by代替distinct（数据量大时使用）</span><br><span class="line">- map端预聚合。group by时，如果先起一个combiner在map端做部分预聚合，可以有效减少shuffle数据量</span><br><span class="line">```SET hive.map.aggr=true;</span><br></pre></td></tr></table></figure>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> hive.execution.engine=tez;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>列裁剪和分区裁剪</p>
+</li>
+<li>谓词下推，过滤操作尽可能提前执行</li>
+<li>sort by代替order by。避免单个reduce，配合distribute by控制map端数据的分配</li>
+<li>group by代替distinct（数据量大时使用）</li>
+<li><p>map端预聚合。group by时，如果先起一个combiner在map端做部分预聚合，可以有效减少shuffle数据量</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> hive.map.aggr=<span class="literal">true</span>;</span><br></pre></td></tr></table></figure>
 </li>
 <li><p>join</p>
 <ul>
 <li>streamtable指定大表。Hive假定join中最后一个表是大表，它会将其它表缓存起来，然后扫描最后那个表。因此通常需要将小表放前面，或者标记哪张表是大表：/*+ STREAMTABLE(a) */</li>
 <li>使用相同的连接键。多表join时key相同，会将多个join合并为一个MR job来处理</li>
-<li>利用map join特性<figure class="highlight plain"><figcaption><span>hive.auto.convert.join</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">	- Sort-Merge-Bucket Join（不常用）</span><br><span class="line"> - 数据倾斜</span><br><span class="line">	- 空值或无意义值处理。若不需要空值数据，就提前写where语句过滤掉。需要保留的话，将空值key用随机方式打散。</span><br><span class="line">	- join key统一数据类型</span><br><span class="line">	- 单独处理倾斜key</span><br><span class="line">	- key加盐打散处理，二次聚合</span><br><span class="line">![](https://imgconvert.csdnimg.cn/aHR0cHM6Ly9pbWFnZXMyMDE4LmNuYmxvZ3MuY29tL2Jsb2cvMTIyODgxOC8yMDE4MDQvMTIyODgxOC0yMDE4MDQyNTE5MTIzMTcyOS0yMTA3NTI4Mjc1LnBuZw?x-oss-process=image/format,png)</span><br><span class="line">	- 倾斜处理参数</span><br><span class="line">    ```sql</span><br><span class="line">    SET hive.optimize.skewjoin=true; // 将计数超过阈值的倾斜key单独处理</span><br><span class="line">    SET hive.groupby.skewindata=true; // 在group by时启动两个MR job。第一个job会将map端数据随机输入reducer，每个reducer做部分聚合，相同的key就会分布在不同的reducer中。第二个job再将前面预处理过的数据按key聚合并输出结果，这样就起到了均衡的效果</span><br></pre></td></tr></table></figure>
+<li><p>利用map join特性</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> hive.auto.convert.join=<span class="literal">true</span>;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>Sort-Merge-Bucket Join（不常用）</p>
+</li>
+</ul>
+</li>
+<li><p>数据倾斜</p>
+<ul>
+<li>空值或无意义值处理。若不需要空值数据，就提前写where语句过滤掉。需要保留的话，将空值key用随机方式打散。</li>
+<li>join key统一数据类型</li>
+<li>单独处理倾斜key</li>
+<li>key加盐打散处理，二次聚合<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220513195135.png" alt=""></li>
+<li>倾斜处理参数<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> hive.optimize.skewjoin=<span class="literal">true</span>; // 将计数超过阈值的倾斜key单独处理</span><br><span class="line"><span class="keyword">SET</span> hive.groupby.skewindata=<span class="literal">true</span>; // 在group by时启动两个MR job。第一个job会将map端数据随机输入reducer，每个reducer做部分聚合，相同的key就会分布在不同的reducer中。第二个job再将前面预处理过的数据按key聚合并输出结果，这样就起到了均衡的效果</span><br></pre></td></tr></table></figure>
 </li>
 </ul>
 </li>
@@ -266,7 +288,10 @@
  <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> hive.exec.compress.intermediate=<span class="literal">true</span>; // 中间结果启用压缩</span><br><span class="line"><span class="keyword">SET</span> hive.intermediate.compression.codec=org.apache.hadoop.io.compress.SnappyCodec;</span><br><span class="line"><span class="keyword">SET</span> hive.intermediate.compression.type=<span class="keyword">BLOCK</span>;</span><br><span class="line"><span class="keyword">SET</span> hive.exec.compress.output=<span class="literal">true</span>; // 最终输出启用压缩，最终生成的文件是xxxx.gz</span><br><span class="line"><span class="keyword">SET</span> mapreduce.output.fileoutputformat.compress=<span class="literal">true</span>;</span><br><span class="line"><span class="keyword">SET</span> mapreduce.output.fileoutputformat.compress.codec=org.apache.hadoop.io.compress.GzipCodec;  </span><br><span class="line"><span class="keyword">SET</span> mapreduce.output.fileoutputformat.compress.type=<span class="keyword">BLOCK</span>;</span><br></pre></td></tr></table></figure>
 </li>
 <li><p>JVM重用</p>
-   <figure class="highlight plain"><figcaption><span>mapred.job.reuse.jvm.num.tasks</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">- 并行执行</span><br><span class="line">```sql</span><br><span class="line">       SET hive.exec.parallel=true;</span><br><span class="line">       SET hive.exec.parallel.thread.number=x;</span><br></pre></td></tr></table></figure>
+   <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> mapred.job.reuse.jvm.num.tasks=xxx;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>并行执行</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> hive.exec.parallel=<span class="literal">true</span>;</span><br><span class="line"><span class="keyword">SET</span> hive.exec.parallel.thread.number=x;</span><br></pre></td></tr></table></figure>
 </li>
 <li><p>向量化执行</p>
  <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> hive.vectorized.execution.enabled=<span class="literal">true</span>;</span><br></pre></td></tr></table></figure>
@@ -301,7 +326,10 @@
 </ul>
 <h2><span id="spark-sql常用优化手段amp参数">spark-sql常用优化手段&amp;参数</span></h2><ul>
 <li><p>合理设置单partition读取数据量</p>
- <figure class="highlight plain"><figcaption><span>spark.sql.files.maxPartitionBytes</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">- 合理设置shuffle partition的数量</span><br><span class="line">```SET spark.sql.shuffle.partitions=xxxx;</span><br></pre></td></tr></table></figure>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> spark.sql.files.maxPartitionBytes=xxxx;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>合理设置shuffle partition的数量</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> spark.sql.shuffle.partitions=xxxx;</span><br></pre></td></tr></table></figure>
 </li>
 <li><p>使用coalesce &amp; repartition调整partition数量</p>
  <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ COALESCE(3) */</span> * <span class="keyword">FROM</span> EMP_TABLE</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION(3) */</span> * <span class="keyword">FROM</span> EMP_TABLE</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION(c) */</span> * <span class="keyword">FROM</span> EMP_TABLE</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION(3, dept_col) */</span> * <span class="keyword">FROM</span> EMP_TABLE</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION_BY_RANGE(dept_col) */</span> * <span class="keyword">FROM</span> EMP_TABLE</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION_BY_RANGE(3, dept_col) */</span> * <span class="keyword">FROM</span> EMP_TABLE</span><br></pre></td></tr></table></figure>
@@ -311,7 +339,7 @@
 <li>开启Adaptive Query Execution（Spark 3.0） <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> spark.sql.adaptive.enabled=<span class="literal">true</span>;</span><br><span class="line">      <span class="keyword">SET</span> spark.sql.adaptive.join.enabled=<span class="literal">true</span>; // 开启 Adaptive Execution 的动态调整 Join 功能</span><br><span class="line">      <span class="keyword">SET</span> spark.sql.adaptive.shuffle.targetPostShuffleInputSize=xxxx; // shuffle后每个partition的目标数据量</span><br><span class="line">      <span class="keyword">SET</span> spark.sql.adaptive.skewedJoin.enabled=<span class="literal">true</span>; // 自动处理 Join 时数据倾斜</span><br></pre></td></tr></table></figure>
 </li>
 </ul>
-<p><img src="http://www.jasongj.com/img/spark/spark4_ae/spark_ae_auto_reducer_detail_1.png" alt=""><br><img src="http://www.jasongj.com/img/spark/spark4_ae/spark_ae_skew_join.png" alt=""></p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220513195229.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220513195250.png" alt=""></p>
 <ul>
 <li>控制小文件数量<br> <a href="https://winway.github.io/2022/01/16/spark-small-file/">https://winway.github.io/2022/01/16/spark-small-file/</a></li>
 </ul>
