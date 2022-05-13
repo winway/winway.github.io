@@ -155,6 +155,229 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-bigdata-stack-batchtune" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/05/13/bigdata-stack-batchtune/">大数据开发之路-离线任务优化</a>
+    </h1>
+  
+
+        
+        <a href="/2022/05/13/bigdata-stack-batchtune/" class="archive-article-date">
+  	<time datetime="2022-05-13T11:11:34.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-13</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#离线任务优化-数据开发的看家本领">离线任务优化-数据开发的看家本领</a></li>
+<li><a href="#优化方向">优化方向</a></li>
+<li><a href="#优化层面">优化层面</a></li>
+<li><a href="#hive常用优化手段参数">hive常用优化手段&amp;参数</a></li>
+<li><a href="#spark常用优化手段参数">spark常用优化手段&amp;参数</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<blockquote>
+<p>导引<br><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></p>
+</blockquote>
+<h2><span id="离线任务优化-数据开发的看家本领">离线任务优化-数据开发的看家本领</span></h2><p>离线任务优化是数据开发的重要内容，下面从优化方向和优化层面两个角度总结一下优化的思路。这些优化的思想具有普适性，跟具体的计算引擎无关，普遍适用于hive mapreduce、hive on tez、spark、spark-sql，甚至部分适用于实时任务的优化。</p>
+<h2><span id="优化方向">优化方向</span></h2><ul>
+<li>无用数据尽早过滤掉</li>
+<li>合理的分配、利用资源，使每个task处理的数据量适中，避免启动过多或过少的task</li>
+<li>减少shuffle</li>
+<li>避免数据倾斜，遇到倾斜的key进行打散处理</li>
+</ul>
+<h2><span id="优化层面">优化层面</span></h2><ul>
+<li>业务层面<br> 思考业务逻辑的合理性、可行性、必要性<ul>
+<li>计算量太大是不是必须的，是否可以减少参与计算的用户量或者时间跨度</li>
+<li>计算逻辑是否过于复杂，是否可以简化</li>
+</ul>
+</li>
+<li>模型层面<br> 设计合理的数仓模型<ul>
+<li>是否有现成的数据可以使用或者基于现成的数据进行加工</li>
+<li>是否可以将整个计算逻辑进行合理拆分，降低每个子任务的复杂度，同时提高复用的可能性</li>
+<li>维度退化，空间和时间的权衡</li>
+</ul>
+</li>
+<li>系统层面<br> 遵循一些计算引擎建议的使用规则和参数设置<ul>
+<li>输入文件的存储格式、压缩格式、大小</li>
+<li>输出文件的大小</li>
+<li>启用压缩</li>
+<li>分区、分桶</li>
+<li>yarn队列的设置</li>
+<li>合适的计算引擎</li>
+<li>task的内存设置</li>
+<li>task处理的数据量</li>
+<li>task的数量</li>
+</ul>
+</li>
+<li>sql、代码层面<ul>
+<li>列裁剪，避免select *</li>
+<li>分区裁剪，使用分区字段过滤</li>
+<li>谓词下推</li>
+<li>map端预聚合</li>
+<li>打散倾斜key</li>
+<li>合适的join方式</li>
+</ul>
+</li>
+</ul>
+<h2><span id="hive常用优化手段amp参数">hive常用优化手段&amp;参数</span></h2><ul>
+<li><p>使用tez引擎</p>
+ <figure class="highlight plain"><figcaption><span>hive.execution.engine</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">- 列裁剪和分区裁剪</span><br><span class="line">- 谓词下推，过滤操作尽可能提前执行</span><br><span class="line">- sort by代替order by。避免单个reduce，配合distribute by控制map端数据的分配</span><br><span class="line">- group by代替distinct（数据量大时使用）</span><br><span class="line">- map端预聚合。group by时，如果先起一个combiner在map端做部分预聚合，可以有效减少shuffle数据量</span><br><span class="line">```SET hive.map.aggr=true;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>join</p>
+<ul>
+<li>streamtable指定大表。Hive假定join中最后一个表是大表，它会将其它表缓存起来，然后扫描最后那个表。因此通常需要将小表放前面，或者标记哪张表是大表：/*+ STREAMTABLE(a) */</li>
+<li>使用相同的连接键。多表join时key相同，会将多个join合并为一个MR job来处理</li>
+<li>利用map join特性<figure class="highlight plain"><figcaption><span>hive.auto.convert.join</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">	- Sort-Merge-Bucket Join（不常用）</span><br><span class="line"> - 数据倾斜</span><br><span class="line">	- 空值或无意义值处理。若不需要空值数据，就提前写where语句过滤掉。需要保留的话，将空值key用随机方式打散。</span><br><span class="line">	- join key统一数据类型</span><br><span class="line">	- 单独处理倾斜key</span><br><span class="line">	- key加盐打散处理，二次聚合</span><br><span class="line">![](https://imgconvert.csdnimg.cn/aHR0cHM6Ly9pbWFnZXMyMDE4LmNuYmxvZ3MuY29tL2Jsb2cvMTIyODgxOC8yMDE4MDQvMTIyODgxOC0yMDE4MDQyNTE5MTIzMTcyOS0yMTA3NTI4Mjc1LnBuZw?x-oss-process=image/format,png)</span><br><span class="line">	- 倾斜处理参数</span><br><span class="line">    ```sql</span><br><span class="line">    SET hive.optimize.skewjoin=true; // 将计数超过阈值的倾斜key单独处理</span><br><span class="line">    SET hive.groupby.skewindata=true; // 在group by时启动两个MR job。第一个job会将map端数据随机输入reducer，每个reducer做部分聚合，相同的key就会分布在不同的reducer中。第二个job再将前面预处理过的数据按key聚合并输出结果，这样就起到了均衡的效果</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+</li>
+<li><p>设置map数量</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> mapreduce.input.fileinputformat.split.minsize=xxxx;</span><br><span class="line"><span class="keyword">SET</span> mapreduce.input.fileinputformat.split.maxsize=xxxx;</span><br><span class="line"><span class="keyword">SET</span> tez.grouping.min-<span class="keyword">size</span>=xxxx;</span><br><span class="line"><span class="keyword">SET</span> tez.grouping.max-<span class="keyword">size</span>=xxxx;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>设置reduce数量</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> mapred.reduce.tasks=xxxx;</span><br><span class="line"><span class="keyword">SET</span> hive.exec.reducers.bytes.per.reducer=xxxx;</span><br><span class="line"><span class="keyword">SET</span> hive.exec.reducers.max=xxxx;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>设置map内存</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> mapreduce.map.memory.mb=xxx;</span><br><span class="line"><span class="keyword">SET</span> hive.tez.container.size=xxx;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>设置reduce内存</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> mapreduce.reduce.memory.mb=xxx;</span><br><span class="line"><span class="keyword">SET</span> hive.tez.container.size=xxx;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>合并小文件</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> hive.input.format=org.apache.hadoop.hive.ql.io.CombineHiveInputFormat; // 输入阶段合并</span><br><span class="line"><span class="keyword">SET</span> hive.merge.mapfiles=<span class="literal">true</span>; // 输出阶段合并</span><br><span class="line"><span class="keyword">SET</span> hive.merge.mapredfiles=<span class="literal">true</span>;</span><br><span class="line"><span class="keyword">SET</span> hive.merge.size.smallfiles.avgsize=xxxx;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>启用压缩</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> hive.exec.compress.intermediate=<span class="literal">true</span>; // 中间结果启用压缩</span><br><span class="line"><span class="keyword">SET</span> hive.intermediate.compression.codec=org.apache.hadoop.io.compress.SnappyCodec;</span><br><span class="line"><span class="keyword">SET</span> hive.intermediate.compression.type=<span class="keyword">BLOCK</span>;</span><br><span class="line"><span class="keyword">SET</span> hive.exec.compress.output=<span class="literal">true</span>; // 最终输出启用压缩，最终生成的文件是xxxx.gz</span><br><span class="line"><span class="keyword">SET</span> mapreduce.output.fileoutputformat.compress=<span class="literal">true</span>;</span><br><span class="line"><span class="keyword">SET</span> mapreduce.output.fileoutputformat.compress.codec=org.apache.hadoop.io.compress.GzipCodec;  </span><br><span class="line"><span class="keyword">SET</span> mapreduce.output.fileoutputformat.compress.type=<span class="keyword">BLOCK</span>;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>JVM重用</p>
+   <figure class="highlight plain"><figcaption><span>mapred.job.reuse.jvm.num.tasks</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">- 并行执行</span><br><span class="line">```sql</span><br><span class="line">       SET hive.exec.parallel=true;</span><br><span class="line">       SET hive.exec.parallel.thread.number=x;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>向量化执行</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> hive.vectorized.execution.enabled=<span class="literal">true</span>;</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h2><span id="spark常用优化手段amp参数">spark常用优化手段&amp;参数</span></h2><ul>
+<li>使用Kryo优化序列化性能</li>
+<li><p>动态分配executor数量</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">       <span class="keyword">SET</span> spark.dynamicAllocation.enabled=<span class="literal">true</span>;</span><br><span class="line">       <span class="keyword">SET</span> spark.shuffle.service.enabled=<span class="literal">true</span>;</span><br><span class="line">       <span class="keyword">SET</span> spark.dynamicAllocation.minExecutors=xxxx;</span><br><span class="line">       <span class="keyword">SET</span> spark.dynamicAllocation.maxExecutors=xxxx;</span><br><span class="line">       <span class="keyword">SET</span> spark.dynamicAllocation.initialExecutors=xxxx;</span><br><span class="line">`</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>合理设置内存和核数</p>
+ <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">--driver-memory</span><br><span class="line">--executor-memory</span><br><span class="line">--executor-cores</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>合理设置并并行度</p>
+ <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"> - 使用repartition增加并行度</span><br><span class="line"> - coalesce()取代repartition()降低并行度</span><br><span class="line"> - mapPartitions()取代map()，foreachPartitions替代foreach</span><br><span class="line"> - 优先使用DataFrame/Dataset取代RDD</span><br><span class="line"> - 使用rdd cache或checkpoint，提高复用率</span><br><span class="line"> - 减少shuffle操作gropByKey(), reducebyKey(), join(), distinct()，使用map类的非shuffle算子</span><br><span class="line"> - 使用reduceByKey/aggregateByKey替代groupByKey，使用预聚合操作</span><br><span class="line">![](https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/5ebe0848.png)</span><br><span class="line">![](https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/a6c7d4c4.png)</span><br><span class="line"> - 数据倾斜</span><br><span class="line">	 - 调整并行度或自定义 Partitioner 从而分散分配给同一 Task 的大量不同 Key</span><br><span class="line">	 - 使用 BroadcastJoin 代替 ReduceJoin 消除 Shuffle 从而避免 Shuffle 引起的数据倾斜</span><br><span class="line">	 - 对倾斜 Key 使用随机前缀或后缀从而分散大量倾斜 Key，同时将参与 Join 的小表扩容，从而保证 Join 结果的正确性</span><br><span class="line"> - 使用HashShuffleManager时，设置spark.shuffle.consolidateFiles=true，减少shuffle write的文件数量</span><br><span class="line"></span><br><span class="line">## spark-sql常用优化手段&amp;参数</span><br><span class="line"> - 合理设置单partition读取数据量</span><br><span class="line">	```SET spark.sql.files.maxPartitionBytes=xxxx;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>合理设置shuffle partition的数量</p>
+ <figure class="highlight plain"><figcaption><span>spark.sql.shuffle.partitions</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">- 使用coalesce &amp; repartition调整partition数量</span><br><span class="line">```sql</span><br><span class="line">	SELECT /*+ COALESCE(3) */ * FROM EMP_TABLE</span><br><span class="line">	SELECT /*+ REPARTITION(3) */ * FROM EMP_TABLE</span><br><span class="line">	SELECT /*+ REPARTITION(c) */ * FROM EMP_TABLE</span><br><span class="line">	SELECT /*+ REPARTITION(3, dept_col) */ * FROM EMP_TABLE</span><br><span class="line">	SELECT /*+ REPARTITION_BY_RANGE(dept_col) */ * FROM EMP_TABLE</span><br><span class="line">	SELECT /*+ REPARTITION_BY_RANGE(3, dept_col) */ * FROM EMP_TABLE</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>使用broadcast join</p>
+</li>
+<li>开启Adaptive Query Execution（Spark 3.0） <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> spark.sql.adaptive.enabled=<span class="literal">true</span>;</span><br><span class="line">      <span class="keyword">SET</span> spark.sql.adaptive.join.enabled=<span class="literal">true</span>; // 开启 Adaptive Execution 的动态调整 Join 功能</span><br><span class="line">      <span class="keyword">SET</span> spark.sql.adaptive.shuffle.targetPostShuffleInputSize=xxxx; // shuffle后每个partition的目标数据量</span><br><span class="line">      <span class="keyword">SET</span> spark.sql.adaptive.skewedJoin.enabled=<span class="literal">true</span>; // 自动处理 Join 时数据倾斜</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<p><img src="http://www.jasongj.com/img/spark/spark4_ae/spark_ae_auto_reducer_detail_1.png" alt=""><br><img src="http://www.jasongj.com/img/spark/spark4_ae/spark_ae_skew_join.png" alt=""></p>
+<ul>
+<li>控制小文件数量<br> <a href="https://winway.github.io/2022/01/16/spark-small-file/">https://winway.github.io/2022/01/16/spark-small-file/</a></li>
+</ul>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://cloud.tencent.com/developer/article/1453464" target="_blank" rel="noopener">Hive/HiveSQL常用优化方法全面总结</a></li>
+<li><a href="https://cloud.tencent.com/developer/article/1482145" target="_blank" rel="noopener">Hive 启用压缩</a></li>
+<li><a href="https://www.modb.pro/db/44094" target="_blank" rel="noopener">大数据开发之Hive优化篇1-Hive 优化概述</a></li>
+<li><a href="https://sparkbyexamples.com/spark/spark-performance-tuning/" target="_blank" rel="noopener">Spark Performance Tuning &amp; Best Practices</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/317226768" target="_blank" rel="noopener">深入浅出Spark Join</a></li>
+<li><a href="https://towardsdatascience.com/apache-spark-performance-boosting-e072a3ec1179?gi=c294a45fc810" target="_blank" rel="noopener">Apache Spark Performance Boosting</a></li>
+<li><a href="https://tech.meituan.com/2016/04/29/spark-tuning-basic.html" target="_blank" rel="noopener">Spark性能优化指南——基础篇</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/108454557" target="_blank" rel="noopener">超全spark性能优化总结</a></li>
+<li><a href="https://blog.csdn.net/zhuxuemin1991/article/details/119074721" target="_blank" rel="noopener">Spark性能优化指南—思路梳理</a></li>
+<li><a href="https://sparkbyexamples.com/spark/spark-sql-performance-tuning-configurations/" target="_blank" rel="noopener">Spark SQL Performance Tuning by Configurations</a></li>
+<li><a href="http://www.jasongj.com/spark/adaptive_execution/" target="_blank" rel="noopener">Adaptive Execution 让 Spark SQL 更高效更智能</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">hive</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">tez</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">spark</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">spark-sql</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2022/05/13/bigdata-stack-batchtune/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-bigdata-stack-kafka" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1370,106 +1593,6 @@
 
 
   
-    <article id="post-bigdata-stack-flume" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/03/bigdata-stack-flume/">大数据开发之路-flume</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/03/bigdata-stack-flume/" class="archive-article-date">
-  	<time datetime="2022-05-03T03:38:08.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-03</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#flume-高度定制化的日志采集传输系统">flume-高度定制化的日志采集传输系统</a></li>
-<li><a href="#配置实例">配置实例</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引<br><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></p>
-</blockquote>
-<h2><span id="flume-高度定制化的日志采集传输系统">flume-高度定制化的日志采集传输系统</span></h2><p><img src="https://flume.apache.org/_images/DevGuide_image00.png" alt=""><br>flume是一个分布式、可靠、高可用的海量日志采集、聚合、传输系统，支持在日志系统中定制各类数据发送方（source），用于收集数据；同时，Flume提供对数据进行简单处理的能力（拦截器、过滤器），并写到各种数据接收方(sink，比如文本、HDFS、Hbase等)的能力 。<br>flume由核心组件source、channel、sink组成。flume的数据流由事件(Event)贯穿始终。事件是Flume的基本数据单位，它携带日志数据(字节数组形式)并且携带有头信息，这些Event由Source生成，当Source捕获事件后会进行特定的格式化，然后Source会把事件推入(单个或多个)Channel中。你可以把Channel看作是一个缓冲区，它将保存事件直到Sink处理完该事件。Sink负责持久化日志或者把事件推向另一个Source。</p>
-<h2><span id="配置实例">配置实例</span></h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"># configure for consume log from kafka to hdfs</span><br><span class="line">agent.sources = kafkasource</span><br><span class="line">agent.channels = channel</span><br><span class="line">agent.sinks = hdfssink</span><br><span class="line"></span><br><span class="line"># configure for sources</span><br><span class="line">agent.sources.kafkasource.type = org.apache.flume.source.kafka.KafkaSource</span><br><span class="line">agent.sources.kafkasource.kafka.bootstrap.servers = 12.16.3.4:9092</span><br><span class="line">agent.sources.kafkasource.kafka.topics.regex = t1|t2</span><br><span class="line">agent.sources.kafkasource.kafka.consumer.group.id = flumeKafkaSourceTest</span><br><span class="line">agent.sources.kafkasource.kafka.consumer.max.partition.fetch.bytes = 3145728</span><br><span class="line">agent.sources.kafkasource.kafka.consumer.partition.assignment.strategy = org.apache.kafka.clients.consumer.RoundRobinAssignor</span><br><span class="line">agent.sources.kafkasource.channels = channel</span><br><span class="line"></span><br><span class="line"># configure for channels</span><br><span class="line">agent.channels.channel.type = memory</span><br><span class="line">agent.channels.channel.capacity = 100000</span><br><span class="line">agent.channels.channel.transactionCapacity = 10000</span><br><span class="line">agent.channels.channel.byteCapacity = 0</span><br><span class="line">agent.channels.channel.byteCapacityBufferPercentage = 15</span><br><span class="line">agent.channels.channel.keep-alive = 15</span><br><span class="line"></span><br><span class="line"># configure for sinks</span><br><span class="line">agent.sinks.hdfssink.type = hdfs</span><br><span class="line">agent.sinks.hdfssink.hdfs.path = /flumelog/%&#123;topic&#125;/%Y-%m-%d</span><br><span class="line">agent.sinks.hdfssink.hdfs.filePrefix = %[IP]_1</span><br><span class="line">agent.sinks.hdfssink.hdfs.inUsePrefix = .</span><br><span class="line">agent.sinks.hdfssink.hdfs.batchSize= 6500</span><br><span class="line">agent.sinks.hdfssink.hdfs.callTimeout = 180000</span><br><span class="line">agent.sinks.hdfssink.hdfs.idleTimeout = 3600</span><br><span class="line">agent.sinks.hdfssink.hdfs.rollSize = 536870912</span><br><span class="line">agent.sinks.hdfssink.hdfs.rollInterval= 1500</span><br><span class="line">agent.sinks.hdfssink.hdfs.rollCount= 0</span><br><span class="line">agent.sinks.hdfssink.hdfs.fileType= DataStream</span><br><span class="line">agent.sinks.hdfssink.hdfs.writeFormat= Text</span><br><span class="line">agent.sinks.hdfssink.channel = channel</span><br></pre></td></tr></table></figure>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://www.cnblogs.com/qingyunzong/p/8994494.html" target="_blank" rel="noopener">Flume学习之路 （一）Flume的基础介绍</a></li>
-<li><a href="https://winway.github.io/2019/09/13/flumeAction/">Flume实战总结</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">flume</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/03/bigdata-stack-flume/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/11/">11</a><a class="extend next" rel="next" href="/page/2/">Next &raquo;</a>
@@ -1569,15 +1692,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1609,11 +1732,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+                <a href="javascript:void(0)" class="js-tag color1">flume</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1621,11 +1740,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">flume</a>
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1641,11 +1764,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color2">Python</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1657,11 +1780,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">influxdb</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">grafana</a>
+                <a href="javascript:void(0)" class="js-tag color3">备份</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1669,7 +1788,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">备份</a>
+                <a href="javascript:void(0)" class="js-tag color4">influxdb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">grafana</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1681,15 +1804,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">tez</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">gc</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1733,11 +1856,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1745,11 +1864,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
+                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1769,6 +1892,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
               </li>
              
@@ -1777,19 +1904,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">storm</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">olap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1798,6 +1913,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">olap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">

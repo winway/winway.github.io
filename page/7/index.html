@@ -155,6 +155,159 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-salt-master-startup-procedure" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/07/25/salt-master-startup-procedure/">saltstack源码解析之master启动流程</a>
+    </h1>
+  
+
+        
+        <a href="/2017/07/25/salt-master-startup-procedure/" class="archive-article-date">
+  	<time datetime="2017-07-25T12:37:27.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-07-25</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p><em>ENV: Version: 2016.11.0, Transport: tcp, Multi-Master</em></p>
+<!-- toc -->
+<ul>
+<li><a href="#1-类图和重要方法说明">1. 类图和重要方法说明</a></li>
+<li><a href="#2-源码解析">2. 源码解析</a><ul>
+<li><a href="#21-初始化saltmastermaster__init__">2.1 初始化（salt.master.Master.__init__）</a></li>
+<li><a href="#22-启动saltmastermasterstart">2.2 启动（salt.master.Master.start）</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h2><span id="1-类图和重要方法说明">1. 类图和重要方法说明</span></h2><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/master%E5%90%AF%E5%8A%A8%E6%B5%81%E7%A8%8B.png" alt="salt-master启动流程"></p>
+<h2><span id="2-源码解析">2. 源码解析</span></h2><h3><span id="21-初始化saltmastermaster__init__">2.1 初始化（salt.master.Master.__init__）</span></h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/master.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Master</span><span class="params">(SMaster)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    The salt master server</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, opts)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Create a salt master server instance</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        :param dict: The salt options</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="keyword">if</span> HAS_ZMQ:</span><br><span class="line">            <span class="comment"># Warn if ZMQ &lt; 3.2</span></span><br><span class="line">            <span class="keyword">try</span>:</span><br><span class="line">                zmq_version_info = zmq.zmq_version_info()</span><br><span class="line">            <span class="keyword">except</span> AttributeError:</span><br><span class="line">                <span class="comment"># PyZMQ &lt;= 2.1.9 does not have zmq_version_info, fall back to</span></span><br><span class="line">                <span class="comment"># using zmq.zmq_version() and build a version info tuple.</span></span><br><span class="line">                zmq_version_info = tuple(</span><br><span class="line">                    [int(x) <span class="keyword">for</span> x <span class="keyword">in</span> zmq.zmq_version().split(<span class="string">'.'</span>)]</span><br><span class="line">                )</span><br><span class="line">            <span class="keyword">if</span> zmq_version_info &lt; (<span class="number">3</span>, <span class="number">2</span>):</span><br><span class="line">                log.warning(</span><br><span class="line">                    <span class="string">'You have a version of ZMQ less than ZMQ 3.2! There are '</span></span><br><span class="line">                    <span class="string">'known connection keep-alive issues with ZMQ &lt; 3.2 which '</span></span><br><span class="line">                    <span class="string">'may result in loss of contact with minions. Please '</span></span><br><span class="line">                    <span class="string">'upgrade your ZMQ!'</span></span><br><span class="line">                )</span><br><span class="line">        SMaster.__init__(self, opts)</span><br></pre></td></tr></table></figure>
+<ul>
+<li>检查zmq版本</li>
+<li>调用SMaster.<strong>init</strong>(self, opts)，进行opts、master_key和key的初始化<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/master.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">SMaster</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    Create a simple salt-master, this will generate the top-level master</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    secrets = &#123;&#125;  <span class="comment"># mapping of key -&gt; &#123;'secret': multiprocessing type, 'reload': FUNCTION&#125;</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, opts)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Create a salt master server instance</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        :param dict opts: The salt options dictionary</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        self.opts = opts</span><br><span class="line">        self.master_key = salt.crypt.MasterKeys(self.opts)</span><br><span class="line">        self.key = self.__prep_key()</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h3><span id="22-启动saltmastermasterstart">2.2 启动（salt.master.Master.start）</span></h3><p>1.启动前检查，Master._pre_flight</p>
+<ul>
+<li>os.chdir(‘/‘)</li>
+<li>根据fileserver_backend配置，创建Fileserver。这里用到了LazyLoader，先创建空的module，在实际调用的时候才进行加载，而不是在启动时全部import<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/loader.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">LazyLoader</span><span class="params">(salt.utils.lazy.LazyDict)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    A pseduo-dictionary which has a set of keys which are the</span></span><br><span class="line"><span class="string">    name of the module and function, delimited by a dot. When</span></span><br><span class="line"><span class="string">    the value of the key is accessed, the function is then loaded</span></span><br><span class="line"><span class="string">    from disk and into memory.</span></span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/loader.py</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">_generate_module</span><span class="params">(name)</span>:</span></span><br><span class="line">    <span class="keyword">if</span> name <span class="keyword">in</span> sys.modules:</span><br><span class="line">        <span class="keyword">return</span></span><br><span class="line"></span><br><span class="line">    code = <span class="string">"'''Salt loaded &#123;0&#125; parent module'''"</span>.format(name.split(<span class="string">'.'</span>)[<span class="number">-1</span>])</span><br><span class="line">    module = imp.new_module(name)</span><br><span class="line">    exec(code, module.__dict__)</span><br><span class="line">    sys.modules[name] = module</span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">__getattr__</span><span class="params">(self, mod_name)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    Allow for "direct" attribute access-- this allows jinja templates to</span></span><br><span class="line"><span class="string">    access things like `salt.test.ping()`</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    <span class="comment"># if we have an attribute named that, lets return it.</span></span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        <span class="keyword">return</span> object.__getattr__(self, mod_name)  <span class="comment"># pylint: disable=no-member</span></span><br><span class="line">    <span class="keyword">except</span> AttributeError:</span><br><span class="line">        <span class="keyword">pass</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># otherwise we assume its jinja template access</span></span><br><span class="line">    <span class="keyword">if</span> mod_name <span class="keyword">not</span> <span class="keyword">in</span> self.loaded_modules <span class="keyword">and</span> <span class="keyword">not</span> self.loaded:</span><br><span class="line">        <span class="keyword">for</span> name <span class="keyword">in</span> self._iter_files(mod_name):</span><br><span class="line">            <span class="keyword">if</span> name <span class="keyword">in</span> self.loaded_files:</span><br><span class="line">                <span class="keyword">continue</span></span><br><span class="line">            <span class="comment"># if we got what we wanted, we are done</span></span><br><span class="line">            <span class="keyword">if</span> self._load_module(name) <span class="keyword">and</span> mod_name <span class="keyword">in</span> self.loaded_modules:</span><br><span class="line">                <span class="keyword">break</span></span><br><span class="line">    <span class="keyword">if</span> mod_name <span class="keyword">in</span> self.loaded_modules:</span><br><span class="line">        <span class="keyword">return</span> self.loaded_modules[mod_name]</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">raise</span> AttributeError(mod_name)</span><br></pre></td></tr></table></figure>
+<ul>
+<li>创建pillar_cache文件夹</li>
+<li>检查git_pillar<blockquote>
+<p>This external pillar allows for a Pillar top file and Pillar SLS files to be sourced from a git repository.</p>
+</blockquote>
+</li>
+</ul>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">ext_pillar:</span></span><br><span class="line"><span class="attr">  - git:</span> <span class="string">master</span> <span class="attr">https://gitserver/git-pillar.git</span></span><br><span class="line"><span class="attr">  - git:</span> <span class="string">dev</span> <span class="attr">https://gitserver/git-pillar.git</span></span><br></pre></td></tr></table></figure>
+<p>2.注册信号处理程序</p>
+<ul>
+<li><p>enable_sigusr1_handler。打印stack trace</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/utils/debug.py</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">_handle_sigusr1</span><span class="params">(sig, stack)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    Signal handler for SIGUSR1, only available on Unix-like systems</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    <span class="comment"># When running in the foreground, do the right  thing</span></span><br><span class="line">    <span class="comment"># and spit out the debug info straight to the console</span></span><br><span class="line">    <span class="keyword">if</span> sys.stderr.isatty():</span><br><span class="line">        output = sys.stderr</span><br><span class="line">        _makepretty(output, stack)</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        filename = <span class="string">'salt-debug-&#123;0&#125;.log'</span>.format(int(time.time()))</span><br><span class="line">        destfile = os.path.join(tempfile.gettempdir(), filename)</span><br><span class="line">        <span class="keyword">with</span> salt.utils.fopen(destfile, <span class="string">'w'</span>) <span class="keyword">as</span> output:</span><br><span class="line">            _makepretty(output, stack)</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>enable_sigusr2_handler。YAPPI开关</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/utils/debug.py</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">_handle_sigusr2</span><span class="params">(sig, stack)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    Signal handler for SIGUSR2, only available on Unix-like systems</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        <span class="keyword">import</span> yappi</span><br><span class="line">    <span class="keyword">except</span> ImportError:</span><br><span class="line">        <span class="keyword">return</span></span><br><span class="line">    <span class="keyword">if</span> yappi.is_running():</span><br><span class="line">        yappi.stop()</span><br><span class="line">        filename = <span class="string">'callgrind.salt-&#123;0&#125;-&#123;1&#125;'</span>.format(int(time.time()), os.getpid())</span><br><span class="line">        destfile = os.path.join(tempfile.gettempdir(), filename)</span><br><span class="line">        yappi.get_func_stats().save(destfile, type=<span class="string">'CALLGRIND'</span>)</span><br><span class="line">        <span class="keyword">if</span> sys.stderr.isatty():</span><br><span class="line">            sys.stderr.write(<span class="string">'Saved profiling data to: &#123;0&#125;\n'</span>.format(destfile))</span><br><span class="line">        yappi.clear_stats()</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">if</span> sys.stderr.isatty():</span><br><span class="line">            sys.stderr.write(<span class="string">'Profiling started\n'</span>)</span><br><span class="line">        yappi.start()</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>3.设置max open files，Master.__set_max_open_files<br>4.初始化SMaster.secrets[‘aes’]，在进行消息的发送时加密使用<br>5.创建ProcessManager，后续创建的各组件进程都会添加进来<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/master.py</span></span><br><span class="line">            log.info(<span class="string">'Creating master process manager'</span>)</span><br><span class="line">            <span class="comment"># Since there are children having their own ProcessManager we should wait for kill more time.</span></span><br><span class="line">            self.process_manager = salt.utils.process.ProcessManager(wait_for_kill=<span class="number">5</span>)</span><br></pre></td></tr></table></figure></p>
+<p>6.创建publisher process。用于分发消息给minion<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/master.py</span></span><br><span class="line">            pub_channels = []</span><br><span class="line">            log.info(<span class="string">'Creating master publisher process'</span>)</span><br><span class="line">            <span class="keyword">for</span> transport, opts <span class="keyword">in</span> iter_transport_opts(self.opts):</span><br><span class="line">                chan = salt.transport.server.PubServerChannel.factory(opts)</span><br><span class="line">                chan.pre_fork(self.process_manager)</span><br><span class="line">                pub_channels.append(chan)</span><br></pre></td></tr></table></figure></p>
+<p>7.创建event publisher process。Master内部的消息总线，进行信息交换<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/master.py</span></span><br><span class="line">            log.info(<span class="string">'Creating master event publisher process'</span>)</span><br><span class="line">            self.process_manager.add_process(salt.utils.event.EventPublisher, args=(self.opts,))</span><br></pre></td></tr></table></figure></p>
+<p>8.创建reactor。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/master.py</span></span><br><span class="line">            <span class="keyword">if</span> self.opts.get(<span class="string">'reactor'</span>):</span><br><span class="line">                <span class="keyword">if</span> isinstance(self.opts[<span class="string">'engines'</span>], list):</span><br><span class="line">                    rine = <span class="keyword">False</span></span><br><span class="line">                    <span class="keyword">for</span> item <span class="keyword">in</span> self.opts[<span class="string">'engines'</span>]:</span><br><span class="line">                        <span class="keyword">if</span> <span class="string">'reactor'</span> <span class="keyword">in</span> item:</span><br><span class="line">                            rine = <span class="keyword">True</span></span><br><span class="line">                            <span class="keyword">break</span></span><br><span class="line">                    <span class="keyword">if</span> <span class="keyword">not</span> rine:</span><br><span class="line">                        self.opts[<span class="string">'engines'</span>].append(&#123;<span class="string">'reactor'</span>: &#123;&#125;&#125;)</span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    <span class="keyword">if</span> <span class="string">'reactor'</span> <span class="keyword">not</span> <span class="keyword">in</span> self.opts[<span class="string">'engines'</span>]:</span><br><span class="line">                        log.info(<span class="string">'Enabling the reactor engine'</span>)</span><br><span class="line">                        self.opts[<span class="string">'engines'</span>][<span class="string">'reactor'</span>] = &#123;&#125;</span><br><span class="line"></span><br><span class="line">            salt.engines.start_engines(self.opts, self.process_manager)</span><br></pre></td></tr></table></figure></p>
+<blockquote>
+<p>Salt’s Reactor system gives Salt the ability to trigger actions in response to an event. It is a simple interface to watching Salt’s event bus for event tags that match a given pattern and then running one or more commands in response.<br>This system binds sls files to event tags on the master. These sls files then define reactions. This means that the reactor system has two parts. First, the reactor option needs to be set in the master configuration file. The reactor option allows for event tags to be associated with sls reaction files. Second, these reaction files use highdata (like the state system) to define reactions to be executed.</p>
+</blockquote>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">engines:</span></span><br><span class="line"><span class="attr">  - reactor:</span></span><br><span class="line"><span class="attr">      refresh_interval:</span> <span class="number">60</span></span><br><span class="line"><span class="attr">      worker_threads:</span> <span class="number">10</span></span><br><span class="line"><span class="attr">      worker_hwm:</span> <span class="number">10000</span></span><br><span class="line"></span><br><span class="line"><span class="attr">reactor:</span></span><br><span class="line"><span class="bullet">  -</span> <span class="string">'salt/cloud/*/destroyed'</span><span class="string">:</span></span><br><span class="line"><span class="bullet">    -</span> <span class="string">/srv/reactor/destroy/*.sls</span></span><br></pre></td></tr></table></figure>
+<p>9.创建maintenance process。A generalized maintenance process which performs maintenance routines.<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/master.py</span></span><br><span class="line">            <span class="comment"># must be after channels</span></span><br><span class="line">            log.info(<span class="string">'Creating master maintenance process'</span>)</span><br><span class="line">            self.process_manager.add_process(Maintenance, args=(self.opts,))</span><br></pre></td></tr></table></figure></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/master.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">run</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        This is the general passive maintenance process controller for the Salt</span></span><br><span class="line"><span class="string">        master.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        This is where any data that needs to be cleanly maintained from the</span></span><br><span class="line"><span class="string">        master is maintained.</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        salt.utils.appendproctitle(<span class="string">'Maintenance'</span>)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># init things that need to be done after the process is forked</span></span><br><span class="line">        self._post_fork_init()</span><br><span class="line"></span><br><span class="line">        <span class="comment"># Make Start Times</span></span><br><span class="line">        last = int(time.time())</span><br><span class="line">        <span class="comment"># Clean out the fileserver backend cache</span></span><br><span class="line">        salt.daemons.masterapi.clean_fsbackend(self.opts)</span><br><span class="line">        <span class="comment"># Clean out pub auth</span></span><br><span class="line">        salt.daemons.masterapi.clean_pub_auth(self.opts)</span><br><span class="line"></span><br><span class="line">        old_present = set()</span><br><span class="line">        <span class="keyword">while</span> <span class="keyword">True</span>:</span><br><span class="line">            now = int(time.time())</span><br><span class="line">            <span class="keyword">if</span> (now - last) &gt;= self.loop_interval:</span><br><span class="line">                salt.daemons.masterapi.clean_old_jobs(self.opts)</span><br><span class="line">                salt.daemons.masterapi.clean_expired_tokens(self.opts)</span><br><span class="line">            self.handle_search(now, last)</span><br><span class="line">            self.handle_git_pillar()</span><br><span class="line">            self.handle_schedule()</span><br><span class="line">            self.handle_key_cache()</span><br><span class="line">            self.handle_presence(old_present)</span><br><span class="line">            self.handle_key_rotate(now)</span><br><span class="line">            salt.daemons.masterapi.fileserver_update(self.fileserver)</span><br><span class="line">            salt.utils.verify.check_max_open_files(self.opts)</span><br><span class="line">            last = now</span><br><span class="line">            time.sleep(self.loop_interval)</span><br></pre></td></tr></table></figure>
+<p>10.创建event return process。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/master.py</span></span><br><span class="line">            <span class="keyword">if</span> self.opts.get(<span class="string">'event_return'</span>):</span><br><span class="line">                log.info(<span class="string">'Creating master event return process'</span>)</span><br><span class="line">                self.process_manager.add_process(salt.utils.event.EventReturn, args=(self.opts,))</span><br></pre></td></tr></table></figure></p>
+<blockquote>
+<p>All Salt commands will return the command data back to the master. Specifying returners will ensure that the data is <em>also</em> sent to the specified returner interfaces.</p>
+</blockquote>
+<p>11.创建ext_processes process<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/master.py</span></span><br><span class="line">            ext_procs = self.opts.get(<span class="string">'ext_processes'</span>, [])</span><br><span class="line">            <span class="keyword">for</span> proc <span class="keyword">in</span> ext_procs:</span><br><span class="line">                log.info(<span class="string">'Creating ext_processes process: &#123;0&#125;'</span>.format(proc))</span><br><span class="line">                <span class="keyword">try</span>:</span><br><span class="line">                    mod = <span class="string">'.'</span>.join(proc.split(<span class="string">'.'</span>)[:<span class="number">-1</span>])</span><br><span class="line">                    cls = proc.split(<span class="string">'.'</span>)[<span class="number">-1</span>]</span><br><span class="line">                    _tmp = __import__(mod, globals(), locals(), [cls], <span class="number">-1</span>)</span><br><span class="line">                    cls = _tmp.__getattribute__(cls)</span><br><span class="line">                    self.process_manager.add_process(cls, args=(self.opts,))</span><br><span class="line">                <span class="keyword">except</span> Exception:</span><br><span class="line">                    log.error((<span class="string">'Error creating ext_processes '</span></span><br><span class="line">                            <span class="string">'process: &#123;0&#125;'</span>).format(proc))</span><br></pre></td></tr></table></figure></p>
+<blockquote>
+<p>In addition to the processes that the Salt master automatically spawns, it is possible to configure it to start additional custom processes.<br>This is useful if a dedicated process is needed that should run throughout the life of the Salt master. For periodic independent tasks, a scheduled runner may be more appropriate.<br>Processes started in this way will be restarted if they die and will be killed when the Salt master is shut down.</p>
+</blockquote>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">ext_processes:</span></span><br><span class="line"><span class="bullet">  -</span> <span class="string">mymodule.TestProcess</span></span><br><span class="line"><span class="bullet">  -</span> <span class="string">mymodule.AnotherProcess</span></span><br></pre></td></tr></table></figure>
+<p>12.创建halite process。DEPRECATED: A client-side web application interface to a running Salt infrastructure<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/master.py</span></span><br><span class="line">            <span class="keyword">if</span> HAS_HALITE <span class="keyword">and</span> <span class="string">'halite'</span> <span class="keyword">in</span> self.opts:</span><br><span class="line">                log.info(<span class="string">'Creating master halite process'</span>)</span><br><span class="line">                self.process_manager.add_process(Halite, args=(self.opts[<span class="string">'halite'</span>],))</span><br></pre></td></tr></table></figure></p>
+<p>13.创建concache process<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/master.py</span></span><br><span class="line">            <span class="comment"># <span class="doctag">TODO:</span> remove, or at least push into the transport stuff (pre-fork probably makes sense there)</span></span><br><span class="line">            <span class="keyword">if</span> self.opts[<span class="string">'con_cache'</span>]:</span><br><span class="line">                log.info(<span class="string">'Creating master concache process'</span>)</span><br><span class="line">                self.process_manager.add_process(ConnectedCache, args=(self.opts,))</span><br><span class="line">                <span class="comment"># workaround for issue #16315, race condition</span></span><br><span class="line">                log.debug(<span class="string">'Sleeping for two seconds to let concache rest'</span>)</span><br><span class="line">                time.sleep(<span class="number">2</span>)</span><br></pre></td></tr></table></figure></p>
+<blockquote>
+<p><strong>con_cache</strong><br>Default: False<br>If max_minions is used in large installations, the master might experience high-load situations because of having to check the number of connected minions for every authentication. This cache provides the minion-ids of all connected minions to all MWorker-processes and greatly improves the performance of max_minions.</p>
+</blockquote>
+<p>14.创建request server process。处理salt命令和minion处理结果<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/master.py</span></span><br><span class="line">            log.info(<span class="string">'Creating master request server process'</span>)</span><br><span class="line">            kwargs = &#123;&#125;</span><br><span class="line">            <span class="keyword">if</span> salt.utils.is_windows():</span><br><span class="line">                kwargs[<span class="string">'log_queue'</span>] = salt.log.setup.get_multiprocessing_logging_queue()</span><br><span class="line">                kwargs[<span class="string">'secrets'</span>] = SMaster.secrets</span><br><span class="line"></span><br><span class="line">            self.process_manager.add_process(</span><br><span class="line">                ReqServer,</span><br><span class="line">                args=(self.opts, self.key, self.master_key),</span><br><span class="line">                kwargs=kwargs,</span><br><span class="line">                name=<span class="string">'ReqServer'</span>)</span><br></pre></td></tr></table></figure></p>
+<p>创建ReqServerChannel和MWorker</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">saltstack</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/07/25/salt-master-startup-procedure/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-hdfs-rack-awareness" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1334,145 +1487,6 @@
 
 
   
-    <article id="post-big-data-hive" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/01/13/big-data-hive/">Hadoop生态系统介绍-Hive</a>
-    </h1>
-  
-
-        
-        <a href="/2017/01/13/big-data-hive/" class="archive-article-date">
-  	<time datetime="2017-01-13T03:56:44.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-01-13</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#前言">前言</a></li>
-<li><a href="#工作原理">工作原理</a><ul>
-<li><a href="#特点">特点</a></li>
-<li><a href="#架构">架构</a></li>
-</ul>
-</li>
-</ul>
-<!-- tocstop -->
-<h2><span id="前言">前言</span></h2><p>提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。</p>
-<ol>
-<li><a href="https://winway.github.io/2017/01/07/big-data-intro/">Hadoop生态系统介绍-概览</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-kerberos/">Hadoop生态系统介绍-Kerberos</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-zookeeper/">Hadoop生态系统介绍-Zookeeper</a></li>
-<li><a href="https://winway.github.io/2017/01/11/big-data-hdfs/">Hadoop生态系统介绍-HDFS</a></li>
-<li><a href="https://winway.github.io/2017/01/12/big-data-yarn/">Hadoop生态系统介绍-YARN</a></li>
-<li><a href="https://winway.github.io/2017/01/12/big-data-mapreduce/">Hadoop生态系统介绍-MapReduce</a></li>
-<li><strong><a href="https://winway.github.io/2017/01/13/big-data-hive/">Hadoop生态系统介绍-Hive</a></strong></li>
-<li><a href="https://winway.github.io/2017/01/13/big-data-pig/">Hadoop生态系统介绍-Pig</a></li>
-<li><a href="https://winway.github.io/2017/01/21/big-data-storm/">Hadoop生态系统介绍-Storm</a></li>
-<li><a href="https://winway.github.io/2017/01/26/big-data-hbase/">Hadoop生态系统介绍-Hbase</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-phoenix/">Hadoop生态系统介绍-Phoenix</a></li>
-</ol>
-<p>本文对数据仓库Hive的工作原理进行介绍。</p>
-<h2><span id="工作原理">工作原理</span></h2><h3><span id="特点">特点</span></h3><p>Hive是基于Hadoop的一个数据仓库工具，可以将结构化的数据文件映射为一张数据库表，并提供完整的sql查询功能，可以将sql语句转换为MapReduce任务进行运行。其优点是学习成本低，可以通过类SQL语句快速实现简单的MapReduce统计，不必开发专门的MapReduce应用，十分适合数据仓库的统计分析。</p>
-<p>Hive提供了一系列的工具，可以用来进行数据提取转化加载（ETL），这是一种可以存储、查询和分析存储在 Hadoop 中的大规模数据的机制。Hive 定义了简单的类 SQL 查询语言，称为 HQL，它允许熟悉 SQL 的用户查询数据。同时，这个语言也允许熟悉 MapReduce 的开发者开发自定义的 mapper 和 reducer 来处理内建的 mapper 和 reducer 无法完成的复杂的分析工作。</p>
-<h3><span id="架构">架构</span></h3><p>hadoop和mapreduce是hive架构的根基。<br><img src="http://images2015.cnblogs.com/blog/820234/201510/820234-20151023153120802-716285030.png" alt=""><br>Hive架构包括如下组件：</p>
-<ul>
-<li>CLI（command line interface）</li>
-<li>JDBC/ODBC</li>
-<li>Thrift Server</li>
-<li>WEB GUI</li>
-<li>Metastore</li>
-<li>Driver(Complier、Optimizer和Executor)</li>
-</ul>
-<p>这些组件可以分为两大类：服务端组件和客户端组件。</p>
-<p><strong>服务端组件</strong></p>
-<ul>
-<li>Driver组件：该组件包括Complier、Optimizer和Executor，它的作用是将我们写的HiveQL（类SQL）语句进行解析、编译优化，生成执行计划，然后调用底层的mapreduce计算框架。</li>
-<li>Metastore组件：元数据服务组件，这个组件存储hive的元数据，hive的元数据存储在关系数据库里，hive支持的关系数据库有derby、mysql。元数据对于hive十分重要，因此hive支持把metastore服务独立出来，安装到远程的服务器集群里，从而解耦hive服务和metastore服务，保证hive运行的健壮性。</li>
-<li>Thrift服务：thrift是facebook开发的一个软件框架，它用来进行可扩展且跨语言的服务的开发，hive集成了该服务，能让不同的编程语言调用hive的接口。</li>
-</ul>
-<p><strong>客户端组件</strong></p>
-<ul>
-<li>CLI：command line interface，命令行接口。</li>
-<li>Thrift客户端：上面的架构图里没有写上Thrift客户端，但是hive架构的许多客户端接口是建立在thrift客户端之上，包括JDBC和ODBC接口。</li>
-<li>WEBGUI：hive客户端提供了一种通过网页的方式访问hive所提供的服务。这个接口对应hive的hwi组件（hive web interface），使用前要启动hwi服务。</li>
-</ul>
-<p><strong>执行流程</strong><br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/hive.png" alt=""></p>
-<ol>
-<li>客户使用不同的客户端组件提交HQL</li>
-<li>Hive完成HQL的解释、优化、生成查询计划</li>
-<li>查询计划被转化为MapReduce任务，在Hadoop中执行（有些查询没有MR任务，如：select * from table）</li>
-</ol>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">hive</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/01/13/big-data-hive/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/6/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/5/">5</a><a class="page-number" href="/page/6/">6</a><span class="page-number current">7</span><a class="page-number" href="/page/8/">8</a><a class="page-number" href="/page/9/">9</a><span class="space">&hellip;</span><a class="page-number" href="/page/11/">11</a><a class="extend next" rel="next" href="/page/8/">Next &raquo;</a>
@@ -1572,15 +1586,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1612,11 +1626,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+                <a href="javascript:void(0)" class="js-tag color1">flume</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1624,11 +1634,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">flume</a>
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1644,11 +1658,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color2">Python</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1660,11 +1674,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">influxdb</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">grafana</a>
+                <a href="javascript:void(0)" class="js-tag color3">备份</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1672,7 +1682,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">备份</a>
+                <a href="javascript:void(0)" class="js-tag color4">influxdb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">grafana</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1684,15 +1698,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">tez</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">gc</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1736,11 +1750,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1748,11 +1758,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
+                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1772,6 +1786,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
               </li>
              
@@ -1780,19 +1798,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">storm</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">olap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1801,6 +1807,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">olap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">
