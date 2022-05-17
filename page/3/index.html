@@ -155,6 +155,117 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-pb2df" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2021/10/01/pb2df/">动态解析protobuf格式kafka消息生成dataframe</a>
+    </h1>
+  
+
+        
+        <a href="/2021/10/01/pb2df/" class="archive-article-date">
+  	<time datetime="2021-09-30T18:59:01.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-10-01</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#背景">背景</a></li>
+<li><a href="#思路">思路</a></li>
+<li><a href="#代码">代码</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="背景">背景</span></h2><p>在<a href="https://winway.github.io/2021/09/04/kafkapb/">动态解析protobuf格式kafka消息</a>一文中，实现了动态解析PB格式的kafka消息，接下来需要将消息转换成dataframe格式，这样就可以方便的接入数仓的ods层了。</p>
+<h2><span id="思路">思路</span></h2><p>尝试了以下几种思路，最终通过遍历DynamicMessage.Builder构造Schema，遍历DynamicMessage构造Row实现。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/A32E0DD5-4041-4B8C-B866-CCE1A1D5B116.png" alt=""></p>
+<h2><span id="代码">代码</span></h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> java.sql.Timestamp</span><br><span class="line"><span class="keyword">import</span> java.time.Duration</span><br><span class="line"><span class="keyword">import</span> java.util</span><br><span class="line"><span class="keyword">import</span> java.util.&#123;Date, Properties&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> cn.soul.log_etl.utils.PBBuilder</span><br><span class="line"><span class="keyword">import</span> com.google.protobuf.&#123;Descriptors, InvalidProtocolBufferException, Message&#125;</span><br><span class="line"><span class="keyword">import</span> org.apache.kafka.clients.consumer.KafkaConsumer</span><br><span class="line"><span class="keyword">import</span> org.apache.kafka.common.serialization.&#123;ByteArrayDeserializer, StringDeserializer&#125;</span><br><span class="line"><span class="keyword">import</span> org.apache.spark.SparkConf</span><br><span class="line"><span class="keyword">import</span> org.apache.spark.sql.types._</span><br><span class="line"><span class="keyword">import</span> org.apache.spark.sql.&#123;Row, SparkSession&#125;</span><br><span class="line"><span class="keyword">import</span> org.apache.spark.sql.functions._</span><br><span class="line"></span><br><span class="line">object TestSchema &#123;</span><br><span class="line"></span><br><span class="line">  <span class="function">def <span class="title">printPBStruct</span><span class="params">(desc: Descriptors.Descriptor, prefix: String)</span>: Unit </span>= &#123;</span><br><span class="line">    <span class="keyword">if</span> (desc == <span class="keyword">null</span>) <span class="keyword">return</span></span><br><span class="line">    <span class="keyword">import</span> scala.collection.JavaConversions._</span><br><span class="line">    <span class="keyword">for</span> (field &lt;- desc.getFields) &#123;</span><br><span class="line">      <span class="keyword">if</span> (<span class="string">"MESSAGE"</span> == field.getJavaType.name) &#123;</span><br><span class="line">        System.out.println(prefix + field.getFullName + <span class="string">":"</span> + field.getJavaType.name + <span class="string">":"</span> + field.isRepeated + <span class="string">":"</span> + field.isMapField)</span><br><span class="line">        printPBStruct(field.getMessageType, prefix + <span class="string">"    "</span>)</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">else</span> System.out.println(prefix + field.getFullName + <span class="string">":"</span> + field.getJavaType.name + <span class="string">":"</span> + field.isRepeated + <span class="string">":"</span> + field.isMapField)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function">def <span class="title">getPbSchema</span><span class="params">(desc: Descriptors.Descriptor, prefix: String)</span>: StructType </span>= &#123;</span><br><span class="line">    var st = <span class="keyword">new</span> StructType()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (<span class="string">""</span>.equals(prefix)) &#123;</span><br><span class="line">      st = st.add(StructField(<span class="string">"ts"</span>, TimestampType))</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (desc == <span class="keyword">null</span>) <span class="keyword">return</span> st</span><br><span class="line"></span><br><span class="line">    <span class="keyword">import</span> scala.collection.JavaConversions._</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (field &lt;- desc.getFields) &#123;</span><br><span class="line">      val name = field.getFullName.split(<span class="string">"\\."</span>)(field.getFullName.split(<span class="string">"\\."</span>).length - <span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span> (<span class="string">"MESSAGE"</span> == field.getJavaType.name) &#123;</span><br><span class="line">        System.out.println(prefix + field.getFullName + <span class="string">":"</span> + field.getJavaType.name + <span class="string">":"</span> + field.isRepeated + <span class="string">":"</span> + field.isMapField)</span><br><span class="line"></span><br><span class="line">        val childst: StructType = getPbSchema(field.getMessageType, prefix + <span class="string">"    "</span>)</span><br><span class="line">        <span class="keyword">if</span> (field.isRepeated) &#123;</span><br><span class="line">          st = st.add(name, ArrayType(childst))</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">          st = st.add(name, childst)</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">else</span> &#123;</span><br><span class="line">        System.out.println(prefix + field.getFullName + <span class="string">":"</span> + field.getJavaType.name + <span class="string">":"</span> + field.isRepeated + <span class="string">":"</span> + field.isMapField)</span><br><span class="line"></span><br><span class="line">        val t = field.getJavaType.name match &#123;</span><br><span class="line">          <span class="keyword">case</span> <span class="string">"STRING"</span> =&gt; StringType</span><br><span class="line">          <span class="keyword">case</span> <span class="string">"LONG"</span> =&gt; LongType</span><br><span class="line">          <span class="keyword">case</span> <span class="string">"INT"</span> =&gt; IntegerType</span><br><span class="line">          <span class="keyword">case</span> <span class="string">"DOUBLE"</span> =&gt; DoubleType</span><br><span class="line">          <span class="keyword">case</span> <span class="string">"BOOLEAN"</span> =&gt; BooleanType</span><br><span class="line">          <span class="keyword">case</span> _ =&gt; println(<span class="string">"!!!!!! unknown "</span> + field.getJavaType.name); NullType</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (field.isRepeated) &#123;</span><br><span class="line">          st = st.add(StructField(name, ArrayType(t)))</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">          st = st.add(StructField(name, t))</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    st</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function">def <span class="title">getPbValue</span><span class="params">(pbMessage: Message, prefix: String, ts: Timestamp)</span>: Row </span>= &#123;</span><br><span class="line">    var s: Seq[Any] = Seq()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (<span class="string">""</span>.equals(prefix)) &#123;</span><br><span class="line">      s = s :+ ts</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (pbMessage == <span class="keyword">null</span>) <span class="keyword">return</span> Row()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">import</span> scala.collection.JavaConversions._</span><br><span class="line"></span><br><span class="line">    <span class="comment">// pbMessage.getAllFields只返回set的字段</span></span><br><span class="line">    <span class="keyword">for</span> (field &lt;- pbMessage.getDescriptorForType.getFields) &#123;</span><br><span class="line">      val name: String = field.getFullName.split(<span class="string">"\\."</span>)(field.getFullName.split(<span class="string">"\\."</span>).length - <span class="number">1</span>)</span><br><span class="line">      val v = pbMessage.getField(field)</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span> (<span class="string">"MESSAGE"</span> == field.getJavaType.name) &#123;</span><br><span class="line">        System.out.println(prefix + name + <span class="string">":"</span> + field.getJavaType.name + <span class="string">":"</span> + field.isRepeated + <span class="string">":"</span> + field.isMapField + <span class="string">":"</span> + v.getClass.getName)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (<span class="string">"java.util.Collections$UnmodifiableRandomAccessList"</span> == v.getClass.getName) &#123;</span><br><span class="line">          var s_tmp: Seq[Row] = Seq()</span><br><span class="line"></span><br><span class="line">          <span class="keyword">for</span> (m &lt;- v.asInstanceOf[util.List[Message]]) &#123;</span><br><span class="line">            s_tmp = s_tmp :+ getPbValue(m, prefix + <span class="string">"    "</span>, <span class="keyword">null</span>)</span><br><span class="line">          &#125;</span><br><span class="line"></span><br><span class="line">          s = s :+ s_tmp</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (<span class="string">"java.util.Collections$EmptyList"</span> == v.getClass.getName) &#123;</span><br><span class="line">          s = s :+ Seq()</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">else</span> s = s :+ getPbValue(v.asInstanceOf[Message], prefix + <span class="string">"    "</span>, <span class="keyword">null</span>)</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">else</span> &#123;</span><br><span class="line">        System.out.println(prefix + name + <span class="string">":"</span> + field.getJavaType.name + <span class="string">":"</span> + field.isRepeated + <span class="string">":"</span> + field.isMapField + <span class="string">":"</span> + v.getClass.getName)</span><br><span class="line"></span><br><span class="line">        s = s :+ v</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    Row.fromSeq(s)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">  <span class="function">def <span class="title">main</span><span class="params">(args: Array[String])</span>: Unit </span>= &#123;</span><br><span class="line">    val pbBuilder = PBBuilder.getBuilderByFile(PBBuilder.downloadDescriptorFile(<span class="string">"mymsg.description"</span>), <span class="string">"MyMsg"</span>)</span><br><span class="line"></span><br><span class="line">    printPBStruct(pbBuilder.getDescriptorForType, <span class="string">""</span>)</span><br><span class="line"></span><br><span class="line">    println(<span class="string">"=================================================="</span>)</span><br><span class="line"></span><br><span class="line">    val st = getPbSchema(pbBuilder.getDescriptorForType, <span class="string">""</span>)</span><br><span class="line">    println(st.treeString)</span><br><span class="line"></span><br><span class="line">    println(<span class="string">"=================================================="</span>)</span><br><span class="line"></span><br><span class="line">    val kafkaParams = <span class="keyword">new</span> Properties</span><br><span class="line">    kafkaParams.put(<span class="string">"bootstrap.servers"</span>, <span class="string">"172.16.22.11:9092"</span>)</span><br><span class="line">    kafkaParams.put(<span class="string">"group.id"</span>, <span class="string">"TestKafkaPB"</span>)</span><br><span class="line">    kafkaParams.put(<span class="string">"key.deserializer"</span>, classOf[StringDeserializer])</span><br><span class="line">    kafkaParams.put(<span class="string">"value.deserializer"</span>, classOf[ByteArrayDeserializer])</span><br><span class="line"></span><br><span class="line">    val consumer = <span class="keyword">new</span> KafkaConsumer[String, Array[Byte]](kafkaParams)</span><br><span class="line">    consumer.subscribe(util.Arrays.asList(<span class="string">"mymsg_topic"</span>))</span><br><span class="line"></span><br><span class="line">    val sparkConf = <span class="keyword">new</span> SparkConf()</span><br><span class="line">      .set(<span class="string">"spark.serializer"</span>, <span class="string">"org.apache.spark.serializer.KryoSerializer"</span>)</span><br><span class="line">      .setMaster(<span class="string">"local[*]"</span>)</span><br><span class="line"></span><br><span class="line">    val sparkSession: SparkSession = SparkSession.builder().config(sparkConf).getOrCreate()</span><br><span class="line"></span><br><span class="line">    val records = consumer.poll(Duration.ofMillis(<span class="number">4096</span>))</span><br><span class="line"></span><br><span class="line">    var cnt = <span class="number">0</span></span><br><span class="line">    var rows: Seq[Row] = Seq()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">import</span> scala.collection.JavaConversions._</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (record &lt;- records) &#123;</span><br><span class="line">      <span class="keyword">try</span> &#123;</span><br><span class="line">        val pbMessage = pbBuilder.mergeFrom(record.value).build()</span><br><span class="line"></span><br><span class="line">        System.out.println(pbMessage)</span><br><span class="line"></span><br><span class="line">        val r = getPbValue(pbMessage, <span class="string">""</span>, <span class="keyword">new</span> Timestamp(record.timestamp))</span><br><span class="line"></span><br><span class="line">        println(<span class="string">"!!!!!!!!!!!!!!"</span>)</span><br><span class="line">        println(r)</span><br><span class="line">        println(<span class="string">"!!!!!!!!!!!!!!"</span>)</span><br><span class="line"></span><br><span class="line">        rows = rows :+ r</span><br><span class="line"></span><br><span class="line">        cnt += <span class="number">1</span></span><br><span class="line">        <span class="keyword">if</span> (cnt &gt; <span class="number">10</span>) &#123;</span><br><span class="line">          println(<span class="string">"!!!!!!!!!!!!!!"</span>)</span><br><span class="line">          println(rows)</span><br><span class="line">          println(<span class="string">"!!!!!!!!!!!!!!"</span>)</span><br><span class="line"></span><br><span class="line">          val df = sparkSession.createDataFrame(rows, st)</span><br><span class="line"></span><br><span class="line">          val df2 = df</span><br><span class="line">            .withColumn(<span class="string">"year"</span>, date_format(df(<span class="string">"ts"</span>), <span class="string">"yyyy"</span>))</span><br><span class="line">            .withColumn(<span class="string">"month"</span>, date_format(df(<span class="string">"ts"</span>), <span class="string">"yyyy-MM"</span>))</span><br><span class="line">            .withColumn(<span class="string">"day"</span>, date_format(df(<span class="string">"ts"</span>), <span class="string">"yyyy-MM-dd"</span>))</span><br><span class="line">            .drop(<span class="string">"ts"</span>)</span><br><span class="line"></span><br><span class="line">          df2.printSchema()</span><br><span class="line">          df2.show()</span><br><span class="line">          df2.write</span><br><span class="line">            .format(<span class="string">"orc"</span>)</span><br><span class="line">            .mode(<span class="string">"append"</span>)</span><br><span class="line">            .partitionBy(<span class="string">"year"</span>, <span class="string">"month"</span>, <span class="string">"day"</span>)</span><br><span class="line">            .orc(<span class="string">"hdfs://emr-cluster/tmp/testpb"</span>)</span><br><span class="line"></span><br><span class="line">          System.exit(<span class="number">0</span>)</span><br><span class="line">        &#125;</span><br><span class="line">      &#125; <span class="keyword">catch</span> &#123;</span><br><span class="line">        <span class="keyword">case</span> e: InvalidProtocolBufferException =&gt;</span><br><span class="line">          e.printStackTrace()</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://www.codeleading.com/article/97581603821/" target="_blank" rel="noopener">https://www.codeleading.com/article/97581603821/</a></li>
+<li><a href="https://blog.csdn.net/lan_liang/article/details/6632127" target="_blank" rel="noopener">https://blog.csdn.net/lan_liang/article/details/6632127</a></li>
+<li><a href="https://stackoverflow.com/questions/53413674/importing-descriptor-with-included-import" target="_blank" rel="noopener">https://stackoverflow.com/questions/53413674/importing-descriptor-with-included-import</a></li>
+<li><a href="https://www.jianshu.com/p/10e029a55d3b" target="_blank" rel="noopener">https://www.jianshu.com/p/10e029a55d3b</a></li>
+<li><a href="https://stackoverflow.com/questions/30331935/protobuf-getallfields-performance" target="_blank" rel="noopener">https://stackoverflow.com/questions/30331935/protobuf-getallfields-performance</a></li>
+<li><a href="https://sparkbyexamples.com/spark/spark-sql-structtype-on-dataframe/" target="_blank" rel="noopener">https://sparkbyexamples.com/spark/spark-sql-structtype-on-dataframe/</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">kafka</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">protobuf</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">dataframe</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2021/10/01/pb2df/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-kafkapb" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1663,150 +1774,6 @@ ReplicatedXXXMergeTree: 使得以上 MergeTree 家族拥有副本机制，保证
 
 
   
-    <article id="post-hiveProblems" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2019/09/07/hiveProblems/">Hive问题记录</a>
-    </h1>
-  
-
-        
-        <a href="/2019/09/07/hiveProblems/" class="archive-article-date">
-  	<time datetime="2019-09-07T02:24:54.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-09-07</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#tez执行耗时随机陡增问题">Tez执行耗时随机陡增问题</a><ul>
-<li><a href="#问题">问题</a></li>
-<li><a href="#分析">分析</a></li>
-</ul>
-</li>
-<li><a href="#tez随机失败问题">Tez随机失败问题</a><ul>
-<li><a href="#问题-1">问题</a></li>
-<li><a href="#分析-1">分析</a></li>
-</ul>
-</li>
-<li><a href="#hive-client-java-heap-gc问题">Hive client java heap gc问题</a><ul>
-<li><a href="#问题-2">问题</a></li>
-<li><a href="#分析-2">分析</a></li>
-<li><a href="#解决">解决</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-</li>
-<li><a href="#tez任务oom不退出问题">TEZ任务OOM不退出问题</a><ul>
-<li><a href="#问题-3">问题</a></li>
-<li><a href="#分析-3">分析</a></li>
-</ul>
-</li>
-</ul>
-<!-- tocstop -->
-<h1><span id="tez执行耗时随机陡增问题">Tez执行耗时随机陡增问题</span></h1><h2><span id="问题">问题</span></h2><p>同样的查询语句，同样的输入数据，Tez的执行耗时会随机陡增。正常5分钟执行完毕，偶尔会执行30-40分钟，即便是集群资源不紧张的时候。</p>
-<h2><span id="分析">分析</span></h2><p>通过Tez UI观察正常执行和异常执行的任务信息，发现问题出在task的数量上，如下图。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/image.png" alt=""></p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/image2.png" alt=""></p>
-<p><strong>正常情况下的Map个数要远大于异常情况。</strong></p>
-<p><em>Tez是如何决定Map的个数呢？</em><br>简单的说，Tez会根据当时集群的资源使用情况，同时在参数tez.grouping.split-waves、tez.grouping.max-size、tez.grouping.min-size的控制下，动态的决定Map的个数，详见：<a href="https://cwiki.apache.org/confluence/display/Tez/How+initial+task+parallelism+works。" target="_blank" rel="noopener">https://cwiki.apache.org/confluence/display/Tez/How+initial+task+parallelism+works。</a><br>所以如果能控制Map的个数，保持在比较合理的数量，就不会出现该问题。</p>
-<p><em>如何控制Tez的Map数量呢？</em><br>简单来说，有3个参数，通过设置它们，可以控制Map的数量，避免出现过少的Map。</p>
-<ul>
-<li>tez.grouping.max-size(default 1073741824 which is 1GB)</li>
-<li>tez.grouping.min-size(default 52428800 which is 50MB)</li>
-<li>tez.grouping.split-count(not set by default)</li>
-</ul>
-<p>详见：<a href="http://www.openkb.info/2017/05/hive-on-tez-how-to-control-number-of.html" target="_blank" rel="noopener">http://www.openkb.info/2017/05/hive-on-tez-how-to-control-number-of.html</a></p>
-<h1><span id="tez随机失败问题">Tez随机失败问题</span></h1><h2><span id="问题">问题</span></h2><p>同样的查询语句，同样的输入数据，Tez执行会随机报错，重试有可能就成功了，改成使用mr执行就没问题。</p>
-<h2><span id="分析">分析</span></h2><p>通过分析和搜索报错堆栈信息，发现这是一个bug，牵涉到container reuse和使用window函数。详见：<a href="https://issues.apache.org/jira/browse/HIVE-18786?page=com.atlassian.jira.plugin.system.issuetabpanels%3Aall-tabpanel" target="_blank" rel="noopener">https://issues.apache.org/jira/browse/HIVE-18786?page=com.atlassian.jira.plugin.system.issuetabpanels%3Aall-tabpanel</a><br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">Caused by: java.lang.RuntimeException: org.apache.hadoop.hive.ql.metadata.HiveException: Hive Runtime Error while processing row (tag=0) &lt;some row data here&gt;</span><br><span class="line">       at org.apache.hadoop.hive.ql.exec.tez.ReduceRecordSource.pushRecord(ReduceRecordSource.java:297)</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.ReduceRecordProcessor.run(ReduceRecordProcessor.java:317)</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezProcessor.initializeAndRunProcessor(TezProcessor.java:185)</span><br><span class="line">       ... 14 more</span><br><span class="line"></span><br><span class="line"> Caused by: org.apache.hadoop.hive.ql.metadata.HiveException: Hive Runtime Error while processing row (tag=0) &lt;some row data here&gt;</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.ReduceRecordSource$GroupIterator.next(ReduceRecordSource.java:365)</span><br><span class="line">       at org.apache.hadoop.hive.ql.exec.tez.ReduceRecordSource.pushRecord(ReduceRecordSource.java:287)</span><br><span class="line">        ... 16 more</span><br><span class="line"></span><br><span class="line">Caused by: java.lang.NullPointerException</span><br><span class="line">         at org.apache.hadoop.hive.ql.exec.persistence.PTFRowContainer.first(PTFRowContainer.java:115)</span><br><span class="line">         at org.apache.hadoop.hive.ql.exec.PTFPartition.iterator(PTFPartition.java:114)</span><br><span class="line">         at org.apache.hadoop.hive.ql.udf.ptf.BasePartitionEvaluator.getPartitionAgg(BasePartitionEvaluator.java:200)</span><br><span class="line">         at org.apache.hadoop.hive.ql.udf.ptf.WindowingTableFunction.evaluateFunctionOnPartition(WindowingTableFunction.java:155)</span><br><span class="line">         at org.apache.hadoop.hive.ql.udf.ptf.WindowingTableFunction.iterator(WindowingTableFunction.java:538)</span><br><span class="line">         at org.apache.hadoop.hive.ql.exec.PTFOperator$PTFInvocation.finishPartition(PTFOperator.java:349)</span><br><span class="line">         at org.apache.hadoop.hive.ql.exec.PTFOperator.process(PTFOperator.java:123)</span><br><span class="line">         at org.apache.hadoop.hive.ql.exec.Operator.forward(Operator.java:897)</span><br><span class="line">         at org.apache.hadoop.hive.ql.exec.SelectOperator.process(SelectOperator.java:95)</span><br><span class="line">         at org.apache.hadoop.hive.ql.exec.tez.ReduceRecordSource$GroupIterator.next(ReduceRecordSource.java:356)</span><br></pre></td></tr></table></figure></p>
-<p>解决方法是禁用container reuse，但是代价是性能会受到影响。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">SET tez.am.container.reuse.enabled=false;</span><br></pre></td></tr></table></figure></p>
-<h1><span id="hive-client-java-heap-gc问题">Hive client java heap gc问题</span></h1><h2><span id="问题">问题</span></h2><p>使用hive命令行执行sql（mapreduce引擎），遇到如下报错：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">FAILED: Execution Error, return code -101 from org.apache.hadoop.hive.ql.exec.mr.MapRedTask. Java heap space</span><br><span class="line">FAILED: Execution Error, return code -101 from org.apache.hadoop.hive.ql.io.merge.MergeFileTask. GC overhead limit exceeded</span><br><span class="line">FAILED: Execution Error, return code -101 from org.apache.hadoop.hive.ql.exec.mr.MapRedTask. GC overhead limit exceeded</span><br></pre></td></tr></table></figure></p>
-<h2><span id="分析">分析</span></h2><p>top查看hive命令行进程，发现cpu使用率很高。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> top -p 15269</span><br><span class="line">top - 15:25:34 up 47 days,  3:39, 20 users,  load average: 3.74, 3.55, 3.40</span><br><span class="line">Tasks:   1 total,   0 running,   1 sleeping,   0 stopped,   0 zombie</span><br><span class="line"><span class="meta">%</span>Cpu(s): 24.9 us,  2.6 sy,  0.0 ni, 72.4 id,  0.1 wa,  0.0 hi,  0.1 si,  0.0 st</span><br><span class="line">KiB Mem : 65808252 total, 35084148 free, 17403072 used, 13321032 buff/cache</span><br><span class="line">KiB Swap:        0 total,        0 free,        0 used. 47753768 avail Mem </span><br><span class="line"></span><br><span class="line">  PID USER      PR  NI    VIRT    RES    SHR S  %CPU %MEM     TIME+ COMMAND</span><br><span class="line">15269 root      20   0 10.852g 8.646g  53408 S 100.3 13.8  14:53.35 java</span><br></pre></td></tr></table></figure></p>
-<p>jstat查看hive命令行进程gc情况，在频繁fullgc，年轻代和老年代使用率都是100%。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> jstat -gccause 15269 1000</span><br><span class="line">  S0     S1     E      O      M     CCS    YGC     YGCT    FGC    FGCT     GCT    LGCC                 GCC                 </span><br><span class="line">  0.00 100.00 100.00 100.00  98.70  97.53    408   14.856    67  322.975  337.831 Allocation Failure   Allocation Failure  </span><br><span class="line">  0.00 100.00 100.00 100.00  98.70  97.53    408   14.856    67  322.975  337.831 Allocation Failure   Allocation Failure  </span><br><span class="line">  0.00 100.00 100.00 100.00  98.70  97.53    408   14.856    67  322.975  337.831 Allocation Failure   Allocation Failure  </span><br><span class="line">  0.00 100.00 100.00 100.00  98.70  97.53    408   14.856    67  322.975  337.831 Allocation Failure   Allocation Failure  </span><br><span class="line">  0.00 100.00 100.00 100.00  98.70  97.53    408   14.856    67  322.975  337.831 Allocation Failure   Allocation Failure  </span><br><span class="line">  0.00 100.00 100.00 100.00  98.70  97.53    408   14.856    67  322.975  337.831 Allocation Failure   Allocation Failure  </span><br><span class="line">  0.00 100.00 100.00 100.00  98.70  97.53    408   14.856    67  322.975  337.831 Allocation Failure   Allocation Failure  </span><br><span class="line">  0.00 100.00 100.00 100.00  98.70  97.53    408   14.856    67  322.975  337.831 Allocation Failure   Allocation Failure</span><br></pre></td></tr></table></figure></p>
-<h2><span id="解决">解决</span></h2><p>修改进程的heap size和gc参数，任务执行成功，没有再报之前的错误。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">export HADOOP_CLIENT_OPTS="-Xmx$&#123;client_heap_size&#125; -XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:+UseCMSInitiatingOccupancyOnly -XX:CMSInitiatingOccupancyFraction=68 -XX:+CMSClassUnloadingEnabled -XX:+CMSParallelRemarkEnabled -XX:+UseCMSCompactAtFullCollection -XX:CMSFullGCsBeforeCompaction=3"</span><br><span class="line">hive -f 123.hql</span><br></pre></td></tr></table></figure></p>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://community.cloudera.com/t5/Support-Questions/Hive-query-OutOfMemoryError-Java-heap-space/m-p/166334" target="_blank" rel="noopener">https://community.cloudera.com/t5/Support-Questions/Hive-query-OutOfMemoryError-Java-heap-space/m-p/166334</a></li>
-<li><a href="https://www.cnblogs.com/jiangxiaoxian/p/6377471.html" target="_blank" rel="noopener">https://www.cnblogs.com/jiangxiaoxian/p/6377471.html</a></li>
-</ul>
-<h1><span id="tez任务oom不退出问题">TEZ任务OOM不退出问题</span></h1><h2><span id="问题">问题</span></h2><p>使用beeline执行tez任务，遇到任务长时间执行不结束，最后只能手工kill，重试任务可以很快完成。</p>
-<h2><span id="分析">分析</span></h2><p>查看任务详情，hang在了dag_6的reducer 2。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/C3449578-6CF2-4D36-B67E-318D819B3BE0.png" alt=""></p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/C196B16A-4636-4896-97B8-C85FB1FFB9CC.png" alt=""><br>跟正常执行相比，reduce个数正常，没有偏少的问题。</p>
-<p>日志中有OOM错误信息，说明进程已经无法正常运行了，会比平常异常慢。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/C088AB75-871F-42BC-BCAC-F5BF02D8DBC9.png" alt=""></p>
-<p>但是问题是，任务为什么没有失败退出？难道出现<code>java.lang.OutOfMemoryError: GC overhead limit exceeded</code>不一定退出？<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220512113703.png" alt=""></p>
-<p>看来确实有这种可能。<br>于是尝试增加参数<code>-XX:+ExitOnOutOfMemoryError</code>。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220512113952.png" alt=""></p>
-<p>但是，后面依然遇到了这个问题。所以这是一个悬而未决的问题o(╥﹏╥)o</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">hive</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">tez</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2019/09/07/hiveProblems/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/2/">&laquo; Prev</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/11/">11</a><a class="extend next" rel="next" href="/page/4/">Next &raquo;</a>
@@ -1906,22 +1873,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">shell</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">监控</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hive</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
@@ -1930,11 +1881,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
+                <a href="javascript:void(0)" class="js-tag color1">shell</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">监控</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1942,7 +1897,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">canal</a>
+                <a href="javascript:void(0)" class="js-tag color5">hive</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">pig</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1950,7 +1913,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">canal</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1958,7 +1925,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1966,15 +1933,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">github</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1994,7 +1957,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2030,19 +1993,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2062,19 +2025,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2090,27 +2053,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">springboot</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">keytool</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">小文件</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">storm</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2118,7 +2069,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">storm</a>
+                <a href="javascript:void(0)" class="js-tag color1">spark</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">presto</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2154,15 +2113,27 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">springboot</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">keytool</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">小文件</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
               </li>
             
             <div class="clearfix"></div>
