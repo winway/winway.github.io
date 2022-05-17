@@ -176,7 +176,46 @@
     <div class="article-entry" itemprop="articleBody">
       
         <!-- toc -->
+<ul>
+<li><a href="#实时任务优化-数据开发的看家本领">实时任务优化-数据开发的看家本领</a></li>
+<li><a href="#采用-direct-连接方式取代receiver-的形式">采用 Direct 连接方式取代Receiver 的形式</a></li>
+<li><a href="#合理设置并行度">合理设置并行度</a></li>
+<li><a href="#合理的-kafka-拉取量防止单个批次读取太多的数据超过处理上限">合理的 Kafka 拉取量，防止单个批次读取太多的数据超过处理上限</a></li>
+<li><a href="#合理设置批次时间">合理设置批次时间</a></li>
+<li><a href="#反压根据jobscheduler反馈作业的执行信息来动态调整数据接收率">反压，根据JobScheduler反馈作业的执行信息来动态调整数据接收率</a></li>
+<li><a href="#广播大变量">广播大变量</a></li>
+<li><a href="#gc优化sparkstreaming-程序对实时性要求会较高所以我们需要尽可能降低-jvm-垃圾回收所导致的延迟">gc优化，SparkStreaming 程序对实时性要求会较高，所以我们需要尽可能降低 JVM 垃圾回收所导致的延迟</a></li>
+<li><a href="#设置合理的-cpu-资源数">设置合理的 CPU 资源数</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
 <!-- tocstop -->
+<blockquote>
+<p>导引<br><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></p>
+</blockquote>
+<h2><span id="实时任务优化-数据开发的看家本领">实时任务优化-数据开发的看家本领</span></h2><p><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">《大数据开发之路-离线任务优化》</a>中的大部分思路和方法也适用于实时任务的优化，可以参考一下。本篇重点总结一下跟spark streaming和kafka相关的内容。</p>
+<h2><span id="采用-direct-连接方式取代receiver-的形式">采用 Direct 连接方式取代Receiver 的形式</span></h2><ul>
+<li>前者在executor中有Receiver接收数据，并且1个Receiver占用一个core；而后者无Receiver，所以不会暂用core</li>
+<li>前者InputDStream的分区是<code>num_receiver*batchInterval/blockInteral</code>，后者的分区数是kafka topic partition的数量。Receiver模式下num_receiver的设置不合理会影响性能或造成资源浪费；如果设置太小，并行度不够，整个链路上接收数据将是瓶颈；如果设置太多，则会浪费资源</li>
+<li>前者使用zookeeper来维护consumer的偏移量，而后者需要自己维护偏移量</li>
+<li>为了保证不丢失数据，前者需要开启WAL机制，而后者不需要，只需要在程序中成功消费完数据后再更新偏移量即可</li>
+</ul>
+<p>由于以上特点，receiver模式下会造成一定的资源浪费；使用checkpoint保存状态, 如果需要升级程序，则会导致checkpoint无法使用；receiver模式下会导致程序不太稳定；并且如果设置receiver数量不合理也会造成性能瓶颈在receiver。为了优化资源和程序稳定性，应将receiver模式改造成direct模式。</p>
+<h2><span id="合理设置并行度">合理设置并行度</span></h2><p>spark streaming任务的并行度一般设置为kafka topic的分区数，所以kafka topic的分区数是否合理，分区数据量是否均衡很关键。可以优先通过调整topic分区数控制每个partition的数据量，如果无法调整分区数，再通过repartition增加并行度。</p>
+<h2><span id="合理的-kafka-拉取量防止单个批次读取太多的数据超过处理上限">合理的 Kafka 拉取量，防止单个批次读取太多的数据超过处理上限</span></h2><p>结合 batchDuration 设置的值，调整<code>spark.streaming.kafka.maxRatePerPatition</code>参数，注意该参数配置的是 Kafka 每个 partition 拉取的上限，数据总量还需乘以所有的 partition 数量，调整两个参数 maxRatePerPartition 和 batchDuration 使得数据的拉取和处理能够平衡，尽可能地增加整个系统的吞吐量。</p>
+<h2><span id="合理设置批次时间">合理设置批次时间</span></h2><p>batchDuration 本身不能设置为小于 500ms，这会导致 SparkStreaming 进行频繁地提交作业，造成额外的开销，减少整个系统的吞吐量；相反如果将 batchDuration 时间设置得过长，也会影响整个系统的吞吐量<br>通过调整并行度/executor内存，尽量将每个批次的处理时间控制在批次间隔的40%~80%之间，达到资源和效率的均衡。<br>如何选取合适的批处理时间呢？一个好的方法是：先保守地设置一个较大的批处理间隔（如5～10s），以及一个很低的数据速率，来观测系统是否能够赶上数据传输速率。我们可以通过查看每个处理好的 batch 的端到端延迟来观察，也可以看全局延迟来观察（可以在 Sparklog4j 的日志里或者使用 StreamingListener 接口，也可以直接在 UI 界面查看）。如果延迟保持在一个相对稳定的状态，则整个系统是稳定的，否则延迟不断上升，那说明整个系统是不稳定的。在实际场景中，也可以通过观察<a href="https://winway.github.io/2022/01/16/spark-metrics/">spark metrics</a>来分析任务的性能状态。</p>
+<h2><span id="反压根据jobscheduler反馈作业的执行信息来动态调整数据接收率">反压，根据JobScheduler反馈作业的执行信息来动态调整数据接收率</span></h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">spark.streaming.backpressure.enabled</span><br></pre></td></tr></table></figure>
+<h2><span id="广播大变量">广播大变量</span></h2><p>在集群节点间进行数据传输时，都会有序列化和反序列化的开销，如果我们的应用有非常大的对象时，这部分开销是巨大的。比如应用中的任何子任务需要使用 Driver 节点的一个大型配置查询表，这时就可以考虑将该表通过共享变量的方式，广播到每一个子节点，从而大大减少在传输和序列化上的开销。<br>更新广播变量的方式是，利用 unpersist()函数先将已经发布的广播变量删除，然后修改数据后重新进行广播</p>
+<h2><span id="gc优化sparkstreaming-程序对实时性要求会较高所以我们需要尽可能降低-jvm-垃圾回收所导致的延迟">gc优化，SparkStreaming 程序对实时性要求会较高，所以我们需要尽可能降低 JVM 垃圾回收所导致的延迟</span></h2><ul>
+<li>通过配置<code>spark.rdd.compress</code>进行更进一步的压缩</li>
+<li>及时清理老数据：默认情况下所有的输入数据和由 DStream 的 Transormation 操作产生的持久 RDD 会被自动清理，即 SparkStreaming 会决定何时对数据进行清理。例如，假设我们使用 10 分钟的窗口操作，SparkStreaming 会保存之前 10 分钟的所有数据，并及时清理过时的老数据。数据保存的时间可以通过 stremingContext.remember 进行设置</li>
+<li>CMS 垃圾回收器：不同于Spark，由于需要减少 GC 间的停顿，所以这里建议使用并发标记清除类的 GC 方式。即使并发 GC 会降低全局系统的生产吞吐量，但是使用这种 GC 可以使得每个 Batch 的处理时间更加一致（不会因为某个 Batch 处理时发生了 GC，而导致处理时间剧增）。我们需要确保在 Driver 节点（在 spark-submit 中使用—driver-java-options）和 Executor 节点（在 Spark 配置中使用 spark.executor.extraJavaOptions=-XX:+UseConcMarkSweepGC）都设置了 CMSGC 方式</li>
+</ul>
+<h2><span id="设置合理的-cpu-资源数">设置合理的 CPU 资源数</span></h2><p>每个 Executor 可以占用一个或多个 core，观察 CPU 使用率（Linux 命令 top）来了解计算资源的使用情况。例如，很常见的一种浪费是一个 Executor 占用了多个 core，但是总的 CPU 使用率却不高（因为一个 Executor 并不会一直充分利用多核的能力），这个时候可以考虑让单个 Executor 占用更少的 core，同时 Worker 下面增加更多的 Executor；或者从另一个角度，增加单个节点的 worker 数量，当然这需要修改 Spark 集群的配置，从而增加 CPU 利用率。值得注意是，这里的优化有一个平衡，Executor 的数量需要考虑其他计算资源的配置，Executor 的数量和每个 Executor 分到的内存大小成反比，如果每个 Executor 的内存过小，容易产生内存溢出（outofmemory）的问题。</p>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://www.jianshu.com/p/7ed12f883d42" target="_blank" rel="noopener">Spark Streaming性能优化总结</a></li>
+<li><a href="https://www.infoq.cn/article/ihved9gi9ucv*dhg9acm" target="_blank" rel="noopener">Spark Streaming 调优实践</a></li>
+<li><a href="https://ask.dcloud.net.cn/article/36032" target="_blank" rel="noopener">Spark Streaming的优化之路——从Receiver到Direct模式</a></li>
+</ul>
 
       
 
@@ -190,7 +229,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">spark</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">spark streaming</a>
         		</li>
       		
 		</ul>
@@ -378,28 +417,53 @@
 </li>
 </ul>
 <h2><span id="spark常用优化手段amp参数">spark常用优化手段&amp;参数</span></h2><ul>
-<li>使用Kryo优化序列化性能</li>
+<li><p>使用Kryo优化序列化性能<br> 初始化 SparkConf 时，调用<code>conf.set(&quot;spark.serializer&quot;,&quot;org.apache.spark.serializer.KryoSerializer&quot;)</code>来使用 Kryo。一旦进行了这个配置，Kryo 序列化不仅仅会用在 Shuffling 操作时 worker 节点间的数据传递，也会用在 RDDs 序列化到硬盘的过程<br> Spark 官方解释没有将 Kryo 作为默认序列化方式的唯一原因是，Kryo 必须用户自己注册（注意如果我们不注册自定义类，Kryo 也是可以正常运行的，但是它必须存储每个对象的完整类名，这是非常浪费的），但是其推荐在网络频繁传输的应用中使用 Kryo</p>
+ <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">val conf = <span class="keyword">new</span> SparkConf().setMaster(...).setAppName(...) <span class="comment">// Spark配置项</span></span><br><span class="line">conf.set(<span class="string">"spark.serializer"</span>, <span class="string">"org.apache.spark.serializer.KryoSerializer"</span>) <span class="comment">// 配置序列化方式</span></span><br><span class="line">conf.registerKryoClasses(Array(classOf[MyClass1], classOf[MyClass2])) <span class="comment">// 注册需要序列化的类</span></span><br><span class="line">val sc = <span class="keyword">new</span> SparkContext(conf)</span><br></pre></td></tr></table></figure>
+</li>
 <li><p>动态分配executor数量</p>
  <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> spark.dynamicAllocation.enabled=<span class="literal">true</span>;</span><br><span class="line"><span class="keyword">SET</span> spark.shuffle.service.enabled=<span class="literal">true</span>;</span><br><span class="line"><span class="keyword">SET</span> spark.dynamicAllocation.minExecutors=xxxx;</span><br><span class="line"><span class="keyword">SET</span> spark.dynamicAllocation.maxExecutors=xxxx;</span><br><span class="line"><span class="keyword">SET</span> spark.dynamicAllocation.initialExecutors=xxxx;</span><br></pre></td></tr></table></figure>
+<p> <img src="https://img-blog.csdn.net/20160515225532299" alt=""></p>
 </li>
 <li><p>合理设置内存和核数</p>
  <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">--driver-memory</span><br><span class="line">--executor-memory</span><br><span class="line">--executor-cores</span><br></pre></td></tr></table></figure>
+<p> 当我们需要初步判断内存的占用情况时，可以创建一个 RDD，然后将其缓存（cache）起来，然后观察网页监控页面的存储页部分，就可以看出 RDD 占用了多少内存。而对于特殊的对象，我们可以调用 SizeEstimator 的 estimate()方法来评估内存消耗，这对于实验不同数据层的内存消耗，以及判断广播变量在每个 Executor 堆上所占用的内存是非常有效的。当我们了解了内存的消耗情况后，发现占用内存过大，可以着手做一些优化：</p>
+<ul>
+<li>避免使用只包含很少数据量的对象，String对象，基于指针的数据结构或者包装器类型</li>
+<li>在设计数据结构时，优先使用基本数据类型及对象数组等，避免使用 Java 或者 Scala 标准库当中的集合类（如 HashMap），在 fastutil 库中，为基本数据类型提供了方便的集合类接口，这些接口也兼容 Java 标准库。</li>
+<li>尽可能避免在数据结构中嵌套大量的小对象和指针。</li>
+<li>考虑使用数值类 ID 或者枚举对象来代替字符串类型作为主键（Key）。</li>
+<li>如果我们的运行时内存小于 32GB，可以加上 JVM 配置-XX:+UseCompressedOops 将指针的占用空间由 8 个字节压缩到 4 个字节，我们也可以在 Spark-env.sh 中进行配置。</li>
+<li>将对象以序列化的形式（serializedform）存储，在 RDD 的持久化接口中使用序列化的存储级别，如 MEMORY_ONLY_SER，Spark 便会将每个 RDD 分区存储为一个很大的字节数组。而这种方式会使得访问数据的速度有所下降，因为每个对象访问时都需要有一个反序列化的过程。</li>
+</ul>
+</li>
+<li>合理设置执行内存和存储内存比例（统一内存管理，还有一种叫静态内存管理，存储与执行两块内存的区域是完全分开的，不能互相借用）<br> Spark 提供了两个相关的配置，但是大多数情况下直接使用默认值就能满足大部分负载情况：<ul>
+<li>SparkMemory.Fraction 表示 M 的大小占整个 JVM（JavaVirtueMachine）堆空间的比例（默认是 0.6），剩余的空间（40%）被用来保存用户的数据结构及 Spark 内部的元数据（metadata），另一方面预防某些异常数据记录造成的 OOM（OutofMemory）错误。</li>
+<li>Spark.Memory.StorageFraction 表示 R 的大小占整个 M 的比例（默认是 0.5），R 是存储类内存在 M 中占用的空间，其中缓存的数据块不会被执行类内存剥夺。</li>
+</ul>
+</li>
+<li>垃圾回收（GC）优化<br> 垃圾回收的开销是和 Java 对象的个数成比例的，我们要尽可能地使用包含较少对象的数据结构（如使用 Int 数组代替 LinkedList）来降低这部分开销<br> Java 的 GC 机制主要是基于程序中创建的大多数对象，都会在创建后被很快销毁，只有极少数对象会存活下来，所以其分为年轻代和老年代两部分，而这两部分 GC 的方式也是不同的，其时间复杂度也是不同的，年轻代会更加快一些。Spark 在 GC 方面优化的主要目标是：只有长生命周期的 RDD 会被存储在老年代上，而年轻代上有足够的空间来存储短生命周期的对象，从而尽可能避免任务执行时创建的临时对象触发完整 GC 流程<ul>
+<li>如果触发了过多的小型 GC，而完整的 GC 操作并没有调用很多次，那么给 Eden 区域多分配一些内存空间会有所帮助</li>
+<li>如果我们观察 GC 打印的统计信息，发现老年代接近存满，那么就需要改变 spark.memory.fraction 来减少存储类内存（用于 caching）的占用，因为与其降低任务的执行速度，不如减少对象的缓存大小。另一个可选方案是减少年轻代的大小，即通过-Xmn 来进行配置，也可以通过 JVM 的 NewRatio 参数进行调整，大多数 JVM 的该参数的默认值是 2，意思是老年代占整个堆内存的 2/3，这个比例需要大于 Spark.Memory.Fraction</li>
+<li>通过加入-XX:+UserG1GC 来使用 G1GC 垃圾回收器，这可以一定程度提高 GC 的性能</li>
+</ul>
 </li>
 <li><p>合理设置并并行度</p>
  <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">--spark.default.parallelism</span><br></pre></td></tr></table></figure>
 </li>
 <li><p>使用repartition增加并行度</p>
 </li>
-<li>coalesce()取代repartition()降低并行度</li>
-<li>mapPartitions()取代map()，foreachPartitions替代foreach</li>
+<li>coalesce()取代repartition()降低并行度，在filter操作后，可以执行该操作可以减少任务数</li>
+<li>mapPartitions()取代map()，foreachPartitions替代foreach，可以对数据进行批量处理，尤其是在需要网络连接的地方</li>
 <li>优先使用DataFrame/Dataset取代RDD</li>
-<li>使用rdd cache或checkpoint，提高复用率</li>
+<li>多个Action计算最好基于同一个RDD进行计算操作，并使用rdd cache或checkpoint，提高复用率，避免重复计算</li>
 <li>减少shuffle操作gropByKey(), reducebyKey(), join(), distinct()，使用map类的非shuffle算子</li>
-<li>使用reduceByKey/aggregateByKey替代groupByKey，使用预聚合操作<br> <img src="https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/5ebe0848.png" alt=""><br> <img src="https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/a6c7d4c4.png" alt=""></li>
+<li>在使用join的地方看是否可以使用map算子和广播变量的方式替代</li>
+<li>使用reduceByKey/aggregateByKey替代groupByKey，使用combiner预聚合操作<br> <img src="https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/5ebe0848.png" alt=""><br> <img src="https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/a6c7d4c4.png" alt=""></li>
 <li>数据倾斜<ul>
 <li>调整并行度或自定义 Partitioner 从而分散分配给同一 Task 的大量不同 Key</li>
 <li>使用 BroadcastJoin 代替 ReduceJoin 消除 Shuffle 从而避免 Shuffle 引起的数据倾斜</li>
 <li>对倾斜 Key 使用随机前缀或后缀从而分散大量倾斜 Key，同时将参与 Join 的小表扩容，从而保证 Join 结果的正确性</li>
+<li>对于聚合操作，可以利用两次聚合的思想来解决， 核心是先进行key加随机数操作，使数据分布均匀，并进行聚合，最后是剔除随机，用实际数据来进行聚合操作</li>
 </ul>
 </li>
 <li>使用HashShuffleManager时，设置spark.shuffle.consolidateFiles=true，减少shuffle write的文件数量</li>
@@ -433,6 +497,9 @@
 <li><a href="https://tech.meituan.com/2016/04/29/spark-tuning-basic.html" target="_blank" rel="noopener">Spark性能优化指南——基础篇</a></li>
 <li><a href="https://zhuanlan.zhihu.com/p/108454557" target="_blank" rel="noopener">超全spark性能优化总结</a></li>
 <li><a href="https://blog.csdn.net/zhuxuemin1991/article/details/119074721" target="_blank" rel="noopener">Spark性能优化指南—思路梳理</a></li>
+<li><a href="https://blog.51cto.com/u_15288309/3131058" target="_blank" rel="noopener">Spark-Submit 常用参数用法</a></li>
+<li><a href="https://stackoverflow.com/questions/44633410/meaning-of-registering-a-class-with-kryo-serialization" target="_blank" rel="noopener">Meaning of registering a class with kryo serialization</a></li>
+<li><a href="https://www.jianshu.com/p/4f1e551553ae" target="_blank" rel="noopener">Spark的两种内存管理机制：静态内存管理与统一内存管理</a></li>
 <li><a href="https://sparkbyexamples.com/spark/spark-sql-performance-tuning-configurations/" target="_blank" rel="noopener">Spark SQL Performance Tuning by Configurations</a></li>
 <li><a href="http://www.jasongj.com/spark/adaptive_execution/" target="_blank" rel="noopener">Adaptive Execution 让 Spark SQL 更高效更智能</a></li>
 </ul>
@@ -1887,6 +1954,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
               </li>
             
             <div class="clearfix"></div>

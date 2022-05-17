@@ -17,11 +17,12 @@
 <meta property="og:description" content="离线任务优化-数据开发的看家本领 优化方向 优化层面 hive常用优化手段&amp;amp;参数 spark常用优化手段&amp;amp;参数 spark-sql常用优化手段&amp;amp;参数 参考资料    导引大数据开发之路-概述  离线任务优化-数据开发的看家本领离线任务优化是数据开发的重要内容，下面从优化方向和优化层面两个角度总结一下优化的思路。这些优化的思想具有普适性，跟具体的计算引擎无关，普遍适用于h">
 <meta property="og:locale" content="default">
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220513195135.png">
+<meta property="og:image" content="https://img-blog.csdn.net/20160515225532299">
 <meta property="og:image" content="https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/5ebe0848.png">
 <meta property="og:image" content="https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/a6c7d4c4.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220513195229.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220513195250.png">
-<meta property="og:updated_time" content="2022-05-14T14:08:14.144Z">
+<meta property="og:updated_time" content="2022-05-17T03:20:15.279Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="大数据开发之路-离线任务优化">
 <meta name="twitter:description" content="离线任务优化-数据开发的看家本领 优化方向 优化层面 hive常用优化手段&amp;amp;参数 spark常用优化手段&amp;amp;参数 spark-sql常用优化手段&amp;amp;参数 参考资料    导引大数据开发之路-概述  离线任务优化-数据开发的看家本领离线任务优化是数据开发的重要内容，下面从优化方向和优化层面两个角度总结一下优化的思路。这些优化的思想具有普适性，跟具体的计算引擎无关，普遍适用于h">
@@ -298,28 +299,53 @@
 </li>
 </ul>
 <h2><span id="spark常用优化手段amp参数">spark常用优化手段&amp;参数</span></h2><ul>
-<li>使用Kryo优化序列化性能</li>
+<li><p>使用Kryo优化序列化性能<br> 初始化 SparkConf 时，调用<code>conf.set(&quot;spark.serializer&quot;,&quot;org.apache.spark.serializer.KryoSerializer&quot;)</code>来使用 Kryo。一旦进行了这个配置，Kryo 序列化不仅仅会用在 Shuffling 操作时 worker 节点间的数据传递，也会用在 RDDs 序列化到硬盘的过程<br> Spark 官方解释没有将 Kryo 作为默认序列化方式的唯一原因是，Kryo 必须用户自己注册（注意如果我们不注册自定义类，Kryo 也是可以正常运行的，但是它必须存储每个对象的完整类名，这是非常浪费的），但是其推荐在网络频繁传输的应用中使用 Kryo</p>
+ <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">val conf = <span class="keyword">new</span> SparkConf().setMaster(...).setAppName(...) <span class="comment">// Spark配置项</span></span><br><span class="line">conf.set(<span class="string">"spark.serializer"</span>, <span class="string">"org.apache.spark.serializer.KryoSerializer"</span>) <span class="comment">// 配置序列化方式</span></span><br><span class="line">conf.registerKryoClasses(Array(classOf[MyClass1], classOf[MyClass2])) <span class="comment">// 注册需要序列化的类</span></span><br><span class="line">val sc = <span class="keyword">new</span> SparkContext(conf)</span><br></pre></td></tr></table></figure>
+</li>
 <li><p>动态分配executor数量</p>
  <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> spark.dynamicAllocation.enabled=<span class="literal">true</span>;</span><br><span class="line"><span class="keyword">SET</span> spark.shuffle.service.enabled=<span class="literal">true</span>;</span><br><span class="line"><span class="keyword">SET</span> spark.dynamicAllocation.minExecutors=xxxx;</span><br><span class="line"><span class="keyword">SET</span> spark.dynamicAllocation.maxExecutors=xxxx;</span><br><span class="line"><span class="keyword">SET</span> spark.dynamicAllocation.initialExecutors=xxxx;</span><br></pre></td></tr></table></figure>
+<p> <img src="https://img-blog.csdn.net/20160515225532299" alt=""></p>
 </li>
 <li><p>合理设置内存和核数</p>
  <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">--driver-memory</span><br><span class="line">--executor-memory</span><br><span class="line">--executor-cores</span><br></pre></td></tr></table></figure>
+<p> 当我们需要初步判断内存的占用情况时，可以创建一个 RDD，然后将其缓存（cache）起来，然后观察网页监控页面的存储页部分，就可以看出 RDD 占用了多少内存。而对于特殊的对象，我们可以调用 SizeEstimator 的 estimate()方法来评估内存消耗，这对于实验不同数据层的内存消耗，以及判断广播变量在每个 Executor 堆上所占用的内存是非常有效的。当我们了解了内存的消耗情况后，发现占用内存过大，可以着手做一些优化：</p>
+<ul>
+<li>避免使用只包含很少数据量的对象，String对象，基于指针的数据结构或者包装器类型</li>
+<li>在设计数据结构时，优先使用基本数据类型及对象数组等，避免使用 Java 或者 Scala 标准库当中的集合类（如 HashMap），在 fastutil 库中，为基本数据类型提供了方便的集合类接口，这些接口也兼容 Java 标准库。</li>
+<li>尽可能避免在数据结构中嵌套大量的小对象和指针。</li>
+<li>考虑使用数值类 ID 或者枚举对象来代替字符串类型作为主键（Key）。</li>
+<li>如果我们的运行时内存小于 32GB，可以加上 JVM 配置-XX:+UseCompressedOops 将指针的占用空间由 8 个字节压缩到 4 个字节，我们也可以在 Spark-env.sh 中进行配置。</li>
+<li>将对象以序列化的形式（serializedform）存储，在 RDD 的持久化接口中使用序列化的存储级别，如 MEMORY_ONLY_SER，Spark 便会将每个 RDD 分区存储为一个很大的字节数组。而这种方式会使得访问数据的速度有所下降，因为每个对象访问时都需要有一个反序列化的过程。</li>
+</ul>
+</li>
+<li>合理设置执行内存和存储内存比例（统一内存管理，还有一种叫静态内存管理，存储与执行两块内存的区域是完全分开的，不能互相借用）<br> Spark 提供了两个相关的配置，但是大多数情况下直接使用默认值就能满足大部分负载情况：<ul>
+<li>SparkMemory.Fraction 表示 M 的大小占整个 JVM（JavaVirtueMachine）堆空间的比例（默认是 0.6），剩余的空间（40%）被用来保存用户的数据结构及 Spark 内部的元数据（metadata），另一方面预防某些异常数据记录造成的 OOM（OutofMemory）错误。</li>
+<li>Spark.Memory.StorageFraction 表示 R 的大小占整个 M 的比例（默认是 0.5），R 是存储类内存在 M 中占用的空间，其中缓存的数据块不会被执行类内存剥夺。</li>
+</ul>
+</li>
+<li>垃圾回收（GC）优化<br> 垃圾回收的开销是和 Java 对象的个数成比例的，我们要尽可能地使用包含较少对象的数据结构（如使用 Int 数组代替 LinkedList）来降低这部分开销<br> Java 的 GC 机制主要是基于程序中创建的大多数对象，都会在创建后被很快销毁，只有极少数对象会存活下来，所以其分为年轻代和老年代两部分，而这两部分 GC 的方式也是不同的，其时间复杂度也是不同的，年轻代会更加快一些。Spark 在 GC 方面优化的主要目标是：只有长生命周期的 RDD 会被存储在老年代上，而年轻代上有足够的空间来存储短生命周期的对象，从而尽可能避免任务执行时创建的临时对象触发完整 GC 流程<ul>
+<li>如果触发了过多的小型 GC，而完整的 GC 操作并没有调用很多次，那么给 Eden 区域多分配一些内存空间会有所帮助</li>
+<li>如果我们观察 GC 打印的统计信息，发现老年代接近存满，那么就需要改变 spark.memory.fraction 来减少存储类内存（用于 caching）的占用，因为与其降低任务的执行速度，不如减少对象的缓存大小。另一个可选方案是减少年轻代的大小，即通过-Xmn 来进行配置，也可以通过 JVM 的 NewRatio 参数进行调整，大多数 JVM 的该参数的默认值是 2，意思是老年代占整个堆内存的 2/3，这个比例需要大于 Spark.Memory.Fraction</li>
+<li>通过加入-XX:+UserG1GC 来使用 G1GC 垃圾回收器，这可以一定程度提高 GC 的性能</li>
+</ul>
 </li>
 <li><p>合理设置并并行度</p>
  <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">--spark.default.parallelism</span><br></pre></td></tr></table></figure>
 </li>
 <li><p>使用repartition增加并行度</p>
 </li>
-<li>coalesce()取代repartition()降低并行度</li>
-<li>mapPartitions()取代map()，foreachPartitions替代foreach</li>
+<li>coalesce()取代repartition()降低并行度，在filter操作后，可以执行该操作可以减少任务数</li>
+<li>mapPartitions()取代map()，foreachPartitions替代foreach，可以对数据进行批量处理，尤其是在需要网络连接的地方</li>
 <li>优先使用DataFrame/Dataset取代RDD</li>
-<li>使用rdd cache或checkpoint，提高复用率</li>
+<li>多个Action计算最好基于同一个RDD进行计算操作，并使用rdd cache或checkpoint，提高复用率，避免重复计算</li>
 <li>减少shuffle操作gropByKey(), reducebyKey(), join(), distinct()，使用map类的非shuffle算子</li>
-<li>使用reduceByKey/aggregateByKey替代groupByKey，使用预聚合操作<br> <img src="https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/5ebe0848.png" alt=""><br> <img src="https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/a6c7d4c4.png" alt=""></li>
+<li>在使用join的地方看是否可以使用map算子和广播变量的方式替代</li>
+<li>使用reduceByKey/aggregateByKey替代groupByKey，使用combiner预聚合操作<br> <img src="https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/5ebe0848.png" alt=""><br> <img src="https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/a6c7d4c4.png" alt=""></li>
 <li>数据倾斜<ul>
 <li>调整并行度或自定义 Partitioner 从而分散分配给同一 Task 的大量不同 Key</li>
 <li>使用 BroadcastJoin 代替 ReduceJoin 消除 Shuffle 从而避免 Shuffle 引起的数据倾斜</li>
 <li>对倾斜 Key 使用随机前缀或后缀从而分散大量倾斜 Key，同时将参与 Join 的小表扩容，从而保证 Join 结果的正确性</li>
+<li>对于聚合操作，可以利用两次聚合的思想来解决， 核心是先进行key加随机数操作，使数据分布均匀，并进行聚合，最后是剔除随机，用实际数据来进行聚合操作</li>
 </ul>
 </li>
 <li>使用HashShuffleManager时，设置spark.shuffle.consolidateFiles=true，减少shuffle write的文件数量</li>
@@ -353,6 +379,9 @@
 <li><a href="https://tech.meituan.com/2016/04/29/spark-tuning-basic.html" target="_blank" rel="noopener">Spark性能优化指南——基础篇</a></li>
 <li><a href="https://zhuanlan.zhihu.com/p/108454557" target="_blank" rel="noopener">超全spark性能优化总结</a></li>
 <li><a href="https://blog.csdn.net/zhuxuemin1991/article/details/119074721" target="_blank" rel="noopener">Spark性能优化指南—思路梳理</a></li>
+<li><a href="https://blog.51cto.com/u_15288309/3131058" target="_blank" rel="noopener">Spark-Submit 常用参数用法</a></li>
+<li><a href="https://stackoverflow.com/questions/44633410/meaning-of-registering-a-class-with-kryo-serialization" target="_blank" rel="noopener">Meaning of registering a class with kryo serialization</a></li>
+<li><a href="https://www.jianshu.com/p/4f1e551553ae" target="_blank" rel="noopener">Spark的两种内存管理机制：静态内存管理与统一内存管理</a></li>
 <li><a href="https://sparkbyexamples.com/spark/spark-sql-performance-tuning-configurations/" target="_blank" rel="noopener">Spark SQL Performance Tuning by Configurations</a></li>
 <li><a href="http://www.jasongj.com/spark/adaptive_execution/" target="_blank" rel="noopener">Adaptive Execution 让 Spark SQL 更高效更智能</a></li>
 </ul>
@@ -904,6 +933,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
               </li>
             
             <div class="clearfix"></div>

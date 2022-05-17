@@ -8,15 +8,18 @@
   <link rel="dns-prefetch" href="https://winway.github.io">
   <title>大数据开发之路-实时任务优化 | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="keywords" content="spark">
+  <meta name="description" content="实时任务优化-数据开发的看家本领 采用 Direct 连接方式取代Receiver 的形式 合理设置并行度 合理的 Kafka 拉取量，防止单个批次读取太多的数据超过处理上限 合理设置批次时间 反压，根据JobScheduler反馈作业的执行信息来动态调整数据接收率 广播大变量 gc优化，SparkStreaming 程序对实时性要求会较高，所以我们需要尽可能降低 JVM 垃圾回收所导致的延迟">
+<meta name="keywords" content="spark streaming">
 <meta property="og:type" content="article">
 <meta property="og:title" content="大数据开发之路-实时任务优化">
 <meta property="og:url" content="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
+<meta property="og:description" content="实时任务优化-数据开发的看家本领 采用 Direct 连接方式取代Receiver 的形式 合理设置并行度 合理的 Kafka 拉取量，防止单个批次读取太多的数据超过处理上限 合理设置批次时间 反压，根据JobScheduler反馈作业的执行信息来动态调整数据接收率 广播大变量 gc优化，SparkStreaming 程序对实时性要求会较高，所以我们需要尽可能降低 JVM 垃圾回收所导致的延迟">
 <meta property="og:locale" content="default">
-<meta property="og:updated_time" content="2022-05-15T08:22:51.444Z">
+<meta property="og:updated_time" content="2022-05-17T03:36:39.754Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="大数据开发之路-实时任务优化">
+<meta name="twitter:description" content="实时任务优化-数据开发的看家本领 采用 Direct 连接方式取代Receiver 的形式 合理设置并行度 合理的 Kafka 拉取量，防止单个批次读取太多的数据超过处理上限 合理设置批次时间 反压，根据JobScheduler反馈作业的执行信息来动态调整数据接收率 广播大变量 gc优化，SparkStreaming 程序对实时性要求会较高，所以我们需要尽可能降低 JVM 垃圾回收所导致的延迟">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -173,7 +176,46 @@
     <div class="article-entry" itemprop="articleBody">
       
         <!-- toc -->
+<ul>
+<li><a href="#实时任务优化-数据开发的看家本领">实时任务优化-数据开发的看家本领</a></li>
+<li><a href="#采用-direct-连接方式取代receiver-的形式">采用 Direct 连接方式取代Receiver 的形式</a></li>
+<li><a href="#合理设置并行度">合理设置并行度</a></li>
+<li><a href="#合理的-kafka-拉取量防止单个批次读取太多的数据超过处理上限">合理的 Kafka 拉取量，防止单个批次读取太多的数据超过处理上限</a></li>
+<li><a href="#合理设置批次时间">合理设置批次时间</a></li>
+<li><a href="#反压根据jobscheduler反馈作业的执行信息来动态调整数据接收率">反压，根据JobScheduler反馈作业的执行信息来动态调整数据接收率</a></li>
+<li><a href="#广播大变量">广播大变量</a></li>
+<li><a href="#gc优化sparkstreaming-程序对实时性要求会较高所以我们需要尽可能降低-jvm-垃圾回收所导致的延迟">gc优化，SparkStreaming 程序对实时性要求会较高，所以我们需要尽可能降低 JVM 垃圾回收所导致的延迟</a></li>
+<li><a href="#设置合理的-cpu-资源数">设置合理的 CPU 资源数</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
 <!-- tocstop -->
+<blockquote>
+<p>导引<br><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></p>
+</blockquote>
+<h2><span id="实时任务优化-数据开发的看家本领">实时任务优化-数据开发的看家本领</span></h2><p><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">《大数据开发之路-离线任务优化》</a>中的大部分思路和方法也适用于实时任务的优化，可以参考一下。本篇重点总结一下跟spark streaming和kafka相关的内容。</p>
+<h2><span id="采用-direct-连接方式取代receiver-的形式">采用 Direct 连接方式取代Receiver 的形式</span></h2><ul>
+<li>前者在executor中有Receiver接收数据，并且1个Receiver占用一个core；而后者无Receiver，所以不会暂用core</li>
+<li>前者InputDStream的分区是<code>num_receiver*batchInterval/blockInteral</code>，后者的分区数是kafka topic partition的数量。Receiver模式下num_receiver的设置不合理会影响性能或造成资源浪费；如果设置太小，并行度不够，整个链路上接收数据将是瓶颈；如果设置太多，则会浪费资源</li>
+<li>前者使用zookeeper来维护consumer的偏移量，而后者需要自己维护偏移量</li>
+<li>为了保证不丢失数据，前者需要开启WAL机制，而后者不需要，只需要在程序中成功消费完数据后再更新偏移量即可</li>
+</ul>
+<p>由于以上特点，receiver模式下会造成一定的资源浪费；使用checkpoint保存状态, 如果需要升级程序，则会导致checkpoint无法使用；receiver模式下会导致程序不太稳定；并且如果设置receiver数量不合理也会造成性能瓶颈在receiver。为了优化资源和程序稳定性，应将receiver模式改造成direct模式。</p>
+<h2><span id="合理设置并行度">合理设置并行度</span></h2><p>spark streaming任务的并行度一般设置为kafka topic的分区数，所以kafka topic的分区数是否合理，分区数据量是否均衡很关键。可以优先通过调整topic分区数控制每个partition的数据量，如果无法调整分区数，再通过repartition增加并行度。</p>
+<h2><span id="合理的-kafka-拉取量防止单个批次读取太多的数据超过处理上限">合理的 Kafka 拉取量，防止单个批次读取太多的数据超过处理上限</span></h2><p>结合 batchDuration 设置的值，调整<code>spark.streaming.kafka.maxRatePerPatition</code>参数，注意该参数配置的是 Kafka 每个 partition 拉取的上限，数据总量还需乘以所有的 partition 数量，调整两个参数 maxRatePerPartition 和 batchDuration 使得数据的拉取和处理能够平衡，尽可能地增加整个系统的吞吐量。</p>
+<h2><span id="合理设置批次时间">合理设置批次时间</span></h2><p>batchDuration 本身不能设置为小于 500ms，这会导致 SparkStreaming 进行频繁地提交作业，造成额外的开销，减少整个系统的吞吐量；相反如果将 batchDuration 时间设置得过长，也会影响整个系统的吞吐量<br>通过调整并行度/executor内存，尽量将每个批次的处理时间控制在批次间隔的40%~80%之间，达到资源和效率的均衡。<br>如何选取合适的批处理时间呢？一个好的方法是：先保守地设置一个较大的批处理间隔（如5～10s），以及一个很低的数据速率，来观测系统是否能够赶上数据传输速率。我们可以通过查看每个处理好的 batch 的端到端延迟来观察，也可以看全局延迟来观察（可以在 Sparklog4j 的日志里或者使用 StreamingListener 接口，也可以直接在 UI 界面查看）。如果延迟保持在一个相对稳定的状态，则整个系统是稳定的，否则延迟不断上升，那说明整个系统是不稳定的。在实际场景中，也可以通过观察<a href="https://winway.github.io/2022/01/16/spark-metrics/">spark metrics</a>来分析任务的性能状态。</p>
+<h2><span id="反压根据jobscheduler反馈作业的执行信息来动态调整数据接收率">反压，根据JobScheduler反馈作业的执行信息来动态调整数据接收率</span></h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">spark.streaming.backpressure.enabled</span><br></pre></td></tr></table></figure>
+<h2><span id="广播大变量">广播大变量</span></h2><p>在集群节点间进行数据传输时，都会有序列化和反序列化的开销，如果我们的应用有非常大的对象时，这部分开销是巨大的。比如应用中的任何子任务需要使用 Driver 节点的一个大型配置查询表，这时就可以考虑将该表通过共享变量的方式，广播到每一个子节点，从而大大减少在传输和序列化上的开销。<br>更新广播变量的方式是，利用 unpersist()函数先将已经发布的广播变量删除，然后修改数据后重新进行广播</p>
+<h2><span id="gc优化sparkstreaming-程序对实时性要求会较高所以我们需要尽可能降低-jvm-垃圾回收所导致的延迟">gc优化，SparkStreaming 程序对实时性要求会较高，所以我们需要尽可能降低 JVM 垃圾回收所导致的延迟</span></h2><ul>
+<li>通过配置<code>spark.rdd.compress</code>进行更进一步的压缩</li>
+<li>及时清理老数据：默认情况下所有的输入数据和由 DStream 的 Transormation 操作产生的持久 RDD 会被自动清理，即 SparkStreaming 会决定何时对数据进行清理。例如，假设我们使用 10 分钟的窗口操作，SparkStreaming 会保存之前 10 分钟的所有数据，并及时清理过时的老数据。数据保存的时间可以通过 stremingContext.remember 进行设置</li>
+<li>CMS 垃圾回收器：不同于Spark，由于需要减少 GC 间的停顿，所以这里建议使用并发标记清除类的 GC 方式。即使并发 GC 会降低全局系统的生产吞吐量，但是使用这种 GC 可以使得每个 Batch 的处理时间更加一致（不会因为某个 Batch 处理时发生了 GC，而导致处理时间剧增）。我们需要确保在 Driver 节点（在 spark-submit 中使用—driver-java-options）和 Executor 节点（在 Spark 配置中使用 spark.executor.extraJavaOptions=-XX:+UseConcMarkSweepGC）都设置了 CMSGC 方式</li>
+</ul>
+<h2><span id="设置合理的-cpu-资源数">设置合理的 CPU 资源数</span></h2><p>每个 Executor 可以占用一个或多个 core，观察 CPU 使用率（Linux 命令 top）来了解计算资源的使用情况。例如，很常见的一种浪费是一个 Executor 占用了多个 core，但是总的 CPU 使用率却不高（因为一个 Executor 并不会一直充分利用多核的能力），这个时候可以考虑让单个 Executor 占用更少的 core，同时 Worker 下面增加更多的 Executor；或者从另一个角度，增加单个节点的 worker 数量，当然这需要修改 Spark 集群的配置，从而增加 CPU 利用率。值得注意是，这里的优化有一个平衡，Executor 的数量需要考虑其他计算资源的配置，Executor 的数量和每个 Executor 分到的内存大小成反比，如果每个 Executor 的内存过小，容易产生内存溢出（outofmemory）的问题。</p>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://www.jianshu.com/p/7ed12f883d42" target="_blank" rel="noopener">Spark Streaming性能优化总结</a></li>
+<li><a href="https://www.infoq.cn/article/ihved9gi9ucv*dhg9acm" target="_blank" rel="noopener">Spark Streaming 调优实践</a></li>
+<li><a href="https://ask.dcloud.net.cn/article/36032" target="_blank" rel="noopener">Spark Streaming的优化之路——从Receiver到Direct模式</a></li>
+</ul>
 
       
 
@@ -218,7 +260,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">spark</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">spark streaming</a>
         		</li>
       		
 		</ul>
@@ -701,6 +743,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
               </li>
             
             <div class="clearfix"></div>
