@@ -155,6 +155,307 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-bigdata-stack-kylin" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/05/18/bigdata-stack-kylin/">bigdata-stack-kylin</a>
+    </h1>
+  
+
+        
+        <a href="/2022/05/18/bigdata-stack-kylin/" class="archive-article-date">
+  	<time datetime="2022-05-18T09:04:35.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-18</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<!-- tocstop -->
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2022/05/18/bigdata-stack-kylin/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-bigdata-stack-doris" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/05/18/bigdata-stack-doris/">大数据开发之路-doris</a>
+    </h1>
+  
+
+        
+        <a href="/2022/05/18/bigdata-stack-doris/" class="archive-article-date">
+  	<time datetime="2022-05-18T09:04:29.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-18</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#doris-olap分析数据库的国产之光">doris-OLAP分析数据库的国产之光</a></li>
+<li><a href="#特性">特性</a></li>
+<li><a href="#mpp数据库比较">MPP数据库比较</a></li>
+<li><a href="#适用场景">适用场景</a></li>
+<li><a href="#关键技术">关键技术</a><ul>
+<li><a href="#架构">架构</a></li>
+<li><a href="#数据分布">数据分布</a></li>
+<li><a href="#mysql-兼容性">MySQL 兼容性</a></li>
+<li><a href="#查询计划">查询计划</a></li>
+<li><a href="#数据模型">数据模型</a></li>
+<li><a href="#数据组织">数据组织</a></li>
+<li><a href="#前缀索引">前缀索引</a></li>
+<li><a href="#schema-change">Schema Change</a></li>
+<li><a href="#向量化执行">向量化执行</a></li>
+<li><a href="#物化视图-rollup">物化视图-ROLLUP</a></li>
+<li><a href="#两层区分与分级存储">两层区分与分级存储</a></li>
+<li><a href="#doris-on-elasticsearch">Doris on Elasticsearch</a></li>
+<li><a href="#kafka-routine-load">Kafka routine load</a></li>
+<li><a href="#odbc-external-table-of-doris">ODBC External Table Of Doris</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<blockquote>
+<p>导引<br><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a><br>关联阅读<br><a href="https://winway.github.io/2021/07/25/olapNotes/">OLAP笔记</a></p>
+</blockquote>
+<h2><span id="doris-olap分析数据库的国产之光">doris-OLAP分析数据库的国产之光</span></h2><p><img src="https://img-blog.csdnimg.cn/img_convert/c119b20f8e0f64995aa540dcf5ea83e5.png" alt=""><br>Doris是基于MPP架构的OLAP引擎，以较低的成本提供在大数据集上的高性能分析和报表查询功能。</p>
+<p><img src="https://p5.toutiaoimg.com/origin/pgc-image/ef27352d1ffc48778045d20c4f82a756?from=pc" alt=""><br>Doris主要整合了Google Mesa（数据模型）、Apache Impala（MPP Query Engine）和Apache ORCFile （存储格式，编码和压缩）的技术。</p>
+<ul>
+<li>Mesa是一种高度可扩展的分析数据存储系统，用于存储与Google的互联网广告业务有关的关键测量数据。Mesa旨在满足一系列复杂且具有挑战性的用户和系统需求，包括接近实时的数据提取和查询能力，以及针对大数据和查询量的高可用性，可靠性，容错性和可伸缩性。</li>
+<li>Impala是为Hadoop数据处理环境从头开始构建的现代开源MPP SQL引擎。</li>
+<li>Mesa可以满足我们许多存储的需求，但是Mesa本身不提供SQL查询引擎；Impala是一个非常好的MPP SQL查询引擎，但是缺少完美的分布式存储引擎；ORCFile：采用列式存储（只访问查询涉及的列，能大量降低系统I/O；列数据相对来说比较类似，压缩比更高；每一列由一个线程来处理，更有利于查询的并发处理）。因此选择了这三种技术的组合。</li>
+</ul>
+<h2><span id="特性">特性</span></h2><ul>
+<li>MPP架构的关系型分析数据库，主要用于多维分析和报表查询，同时支持明细和聚合查询</li>
+<li>性能卓越<ul>
+<li>PB 级别大数据集，秒级/毫秒级查询</li>
+<li>TPC-H/TPC-DS性能领先，性价比高。TPC-C是针对OLTP的测试，TPC-H和TPC-DS则是针对OLAP的测试，在新兴的HATP数据库则TPC-C、TPC-H和TPC-DS都需要进行测试验证，不过大部分数据库目前对TPC-DS的99个SQL查询支持尚不完善。</li>
+<li>同时支持高并发点查询和高吞吐的Ad-hoc查询，高并发查询100台机器可达10w QPS</li>
+<li>同时支持离线批量导入和实时数据导入，流式导入单节点50MB/s，小批量导入毫秒延迟</li>
+</ul>
+</li>
+<li>简单易用<ul>
+<li>高度兼容Mysql协议</li>
+<li>高度集成，不依赖于外部存储系统</li>
+<li>支持在线表结构变更</li>
+<li>支持Rollup Table和Rollup Table的智能查询路由</li>
+<li>支持较好的多表Join策略和灵活的表达式查询</li>
+<li>支持Range和Hash二级分区</li>
+<li>副本自动均衡</li>
+</ul>
+</li>
+<li>扩展性强<ul>
+<li>架构优雅，单集群可水平扩展至200台以上</li>
+</ul>
+</li>
+<li>高可用性<ul>
+<li>多副本，元数据高可用</li>
+</ul>
+</li>
+</ul>
+<h2><span id="mpp数据库比较">MPP数据库比较</span></h2><p><img src="https://p1.meituan.net/travelcube/b52422404cc6565bcc2ca4964bd3b812179592.png" alt=""></p>
+<h2><span id="适用场景">适用场景</span></h2><ul>
+<li>数仓查询加速<ul>
+<li>应用Doris解决传统数仓查询效率低下的困境，PB级别数据低至毫秒/秒级查询耗时，海量数据无缝应用，极大幅度加速数据决策效率。</li>
+</ul>
+</li>
+<li>实时数仓构建<ul>
+<li>Doris支持流式数据高效导入、业务指标实时聚合，保证业务数据得以实时洞察，并可以减少数据处理链路、统一数据流向，简化大数据平台架构。</li>
+</ul>
+</li>
+<li>多源联邦查询<ul>
+<li>通过Doris构建跨多个数据源的统一查询入口，实现实时数据和离线数据的联邦分析，满足数据分析人员更多元化的查询需求。</li>
+</ul>
+</li>
+<li>交互式数据分析<ul>
+<li>基于Doris和BI可视化工具构建交互式数据分析应用，对海量数据进行自助探查和多维度分析，实现对业务的深层探索和快速决策</li>
+</ul>
+</li>
+</ul>
+<h2><span id="关键技术">关键技术</span></h2><h3><span id="架构">架构</span></h3><p><img src="https://static001.infoq.cn/resource/image/5c/cb/5ceb4f6a7c02087c30ec2db1426d33cb.png" alt=""><br>Doris 的架构很简洁，只设 FE(Frontend)、BE(Backend)两种角色、两个进程，不依赖于外部组件，方便部署和运维。FE,BE 都可线性扩展。</p>
+<ul>
+<li>以数据存储的角度观之，FE 存储、维护集群元数据；BE 存储物理数据。</li>
+<li>以查询处理的角度观之, FE 节点接收、解析查询请求，规划查询计划，调度查询执行，返回查询结果；BE 节点依据 FE 生成的物理计划，分布式地执行查询。</li>
+</ul>
+<p>FE 主要有有三个角色，一个是leader，一个是follower，还有一个observer。</p>
+<ul>
+<li>leader跟follower，主要是用来达到元数据的高可用，保证单节点宕机的情况下，元数据能够实时地在线恢复，而不影响整个服务。</li>
+<li>observer 只是用来扩展查询节点，就是说如果在发现集群压力非常大的情况下，需要去扩展整个查询的能力，那么可以加observer的节点。observer不参与任何的写入，只参与读取。<br>数据的可靠性由 BE 保证，BE 会对整个数据存储多副本或者是三副本。副本数可根据需求动态调整。</li>
+</ul>
+<p><img src="https://static001.infoq.cn/resource/image/35/e8/3530685b109151bf2d353897b78f5ae8.png" alt=""><br>元数据层面，Doris 采用 Paxos 协议以及 Memory + Checkpoint + Journal的机制来确保元数据的高性能及高可靠。元数据的每次更新，都首先写入到磁盘的日志文件中，然后再写到内存中，最后定期checkpoint到本地磁盘上。相当于是一个纯内存的一个结构，也就是说所有的元数据都会缓存在内存之中，从而保证FE在宕机后能够快速恢复元数据，而且不丢失元数据。Leader、follower 和 observer 它们三个构成一个可靠的服务。</p>
+<h3><span id="数据分布">数据分布</span></h3><p><img src="https://img-blog.csdnimg.cn/img_convert/d5fe3623dfef76befaee8a13d2016da0.png" alt=""><br>从表的角度来看数据结构，用户的一张 Table 会拆成多个 Tablet，Tablet 会存成多副本，存储在不同的 BE 中，从而保证数据的高可用和高可靠。<br>数据主要都是存储在 BE 里面，BE 节点上物理数据的可靠性通过多副本来实现，默认是 3 副本，副本数可配置且可随时动态调整,满足不同可用性级别的业务需求。FE 调度 BE 上副本的分布与补齐。如果说用户对可用性要求不高，而对资源的消耗比较敏感的话，我们可以在建表的时候选择建两副本或者一副本。</p>
+<h3><span id="mysql-兼容性">MySQL 兼容性</span></h3><p><img src="https://static001.infoq.cn/resource/image/a8/11/a807f8420a7d47d713e99e004daf7111.png" alt=""><br>Doris 和用户交互兼容 MySQL 的协议。</p>
+<h3><span id="查询计划">查询计划</span></h3><ul>
+<li>分布式逻辑查询计划<br><img src="https://static001.infoq.cn/resource/image/13/ed/13b093cf4cf96ece2ed0e4d70f0d26ed.png" alt=""><br>借鉴了 Impala 的查询引擎，把它改造了一下引入到 Doris 里面形成一个分布式的查询引擎。Impala 是一个完全的 P2P 的结构，每个节点都缓存元数据，对于一个高性能的报表分析来说，它有可能会面临着元数据落后的问题。Doris把它查询规划所有的部分，都放到了一个 FE 里面，即在这个图中所看到的整个的逻辑规划，都会由 FE 来完成。FE 来根据用户的查询生成一个完整的逻辑规划，然后这个逻辑规划最后生成一个分布式的逻辑规划，会发给整个集群去执行。</li>
+<li>分布式物理查询计划<br><img src="https://static001.infoq.cn/resource/image/ca/5f/cada7ce15079b21de05b22157093405f.png" alt=""><br>查询会生成几个算子，主要有扫描的算子，聚合的算子，还有 Join 的算子，最后再排序。右边就相当于对整个的算子的一个实际物理划分。这个规划途中单个方框我们称之为一个 Fragment， Fragment 由单个 BE 节点执行，Fragment 之间的数据交换通过 RPC 来完成。整个物理规划执行完之后，由 FE 把数据收集起来反馈给用户。返回用户的方式就是前面提到过的通过一个 MySQL 的协议。<br>Doris 是有工具可以让你去看一下物理规划，可以分析出这个物理规划的性能可能在哪里不够好，可能稍微改一下查询它的规划就会更契合整个建表的结构，以及整个查询引擎的处理方式。</li>
+</ul>
+<h3><span id="数据模型">数据模型</span></h3><p><img src="https://static001.infoq.cn/resource/image/4a/36/4aef1f0ff404789642eb85c777dd9436.png" alt=""><br>Mesa的merge策略，引入了cumulative compaction和base compaction的概念。 Mesa中将包含了一定版本的数据称为deltas, 表示为[V1, V2]，刚实时写入的小deltas， 称之为singleton deltas，然后每到一定的版本数，图中是10，就通过cumulative compaction将10个singleton deltas合并为1个cumulative deltas，最终每天会通过base compaction将所有一定周期的内的deltas都合并为base deltas。 所以查询时只需要查询1个base deltas， 1个cumulative deltas和少数singleton deltas即可。</p>
+<p><img src="https://static001.infoq.cn/resource/image/1e/45/1e7f30383bf66329154bad263a605e45.png" alt=""><br>Doris把导入分成了三级，左边是一个 Base，也就是最早导入的数据的合并，然后中间是一个增量的部分，最后是每一次导入就生成的一个单独的版本。然后这个单独的版本会逐渐的合并到一个更高的增量的版本，增量的版本再合并成一个 Base 的版本。分几级的目的其实就是想尽量把小文件合并成一个中等规模的文件，然后再把中等规模的文件合并成一个大文件，这样会减少一个大文件直接跟一个小文件合并的读写放大量。因为大文件大量的读取其实是划不来的，所以 Doris 采用一个分级的策略去做整个的合并。</p>
+<p>同时这样做还有一个好处就是新来的导入，不会影响正在进行的查询。因为我现在的导入只有在整个批次完成的时候查询（也就是我们前面所讲的 FE 的元数据）才能感知到，这样它可以做到一个比较好的读写分离，用户在查询历史数据不会受到新来导入的影响。</p>
+<p>Doris保证整个导入的原子性，就是说一个单批次的导入要么生效，要么不生效。即使是一个批次，导入多张表，也是同样。比如这几张表是一个关联表，你想一次把它们全部导入，这样我们也保证整个一个批次的导入对这几张表要么同时生效，要么同时不生效。</p>
+<ul>
+<li>Aggregate模型（聚合模型）<br>数据在导入的时候会有一次合并，因为我们要聚合。<br><img src="https://static001.infoq.cn/resource/image/f7/b1/f7e368cb485e6b61509d855f1a0dbfb1.png" alt=""><br>如上图，左边的三列是一个 Key，我们叫做维度列；右边的两列相当于是一个 Value 列，也就是指标列。这个图是一个典型的广告报表的样子，展示的是一个用户按地域消费的情况。<br>按维度列去聚合数据，如果前面的三列数据相同我们会把这些数据合并（compaction）起来。也就相当于在数据库里面存储的其实是一个合并之后的结果，这个结果对于统计分析来说是很有效果的。比如一天的数据可能有一千条，我们聚合成一条，相当于整个的 I/O 节省一千倍，效果非常明显。</li>
+<li>Uniq模型（唯一主键）<br>在整个历史数据导入的时候，我们保证 Key 的唯一，不聚合。主要面向留存分析或者订单分析的场景，他们需要一个 Unique Key 的约束去保证整个数据不丢不重。<br>该模型本质上是聚合模型的一个特例，也是一种简化的表结构表示方式。</li>
+<li>Duplicate模型（冗余模型）<br>导入之后把这个数据全部放在数据库里面，我们不再做提前的聚合，也不单独保证唯一性，只做一个排序。对于有些日志分析它不太在意数据多几条或者少几条，可能只关心排序，这个时候可能重复 Key 的模型会更加有效果。<br><img src="https://p5.toutiaoimg.com/origin/pgc-image/b242bc76439b447081a995dc9096d9e1?from=pc" alt=""></li>
+</ul>
+<h3><span id="数据组织">数据组织</span></h3><p><img src="https://static001.infoq.cn/resource/image/aa/30/aa5ef73679fd952540dbcb237b15dc30.png" alt=""><br>Doris 作为一个数据库，主要是一个列存的数据库。可以只访问查询涉及的列，大量降低 I/O，达到一个比较好的 I/O 的效果。同时因为按列存储，数据类型一致，方便压缩。<br>除了简单的压缩之外，还有很重要的一个特点就是对数据会排序（数据模型KEY指定的列）。多数分析型数据库都只会去建一个稀疏索引，这个时候把数据排一下序，然后按一个一千行或者一万行，甚至是十万行的维度去建一个稀疏的索引，效果是非常明显的。<br>Doris 存储引擎对于排序列，会存储 min/max/sum 等智能索引技术，将数据集扫描范围尽可能地缩小，减少磁盘 I/O，提升查询性能。比如说这一列排过序了，然后我在这一列的十万行所组成的一个粒度上面，给它加一个 min/max，然后这样查询的时候，它就可以快速去过滤这个十万行，这会大大地减少整个数据的扫描量，从而减少 I/O。</p>
+<h3><span id="前缀索引">前缀索引</span></h3><p>前缀索引，即在排序的基础上，实现的一种根据给定前缀列，快速查询数据的索引方式。<br>Doris 的数据存储在类似 SSTable（一种有序的数据结构，可以按照指定的列进行排序存储）的数据结构中。在这种数据结构上，以排序列作为条件进行查找，会非常的高效。<br>Doris中将一行数据的前 36 个字节 作为这行数据的前缀索引。当遇到 VARCHAR 类型时，前缀索引会直接截断。<br>以下表结构的前缀索引为 user_id(8Byte) + age(8Bytes) + message(prefix 20 Bytes)<br>| ColumnName | Type |<br>|——–|——–|<br>|user_id|bigint|<br>|age|int|<br>|message|varchar(100)|<br>|max_dwell_time|datetime|<br>|min_dwell_time|datetime|</p>
+<p>当我们的查询条件，是前缀索引的前缀时，可以极大的加快查询速度。比如在第一个例子中，我们执行如下查询：<br><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> * <span class="keyword">FROM</span> <span class="keyword">table</span> <span class="keyword">WHERE</span> user_id=<span class="number">1829239</span> <span class="keyword">and</span> age=<span class="number">20</span>；</span><br></pre></td></tr></table></figure></p>
+<p>该查询的效率会远高于如下查询：<br><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> * <span class="keyword">FROM</span> <span class="keyword">table</span> <span class="keyword">WHERE</span> age=<span class="number">20</span>；</span><br></pre></td></tr></table></figure></p>
+<p>所以在建表时，正确的选择列顺序，能够极大地提高查询效率。</p>
+<h3><span id="schema-change">Schema Change</span></h3><p>Doris中目前进行schema change的方式有三种，sorted schema change，direct schema change, linked schema change。</p>
+<ul>
+<li><p>linked schema change: 无需转换数据，直接完成。新摄入的数据都按照新的Schema处理，对于旧数据，新加列的值直接用对应数据类型的默认值填充。例如加列操作。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> site_visit <span class="keyword">ADD</span> <span class="keyword">COLUMN</span> click <span class="built_in">bigint</span> <span class="keyword">SUM</span> <span class="keyword">default</span> ‘<span class="number">0</span>’;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>sorted schema change: 改变了列的排序方式，需对数据进行重新排序。例如删除排序列中的一列, 字段重排序。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> site_visit <span class="keyword">DROP</span> <span class="keyword">COLUMN</span> city;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>direct schema change: 就是重刷全量数据，成本最高，和kylin的做法类似。例如修改列的类型。</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> site_visit <span class="keyword">MODIFY</span> <span class="keyword">COLUMN</span> username <span class="built_in">varchar</span>(<span class="number">64</span>);</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h3><span id="向量化执行">向量化执行</span></h3><p><img src="https://static001.infoq.cn/resource/image/14/19/142be1d5e532c74e06aa98dfeceeaa19.png" alt=""><br>这是列存数据库特有的一个优化技巧，可以达到一个减少 CPU 的消耗，提升整个 CPU 的利用率。向量化执行的方式可以提高 3 到 4 倍的性能</p>
+<h3><span id="物化视图-rollup">物化视图-ROLLUP</span></h3><p><img src="https://static001.infoq.cn/resource/image/af/34/af23adeaf32b581d25d94ba41b2fee34.png" alt=""><br>以这个图为例，左下角是原始数据，右边是把这个数据重新排序，因为改变排序就会相应地去改变整个数据的前缀索引的方式，这样的话就可以去换维度进行分析了，可以更好地去满足整个查询的需求。<br>如果说经常只按一个维度进行组合分析，我可以只选它其中部分列，把它聚合，达到一个更好的聚合效果。这样的方式就可以满足不同的统计分析的需求，以及不同的多维分析的需求（右下角）。<br>物化视图，核心是空间换时间，跟原来的表是一个绑定的形式。但是在导入的时候会保证它跟原始表一定是一个原子生效的过程，查询的时候会自动去判断它满不满足物化视图，满足的话就会自动落在它的上面，用户不需要修改任何的查询。用户所需要做的是发现业务可能换一个表的结构，会更好地满足整个查询需求，那么去建一个物化视图就行了，物化视图发起之后后续所有的操作，从导入到查询，用户都不需要再关心。</p>
+<h3><span id="两层区分与分级存储">两层区分与分级存储</span></h3><p>Doris支持两级分区存储, 第一层为RANGE分区(partition), 第二层为HASH分桶(bucket)。<br><img src="https://static001.infoq.cn/resource/image/e8/cb/e896716a5ac8a1a3a2e95ecded48c5cb.png" alt=""></p>
+<ul>
+<li>第一层分区<br>第一层分区是一个逻辑分区，比较常见的是按时间分区，把历史的数据按天/月/年作一个分区，不同区间的数据会落在不同分区里面。这样如果你经常只看最新的数据，那历史的数据在查询的时候，就会自动过滤掉。这样减少了大量历史数据不必要的重复 BE/CE，节省了大量的 I/O 和 CPU 开销。<br>时间分区还有一个作用就是可以把冷热的数据区分开，方便新旧数据分离，使用不同的存储介质。</li>
+<li>第二层分区<br>第二层分区是一个物理分区，而这种分区的作用主要就是把数据打散到整个集群里面去。假如说有 20 台机器所构成的一个集群，然后要把 20 台机器的性能全部给用上，可以去指定第二层分区，根据哈希分区的方式把这个数据打散到整个集群里面，这样的话查询的时候就可以用上整个分布式集群的性能。<br>这里有一点点技巧，要根据用户的读写的密集程度做分区。如果是一个读很密集的一个场景，那样的话我们建议用户尽量选择一个区分度很大的列，也就是基数很大的列，我们就可以把这个数据均匀地打散到整个集群里面去，用户查询的时候就可以把整个集群的资源可以用上，相当于没有数据倾斜。如果是写很密集的情况下，就建议用户选择一个区分度少一点的列。</li>
+</ul>
+<h3><span id="doris-on-elasticsearch">Doris on Elasticsearch</span></h3><p><img src="https://static001.infoq.cn/resource/image/b6/3b/b6a5e9a5cf77da594b05c0ba391c8d3b.png" alt=""><br>Doris 只是一个稀疏索引，对于大规模点查询来说，随机的 I/O 会比较严重，所以支持 Elasticsearch，用到它的倒排索引，去丰富整个 Doris 的生态。<br><img src="https://static001.infoq.cn/resource/image/a9/c5/a9089cfb327093a5e5caf84d4fab02c5.png" alt=""></p>
+<h3><span id="kafka-routine-load">Kafka routine load</span></h3><p><img src="https://static001.infoq.cn/resource/image/b9/0e/b9a519bb569e14c39fe85650d31e930e.png" alt=""><br>Doris 内嵌了一个例行机制，可以在 Doris 里建一个例行的任务，帮你去订阅 Kafka 的变更，帮你把数据灌到 Doris 里面去，不需要外层业务方自己去写外层脚本去追踪 Kafka 的变化。</p>
+<h3><span id="odbc-external-table-of-doris">ODBC External Table Of Doris</span></h3><p>ODBC External Table Of Doris 提供了Doris通过数据库访问的标准接口(ODBC)来访问外部表，外部表省去了繁琐的数据导入工作，让Doris可以具有了访问各式数据库的能力，并借助Doris本身的OLAP的能力来解决外部表的数据分析问题：</p>
+<ul>
+<li>支持各种数据源接入Doris</li>
+<li>支持Doris与各种数据源中的表联合查询，进行更加复杂的分析操作</li>
+<li>通过insert into将Doris执行的查询结果写入外部的数据源</li>
+</ul>
+<p>参考资料</p>
+<ul>
+<li><a href="https://www.infoq.cn/article/vxup94ub59ya*k0tnefe" target="_blank" rel="noopener">Apache Doris (Incubating) 原理与实践</a></li>
+<li><a href="https://tech.meituan.com/2020/04/09/doris-in-meituan-waimai.html" target="_blank" rel="noopener">Apache Doris在美团外卖数仓中的应用实践</a></li>
+<li><a href="https://www.modb.pro/db/225426" target="_blank" rel="noopener">Doris系列1-Doris介绍</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/400642016" target="_blank" rel="noopener">Apache doris架构及组件介绍</a></li>
+<li><a href="https://uikid.com/12/01/doris%E4%B8%80%E6%96%87%E4%BA%86%E8%A7%A3/" target="_blank" rel="noopener">Doris一文了解</a></li>
+<li><a href="https://www.jianshu.com/p/702a44d512c6" target="_blank" rel="noopener">Apache doris 排序键及ShortKey Index</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">olap</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">doris</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2022/05/18/bigdata-stack-doris/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-bigdata-stack-presto" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -177,7 +478,7 @@
       
         <!-- toc -->
 <ul>
-<li><a href="#presto-基于mpp的分布式sql交互式查询引擎">presto-基于MPP的分布式SQL交互式查询引擎</a></li>
+<li><a href="#presto-基于mpp架构的分布式sql交互式查询引擎">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
 <li><a href="#架构">架构</a></li>
 <li><a href="#查询模型">查询模型</a></li>
 <li><a href="#优点">优点</a></li>
@@ -188,7 +489,7 @@
 <blockquote>
 <p>导引<br><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a><br>关联阅读<br><a href="https://winway.github.io/2021/07/25/olapNotes/">OLAP笔记</a></p>
 </blockquote>
-<h2><span id="presto-基于mpp的分布式sql交互式查询引擎">presto-基于MPP的分布式SQL交互式查询引擎</span></h2><p><img src="http://armsword.com/img/2017/12/5.jpg" alt=""></p>
+<h2><span id="presto-基于mpp架构的分布式sql交互式查询引擎">presto-基于MPP架构的分布式SQL交互式查询引擎</span></h2><p><img src="http://armsword.com/img/2017/12/5.jpg" alt=""></p>
 <p>Presto 是在 Hadoop 上运行的分布式系统，使用与经典大规模并行处理 (MPP) 数据库管理系统相似的架构。它有一个协调器节点，与多个工作节点同步工作。用户将其 SQL 查询提交给协调器，由其使用自定义查询和执行引擎进行解析、计划并将分布式查询计划安排到工作节点之间。它设计用于支持标准 ANSI SQL 语义，包括复杂查询、聚合、联接、左/右外联接、子查询、开窗函数、不重复计数和近似百分位数。<br>查询编译之后，Presto 将请求拆分到工作节点之间的多个阶段中。所有处理都在内存中进行，并以流水线方式经过网络中的不同阶段，从而避免不必要的 I/O 开销。添加更多工作节点可提高并行能力，并加快处理速度。<br>为了使 Presto 可扩展到任何数据源，它的设计采用了存储抽象化，以便于轻松地构建可插入的连接器。因此，Presto 拥有大量连接器，既可用于非关系数据源，例如 Hadoop 分布式文件系统 (HDFS)、Amazon S3、Cassandra、MongoDB 和 HBase，又可用于关系源，例如 MySQL、PostgreSQL、Amazon Redshift、Microsoft SQL Server 和 Teradata。数据在其存储位置接受查询，无需将其移动到独立的分析系统中。</p>
 <h2><span id="架构">架构</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220517222119.png" alt=""></p>
 <p>Presto查询引擎是一个Master-Slave的架构，由一个Coordinator节点，一个Discovery Server节点，多个Worker节点组成，Discovery Server通常内嵌于Coordinator节点中。Coordinator负责解析SQL语句，生成执行计划，分发执行任务给Worker节点执行。Worker节点负责实际执行查询任务。Worker节点启动后向Discovery Server服务注册，Coordinator从Discovery Server获得可以正常工作的Worker节点。如果配置了Hive Connector，需要配置一个Hive MetaStore服务为Presto提供Hive元信息，Worker节点与HDFS交互读取数据。</p>
@@ -1454,240 +1755,6 @@
 
 
   
-    <article id="post-bigdata-stack-flume-datax" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/11/bigdata-stack-flume-datax/">大数据开发之路-datax</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/11/bigdata-stack-flume-datax/" class="archive-article-date">
-  	<time datetime="2022-05-11T11:51:53.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-11</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#datax-多种异构数据源间的高效数据同步工具">datax-多种异构数据源间的高效数据同步工具</a></li>
-<li><a href="#datax核心组件">datax核心组件</a></li>
-<li><a href="#datax优点">datax优点</a></li>
-<li><a href="#datax不足">datax不足</a></li>
-<li><a href="#sqoopdatax如何选择">sqoop/datax如何选择</a></li>
-<li><a href="#示例">示例</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引<br><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></p>
-</blockquote>
-<h2><span id="datax-多种异构数据源间的高效数据同步工具">datax-多种异构数据源间的高效数据同步工具</span></h2><p><img src="https://upload-images.jianshu.io/upload_images/25044609-c7230d68a895bb59.png?imageMogr2/auto-orient/strip|imageView2/2/w/1037/format/webp" alt=""></p>
-<p>同样作为数据同步工具，datax不仅支持rdbms和hadoop之间的数据同步，还支持任意两种异构数据源（主流的RDBMS数据库、NOSQL、大数据系统）间的数据同步。<br>datax没有使用mr，而是采用单机多线程的方式同步数据。<br><img src="https://upload-images.jianshu.io/upload_images/25044609-496a992e5502b24d.png?imageMogr2/auto-orient/strip|imageView2/2/w/829/format/webp" alt=""></p>
-<h2><span id="datax核心组件">datax核心组件</span></h2><ul>
-<li>Reader：数据采集模块，负责采集数据源的数据，将数据发送给 Framework；</li>
-<li>Writer： 数据写入模块，负责不断向 Framework 取数据，并将数据写入到目的端；</li>
-<li>Framework：用于连接 reader 和 writer，作为两者的数据传输通道，并处理缓冲，流控，并发，数据转换等核心技术问题。</li>
-</ul>
-<h2><span id="datax优点">datax优点</span></h2><ul>
-<li>支持的数据源更丰富</li>
-<li>支持分库分表场景</li>
-<li>支持写orc格式文件</li>
-<li>有数据转换功能</li>
-<li>可以控制速度（避免读爆源库）</li>
-</ul>
-<h2><span id="datax不足">datax不足</span></h2><ul>
-<li>写hive没有sqoop友好，不会自动创建hive表，目标路径必须存在</li>
-<li>由于采用的是单机多线程模式，扩展性没有sqoop好</li>
-<li>配置文件略繁琐，没有sqoop命令简洁</li>
-</ul>
-<h2><span id="sqoopdatax如何选择">sqoop/datax如何选择</span></h2><p>对于rdbms到hive/hdfs的需求，分库分表场景、源库压力敏感、日志量偏小的情况选datax，否则选sqoop</p>
-<h2><span id="示例">示例</span></h2><figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> <span class="keyword">EXTERNAL</span> <span class="keyword">TABLE</span> <span class="string">`tmp.log_schema`</span>(</span><br><span class="line">  <span class="string">`id`</span> <span class="built_in">BIGINT</span>, </span><br><span class="line">  <span class="string">`log_hdfs_path`</span> <span class="keyword">STRING</span>, </span><br><span class="line">  <span class="string">`log_demo`</span> <span class="keyword">STRING</span></span><br><span class="line">)</span><br><span class="line">PARTITIONED <span class="keyword">BY</span> (<span class="string">`day`</span> <span class="keyword">STRING</span>)</span><br><span class="line"><span class="keyword">STORED</span> <span class="keyword">AS</span> ORC</span><br><span class="line">TBLPROPERTIES (<span class="string">'orc.compress'</span>=<span class="string">'SNAPPY'</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> tmp.log_schema <span class="keyword">ADD</span> <span class="keyword">IF</span> <span class="keyword">NOT</span> <span class="keyword">EXISTS</span> <span class="keyword">PARTITION</span> (<span class="keyword">day</span>=<span class="string">'2022-04-12'</span>) LOCATION <span class="string">'hdfs://emr-cluster/tmp/log_schema/day=2022-04-12'</span>;</span><br><span class="line"></span><br><span class="line">&#123;</span><br><span class="line">    "job": &#123;</span><br><span class="line">        "content": [</span><br><span class="line">            &#123;</span><br><span class="line">                "reader": &#123;</span><br><span class="line">                    "name": "mysqlreader", </span><br><span class="line">                    "parameter": &#123;</span><br><span class="line">                        "username": "bob", </span><br><span class="line">                        "password": "123456", </span><br><span class="line">                        "connection": [</span><br><span class="line">                            &#123;</span><br><span class="line">                                "jdbcUrl": ["jdbc:mysql://x.x.x.x:3306/test?tinyInt1isBit=false"], </span><br><span class="line">                                "table": ["log_schema"]</span><br><span class="line">                            &#125;</span><br><span class="line">                        ], </span><br><span class="line">                        "column": ["id", "log_hdfs_path", "log_demo"], </span><br><span class="line">                        "where": "id&gt;10"</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;, </span><br><span class="line">                "writer": &#123;</span><br><span class="line">                    "name": "hdfswriter", </span><br><span class="line">                    "parameter": &#123;</span><br><span class="line">                        "column": [&#123;"name":"id", "type":"bigint"&#125;,</span><br><span class="line">                                   &#123;"name":"log_hdfs_path", "type":"string"&#125;,</span><br><span class="line">                                   &#123;"name":"log_demo", "type":"string"&#125;], </span><br><span class="line">                        "compress":"SNAPPY",</span><br><span class="line">                        "defaultFS": "hdfs://emr-cluster", </span><br><span class="line">                        "fieldDelimiter": "\t", </span><br><span class="line">                        "fileName": "log_schema", </span><br><span class="line">                        "fileType": "orc", </span><br><span class="line">                        "path": "/tmp/log_schema/day=2022-04-12", </span><br><span class="line">                        "writeMode": "nonConflict",</span><br><span class="line">                        "hadoopConfig":&#123;</span><br><span class="line">                            "dfs.nameservices": "emr-cluster",</span><br><span class="line">                            "dfs.ha.namenodes.emr-cluster": "nn1,nn2",</span><br><span class="line">                            "dfs.namenode.rpc-address.emr-cluster.nn1": "emr-header-1:8020",</span><br><span class="line">                            "dfs.namenode.rpc-address.emr-cluster.nn2": "emr-header-2:8020",</span><br><span class="line">                            "dfs.client.failover.proxy.provider.emr-cluster": "org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider"</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        ], </span><br><span class="line">        "setting": &#123;</span><br><span class="line">            "speed": &#123;</span><br><span class="line">                "channel": "1"</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://www.jianshu.com/p/56f25c699ec1" target="_blank" rel="noopener">DataX 快速入门</a></li>
-<li><a href="https://blog.csdn.net/weixin_42487460/article/details/113753186" target="_blank" rel="noopener">DataX入门———用法及一些简单的案例介绍</a></li>
-<li><a href="https://zhuanlan.zhihu.com/p/81817787" target="_blank" rel="noopener">DataX介绍以及优缺点分析</a></li>
-<li><a href="https://github.com/alibaba/DataX/blob/master/introduction.md" target="_blank" rel="noopener">阿里云开源离线同步工具DataX3.0介绍</a></li>
-<li><a href="https://segmentfault.com/a/1190000022951666" target="_blank" rel="noopener">DataX HIVE分区同步</a></li>
-<li><a href="https://blog.csdn.net/qq_46893497/article/details/110110808" target="_blank" rel="noopener">datax–分库分表mysql同步数据到hive中</a></li>
-<li><a href="https://blog.csdn.net/u013289115/article/details/106277937" target="_blank" rel="noopener">异构数据源导redis不用找了!DataX二次开发插件rediswriter已上菜</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">datax</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/11/bigdata-stack-flume-datax/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-bigdata-stack-flume-sqoop" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/11/bigdata-stack-flume-sqoop/">大数据开发之路-sqoop</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/11/bigdata-stack-flume-sqoop/" class="archive-article-date">
-  	<time datetime="2022-05-11T11:44:13.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-11</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#sqoop-rdbms和hadoop之间的数据同步工具">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
-<li><a href="#不足">不足</a></li>
-<li><a href="#示例">示例</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引<br><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></p>
-</blockquote>
-<h2><span id="sqoop-rdbms和hadoop之间的数据同步工具">sqoop-rdbms和hadoop之间的数据同步工具</span></h2><p><img src="https://images2018.cnblogs.com/blog/1228818/201804/1228818-20180412130640231-449939615.png" alt=""><br>sqoop本质就是数据导入、导出工具，导入、导出方式就是把sqoop的命令转换成mr程序。<br>sqoop分为sqoop1和sqoop2两个版本，二者不兼容，差异较大，一般使用sqoop1。</p>
-<h2><span id="不足">不足</span></h2><ul>
-<li>1.不支持分库分表场景</li>
-<li>2.<a href="https://stackoverflow.com/questions/29978522/sqoop-import-as-orc-file" target="_blank" rel="noopener">不支持写orc格式的文件</a></li>
-</ul>
-<h2><span id="示例">示例</span></h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">sqoop import \</span><br><span class="line">-Dmapreduce.job.queuename=imp \</span><br><span class="line">-Dmapreduce.job.name="testsqoop" \</span><br><span class="line">--connect "jdbc:mysql://127.0.0.1:3306/test?tinyInt1isBit=false" --username "bob"  --password "123456" \</span><br><span class="line">--table "log_schema" \</span><br><span class="line">--columns "id,log_hdfs_path,log_demo" \</span><br><span class="line">--where "id&gt;10" \</span><br><span class="line">--hive-import \</span><br><span class="line">--hive-overwrite \</span><br><span class="line">--hive-table "tmp.log_schema" \</span><br><span class="line">--hive-partition-key dt \</span><br><span class="line">--hive-partition-value 2022-04-11 \</span><br><span class="line">--hive-delims-replacement " " \</span><br><span class="line">--null-string '\\N' \</span><br><span class="line">--null-non-string '\\N' \</span><br><span class="line">--target-dir "hdfs://emr-cluster/user/sqoop_import_tmp/log_schema/" \</span><br><span class="line">--delete-target-dir \</span><br><span class="line">--direct \</span><br><span class="line">-m 1</span><br></pre></td></tr></table></figure>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://www.cnblogs.com/qingyunzong/p/8807252.html" target="_blank" rel="noopener">Sqoop学习之路 （一）</a></li>
-<li><a href="https://www.jianshu.com/p/ec9003d8918c" target="_blank" rel="noopener">真正了解sqoop的一切</a></li>
-<li><a href="https://blog.51cto.com/u_14582976/2829476" target="_blank" rel="noopener">Sqoop看这篇文章就够了</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">sqoop</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/11/bigdata-stack-flume-sqoop/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/11/">11</a><a class="extend next" rel="next" href="/page/2/">Next &raquo;</a>
@@ -1791,14 +1858,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">shell</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">监控</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
@@ -1808,6 +1867,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">shell</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">监控</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1831,15 +1898,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">flume</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1859,7 +1926,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1867,7 +1934,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1876,6 +1943,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1888,18 +1959,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">备份</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hexo</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">github pages</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1940,6 +1999,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">hexo</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">github pages</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2048,6 +2115,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">doris</a>
               </li>
             
             <div class="clearfix"></div>

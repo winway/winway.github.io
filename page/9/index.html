@@ -155,6 +155,234 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-k8s-apiserver-privilege-intro" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2016/09/24/k8s-apiserver-privilege-intro/">Kubernetes apiserver权限控制介绍</a>
+    </h1>
+  
+
+        
+        <a href="/2016/09/24/k8s-apiserver-privilege-intro/" class="archive-article-date">
+  	<time datetime="2016-09-24T04:11:41.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-09-24</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#认证">认证</a><ul>
+<li><a href="#1-认证方案">1. 认证方案</a></li>
+<li><a href="#2-修改配置重启">2. 修改配置，重启</a></li>
+<li><a href="#3-客户端访问">3. 客户端访问</a></li>
+<li><a href="#4-比较">4. 比较</a></li>
+</ul>
+</li>
+<li><a href="#授权">授权</a><ul>
+<li><a href="#1-授权方案">1. 授权方案</a></li>
+<li><a href="#2-修改配置重启-1">2. 修改配置，重启</a></li>
+<li><a href="#3-访问">3. 访问</a></li>
+<li><a href="#4-比较-1">4. 比较</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h2><span id="认证">认证</span></h2><h3><span id="1-认证方案">1. 认证方案</span></h3><ul>
+<li><p>Client certificate</p>
+  <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">openssl genrsa -out ca.key 2048</span><br><span class="line">openssl req -x509 -new -nodes -key ca.key -subj &quot;/CN=k8stest&quot; -days 10000 -out ca.crt</span><br><span class="line"></span><br><span class="line">openssl x509 -noout -text -in ca.crt</span><br><span class="line"></span><br><span class="line">openssl genrsa -out server.key 2048</span><br><span class="line">openssl req -new -key server.key -subj &quot;/CN=master.k8stest&quot; -out server.csr</span><br><span class="line">openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out server.crt -days 10000</span><br><span class="line"></span><br><span class="line">openssl x509 -noout -text -in server.crt</span><br><span class="line"></span><br><span class="line">openssl genrsa -out winway.key 2048</span><br><span class="line">openssl req -new -key winway.key -subj &quot;/CN=winway&quot; -out winway.csr</span><br><span class="line">openssl x509 -req -in winway.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out winway.crt -days 10000</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>Static Token File</p>
+  <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ cat tokens.csv</span><br><span class="line">abcdTOKEN1234,winway,winway</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>Static Password File</p>
+  <figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">$ cat password.csv</span><br><span class="line">123456,winway,winway</span><br><span class="line">$ echo -n &quot;winway:123456&quot; | base64</span><br><span class="line">d2FuZ3dlaToxMjM0NTY=</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h3><span id="2-修改配置重启">2. 修改配置，重启</span></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">$ vim /etc/kubernetes/apiserver</span><br><span class="line">KUBE_API_ARGS=&quot;--client-ca-file=/home/winway/ca.crt --tls-cert-file=/home/winway/server.crt --tls-private-key-file=/home/winway/server.key --token_auth_file=/home/winway/tokens.csv --basic-auth-file=/home/winway/password.csv&quot;</span><br><span class="line"></span><br><span class="line">systemctl restart kube-apiserver</span><br></pre></td></tr></table></figure>
+<h3><span id="3-客户端访问">3. 客户端访问</span></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">curl --cacert ./ca.crt --key ./winway.key --cert ./winway.crt &apos;https://master.k8stest:6443&apos;</span><br><span class="line"></span><br><span class="line">curl --cacert ./ca.crt  -H &quot;Authorization: Bearer abcdTOKEN1234&quot; &apos;https://master.k8stest:6443&apos;</span><br><span class="line"></span><br><span class="line">curl --cacert ./ca.crt  -H &quot;Authorization: Basic d2FuZ3dlaToxMjM0NTY=&quot; &apos;https://master.k8stest:6443&apos;</span><br></pre></td></tr></table></figure>
+<h3><span id="4-比较">4. 比较</span></h3><ul>
+<li>3种认证方案可以共存</li>
+<li>方案2、3使用上比1简单</li>
+<li>新增、删除用户时，方案1不需要重启服务，2、3需要重启，从这一点考虑，1更有优势</li>
+</ul>
+<h2><span id="授权">授权</span></h2><h3><span id="1-授权方案">1. 授权方案</span></h3><ul>
+<li><p>ABAC Mode</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ cat abac.txt</span><br><span class="line">&#123;&quot;apiVersion&quot;: &quot;abac.authorization.kubernetes.io/v1beta1&quot;, &quot;kind&quot;: &quot;Policy&quot;, &quot;spec&quot;: &#123;&quot;user&quot;:&quot;winway&quot;, &quot;namespace&quot;: &quot;*&quot;, &quot;resource&quot;: &quot;pods&quot;, &quot;apiGroup&quot;: &quot;*&quot;, &quot;readonly&quot;: true &#125;&#125;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>RBAC Mode</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">When specified “RBAC” (Role-Based Access Control) uses the “rbac.authorization.k8s.io” API group to drive authorization decisions, allowing admins to dynamically configure permission policies through the Kubernetes API.</span><br><span class="line">As of 1.3 RBAC mode is in alpha and considered experimental.</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>Webhook Mode</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">When specified, mode Webhook causes Kubernetes to query an outside REST service when determining user privileges.</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h3><span id="2-修改配置重启">2. 修改配置，重启</span></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">$ vim /etc/kubernetes/apiserver</span><br><span class="line">KUBE_API_ARGS=&quot;--client-ca-file=/home/winway/ca.crt --tls-cert-file=/home/winway/server.crt --tls-private-key-file=/home/winway/server.key --token_auth_file=/home/winway/tokens.csv --basic-auth-file=/home/winway/password.csv --authorization-mode=ABAC --authorization-policy-file=/home/winway/abac.txt&quot;</span><br><span class="line"></span><br><span class="line">systemctl restart kube-apiserver</span><br></pre></td></tr></table></figure>
+<h3><span id="3-访问">3. 访问</span></h3><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"># curl --cacert ./ca.crt  -H &quot;Authorization: Bearer abcdTOKEN1234&quot; &apos;https://master.k8stest:6443/api/v1/version&apos;</span><br><span class="line">Forbidden: &quot;/api/v1/version&quot;</span><br><span class="line"></span><br><span class="line"># curl --cacert ./ca.crt  -H &quot;Authorization: Bearer abcdTOKEN1234&quot; &apos;https://master.k8stest:6443/api/v1/pods&apos;</span><br><span class="line">&#123;</span><br><span class="line">  &quot;kind&quot;: &quot;PodList&quot;,</span><br><span class="line">  &quot;apiVersion&quot;: &quot;v1&quot;,</span><br><span class="line">  &quot;metadata&quot;: &#123;</span><br><span class="line">    &quot;selfLink&quot;: &quot;/api/v1/pods&quot;,</span><br><span class="line">    &quot;resourceVersion&quot;: &quot;1228398&quot;</span><br><span class="line">  &#125;,</span><br><span class="line">……</span><br></pre></td></tr></table></figure>
+<h3><span id="4-比较">4. 比较</span></h3><ul>
+<li>修改授权，方案1需要重启，2不需要</li>
+<li>方按2在1.3才引入</li>
+<li>方案3需要额外的服务</li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">kubernetes</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/云计算/" class="article-tag-list-link color4">云计算</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2016/09/24/k8s-apiserver-privilege-intro/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-namenode-ha-sshfence-hang" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2016/09/12/namenode-ha-sshfence-hang/">NameNode主从切换sshfence阶段无法完成问题</a>
+    </h1>
+  
+
+        
+        <a href="/2016/09/12/namenode-ha-sshfence-hang/" class="archive-article-date">
+  	<time datetime="2016-09-12T07:13:00.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-09-12</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<!-- tocstop -->
+<p>NameNode采用HA架构部署，在Standby切换为Active的过程中存在一个fence阶段，如果该阶段不返回true，则无法继续往下进行，即无法完成failover。<br><img src="https://www.ibm.com/developerworks/cn/opensource/os-cn-hadoop-name-node/img001.png" alt="nn-ha-arch"></p>
+<p>该行为由<a href="https://hadoop.apache.org/docs/r2.7.1/hadoop-project-dist/hadoop-hdfs/HDFSHighAvailabilityWithQJM.html#Deployment" target="_blank" rel="noopener">dfs.ha.fencing.methods</a>决定，默认为sshfence。<br><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">property</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">name</span>&gt;</span>dfs.ha.fencing.methods<span class="tag">&lt;/<span class="name">name</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">value</span>&gt;</span>sshfence<span class="tag">&lt;/<span class="name">value</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">property</span>&gt;</span></span><br></pre></td></tr></table></figure></p>
+<p>但是这样配置存在问题，当Active宕机，ssh无法完成，sshfence阶段实际上会循环重试，始终无法完成failover。</p>
+<p>由于没有直接关于fence retry次数的参数配置，采取如下变通方案：配置4个fence method，3次sshfence，1次shell(/bin/true)，可以保证在3次sshfence失败之后结束fence阶段，完成failover。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/sshfence.bmp" alt="sshfence"></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">hdfs</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2016/09/12/namenode-ha-sshfence-hang/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-firewalld-intro" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1246,263 +1474,6 @@
 
 
   
-    <article id="post-mongodb-create-index-offline" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2016/01/28/mongodb-create-index-offline/">MongoDB离线创建索引</a>
-    </h1>
-  
-
-        
-        <a href="/2016/01/28/mongodb-create-index-offline/" class="archive-article-date">
-  	<time datetime="2016-01-28T06:27:15.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-01-28</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#目的">目的</a></li>
-<li><a href="#原理">原理</a></li>
-<li><a href="#步骤">步骤</a><ul>
-<li><a href="#1-部署新的hidden节点">1. 部署新的hidden节点</a></li>
-<li><a href="#2-添加hidden节点">2. 添加hidden节点</a></li>
-<li><a href="#3-等待hidden节点完成initial-sync此方法耗时很长但可以获得一份压缩后的数据">3. 等待hidden节点完成initial sync（此方法耗时很长，但可以获得一份压缩后的数据）</a></li>
-<li><a href="#4-检查集群状态确认一切正常继续">4. 检查集群状态，确认一切正常，继续</a></li>
-<li><a href="#5-关闭hidden节点检查集群状态确认一切正常继续">5. 关闭hidden节点，检查集群状态，确认一切正常，继续</a></li>
-<li><a href="#6-以standalone方式启动hidden节点">6. 以standalone方式启动hidden节点</a></li>
-<li><a href="#7-登陆hidden节点执行创建索引动作">7. 登陆hidden节点，执行创建索引动作</a></li>
-<li><a href="#8-待创建完毕关闭hidden节点以副本集方式启动">8. 待创建完毕，关闭hidden节点，以副本集方式启动</a></li>
-<li><a href="#9-检查集群状态和索引状态确认一切正常继续">9. 检查集群状态和索引状态，确认一切正常，继续</a></li>
-<li><a href="#10-将hidden节点的新数据逐个拷贝到集群中的其他secondary节点并使用新数据重启mongod-对于primary节点先使用rsstepdown待新的primary节点产生后再进行重启">10. 将hidden节点的新数据，逐个拷贝到集群中的其他secondary节点，并使用新数据重启mongod。对于primary节点，先使用rs.stepdown()，待新的primary节点产生后再进行重启。</a></li>
-<li><a href="#11-移除hidden节点">11. 移除hidden节点</a></li>
-<li><a href="#12-清理线上关于hidden节点的hosts-iptables配置">12. 清理线上关于hidden节点的hosts、iptables配置</a></li>
-</ul>
-</li>
-<li><a href="#回滚">回滚</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="目的">目的</span></h2><p>阐述一种风险较低，耗时较少的MongodDB创建大量索引的方案。<br>适用于 MongodDB2.x副本集。</p>
-<h2><span id="原理">原理</span></h2><p> MongodDB2.2前台创建索引命令会阻塞实例的复制和读写操作，虽然可以通过指定background选项来避免，但是从节点依然是前台创建索引，而且在大数据集上建立索引耗时很长。<br>官方建议将副本集的节点摘下之后进行创建索引操作，然后再加入集群。<br>通过initial sync或者复制集群其他节点的数据在副本集中临时添加hidden节点，摘下hidden节点创建索引，然后将hidden节点的数据依次拷贝到集群中的其他节点，实现整个集群的索引创建。</p>
-<p>参考资料：<br><a href="https://docs.mongodb.org/v2.2/core/indexes/#index-creation-background" target="_blank" rel="noopener">https://docs.mongodb.org/v2.2/core/indexes/#index-creation-background</a><br><a href="https://docs.mongodb.org/v2.2/administration/indexes/#index-building-replica-sets" target="_blank" rel="noopener">https://docs.mongodb.org/v2.2/administration/indexes/#index-building-replica-sets</a></p>
-<h2><span id="步骤">步骤</span></h2><h3><span id="1-部署新的hidden节点">1. 部署新的hidden节点</span></h3><ul>
-<li>配置hosts、iptables，保证新节点可以顺利与集群其他节点通信</li>
-<li>配置mongodb并启动，配置文件参考集群其他节点</li>
-</ul>
-<h3><span id="2-添加hidden节点">2. 添加hidden节点</span></h3><ul>
-<li><p>登陆到集群的primary，执行</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">rs.add(&#123;_id: 3, host: "hidden.Test.mongodb:6681", priority: 0, hidden: true&#125;)</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>检查集群状态</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rs.conf()</span><br><span class="line">rs.status()</span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-<h3><span id="3-等待hidden节点完成initial-sync此方法耗时很长但可以获得一份压缩后的数据">3. 等待hidden节点完成initial sync（此方法耗时很长，但可以获得一份压缩后的数据）</span></h3><h3><span id="4-检查集群状态确认一切正常继续">4. 检查集群状态，确认一切正常，继续</span></h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rs.conf()</span><br><span class="line">rs.status()</span><br></pre></td></tr></table></figure>
-<h3><span id="5-关闭hidden节点检查集群状态确认一切正常继续">5. 关闭hidden节点，检查集群状态，确认一切正常，继续</span></h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rs.conf()</span><br><span class="line">rs.status()</span><br></pre></td></tr></table></figure>
-<h3><span id="6-以standalone方式启动hidden节点">6. 以standalone方式启动hidden节点</span></h3><h3><span id="7-登陆hidden节点执行创建索引动作">7. 登陆hidden节点，执行创建索引动作</span></h3><h3><span id="8-待创建完毕关闭hidden节点以副本集方式启动">8. 待创建完毕，关闭hidden节点，以副本集方式启动</span></h3><h3><span id="9-检查集群状态和索引状态确认一切正常继续">9. 检查集群状态和索引状态，确认一切正常，继续</span></h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">rs.conf()</span><br><span class="line">rs.status()</span><br><span class="line">db.xxx.getIndexKeys()</span><br></pre></td></tr></table></figure>
-<h3><span id="10-将hidden节点的新数据逐个拷贝到集群中的其他secondary节点并使用新数据重启mongod-对于primary节点先使用rsstepdown待新的primary节点产生后再进行重启">10. 将hidden节点的新数据，逐个拷贝到集群中的其他secondary节点，并使用新数据重启mongod。对于primary节点，先使用rs.stepdown()，待新的primary节点产生后再进行重启。</span></h3><h3><span id="11-移除hidden节点">11. 移除hidden节点</span></h3><ul>
-<li>关闭hidden节点的mongod</li>
-<li>登陆primary节点执行<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">rs.remove("hidden.Test.mongodb:6681")</span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-<h3><span id="12-清理线上关于hidden节点的hosts-iptables配置">12. 清理线上关于hidden节点的hosts、iptables配置</span></h3><blockquote>
-<p>至此，完成整个集群的索引创建</p>
-</blockquote>
-<h2><span id="回滚">回滚</span></h2><p>由于原始数据会进行备份，所以回滚只需替换回原来的数据启动。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/数据库/" class="article-tag-list-link color4">数据库</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2016/01/28/mongodb-create-index-offline/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-mongodb-diskspace-shrink" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2016/01/28/mongodb-diskspace-shrink/">MongoDB硬盘空间紧缩</a>
-    </h1>
-  
-
-        
-        <a href="/2016/01/28/mongodb-diskspace-shrink/" class="archive-article-date">
-  	<time datetime="2016-01-28T06:27:11.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-01-28</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#目的">目的</a></li>
-<li><a href="#原理">原理</a></li>
-<li><a href="#步骤">步骤</a><ul>
-<li><a href="#1-部署新的hidden节点">1. 部署新的hidden节点</a></li>
-<li><a href="#2-添加hidden节点">2. 添加hidden节点</a></li>
-<li><a href="#3-等待hidden节点完成initial-sync">3. 等待hidden节点完成initial sync</a></li>
-<li><a href="#4-检查集群状态确认一切正常继续">4. 检查集群状态，确认一切正常，继续</a></li>
-<li><a href="#5-将hidden节点的新数据逐个拷贝到集群中的其他secondary节点并使用新的数据文件启动mongod原始数据文件进行备份-对于primary节点先使用rsstepdown待新的primary节点产生后再进行操作">5. 将hidden节点的新数据，逐个拷贝到集群中的其他secondary节点，并使用新的数据文件启动mongod（原始数据文件进行备份）。对于primary节点，先使用rs.stepdown()，待新的primary节点产生后再进行操作。</a></li>
-<li><a href="#6-移除hidden节点">6. 移除hidden节点</a></li>
-<li><a href="#7-清理线上关于hidden节点的hosts-iptables配置">7. 清理线上关于hidden节点的hosts、iptables配置</a></li>
-</ul>
-</li>
-<li><a href="#回滚">回滚</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="目的">目的</span></h2><p>阐述一种风险较低，耗时较少的MongoDB硬盘空间紧缩方案。<br>适用于MongoDB2.x副本集。</p>
-<h2><span id="原理">原理</span></h2><p>MongoDB2.2只有在dropdatabase时才会释放硬盘空间，删除document和collection不会释放硬盘空间，而是重复利用。而且随着数据库数据的增、删、改，会产生大量碎片，导致100G的数据可能占用300G的空间，数据紧缩的需求应运而生。<br>数据紧缩实际是通过MongoDB的initial sync数据重建来实现的。<br>通过在副本集中临时添加hidden节点，通过hidden节点的initial sync获得一份紧缩后的全量数据，然后将这份数据依次拷贝到集群中的其他节点，实现整个集群的硬盘空间紧缩。</p>
-<p>参考资料：<br><a href="https://docs.mongodb.org/v2.2/administration/replica-sets/#resyncing-a-member-of-a-replica-set" target="_blank" rel="noopener">https://docs.mongodb.org/v2.2/administration/replica-sets/#resyncing-a-member-of-a-replica-set</a></p>
-<h2><span id="步骤">步骤</span></h2><h3><span id="1-部署新的hidden节点">1. 部署新的hidden节点</span></h3><ul>
-<li>配置hosts、iptables，保证新节点可以顺利与集群其他节点通信</li>
-<li>配置mongodb并启动，配置文件参考集群其他节点<h3><span id="2-添加hidden节点">2. 添加hidden节点</span></h3></li>
-<li><p>登陆到集群的primary，执行</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">rs.add(&#123;_id: 3, host: &quot;hidden.Test.mongodb:6681&quot;, priority: 0, hidden: true&#125;)</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>检查集群状态</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rs.conf()</span><br><span class="line">rs.status()</span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-<h3><span id="3-等待hidden节点完成initial-sync">3. 等待hidden节点完成initial sync</span></h3><h3><span id="4-检查集群状态确认一切正常继续">4. 检查集群状态，确认一切正常，继续</span></h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rs.conf()</span><br><span class="line">rs.status()</span><br></pre></td></tr></table></figure>
-<h3><span id="5-将hidden节点的新数据逐个拷贝到集群中的其他secondary节点并使用新的数据文件启动mongod原始数据文件进行备份-对于primary节点先使用rsstepdown待新的primary节点产生后再进行操作">5. 将hidden节点的新数据，逐个拷贝到集群中的其他secondary节点，并使用新的数据文件启动mongod（原始数据文件进行备份）。对于primary节点，先使用rs.stepdown()，待新的primary节点产生后再进行操作。</span></h3><h3><span id="6-移除hidden节点">6. 移除hidden节点</span></h3><ul>
-<li>关闭hidden节点的mongod</li>
-<li>登陆primary节点执行<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">rs.remove("hidden.Test.mongodb:6681")</span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-<h3><span id="7-清理线上关于hidden节点的hosts-iptables配置">7. 清理线上关于hidden节点的hosts、iptables配置</span></h3><blockquote>
-<p>至此，完成整个集群的硬盘空间压缩</p>
-</blockquote>
-<h2><span id="回滚">回滚</span></h2><p>由于原始数据会进行备份，所以回滚只需替换回原来的数据启动。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/数据库/" class="article-tag-list-link color4">数据库</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2016/01/28/mongodb-diskspace-shrink/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/8/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/7/">7</a><a class="page-number" href="/page/8/">8</a><span class="page-number current">9</span><a class="page-number" href="/page/10/">10</a><a class="page-number" href="/page/11/">11</a><a class="extend next" rel="next" href="/page/10/">Next &raquo;</a>
@@ -1606,14 +1577,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">shell</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">监控</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
@@ -1623,6 +1586,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">shell</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">监控</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1646,15 +1617,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">flume</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1674,7 +1645,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1682,7 +1653,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1691,6 +1662,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1703,18 +1678,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">备份</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hexo</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">github pages</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1755,6 +1718,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">hexo</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">github pages</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1863,6 +1834,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">doris</a>
               </li>
             
             <div class="clearfix"></div>
