@@ -6,16 +6,22 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <link rel="dns-prefetch" href="https://winway.github.io">
-  <title>bigdata-stack-kylin | winway&#39;s blog</title>
+  <title>大数据开发之路-kylin | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta property="og:type" content="article">
-<meta property="og:title" content="bigdata-stack-kylin">
+  <meta name="description" content="kylin-MOLAP引擎的“扛把子” 特性 实现原理 架构 参考资料    导引大数据开发之路-概述关联阅读OLAP笔记  kylin-MOLAP引擎的“扛把子”Apache Kylin是一个开源的、分布式的分析型数据仓库，提供Hadoop/Spark 上的SQL查询接口及多维度分析(OLAP）能力以支持超大规模的数据，它能在亚秒内查询巨大的表。Kylin重点解决的问题是针对大数据不同维度频">
+<meta name="keywords" content="olap,kylin">
+<meta property="og:type" content="article">
+<meta property="og:title" content="大数据开发之路-kylin">
 <meta property="og:url" content="https://winway.github.io/2022/05/18/bigdata-stack-kylin/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
+<meta property="og:description" content="kylin-MOLAP引擎的“扛把子” 特性 实现原理 架构 参考资料    导引大数据开发之路-概述关联阅读OLAP笔记  kylin-MOLAP引擎的“扛把子”Apache Kylin是一个开源的、分布式的分析型数据仓库，提供Hadoop/Spark 上的SQL查询接口及多维度分析(OLAP）能力以支持超大规模的数据，它能在亚秒内查询巨大的表。Kylin重点解决的问题是针对大数据不同维度频">
 <meta property="og:locale" content="default">
-<meta property="og:updated_time" content="2022-05-18T09:04:35.878Z">
+<meta property="og:image" content="https://blog-1259495827.cos.ap-beijing.myqcloud.com/Kylin/kylin_diagram.png">
+<meta property="og:updated_time" content="2022-05-18T10:10:23.761Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="bigdata-stack-kylin">
+<meta name="twitter:title" content="大数据开发之路-kylin">
+<meta name="twitter:description" content="kylin-MOLAP引擎的“扛把子” 特性 实现原理 架构 参考资料    导引大数据开发之路-概述关联阅读OLAP笔记  kylin-MOLAP引擎的“扛把子”Apache Kylin是一个开源的、分布式的分析型数据仓库，提供Hadoop/Spark 上的SQL查询接口及多维度分析(OLAP）能力以支持超大规模的数据，它能在亚秒内查询巨大的表。Kylin重点解决的问题是针对大数据不同维度频">
+<meta name="twitter:image" content="https://blog-1259495827.cos.ap-beijing.myqcloud.com/Kylin/kylin_diagram.png">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -158,7 +164,7 @@
         
   
     <h1 class="article-title" itemprop="name">
-      bigdata-stack-kylin
+      大数据开发之路-kylin
     </h1>
   
 
@@ -172,7 +178,65 @@
     <div class="article-entry" itemprop="articleBody">
       
         <!-- toc -->
+<ul>
+<li><a href="#kylin-molap引擎的扛把子">kylin-MOLAP引擎的“扛把子”</a></li>
+<li><a href="#特性">特性</a></li>
+<li><a href="#实现原理">实现原理</a></li>
+<li><a href="#架构">架构</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
 <!-- tocstop -->
+<blockquote>
+<p>导引<br><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a><br>关联阅读<br><a href="https://winway.github.io/2021/07/25/olapNotes/">OLAP笔记</a></p>
+</blockquote>
+<h2><span id="kylin-molap引擎的扛把子">kylin-MOLAP引擎的“扛把子”</span></h2><p>Apache Kylin是一个开源的、分布式的分析型数据仓库，提供Hadoop/Spark 上的SQL查询接口及多维度分析(OLAP）能力以支持超大规模的数据，它能在亚秒内查询巨大的表。<br>Kylin重点解决的问题是针对大数据不同维度频繁查询问题，即如何对已经固化下来的定制查询进行亚秒级返回。<br>不同于“大规模并行处理”（Massive Parallel Processing，MPP）架构的Hive、Presto等，Apache Kylin采用“预计算”的模式，用户只需要提前定义好查询维度，Kylin将帮助我们进行计算，并将结果存储到HBase中，为海量数据的查询和分析提供亚秒级返回，是一种典型的“空间换时间”的解决方案。</p>
+<p>Apache Kylin实现超大数据集上的亚秒级查询只需要三步：</p>
+<ol>
+<li>定义一个星形数据模型</li>
+<li>在定义的表上创建cube</li>
+<li>使用标准的SQL通过ODBC，JDBC和Restful API即可在亚秒内查询到结果</li>
+</ol>
+<h2><span id="特性">特性</span></h2><ul>
+<li>SQL接口：Kylin主要的对外接口就是以SQL的形式提供的。SQL简单易用的特性极大地降低了Kylin的学习成本，不论是数据分析师还是Web开发程序员都能从中收益。</li>
+<li>支持海量数据集:不论是Hive、SparkSQL，还是Impala、Presto，都改变不了这样一个事实：查询时间随着数据量的增长而线性增长。而Apache Kylin使用预计算技术打破了这一点。Kylin在数据集规模上的局限性主要取决于维度的个数和基数，而不是数据集的大小，所以Kylin能更好地支持海量数据集的查询。</li>
+<li>亚秒级响应:同样受益于预计算技术，Kylin的查询速度非常快，因为复杂的连接、聚合等操作都在Cube的构建过程中已经完成了。</li>
+<li>水平扩展:Apache Kylin同样可以使用集群部署方式进行水平扩展。但部署多个节点只能提高Kylin处理查询的能力，而不能提升它的预计算能力。</li>
+<li>可视化集成:Apache Kylin提供了ODBC/JDBC接口和RESTful API，可以很方便地与Tableau等数据可视化工具集成。数据团队也可以在开放的API上进行二次开发。</li>
+</ul>
+<h2><span id="实现原理">实现原理</span></h2><p>kylin 的核心思想是预计算。</p>
+<ul>
+<li><p>预计算<br>kylin 对多维分析可能用到的度量进行预计算，将高维复杂的聚合计算，多表连接等操作转换成预计算结果，将计算好的结果保存成 Cube，存储于 Hbase 中，供查询时直接访问。预计算过程需要很长时间，但是一旦结果计算出来，再次查询只是获取结果集合的过程，不需要额外再次浪费集群资源进行长时间查询，这种以空间换取时间的处理数据模式决定了 Kylin 拥有很好的快速查询、高并发能力。<br>Kylin 是一个 MOLAP(多维联机数据分析)系统，最常用的是将 Hive 中的数据进行预计算，利用 Hadoop 的 Mapreduce 或者 Spark 分布式计算框架来实现。Kylin 获取的数据表是星型数据结构的，目前建模时，只支持一张事实表，多张维度表，假设业务需求比较复杂，可以考虑在 Hive 中进行预处理生成一张宽表来处理。</p>
+</li>
+<li><p>cube<br>对于 Hive 中的维度表和事实表，根据我们指定的维度列来构建 cube,cube 是所有维度的组合，任一维度的组合称为 cuboid,即：cube 中包含所有的 cubeid。理论上来说，一个 N 维的 cube,会有 2 的 N 次方种维度组合(cuboid)。举例：假设一个 cube 包含 time、country、city、location 四个维度，那么就有 16 中 cuboid 组合。</p>
+</li>
+</ul>
+<p>通过计算框架的计算将 OLAP 分析的 cube 数据存储在 Hbase 中，方便后期实现多维数据集的交互式快速查询。</p>
+<h2><span id="架构">架构</span></h2><p><img src="https://blog-1259495827.cos.ap-beijing.myqcloud.com/Kylin/kylin_diagram.png" alt=""></p>
+<ul>
+<li><p>组件</p>
+<ul>
+<li>REST Server:提供 Restful 接口，可以通过此接口来创建、构建、刷新、合并Cube 等相关操作。同时也可以通过 Restful 接口实现 SQL 查询。</li>
+<li>Query Engine:目前 Kylin 使用开源的 Calcite 框架来实现 SQL 解析，用户发出SQL 查询之后，可以通过 Query Engine 来将 SQL Query 语句转换成 SQL 语法树，也就是逻辑计划。</li>
+<li>Routing:负责将解析 SQL 生成的执行计划转换成 cube 缓存的查询，cube 是通过预计算缓存在 Hbase 中，这部分查询时可以在秒级甚至是毫秒级完成，除此之外，还有一些操作需要使用原始数据（存储在 HDFS 上）通过 Hive 查询，这部分查询的延迟比较高。</li>
+<li>Metadata:Kylin 中有大量的元数据信息，包括 cube 的定义、星型模型的定义、job 和执行 job 的输出信息、模型的维度信息等等。Kylin 的元数据存储在 Hbase 中，存储的格式是 Json 字符串。</li>
+<li>Cube Build Engine:立方体构建模块是所有模块的基础，主要负责 Kylin 预计算中创建 cube,创建的过程是首先通过 Hive 读取原始数据，然后通过 MR 或者 Spark 计算生成 Htable,最后将数据加载到 Hbase 表中。</li>
+</ul>
+</li>
+<li><p>构建过程<br>从图中可以看出，左侧为数据源，目前Kylin默认的数据源是Apache Hive，保存着待分析的用户数据。根据元数据的定义，构建引擎从数据源抽取数据，并构建Cube。数据以关系表的形式输入，并且必须符合星形模型。构建技术主要为MapReduce/Spark。构建后的Cube保存在右侧存储引擎中，目前Kylin默认的存储为Apache HBase。</p>
+<ul>
+<li>全量构建<br>就是每次构建都对Hive表进行全表构建。但是全量构建在实际环境中并不常用，因为大多数业务场景下，事实数据都在不断地增长中，所以最常使用的构建方式其实是增量构建。</li>
+<li>增量构建<br>可以使Cube每次只构建Hive表中新增部分的数据，而不是全部数据，因此大大降低了构建的成本。为了实现增量构建，Apache Kylin将Cube分为多个Segment，每个Segment用起始时间和结束时间来标识。</li>
+<li>流式构建<br>使用Kafka做为数据源，构建引擎定时从Kafka中拉取数据进行构建，这一设计与Spark-Streaming的微批次（Micro-Batch）思想非常像。</li>
+</ul>
+</li>
+<li><p>查询过程<br>完成离线构建后，用户可以从上方的查询系统发送SQL进行查询分析。Kylin提供了RESTful API、JDBC/ODBC接口供用户调用。无论从哪个接口进入，SQL最终都会来到REST服务层，再转交给查询引擎进行处理。查询引擎解析SQL，生成基于关系表的逻辑执行计划，然后将其转译为基于Cube的物理执行计划，最后查询预计算生成的Cube并产生结果。整个过程不会访问原始数据源。如果用户提交的查询语句未在Kylin中预先定义，Kylin会返回一个错误。</p>
+</li>
+</ul>
+<p>值得一提的是，Kylin对数据源、执行引擎和Cube存储三个核心模块提取出了抽象层，这意味着这三个模块可以被任意地扩展和替换。比如可以使用Spark替代MapReduce作为Cube的构建引擎，使用Cassandra替代HBase作为Cube计算后数据的存储等。</p>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://www.cnblogs.com/shun7man/p/12920429.html" target="_blank" rel="noopener">大数据基础—Kylin是什么？ </a></li>
+<li><a href="https://www.jianshu.com/p/abd5e90ab051" target="_blank" rel="noopener">一文读懂Apache Kylin</a></li>
+</ul>
 
       
 
@@ -212,7 +276,33 @@
     <div class="article-info article-info-index">
       
       
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">olap</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">kylin</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
       
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
 
       
 
@@ -690,6 +780,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">doris</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
               </li>
             
             <div class="clearfix"></div>
