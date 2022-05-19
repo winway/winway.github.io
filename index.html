@@ -155,170 +155,6 @@
           <div id="js-content" class="content-ll">
             
   
-    <article id="post-bigdata-stack-hive" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/19/bigdata-stack-hive/">大数据开发之路-hive</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/19/bigdata-stack-hive/" class="archive-article-date">
-  	<time datetime="2022-05-19T02:46:08.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-19</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#hive-基于hadoop的数据仓库工具">hive-基于Hadoop的数据仓库工具</a></li>
-<li><a href="#特点">特点</a></li>
-<li><a href="#hive-和-rdbms-的对比">Hive 和 RDBMS 的对比</a></li>
-<li><a href="#架构">架构</a><ul>
-<li><a href="#用户接口">用户接口</a></li>
-<li><a href="#thrift-server">thrift server</a></li>
-<li><a href="#driver">Driver</a></li>
-<li><a href="#元数据存储">元数据存储</a></li>
-<li><a href="#执行流程">执行流程</a></li>
-</ul>
-</li>
-<li><a href="#数据组织">数据组织</a><ul>
-<li><a href="#数据模型">数据模型</a></li>
-<li><a href="#数据存储">数据存储</a></li>
-<li><a href="#内部表-vs-外部表">内部表 vs 外部表</a></li>
-<li><a href="#分区和分桶">分区和分桶</a></li>
-</ul>
-</li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引<br><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></p>
-</blockquote>
-<h2><span id="hive-基于hadoop的数据仓库工具">hive-基于Hadoop的数据仓库工具</span></h2><p><img src="https://images2018.cnblogs.com/blog/1228818/201804/1228818-20180403192903767-826182114.png" alt=""><br>Hive 依赖于 HDFS 存储数据，Hive 将 HQL 转换成 MapReduce 执行，所以说 Hive 是基于 Hadoop 的一个数据仓库工具。实质就是基于 HDFS 的 MapReduce 计算框架，对存储在 HDFS 中的数据进行分析和管理。</p>
-<h2><span id="特点">特点</span></h2><ul>
-<li>敏捷开发，SQL开发取代MapReduce开发</li>
-<li>可扩展性，借助hadoop的架构，自由扩展集群规模</li>
-<li>支持自定义函数，用户可以根据自己的需求来实现自己的函数</li>
-<li>良好的容错性，可以保障即使有节点出现问题，SQL 语句仍可完成执行</li>
-<li>不支持记录级别的增删改操作，只能通过生成新表刷新数据</li>
-<li>查询即时性差，因为 MapReduce Job 的启动过程消耗很长时间，所以不能用在交互查询系统中</li>
-<li>不支持事务，主要用来做 OLAP（联机分析处理）</li>
-</ul>
-<h2><span id="hive-和-rdbms-的对比">Hive 和 RDBMS 的对比</span></h2><p><img src="https://images2018.cnblogs.com/blog/1228818/201804/1228818-20180403193352838-1398998715.png" alt=""></p>
-<h2><span id="架构">架构</span></h2><p><img src="https://images2018.cnblogs.com/blog/1228818/201804/1228818-20180403193501903-1989526977.png" alt=""></p>
-<h3><span id="用户接口">用户接口</span></h3><ul>
-<li>CLI，Shell 终端命令行（Command Line Interface），采用交互形式使用 Hive 命令行与 Hive 进行交互，最常用（学习，调试，生产）</li>
-<li>JDBC/ODBC，是 Hive 的基于 JDBC 操作提供的客户端，用户（开发员，运维人员）通过 这连接至 Hive server 服务</li>
-<li>Web UI，通过浏览器访问 Hive</li>
-</ul>
-<h3><span id="thrift-server">thrift server</span></h3><p>Thrift 是 Facebook 开发的一个软件框架，可以用来进行可扩展且跨语言的服务的开发， Hive 集成了该服务，能让不同的编程语言调用 Hive 的接口</p>
-<h3><span id="driver">Driver</span></h3><p>Driver 组件完成 HQL 查询语句从词法分析，语法分析，编译，优化，以及逻辑执行计划的生成。生成的逻辑执行计划存储在 HDFS 中，并随后由 MapReduce 调用执行</p>
-<ul>
-<li>解释器：解释器的作用是将 HiveSQL 语句转换为抽象语法树（AST）</li>
-<li>编译器：编译器是将语法树编译为逻辑执行计划</li>
-<li>优化器：优化器是对逻辑执行计划进行优化</li>
-<li>执行器：执行器是调用底层的运行框架执行逻辑执行计划</li>
-</ul>
-<h3><span id="元数据存储">元数据存储</span></h3><p>Hive 中的元数据通常包括：表的名字，表的列和分区及其属性，表的属性（内部表和 外部表），表的数据所在目录。通常存在 MySQL 库（本地 或 远程）。Hive 和 MySQL 之间通过 MetaStore 服务交互</p>
-<h3><span id="执行流程">执行流程</span></h3><ul>
-<li>HiveQL 通过命令行或者客户端提交</li>
-<li>经过 Compiler 编译器，运用 MetaStore 中的元数据进行类型检测和语法分析，生成一个逻辑方案(Logical Plan)</li>
-<li>然后通过优化处理，产生 一个 MapReduce 任务并执行</li>
-</ul>
-<h2><span id="数据组织">数据组织</span></h2><h3><span id="数据模型">数据模型</span></h3><ul>
-<li>database：在 HDFS 中表现为${hive.metastore.warehouse.dir}目录下一个文件夹</li>
-<li>table：在 HDFS 中表现为所属 database 目录下的一个文件夹</li>
-<li>external table：与 table 类似，不过其数据存放位置可以指定任意 HDFS 目录路径</li>
-<li>partition：在 HDFS 中表现为 table 目录下的子目录</li>
-<li>bucket：在 HDFS 中表现为同一个表目录或者分区目录下根据某个字段的值进行 hash 散列之后的多个文件</li>
-<li>view：与传统数据库类似，只读，基于 table 创建</li>
-</ul>
-<h3><span id="数据存储">数据存储</span></h3><p>Hive 中所有的数据都存储在 HDFS 中，没有专门的数据存储格式，可支持 TextFile，SequenceFile，RCFile 或者自定义格式等。<br>因为 Hive 是读模式 （Schema On Read），对于TextFile只需要在创建表的时候告诉 Hive 数据中的列分隔符和行分隔符，Hive 就可以解析数据。</p>
-<ul>
-<li>Hive 的默认列分隔符：控制符 Ctrl + A，\x01</li>
-<li>Hive 的默认行分隔符：换行符 \n</li>
-</ul>
-<h3><span id="内部表-vs-外部表">内部表 vs 外部表</span></h3><ul>
-<li>删除内部表：删除表元数据和数据</li>
-<li>删除外部表：删除元数据，不删除数据</li>
-</ul>
-<p>如果数据的所有处理都在 Hive 中进行，那么倾向于 选择内部表，但是如果 Hive 和其他工具要针对相同的数据集进行处理，外部表更合适。<br>hive 其实仅仅只是对存储在 HDFS 上的数据提供了一种新的抽象，而不是管理存储在 HDFS 上的数据。所以不管创建内部表还是外部表，都可以对 hive 表的数据存储目录中的数据进行增删操作。</p>
-<h3><span id="分区和分桶">分区和分桶</span></h3><p>Hive 数据表可以根据某些字段进行分区操作，细化数据管理，可以让部分查询更快。同时表和分区也可以进一步被划分为 Buckets，分桶表的原理和 MapReduce 编程中的 HashPartitioner 的原理类似。<br>分区和分桶都是细化数据管理，但是分区表是手动添加区分，由于 Hive 是读模式，所以对添加进分区的数据不做模式校验，分桶表中的数据是按照某些分桶字段进行 hash 散列形成的多个文件，所以数据的准确性也高很多。</p>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://winway.github.io/2017/01/13/big-data-hive/">Hadoop生态系统介绍-Hive</a></li>
-<li><a href="https://www.cnblogs.com/qingyunzong/p/8707885.html" target="_blank" rel="noopener">Hive学习之路 （一）Hive初识 </a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">hive</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/19/bigdata-stack-hive/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
     <article id="post-bigdata-stack-kylin" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1167,6 +1003,170 @@ ReplicatedXXXMergeTree: 使得以上 MergeTree 家族拥有副本机制，保证
       
         <p class="article-more-link">
           <a class="article-more-a" href="/2022/05/17/bigdata-stack-presto/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-bigdata-stack-hive" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/05/16/bigdata-stack-hive/">大数据开发之路-hive</a>
+    </h1>
+  
+
+        
+        <a href="/2022/05/16/bigdata-stack-hive/" class="archive-article-date">
+  	<time datetime="2022-05-16T02:46:08.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-16</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#hive-基于hadoop的数据仓库工具">hive-基于Hadoop的数据仓库工具</a></li>
+<li><a href="#特点">特点</a></li>
+<li><a href="#hive-和-rdbms-的对比">Hive 和 RDBMS 的对比</a></li>
+<li><a href="#架构">架构</a><ul>
+<li><a href="#用户接口">用户接口</a></li>
+<li><a href="#thrift-server">thrift server</a></li>
+<li><a href="#driver">Driver</a></li>
+<li><a href="#元数据存储">元数据存储</a></li>
+<li><a href="#执行流程">执行流程</a></li>
+</ul>
+</li>
+<li><a href="#数据组织">数据组织</a><ul>
+<li><a href="#数据模型">数据模型</a></li>
+<li><a href="#数据存储">数据存储</a></li>
+<li><a href="#内部表-vs-外部表">内部表 vs 外部表</a></li>
+<li><a href="#分区和分桶">分区和分桶</a></li>
+</ul>
+</li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<blockquote>
+<p>导引<br><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></p>
+</blockquote>
+<h2><span id="hive-基于hadoop的数据仓库工具">hive-基于Hadoop的数据仓库工具</span></h2><p><img src="https://images2018.cnblogs.com/blog/1228818/201804/1228818-20180403192903767-826182114.png" alt=""><br>Hive 依赖于 HDFS 存储数据，Hive 将 HQL 转换成 MapReduce 执行，所以说 Hive 是基于 Hadoop 的一个数据仓库工具。实质就是基于 HDFS 的 MapReduce 计算框架，对存储在 HDFS 中的数据进行分析和管理。</p>
+<h2><span id="特点">特点</span></h2><ul>
+<li>敏捷开发，SQL开发取代MapReduce开发</li>
+<li>可扩展性，借助hadoop的架构，自由扩展集群规模</li>
+<li>支持自定义函数，用户可以根据自己的需求来实现自己的函数</li>
+<li>良好的容错性，可以保障即使有节点出现问题，SQL 语句仍可完成执行</li>
+<li>不支持记录级别的增删改操作，只能通过生成新表刷新数据</li>
+<li>查询即时性差，因为 MapReduce Job 的启动过程消耗很长时间，所以不能用在交互查询系统中</li>
+<li>不支持事务，主要用来做 OLAP（联机分析处理）</li>
+</ul>
+<h2><span id="hive-和-rdbms-的对比">Hive 和 RDBMS 的对比</span></h2><p><img src="https://images2018.cnblogs.com/blog/1228818/201804/1228818-20180403193352838-1398998715.png" alt=""></p>
+<h2><span id="架构">架构</span></h2><p><img src="https://images2018.cnblogs.com/blog/1228818/201804/1228818-20180403193501903-1989526977.png" alt=""></p>
+<h3><span id="用户接口">用户接口</span></h3><ul>
+<li>CLI，Shell 终端命令行（Command Line Interface），采用交互形式使用 Hive 命令行与 Hive 进行交互，最常用（学习，调试，生产）</li>
+<li>JDBC/ODBC，是 Hive 的基于 JDBC 操作提供的客户端，用户（开发员，运维人员）通过 这连接至 Hive server 服务</li>
+<li>Web UI，通过浏览器访问 Hive</li>
+</ul>
+<h3><span id="thrift-server">thrift server</span></h3><p>Thrift 是 Facebook 开发的一个软件框架，可以用来进行可扩展且跨语言的服务的开发， Hive 集成了该服务，能让不同的编程语言调用 Hive 的接口</p>
+<h3><span id="driver">Driver</span></h3><p>Driver 组件完成 HQL 查询语句从词法分析，语法分析，编译，优化，以及逻辑执行计划的生成。生成的逻辑执行计划存储在 HDFS 中，并随后由 MapReduce 调用执行</p>
+<ul>
+<li>解释器：解释器的作用是将 HiveSQL 语句转换为抽象语法树（AST）</li>
+<li>编译器：编译器是将语法树编译为逻辑执行计划</li>
+<li>优化器：优化器是对逻辑执行计划进行优化</li>
+<li>执行器：执行器是调用底层的运行框架执行逻辑执行计划</li>
+</ul>
+<h3><span id="元数据存储">元数据存储</span></h3><p>Hive 中的元数据通常包括：表的名字，表的列和分区及其属性，表的属性（内部表和 外部表），表的数据所在目录。通常存在 MySQL 库（本地 或 远程）。Hive 和 MySQL 之间通过 MetaStore 服务交互</p>
+<h3><span id="执行流程">执行流程</span></h3><ul>
+<li>HiveQL 通过命令行或者客户端提交</li>
+<li>经过 Compiler 编译器，运用 MetaStore 中的元数据进行类型检测和语法分析，生成一个逻辑方案(Logical Plan)</li>
+<li>然后通过优化处理，产生 一个 MapReduce 任务并执行</li>
+</ul>
+<h2><span id="数据组织">数据组织</span></h2><h3><span id="数据模型">数据模型</span></h3><ul>
+<li>database：在 HDFS 中表现为${hive.metastore.warehouse.dir}目录下一个文件夹</li>
+<li>table：在 HDFS 中表现为所属 database 目录下的一个文件夹</li>
+<li>external table：与 table 类似，不过其数据存放位置可以指定任意 HDFS 目录路径</li>
+<li>partition：在 HDFS 中表现为 table 目录下的子目录</li>
+<li>bucket：在 HDFS 中表现为同一个表目录或者分区目录下根据某个字段的值进行 hash 散列之后的多个文件</li>
+<li>view：与传统数据库类似，只读，基于 table 创建</li>
+</ul>
+<h3><span id="数据存储">数据存储</span></h3><p>Hive 中所有的数据都存储在 HDFS 中，没有专门的数据存储格式，可支持 TextFile，SequenceFile，RCFile 或者自定义格式等。<br>因为 Hive 是读模式 （Schema On Read），对于TextFile只需要在创建表的时候告诉 Hive 数据中的列分隔符和行分隔符，Hive 就可以解析数据。</p>
+<ul>
+<li>Hive 的默认列分隔符：控制符 Ctrl + A，\x01</li>
+<li>Hive 的默认行分隔符：换行符 \n</li>
+</ul>
+<h3><span id="内部表-vs-外部表">内部表 vs 外部表</span></h3><ul>
+<li>删除内部表：删除表元数据和数据</li>
+<li>删除外部表：删除元数据，不删除数据</li>
+</ul>
+<p>如果数据的所有处理都在 Hive 中进行，那么倾向于 选择内部表，但是如果 Hive 和其他工具要针对相同的数据集进行处理，外部表更合适。<br>hive 其实仅仅只是对存储在 HDFS 上的数据提供了一种新的抽象，而不是管理存储在 HDFS 上的数据。所以不管创建内部表还是外部表，都可以对 hive 表的数据存储目录中的数据进行增删操作。</p>
+<h3><span id="分区和分桶">分区和分桶</span></h3><p>Hive 数据表可以根据某些字段进行分区操作，细化数据管理，可以让部分查询更快。同时表和分区也可以进一步被划分为 Buckets，分桶表的原理和 MapReduce 编程中的 HashPartitioner 的原理类似。<br>分区和分桶都是细化数据管理，但是分区表是手动添加区分，由于 Hive 是读模式，所以对添加进分区的数据不做模式校验，分桶表中的数据是按照某些分桶字段进行 hash 散列形成的多个文件，所以数据的准确性也高很多。</p>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://winway.github.io/2017/01/13/big-data-hive/">Hadoop生态系统介绍-Hive</a></li>
+<li><a href="https://www.cnblogs.com/qingyunzong/p/8707885.html" target="_blank" rel="noopener">Hive学习之路 （一）Hive初识 </a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">hive</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2022/05/16/bigdata-stack-hive/">展开全文 >></a>
         </p>
       
 
