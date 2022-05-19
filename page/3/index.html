@@ -155,6 +155,106 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-sb-https" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/03/29/sb-https/">SpringBoot实现https接口</a>
+    </h1>
+  
+
+        
+        <a href="/2022/03/29/sb-https/" class="archive-article-date">
+  	<time datetime="2022-03-29T09:59:11.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-03-29</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#1自制证书">1.自制证书</a></li>
+<li><a href="#2springboot配置">2.SpringBoot配置</a></li>
+<li><a href="#3客户端访问">3.客户端访问</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="1自制证书">1.自制证书</span></h2><p>原理挺复杂，不赘述，可以详细看一下下述资料：<br><a href="https://www.cnblogs.com/jing99/p/11687160.html" target="_blank" rel="noopener">https://www.cnblogs.com/jing99/p/11687160.html</a><br><a href="https://notes.mengxin.science/2018/10/03/all-knowledge-about-certificate-1/" target="_blank" rel="noopener">https://notes.mengxin.science/2018/10/03/all-knowledge-about-certificate-1/</a><br><a href="https://developer.aliyun.com/article/617244" target="_blank" rel="noopener">https://developer.aliyun.com/article/617244</a></p>
+<p>简单说，就是需要生成一对公、私钥，存储在一种格式叫keystore的文件里。其中公钥可以导出成pem或crt格式分发出去。</p>
+<p>常用命令：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 生成 JKS</span><br><span class="line">keytool -genkey -alias  winway  -keyalg RSA -keystore  keystore.jks -keysize 2048 -ext san=ip:172.16.32.33</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 查看jks</span><br><span class="line">keytool -list -v -keystore  keystore.jks</span><br><span class="line">keytool -list -v -keystore  keystore.jks  -alias winway</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 生成 CSR</span><br><span class="line">keytool -certreq -alias  winway  -keystore  keystore.jks  -file  winway.csr</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 转化为标准文件</span><br><span class="line">keytool -importkeystore -srckeystore keystore.jks -storepass 123456 -destkeystore keystore.jks -deststoretype pkcs12</span><br><span class="line">keytool -importkeystore -srckeystore keystore.jks -storepass 123456 -destkeystore keystore.p12 -deststoretype pkcs12</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 导出der格式证书</span><br><span class="line">keytool -export -alias winway -file 172.16.32.33.cer -keystore keystore.jks -ext san=ip:172.16.32.33</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 转换der格式到pem格式</span><br><span class="line">openssl x509 -in 172.16.32.33.cer -inform der -outform pem -out 172.16.32.33.pem</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 导出私钥</span><br><span class="line">openssl pkcs12 -in keystore.p12 -nodes -nocerts -out winway.key</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 导出crt格式证书，跟pem实际上是一样的，只是多了一些头部信息</span><br><span class="line">openssl pkcs12 -in keystore.p12 -nokeys -out winway.crt</span><br></pre></td></tr></table></figure></p>
+<h2><span id="2springboot配置">2.SpringBoot配置</span></h2><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">server.port=8444</span><br><span class="line">server.ssl.enabled=true</span><br><span class="line">server.ssl.key-store=classpath:keystore.jks</span><br><span class="line">server.ssl.key-store-type=PKCS12</span><br><span class="line">server.ssl.key-store-password=123456</span><br><span class="line">server.ssl.key-alias=winway</span><br></pre></td></tr></table></figure>
+<h2><span id="3客户端访问">3.客户端访问</span></h2><p>以curl命令为例</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 访问失败</span><br><span class="line">curl 'https://172.16.32.33:8444/hello' -XPOST -H 'Content-Type: application/json;charset=UTF-8' --data '&#123;&#125;'</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 忽略SSL证书警告</span><br><span class="line">curl -k 'https://172.16.32.33:8444/hello' -XPOST -H 'Content-Type: application/json;charset=UTF-8' --data '&#123;&#125;'</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 指定证书</span><br><span class="line">curl --cacert 172.16.32.33.pem 'https://172.16.32.33:8444/hello' -XPOST -H 'Content-Type: application/json;charset=UTF-8' --data '&#123;&#125;'</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> linux系统导入证书</span><br><span class="line">cat 172.16.32.33.pem &gt;&gt; /etc/pki/tls/certs/ca-bundle.crt</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 正常访问</span><br><span class="line">curl 'https://172.16.32.33:8444/hello' -XPOST -H 'Content-Type: application/json;charset=UTF-8' --data '&#123;&#125;'</span><br></pre></td></tr></table></figure>
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">springboot</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">keytool</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/Java/" class="article-tag-list-link color5">Java</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2022/03/29/sb-https/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-spark-metrics" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1072,11 +1172,11 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">tez</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">yarn</a>
         		</li>
       		 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">yarn</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">tez</a>
         		</li>
       		
 		</ul>
@@ -1243,154 +1343,6 @@
 
 
   
-    <article id="post-hdfscompress" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2020/06/06/hdfscompress/">HDFS文件压缩转储</a>
-    </h1>
-  
-
-        
-        <a href="/2020/06/06/hdfscompress/" class="archive-article-date">
-  	<time datetime="2020-06-06T09:00:01.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2020-06-06</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#需求">需求</a></li>
-<li><a href="#步骤">步骤</a><ul>
-<li><a href="#选取压缩类型">选取压缩类型</a></li>
-<li><a href="#转储">转储</a></li>
-</ul>
-</li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<h1><span id="需求">需求</span></h1><p>定期将HDFS文件压缩转储到阿里云OSS。</p>
-<h1><span id="步骤">步骤</span></h1><h2><span id="选取压缩类型">选取压缩类型</span></h2><p>Hadoop支持的主流压缩格式包括以下几种：</p>
-<table>
-<thead>
-<tr>
-<th>Codec</th>
-<th>File Extension</th>
-<th>Splittable?</th>
-<th>Degree of Compression</th>
-<th>Compression Speed</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Gzip</td>
-<td>.gz</td>
-<td>No</td>
-<td>Medium</td>
-<td>Medium</td>
-</tr>
-<tr>
-<td>Bzip2</td>
-<td>.bz2</td>
-<td>Yes</td>
-<td>High</td>
-<td>Slow</td>
-</tr>
-<tr>
-<td>Snappy</td>
-<td>.snappy</td>
-<td>No</td>
-<td>Medium</td>
-<td>Fast</td>
-</tr>
-<tr>
-<td>LZO</td>
-<td>.lzo</td>
-<td>No, unless indexed</td>
-<td>Medium</td>
-<td>Fast</td>
-</tr>
-</tbody>
-</table>
-<p>其中可分割的只有bzip2和lzo(indexed)。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">hadoop jar $HADOOP_HOME/share/hadoop/tools/lib/hadoop-streaming-2.7.2.jar \</span><br><span class="line">    -Dmapreduce.map.java.opts=&apos;-Xmx768m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.map.memory.mb=1024 \</span><br><span class="line">    -Dmapreduce.reduce.java.opts=&apos;-Xmx1536m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.reduce.memory.mb=2048 \</span><br><span class="line">    -Dmapreduce.job.reduce.slowstart.completedmaps=0.9 \</span><br><span class="line">    -Dmapred.reduce.tasks=$parallelN \</span><br><span class="line">    -Dmapred.output.compress=true \</span><br><span class="line">    -Dmapred.compress.map.output=true \</span><br><span class="line">    -Dmapred.output.compression.codec=org.apache.hadoop.io.compress.BZip2Codec \</span><br><span class="line">    -input $hdfspath \</span><br><span class="line">    -output $hdfszippath \</span><br><span class="line">    -mapper /bin/cat \</span><br><span class="line">    -reducer /bin/cat \</span><br><span class="line">    -inputformat org.apache.hadoop.mapred.TextInputFormat \</span><br><span class="line">    -outputformat org.apache.hadoop.mapred.TextOutputFormat</span><br></pre></td></tr></table></figure></p>
-<p>先是使用bizp2进行了测试，但是压缩速度实在是太慢了，于是决定使用lzo。<br>lzo为了达到可分割，需要在压缩之后建立索引。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">hadoop jar $HADOOP_HOME/share/hadoop/tools/lib/hadoop-streaming-2.7.2.jar \</span><br><span class="line">    -Dmapreduce.map.java.opts=&apos;-Xmx768m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.map.memory.mb=1024 \</span><br><span class="line">    -Dmapreduce.reduce.java.opts=&apos;-Xmx1536m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.reduce.memory.mb=2048 \</span><br><span class="line">    -Dmapreduce.job.reduce.slowstart.completedmaps=0.9 \</span><br><span class="line">    -Dmapred.reduce.tasks=$parallelN \</span><br><span class="line">    -Dmapred.output.compress=true \</span><br><span class="line">    -Dmapred.compress.map.output=true \</span><br><span class="line">    -Dmapred.output.compression.codec=com.hadoop.compression.lzo.LzopCodec \</span><br><span class="line">    -input $hdfspath \</span><br><span class="line">    -output $hdfszippath \</span><br><span class="line">    -mapper /bin/cat \</span><br><span class="line">    -reducer /bin/cat \</span><br><span class="line">    -inputformat org.apache.hadoop.mapred.TextInputFormat \</span><br><span class="line">    -outputformat org.apache.hadoop.mapred.TextOutputFormat</span><br><span class="line"></span><br><span class="line">hadoop jar $HADOOP_HOME/lib/hadoop-lzo-0.4.21-SNAPSHOT.jar com.hadoop.compression.lzo.DistributedLzoIndexer $hdfszippath</span><br></pre></td></tr></table></figure></p>
-<h2><span id="转储">转储</span></h2><p>压缩完毕后，将文件拷贝到oss。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hadoop distcp -Dmapreduce.task.timeout=1200000 -m $parallelN $&#123;hdfszippath&#125;/* $&#123;osspath&#125;/</span><br></pre></td></tr></table></figure></p>
-<p><em>distcp过程中遇到一个问题：如果单个文件过大，在往oss拷贝的时候有可能失败，所以需要通过设置压缩任务reduce个数，控制最终单个文件的大小。</em></p>
-<h1><span id="参考资料">参考资料</span></h1><ul>
-<li><a href="https://www.dummies.com/programming/big-data/hadoop/compressing-data-in-hadoop/" target="_blank" rel="noopener">https://www.dummies.com/programming/big-data/hadoop/compressing-data-in-hadoop/</a></li>
-<li><a href="https://data-flair.training/forums/topic/which-compression-is-used-in-hadoop-which-of-them-is-splittable/" target="_blank" rel="noopener">https://data-flair.training/forums/topic/which-compression-is-used-in-hadoop-which-of-them-is-splittable/</a></li>
-<li><a href="https://blog.csdn.net/fjssharpsword/article/details/74908251" target="_blank" rel="noopener">https://blog.csdn.net/fjssharpsword/article/details/74908251</a></li>
-<li><a href="https://www.jianshu.com/p/10fc6c511761" target="_blank" rel="noopener">https://www.jianshu.com/p/10fc6c511761</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">hdfs</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2020/06/06/hdfscompress/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/2/">&laquo; Prev</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/11/">11</a><a class="extend next" rel="next" href="/page/4/">Next &raquo;</a>
@@ -1490,11 +1442,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">C</a>
+                <a href="javascript:void(0)" class="js-tag color1">shell</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
+                <a href="javascript:void(0)" class="js-tag color3">监控</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1502,11 +1454,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">shell</a>
+                <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">监控</a>
+                <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1522,11 +1474,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">canal</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1542,19 +1498,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hive</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">kudu</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1566,6 +1514,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">github</a>
               </li>
              
@@ -1574,11 +1530,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color2">Python</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1670,10 +1626,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">手机号</a>
               </li>
              
@@ -1683,6 +1635,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1707,10 +1663,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
               <li class="article-tag-list-item">

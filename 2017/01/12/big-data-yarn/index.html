@@ -16,15 +16,15 @@
 <meta property="og:site_name" content="winway&#39;s blog">
 <meta property="og:description" content="前言 工作原理 经典 MapReduce 的局限性 YARN：下一代 Hadoop 计算平台     前言提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。  Hadoop生态系统介绍-概览 Hadoop生态系统介绍-Kerberos Hadoop生态系统介绍-Zookeeper Hadoo">
 <meta property="og:locale" content="default">
-<meta property="og:image" content="https://www.ibm.com/developerworks/cn/data/library/bd-yarn-intro/fig01.png">
-<meta property="og:image" content="https://www.ibm.com/developerworks/cn/data/library/bd-yarn-intro/Figure2JobTracker-Busy.png">
-<meta property="og:image" content="https://www.ibm.com/developerworks/cn/data/library/bd-yarn-intro/Figure3Architecture-of-YARN.png">
-<meta property="og:image" content="https://www.ibm.com/developerworks/cn/data/library/bd-yarn-intro/fig04.png">
-<meta property="og:updated_time" content="2022-05-14T14:08:14.389Z">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519113151.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519113512.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519113708.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519113936.png">
+<meta property="og:updated_time" content="2022-05-19T03:41:41.001Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Hadoop生态系统介绍-YARN">
 <meta name="twitter:description" content="前言 工作原理 经典 MapReduce 的局限性 YARN：下一代 Hadoop 计算平台     前言提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。  Hadoop生态系统介绍-概览 Hadoop生态系统介绍-Kerberos Hadoop生态系统介绍-Zookeeper Hadoo">
-<meta name="twitter:image" content="https://www.ibm.com/developerworks/cn/data/library/bd-yarn-intro/fig01.png">
+<meta name="twitter:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519113151.png">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -205,7 +205,7 @@
 <li><a href="https://winway.github.io/2017/01/07/big-data-phoenix/">Hadoop生态系统介绍-Phoenix</a></li>
 </ol>
 <p>本文对集群资源管理系统YARN的工作原理进行介绍。</p>
-<h2><span id="工作原理">工作原理</span></h2><h3><span id="经典-mapreduce-的局限性">经典 MapReduce 的局限性</span></h3><p><img src="https://www.ibm.com/developerworks/cn/data/library/bd-yarn-intro/fig01.png" alt=""><br>在 MapReduce 框架中，作业执行受两种类型的进程控制：</p>
+<h2><span id="工作原理">工作原理</span></h2><h3><span id="经典-mapreduce-的局限性">经典 MapReduce 的局限性</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519113151.png" alt=""><br>在 MapReduce 框架中，作业执行受两种类型的进程控制：</p>
 <ul>
 <li>一个称为 JobTracker 的主要进程，它协调在集群上运行的所有作业，分配要在 TaskTracker 上运行的 map 和 reduce 任务。</li>
 <li>许多称为 TaskTracker 的下级进程，它们运行分配的任务并定期向 JobTracker 报告进度。</li>
@@ -222,13 +222,13 @@
 <li>管理集群中的计算资源，这涉及到维护活动节点列表、可用和占用的 map 和 reduce slots 列表，以及依据所选的调度策略将可用 slots 分配给合适的作业和任务</li>
 <li>协调在集群上运行的所有任务，这涉及到指导 TaskTracker 启动 map 和 reduce 任务，监视任务的执行，重新启动失败的任务，推测性地运行缓慢的任务，计算作业计数器值的总和，等等</li>
 </ul>
-<p>为单个进程安排大量职责会导致重大的可伸缩性问题，尤其是在较大的集群上，JobTracker 必须不断跟踪数千个 TaskTracker、数百个作业，以及数万个 map 和 reduce 任务。下图演示了这一问题。相反，TaskTracker 通常仅运行十来个任务，这些任务由勤勉的 JobTracker 分配给它们。<br><img src="https://www.ibm.com/developerworks/cn/data/library/bd-yarn-intro/Figure2JobTracker-Busy.png" alt=""></p>
+<p>为单个进程安排大量职责会导致重大的可伸缩性问题，尤其是在较大的集群上，JobTracker 必须不断跟踪数千个 TaskTracker、数百个作业，以及数万个 map 和 reduce 任务。下图演示了这一问题。相反，TaskTracker 通常仅运行十来个任务，这些任务由勤勉的 JobTracker 分配给它们。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519113512.png" alt=""></p>
 <p>为了解决可伸缩性问题，一个简单而又绝妙的想法应运而生：我们减少了单个 JobTracker 的职责，将部分职责委派给 TaskTracker，因为集群中有许多 TaskTracker。在新设计中，这个概念通过将 JobTracker 的双重职责（集群资源管理和任务协调）分开为两种不同类型的进程来反映。</p>
 <ul>
 <li>不再拥有单个 JobTracker，而是引入了一个集群资源管理器，它惟一的职责就是跟踪集群中的活动节点和可用资源，并将它们分配给任务。</li>
 <li>对于提交给集群的每个作业，会启动一个专用的、短暂的 JobTracker 来控制该作业中的任务的执行。有趣的是，短暂的 JobTracker 由在从属节点上运行的 TaskTracker 启动。因此，作业的生命周期的协调工作分散在集群中所有可用的机器上。得益于这种行为，更多工作可并行运行，可伸缩性得到了显著提高。</li>
 </ul>
-<h3><span id="yarn下一代-hadoop-计算平台">YARN：下一代 Hadoop 计算平台</span></h3><p><img src="https://www.ibm.com/developerworks/cn/data/library/bd-yarn-intro/Figure3Architecture-of-YARN.png" alt=""></p>
+<h3><span id="yarn下一代-hadoop-计算平台">YARN：下一代 Hadoop 计算平台</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519113708.png" alt=""></p>
 <ul>
 <li>ResourceManager 代替集群资源管理器</li>
 <li>ApplicationMaster 代替一个专用且短暂的 JobTracker</li>
@@ -241,7 +241,7 @@
 <p>NodeManager 是 TaskTracker 的一种更加普通和高效的版本。没有固定数量的 map 和 reduce slots，NodeManager 拥有许多动态创建的资源容器。容器的大小取决于它所包含的资源量，比如内存、CPU、磁盘和网络 IO。目前，仅支持内存和 CPU (YARN-3)。未来可使用 cgroups 来控制磁盘和网络 IO。一个节点上的容器数量，由配置参数与总 CPU 数和总内存共同决定。</p>
 <p>有趣的是，ApplicationMaster 可在容器内运行任何类型的任务。例如，MapReduce ApplicationMaster 请求一个容器来启动 map 或 reduce 任务，而 Giraph ApplicationMaster 请求一个容器来运行 Giraph 任务。您还可以实现一个自定义的 ApplicationMaster 来运行特定的任务，进而发明出一种全新的分布式应用程序框架，改变大数据世界的格局。</p>
 <p>在 YARN 中，MapReduce 降级为一个分布式应用程序的一个角色（一个非常流行且有用的角色），现在称为 MRv2。MRv2 是经典 MapReduce 引擎（现在称为 MRv1）的重现，运行在 YARN 之上。</p>
-<p><strong>YARN 中的应用程序提交</strong><br><img src="https://www.ibm.com/developerworks/cn/data/library/bd-yarn-intro/fig04.png" alt=""><br>假设用户采用与 MRv1 中相同的方式键入 hadoop jar 命令，将应用程序提交到 ResourceManager。</p>
+<p><strong>YARN 中的应用程序提交</strong><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519113936.png" alt=""><br>假设用户采用与 MRv1 中相同的方式键入 hadoop jar 命令，将应用程序提交到 ResourceManager。</p>
 <p>ResourceManager 维护着集群上运行的应用程序列表，以及每个活动的 NodeManager 上的可用资源列表。ResourceManager 需要确定哪个应用程序接下来应该获得一部分集群资源。该决策受到许多限制，比如队列容量、ACL 和公平性。ResourceManager 使用一个可插拔的 Scheduler。Scheduler 仅执行调度；它管理谁在何时获取集群资源（以容器的形式），但不会对应用程序内的任务执行任何监视，所以它不会尝试重新启动失败的任务。</p>
 <p>在 ResourceManager 接受一个新应用程序提交时，Scheduler 制定的第一个决策是选择将用来运行 ApplicationMaster 的容器。</p>
 <p>在 ApplicationMaster 启动后，它将负责此应用程序的整个生命周期。</p>
@@ -539,11 +539,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">C</a>
+                <a href="javascript:void(0)" class="js-tag color1">shell</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
+                <a href="javascript:void(0)" class="js-tag color3">监控</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -551,11 +551,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">shell</a>
+                <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">监控</a>
+                <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -571,11 +571,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">canal</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -591,19 +595,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hive</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">kudu</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -615,6 +611,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">github</a>
               </li>
              
@@ -623,11 +627,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color2">Python</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -719,10 +723,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">手机号</a>
               </li>
              
@@ -732,6 +732,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -756,10 +760,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
               <li class="article-tag-list-item">
