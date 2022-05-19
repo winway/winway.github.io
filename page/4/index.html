@@ -155,6 +155,113 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-sparkProblems" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2020/06/06/sparkProblems/">Spark问题记录</a>
+    </h1>
+  
+
+        
+        <a href="/2020/06/06/sparkProblems/" class="archive-article-date">
+  	<time datetime="2020-06-06T07:50:26.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2020-06-06</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#sparksession写数据到hive报错nosuchdatabaseexception">SparkSession写数据到hive报错：NoSuchDatabaseException</a><ul>
+<li><a href="#问题">问题</a></li>
+<li><a href="#解决">解决</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h1><span id="sparksession写数据到hive报错nosuchdatabaseexception">SparkSession写数据到hive报错：NoSuchDatabaseException</span></h1><h2><span id="问题">问题</span></h2><p>使用SparkSession往hive表中写数据，报找不到数据库<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Exception in thread &quot;main&quot; org.apache.spark.sql.catalyst.analysis.NoSuchDatabaseException: Database &apos;test&apos; not found</span><br></pre></td></tr></table></figure></p>
+<h2><span id="解决">解决</span></h2><p>针对该问题，网上普遍给出的解决方法包括两点：</p>
+<ol>
+<li>将hive-site.xml, core-site.xml和hdfs-site.xml拷贝到resource文件夹中</li>
+<li>开启访问 Hive 的功能<code>val spark = SparkSession.builder().enableHiveSupport().getOrCreate()</code></li>
+</ol>
+<p>但是这两点已经在程序中设置过了，报错依然存在。通过执行<code>show databases</code>，可以看出，只包含default库，这说明spark获取的并不是hive的metastore元数据。</p>
+<p>最后在<a href="https://stackoverflow.com/questions/52796843/not-able-to-connect-sparksession-to-hive?noredirect=1&amp;lq=1" target="_blank" rel="noopener">这里</a>找到了答案。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">The default external catalog implementation is controlled by spark.sql.catalogImplementation internal property and can be one of the two possible values: hive and in-memory</span><br></pre></td></tr></table></figure></p>
+<p>通过设置<code>set(&quot;spark.sql.catalogImplementation&quot;, &quot;hive&quot;)</code>，解决了该问题。</p>
+<p>详见：</p>
+<ul>
+<li><a href="https://stackoverflow.com/questions/52796843/not-able-to-connect-sparksession-to-hive?noredirect=1&amp;lq=1" target="_blank" rel="noopener">https://stackoverflow.com/questions/52796843/not-able-to-connect-sparksession-to-hive?noredirect=1&amp;lq=1</a></li>
+<li><a href="https://stackoverflow.com/questions/43874124/does-spark-sql-use-hive-metastore" target="_blank" rel="noopener">https://stackoverflow.com/questions/43874124/does-spark-sql-use-hive-metastore</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">spark</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2020/06/06/sparkProblems/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-phoneRegion" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -949,6 +1056,115 @@
 
 
   
+    <article id="post-big-data-hive" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <hr>
+<p>title: Hadoop生态系统介绍-Hive<br>categories:</p>
+<ul>
+<li>大数据<br>tags:</li>
+<li>hive<br>date: 2017-01-13T11:56:44.000Z</li>
+</ul>
+<hr>
+<!-- toc -->
+<ul>
+<li><a href="#前言">前言</a></li>
+<li><a href="#工作原理">工作原理</a><ul>
+<li><a href="#特点">特点</a></li>
+<li><a href="#架构">架构</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h2><span id="前言">前言</span></h2><p>提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。</p>
+<ol>
+<li><a href="https://winway.github.io/2017/01/07/big-data-intro/">Hadoop生态系统介绍-概览</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-kerberos/">Hadoop生态系统介绍-Kerberos</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-zookeeper/">Hadoop生态系统介绍-Zookeeper</a></li>
+<li><a href="https://winway.github.io/2017/01/11/big-data-hdfs/">Hadoop生态系统介绍-HDFS</a></li>
+<li><a href="https://winway.github.io/2017/01/12/big-data-yarn/">Hadoop生态系统介绍-YARN</a></li>
+<li><a href="https://winway.github.io/2017/01/12/big-data-mapreduce/">Hadoop生态系统介绍-MapReduce</a></li>
+<li><strong><a href="https://winway.github.io/2017/01/13/big-data-hive/">Hadoop生态系统介绍-Hive</a></strong></li>
+<li><a href="https://winway.github.io/2017/01/13/big-data-pig/">Hadoop生态系统介绍-Pig</a></li>
+<li><a href="https://winway.github.io/2017/01/21/big-data-storm/">Hadoop生态系统介绍-Storm</a></li>
+<li><a href="https://winway.github.io/2017/01/26/big-data-hbase/">Hadoop生态系统介绍-Hbase</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-phoenix/">Hadoop生态系统介绍-Phoenix</a></li>
+</ol>
+<p>本文对数据仓库Hive的工作原理进行介绍。</p>
+<h2><span id="工作原理">工作原理</span></h2><h3><span id="特点">特点</span></h3><p>Hive是基于Hadoop的一个数据仓库工具，可以将结构化的数据文件映射为一张数据库表，并提供完整的sql查询功能，可以将sql语句转换为MapReduce任务进行运行。其优点是学习成本低，可以通过类SQL语句快速实现简单的MapReduce统计，不必开发专门的MapReduce应用，十分适合数据仓库的统计分析。</p>
+<p>Hive提供了一系列的工具，可以用来进行数据提取转化加载（ETL），这是一种可以存储、查询和分析存储在 Hadoop 中的大规模数据的机制。Hive 定义了简单的类 SQL 查询语言，称为 HQL，它允许熟悉 SQL 的用户查询数据。同时，这个语言也允许熟悉 MapReduce 的开发者开发自定义的 mapper 和 reducer 来处理内建的 mapper 和 reducer 无法完成的复杂的分析工作。</p>
+<h3><span id="架构">架构</span></h3><p>hadoop和mapreduce是hive架构的根基。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519094827.png" alt=""><br>Hive架构包括如下组件：</p>
+<ul>
+<li>CLI（command line interface）</li>
+<li>JDBC/ODBC</li>
+<li>Thrift Server</li>
+<li>WEB GUI</li>
+<li>Metastore</li>
+<li>Driver(Complier、Optimizer和Executor)</li>
+</ul>
+<p>这些组件可以分为两大类：服务端组件和客户端组件。</p>
+<p><strong>服务端组件</strong></p>
+<ul>
+<li>Driver组件：该组件包括Complier、Optimizer和Executor，它的作用是将我们写的HiveQL（类SQL）语句进行解析、编译优化，生成执行计划，然后调用底层的mapreduce计算框架。</li>
+<li>Metastore组件：元数据服务组件，这个组件存储hive的元数据，hive的元数据存储在关系数据库里，hive支持的关系数据库有derby、mysql。元数据对于hive十分重要，因此hive支持把metastore服务独立出来，安装到远程的服务器集群里，从而解耦hive服务和metastore服务，保证hive运行的健壮性。</li>
+<li>Thrift服务：thrift是facebook开发的一个软件框架，它用来进行可扩展且跨语言的服务的开发，hive集成了该服务，能让不同的编程语言调用hive的接口。</li>
+</ul>
+<p><strong>客户端组件</strong></p>
+<ul>
+<li>CLI：command line interface，命令行接口。</li>
+<li>Thrift客户端：上面的架构图里没有写上Thrift客户端，但是hive架构的许多客户端接口是建立在thrift客户端之上，包括JDBC和ODBC接口。</li>
+<li>WEBGUI：hive客户端提供了一种通过网页的方式访问hive所提供的服务。这个接口对应hive的hwi组件（hive web interface），使用前要启动hwi服务。</li>
+</ul>
+<p><strong>执行流程</strong><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519094921.png" alt=""></p>
+<ol>
+<li>客户使用不同的客户端组件提交HQL</li>
+<li>Hive完成HQL的解释、优化、生成查询计划</li>
+<li>查询计划被转化为MapReduce任务，在Hadoop中执行（有些查询没有MR任务，如：select * from table）</li>
+</ol>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2019/08/25/big-data-hive/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-ifx-api" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1267,239 +1483,6 @@
 
 
   
-    <article id="post-domain2ip" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2018/06/14/domain2ip/">如何获取一个域名对应的所有IP地址</a>
-    </h1>
-  
-
-        
-        <a href="/2018/06/14/domain2ip/" class="archive-article-date">
-  	<time datetime="2018-06-14T07:59:06.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-06-14</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#1-问题">1、问题</a></li>
-<li><a href="#2-思路">2、思路</a></li>
-<li><a href="#3-实现方案">3、实现方案</a><ul>
-<li><a href="#shell-dig版本">shell + dig版本</a></li>
-<li><a href="#shell-dig分布式版本">shell + dig分布式版本</a></li>
-<li><a href="#golang发包版本">golang发包版本</a></li>
-</ul>
-</li>
-</ul>
-<!-- tocstop -->
-<h1><span id="1-问题">1、问题</span></h1><p>给定一个域名，如何取得该域名对应的所有IP地址。</p>
-<h1><span id="2-思路">2、思路</span></h1><p>到全球所有DNS服务器上查询。但是我们很难得到全球所有的DNS服务器，所以只能尽量收集DNS服务器，解析出尽量多的IP地址。</p>
-<ul>
-<li>获取全球DNS服务器。可以通过<a href="https://public-dns.info/" target="_blank" rel="noopener">https://public-dns.info/</a>获得，虽然不敢保证是全球所有的，但是全球各个城市23000+的DNS服务器也差不多了</li>
-<li>针对每台DNS服务器发送DNS查询请求，获取IP地址信息</li>
-</ul>
-<h1><span id="3-实现方案">3、实现方案</span></h1><p><em>这里以解析某个域名的AAAA记录为例，代码：<a href="https://github.com/winway/domain2IP" target="_blank" rel="noopener">https://github.com/winway/domain2IP</a></em></p>
-<h2><span id="shell-dig版本">shell + dig版本</span></h2><p>Linux下有一个很强大的域名解析命令——dig。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"># dig -t AAAA +noquestion +noadditional +noauthority @207.234.132.214 www.who.int</span><br><span class="line"></span><br><span class="line">; &lt;&lt;&gt;&gt; DiG 9.9.4-RedHat-9.9.4-50.el7_3.1 &lt;&lt;&gt;&gt; -t AAAA +noquestion +noadditional +noauthority @207.234.132.214 www.who.int</span><br><span class="line">; (1 server found)</span><br><span class="line">;; global options: +cmd</span><br><span class="line">;; Got answer:</span><br><span class="line">;; -&gt;&gt;HEADER&lt;&lt;- opcode: QUERY, status: NOERROR, id: 2516</span><br><span class="line">;; flags: qr rd ra; QUERY: 1, ANSWER: 9, AUTHORITY: 0, ADDITIONAL: 1</span><br><span class="line"></span><br><span class="line">;; OPT PSEUDOSECTION:</span><br><span class="line">; EDNS: version: 0, flags:; udp: 1280</span><br><span class="line">;; ANSWER SECTION:</span><br><span class="line">www.who.int.            300     IN      CNAME   d334guqhelsxtv.cloudfront.net.</span><br><span class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:ca00:16:b115:d0c0:21</span><br><span class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:800:16:b115:d0c0:21</span><br><span class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:4e00:16:b115:d0c0:21</span><br><span class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:0:16:b115:d0c0:21</span><br><span class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:7400:16:b115:d0c0:21</span><br><span class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:2000:16:b115:d0c0:21</span><br><span class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:a000:16:b115:d0c0:21</span><br><span class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:b800:16:b115:d0c0:21</span><br><span class="line"></span><br><span class="line">;; Query time: 783 msec</span><br><span class="line">;; SERVER: 207.234.132.214#53(207.234.132.214)</span><br><span class="line">;; WHEN: Thu Jun 14 16:14:35 CST 2018</span><br><span class="line">;; MSG SIZE  rcvd: 307</span><br></pre></td></tr></table></figure></p>
-<p>我们直接使用dig命令实现域名解析，用shell并发的调用dig命令解析并聚合结果。这里为了防止负载过高，控制了一下并发度。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> cat getIP.sh</span><br><span class="line"><span class="meta">#</span>! /bin/bash</span><br><span class="line"><span class="meta">#</span></span><br><span class="line"></span><br><span class="line">CONFDIR=./conf/</span><br><span class="line">RESULTDIR=./result/</span><br><span class="line"></span><br><span class="line">if [[ $# -ne 1 ]]</span><br><span class="line">then</span><br><span class="line">    echo "Usage: sh $0 &lt;url&gt;"</span><br><span class="line">    exit</span><br><span class="line">fi</span><br><span class="line">url=$1</span><br><span class="line"></span><br><span class="line">nameservers=($(cat $&#123;CONFDIR&#125;/nameservers.txt | grep '[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*' | sort -u))</span><br><span class="line"></span><br><span class="line">N=300</span><br><span class="line"></span><br><span class="line">ts=$(date '+%s')</span><br><span class="line"></span><br><span class="line">for dns_server in $&#123;nameservers[*]&#125;</span><br><span class="line">do</span><br><span class="line">    &#123; dig -t AAAA +noquestion +noadditional +noauthority @$dns_server $url | awk '/IN[ \t]+AAAA/&#123;print $NF&#125;' &gt; /tmp/.$&#123;url&#125;.$&#123;ts&#125;.$&#123;dns_server&#125;.txt; echo "dig @$dns_server $url done"; &#125; &amp;</span><br><span class="line"></span><br><span class="line">    joblist=($(jobs -p))</span><br><span class="line">    while (( $&#123;#joblist[*]&#125; &gt; $N ))</span><br><span class="line">    do</span><br><span class="line">        echo "######## rest for a while ########"</span><br><span class="line">        sleep 0.1</span><br><span class="line">        joblist=($(jobs -p))</span><br><span class="line">    done</span><br><span class="line">done</span><br><span class="line"></span><br><span class="line">wait</span><br><span class="line"></span><br><span class="line">cat /tmp/.$&#123;url&#125;.$&#123;ts&#125;.*.txt | sort -u &gt;$&#123;RESULTDIR&#125;/$&#123;url&#125;.ip.txt</span><br><span class="line">find /tmp/ -name ".$&#123;url&#125;.$&#123;ts&#125;.*.txt" | xargs rm -f</span><br></pre></td></tr></table></figure></p>
-<p>运行情况如下，耗时4分多钟，解析出9000+IP地址<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"># time sh getIP.sh www.who.int</span><br><span class="line"></span><br><span class="line">real    4m10.336s</span><br><span class="line">user    4m12.732s</span><br><span class="line">sys     3m55.625s</span><br><span class="line"># wc -l result/www.who.int.ip.txt</span><br><span class="line">9862 result/www.who.int.ip.txt</span><br></pre></td></tr></table></figure></p>
-<h2><span id="shell-dig分布式版本">shell + dig分布式版本</span></h2><p>该版本是上个版本的分布式版本，核心功能相同，只是将DNS服务器列表切分为多份，分发到多台机器上同时处理，然后将结果取回合并。<br>该脚本负责切分任务、分发任务，收集结果<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> cat getIP_distributed.sh</span><br><span class="line"><span class="meta">#</span>! /bin/bash</span><br><span class="line"><span class="meta">#</span></span><br><span class="line"></span><br><span class="line">CONFDIR=./conf/</span><br><span class="line">RESULTDIR=./result/</span><br><span class="line">TMPDIR=./tmp/</span><br><span class="line"></span><br><span class="line">if [[ $# -ne 1 ]]</span><br><span class="line">then</span><br><span class="line">    echo "Usage: sh $0 &lt;url&gt;"</span><br><span class="line">    exit 1</span><br><span class="line">fi</span><br><span class="line">url=$1</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> get work node</span><br><span class="line">work_nodes=($(cat $&#123;CONFDIR&#125;/work_nodes.txt | grep '[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*' | sort -u))</span><br><span class="line">work_nodes_num=$&#123;#work_nodes[@]&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> split nameservers</span><br><span class="line">nameservers=($(cat $&#123;CONFDIR&#125;/nameservers.txt | grep '[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*' | sort -u))</span><br><span class="line">nameservers_num=$&#123;#nameservers[@]&#125;</span><br><span class="line">chunk=$(($nameservers_num/$work_nodes_num+1))</span><br><span class="line"></span><br><span class="line">work_node_index=0</span><br><span class="line">counter=1</span><br><span class="line">: &gt; $&#123;TMPDIR&#125;/$&#123;work_nodes[$work_node_index]&#125;_nameservers.txt</span><br><span class="line">for nameserver in $&#123;nameservers[@]&#125;</span><br><span class="line">do</span><br><span class="line">    if (($counter &gt; $chunk))</span><br><span class="line">    then</span><br><span class="line">        ((work_node_index++))</span><br><span class="line">        counter=1</span><br><span class="line">        : &gt; $&#123;TMPDIR&#125;/$&#123;work_nodes[$work_node_index]&#125;_nameservers.txt</span><br><span class="line">    fi</span><br><span class="line">    echo "$nameserver" &gt;&gt; $&#123;TMPDIR&#125;/$&#123;work_nodes[$work_node_index]&#125;_nameservers.txt</span><br><span class="line">    ((counter++))</span><br><span class="line">done</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> distribute and run</span><br><span class="line">for node in $&#123;work_nodes[@]&#125;</span><br><span class="line">do</span><br><span class="line">    echo "$node, count: $(wc -l $&#123;TMPDIR&#125;/$&#123;node&#125;_nameservers.txt)"</span><br><span class="line">    &#123; scp job.sh $&#123;TMPDIR&#125;/$&#123;node&#125;_nameservers.txt $node:/tmp/ &amp;&amp; ssh $node "sh /tmp/job.sh $node $url" &amp;&amp; scp $node:/tmp/$&#123;node&#125;_ip.txt $TMPDIR &amp;&amp; echo "[$(date)] $node done"; &#125; &amp;</span><br><span class="line">done</span><br><span class="line"></span><br><span class="line">wait</span><br><span class="line"></span><br><span class="line">for node in $&#123;work_nodes[@]&#125;</span><br><span class="line">do</span><br><span class="line">    cat $TMPDIR/$&#123;node&#125;_ip.txt &gt;&gt; $TMPDIR/$&#123;url&#125;_ip.txt</span><br><span class="line">done</span><br><span class="line"></span><br><span class="line">sort -u $TMPDIR/$&#123;url&#125;_ip.txt &gt;$&#123;RESULTDIR&#125;/$&#123;url&#125;_ip.txt</span><br></pre></td></tr></table></figure></p>
-<p>该脚本负责解析，与方案1几乎一样。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> cat job.sh</span><br><span class="line"><span class="meta">#</span>! /bin/bash</span><br><span class="line"><span class="meta">#</span></span><br><span class="line"></span><br><span class="line">SCRIPT=$(readlink -f "$BASH_SOURCE")</span><br><span class="line"></span><br><span class="line">cd $(dirname $SCRIPT) || &#123; echo "cd $(dirname $SCRIPT) failed"; exit 1; &#125;</span><br><span class="line"></span><br><span class="line">node=$1</span><br><span class="line">url=$2</span><br><span class="line"></span><br><span class="line">nameservers=($(cat $&#123;node&#125;_nameservers.txt | grep '[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*' | sort -u))</span><br><span class="line"></span><br><span class="line">N=300</span><br><span class="line"></span><br><span class="line">ts=$(date '+%s')</span><br><span class="line"></span><br><span class="line">for nameserver in $&#123;nameservers[*]&#125;</span><br><span class="line">do</span><br><span class="line">    &#123; dig -t AAAA +noquestion +noadditional +noauthority @$nameserver $url | awk '/IN[ \t]+AAAA/&#123;print $NF&#125;' &gt; /tmp/.$&#123;url&#125;.$&#123;ts&#125;.$&#123;nameserver&#125;.txt; &#125; &amp;</span><br><span class="line"></span><br><span class="line">    joblist=($(jobs -p))</span><br><span class="line">    while (( $&#123;#joblist[*]&#125; &gt; $N ))</span><br><span class="line">    do</span><br><span class="line">        echo "######## rest for a while ########"</span><br><span class="line">        sleep 0.1</span><br><span class="line">        joblist=($(jobs -p))</span><br><span class="line">    done</span><br><span class="line">done</span><br><span class="line"></span><br><span class="line">wait</span><br><span class="line"></span><br><span class="line">cat /tmp/.$&#123;url&#125;.$&#123;ts&#125;.*.txt | sort -u &gt;$&#123;node&#125;_ip.txt</span><br><span class="line">find /tmp/ -name ".$&#123;url&#125;.*.txt" | xargs rm -f</span><br></pre></td></tr></table></figure></p>
-<p>运行情况如下，同时在3台机器上执行，耗时1分多钟，解析出9000+IP地址<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"># time sh getIP_distributed.sh www.who.int</span><br><span class="line"></span><br><span class="line">real    1m43.125s</span><br><span class="line">user    0m1.060s</span><br><span class="line">sys     0m0.201s</span><br><span class="line"></span><br><span class="line"># wc -l result/www.who.int.ip.txt</span><br><span class="line">9861 result/www.who.int_ip.txt</span><br></pre></td></tr></table></figure></p>
-<p><em>上述两个版本由于使用的是纯多进程dig方式，很难达到一个好的性能。因为单个进程资源占用太大，大量的进程又会频繁上下文切换。理想的方式是多进程加协程方式，这样就无法直接使用dig了，需要一个基于异步io的DNS解析实现。</em></p>
-<h2><span id="golang发包版本">golang发包版本</span></h2><p>该版本直接构造并发送DNS查询请求包，并捕包分析DNS查询应答包。<br>最初我是使用python实现的该版本，但是性能实在太差，单机耗时在1分钟左右，然后使用golang重写了一遍。<br>代码：<a href="https://github.com/winway/domain2IP/blob/master/getIP.go" target="_blank" rel="noopener">https://github.com/winway/domain2IP/blob/master/getIP.go</a><br>运行情况如下，单机耗时20秒。细心的读者会发现，这里解析出的IP比上述方案解析出的少，由于机器配置太低，存在些许丢包导致。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"># time go run getIP.go --url www.who.int</span><br><span class="line">2018/06/14 16:56:25 Start to dig url: www.who.int</span><br><span class="line">2018/06/14 16:56:25 Start capturePacket</span><br><span class="line">2018/06/14 16:56:25 Load 23298 nameserver</span><br><span class="line">2018/06/14 16:56:25 Start sendPacket</span><br><span class="line">2018/06/14 16:56:25 Set filter: udp and src port 53</span><br><span class="line">2018/06/14 16:56:39 Complete sendPacket</span><br><span class="line">2018/06/14 16:56:40 Waiting ...</span><br><span class="line">2018/06/14 16:56:41 Waiting ...</span><br><span class="line">2018/06/14 16:56:44 Get 9204 ip for www.who.int</span><br><span class="line"></span><br><span class="line">real    0m19.643s</span><br><span class="line">user    0m1.269s</span><br><span class="line">sys     0m0.469s</span><br></pre></td></tr></table></figure></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">shell</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">golang</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2018/06/14/domain2ip/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-kaggle-intro" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2018/06/03/kaggle-intro/">kaggle快速上手指南</a>
-    </h1>
-  
-
-        
-        <a href="/2018/06/03/kaggle-intro/" class="archive-article-date">
-  	<time datetime="2018-06-03T07:13:03.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-06-03</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#1-简介">1. 简介</a></li>
-<li><a href="#2-注册">2. 注册</a></li>
-<li><a href="#3-竞赛">3. 竞赛</a><ul>
-<li><a href="#kaggle竞赛分类">Kaggle竞赛分类</a></li>
-<li><a href="#kaggle竞赛排名机制">Kaggle竞赛排名机制</a></li>
-<li><a href="#kaggle竞赛价值">Kaggle竞赛价值</a></li>
-</ul>
-</li>
-<li><a href="#kernel">kernel</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<h1><span id="1-简介">1. 简介</span></h1><p><a href="https://www.kaggle.com/" target="_blank" rel="noopener">Kaggle</a>是一个数据建模和数据分析竞赛平台。企业和研究者可在其上发布数据，统计学者和数据挖掘专家可在其上进行竞赛以产生最好的模型。这一众包模式依赖于这一事实，即有众多策略可以用于解决几乎所有预测建模的问题，而研究者不可能在一开始就了解什么方法对于特定问题是最为有效的。Kaggle的目标则是试图通过众包的形式来解决这一难题，进而使数据科学成为一场运动。2017年3月8日谷歌官方博客宣布收购Kaggle。</p>
-<h1><span id="2-注册">2. 注册</span></h1><p>首先注册一个kaggle账号。如果你有Facebook、Google、Yahoo账号，可以直接登录，否则请注册。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/kaggle-signin.png" alt=""></p>
-<h1><span id="3-竞赛">3. 竞赛</span></h1><h2><span id="kaggle竞赛分类">Kaggle竞赛分类</span></h2><p>竞赛种类包括：</p>
-<ul>
-<li>推荐比赛Featured：瞄准商业问题带有奖金的公开竞赛。如果有幸赢得比赛，不但可以获得奖金，模型也可能会被竞赛赞助商应用到商业实践中呢。</li>
-<li>人才征募Recruitment：赞助企业寻求数据科学家、算法设计人才的渠道。只允许个人参赛，不接受团队报名。</li>
-<li>研究型Research：机器学习前沿技术或者公益性质的题目。竞赛奖励可能是现金，也有一部分以会议邀请、发表论文的形式奖励。</li>
-<li>游乐场Playground：以有趣为主，比如猫狗照片分类的问题。现在这个分类下的题目不算多，但是热度很高。</li>
-<li>入门比赛Getting Started：给萌新们一个试水的机会，没有奖金，但有非常多的前辈经验可供学习。</li>
-<li>课业比赛In Class：学校教授机器学习的老师留作业的地方，这里的竞赛有些会向public开放参赛，也有些仅仅是学校内部教学使用。</li>
-</ul>
-<p>除此以外，还有大师邀请赛Master、前沿探索型Kaggle Prospect等非公开的竞赛，这里不做介绍了。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/kaggle-competition.png" alt=""></p>
-<h2><span id="kaggle竞赛排名机制">Kaggle竞赛排名机制</span></h2><p>了解Kaggle的排名机制也会对取得好成绩有所帮助。在比赛结束之前，参赛者每天最多可以提交5次测试集的预测结果。每一次提交结果都会获得最新的临时排名成绩，直至比赛结束获得最终排名。在比赛过程中，Kaggle将参赛者每次提交的结果取出25%-33%，并依照准确率进行临时排名。在比赛结束时，参赛者可以指定几个已经提交的结果，Kaggle从中去除之前用于临时排名的部分，用剩余数据的准确率综合得到最终排名。所以，比赛过程中用于最终排名的那部分数据，参赛者是始终得不到关于准确率的反馈的。这样一定程度避免参赛模型的过拟合，保证评选出兼顾准确率和泛化能力的模型。</p>
-<h2><span id="kaggle竞赛价值">Kaggle竞赛价值</span></h2><p>Kaggle作为Data Science业内享有盛名的平台，在业界拥有极高的认可度。所以如果你是想寻找相关行业的工作，那一个漂亮的Kaggle profile将为你的简历增色不少。Quora上的这个问题：<a href="https://link.zhihu.com/?target=https%3A//www.quora.com/How-can-we-use-kaggle" target="_blank" rel="noopener">How can we use Kaggle?</a>就提到，把Kaggle的项目经验写在Linkedin上可以很直观的展现自己作为一个Data Scientist的能力。</p>
-<h1><span id="kernel">kernel</span></h1><p>kernel是kaggle的核心，提供了数据分析所需的环境、数据集、代码和输出样式（比如Python Notebook），将这些功能聚合在一起可以使得Kernels可以很方便的复现和分享。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/kaggle-kernel1.png" alt=""><br>kernel包括两种格式，script和notebook<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/kaggle-kernel2.png" alt=""><br>kernel凝聚了所有的解题心路历程、代码，可以通过学习排名靠前的kernel，学习大神的经验。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/kaggle-kernel3.png" alt=""><br>kernel同时又是一个交互式的python开发环境，默认集成了常见的科学计算和机器学习库，如np、pd、sns、matplotlib、scipy、sklearn等，并自带训练和测试数据集，十分方便，堪称神器。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/kaggle-kernel4.png" alt=""></p>
-<h1><span id="参考资料">参考资料</span></h1><ul>
-<li><a href="https://zh.wikipedia.org/wiki/Kaggle" target="_blank" rel="noopener">https://zh.wikipedia.org/wiki/Kaggle</a></li>
-<li><a href="https://blog.csdn.net/colouroo/article/details/53730011" target="_blank" rel="noopener">https://blog.csdn.net/colouroo/article/details/53730011</a></li>
-<li><a href="https://zhuanlan.zhihu.com/p/25686876" target="_blank" rel="noopener">https://zhuanlan.zhihu.com/p/25686876</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">kaggle</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/其他/" class="article-tag-list-link color3">其他</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2018/06/03/kaggle-intro/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/3/">&laquo; Prev</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><a class="page-number" href="/page/6/">6</a><span class="space">&hellip;</span><a class="page-number" href="/page/11/">11</a><a class="extend next" rel="next" href="/page/5/">Next &raquo;</a>
@@ -1607,14 +1590,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">shell</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">监控</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
@@ -1623,15 +1598,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hive</a>
+                <a href="javascript:void(0)" class="js-tag color1">shell</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+                <a href="javascript:void(0)" class="js-tag color3">监控</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">pig</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1656,6 +1635,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">hive</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1723,15 +1706,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">tez</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">gc</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1815,11 +1798,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">

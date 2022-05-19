@@ -155,6 +155,226 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-salt-minion-AsyncEventPublisher" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/08/26/salt-minion-AsyncEventPublisher/">saltstack源码解析之minion.AsyncEventPublisher</a>
+    </h1>
+  
+
+        
+        <a href="/2017/08/26/salt-minion-AsyncEventPublisher/" class="archive-article-date">
+  	<time datetime="2017-08-26T03:33:39.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-26</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p><em>ENV: Version: 2016.11.0, Transport: tcp, Multi-Master</em></p>
+<!-- toc -->
+<ul>
+<li><a href="#1-架构图">1. 架构图</a></li>
+<li><a href="#2-类图和重要方法说明">2. 类图和重要方法说明</a></li>
+<li><a href="#3-源码解析">3. 源码解析</a><ul>
+<li><a href="#ipcmessagepublisher">IPCMessagePublisher</a></li>
+<li><a href="#ipcmessageserver">IPCMessageServer</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h1><span id="1-架构图">1. 架构图</span></h1><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/minion.AsyncEventPublisher-arch.png" alt="minion.AsyncEventPublisher-arch"></p>
+<h1><span id="2-类图和重要方法说明">2. 类图和重要方法说明</span></h1><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/minion.AsyncEventPublisher-cls1.png" alt="minion.AsyncEventPublisher-cls1"></p>
+<p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/minion.AsyncEventPublisher-cls2.png" alt="minion.AsyncEventPublisher-cls2"></p>
+<p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/minion.AsyncEventPublisher-cls3.png" alt="minion.AsyncEventPublisher-cls3"></p>
+<h1><span id="3-源码解析">3. 源码解析</span></h1><p>代码入口<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/minion.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">_bind</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="comment"># start up the event publisher, so we can see events during startup</span></span><br><span class="line">        self.event_publisher = salt.utils.event.AsyncEventPublisher(</span><br><span class="line">            self.opts,</span><br><span class="line">            io_loop=self.io_loop,</span><br><span class="line">        )</span><br><span class="line">        self.event = salt.utils.event.get_event(<span class="string">'minion'</span>, opts=self.opts, io_loop=self.io_loop)</span><br><span class="line">        self.event.subscribe(<span class="string">''</span>)</span><br><span class="line">        self.event.set_event_handler(self.handle_event)</span><br></pre></td></tr></table></figure></p>
+<p>在salt.minion.MinionManager的_bind方法中创建AsyncEventPublisher<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/utils/event.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">AsyncEventPublisher</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    An event publisher class intended to run in an ioloop (within a single process)</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    TODO: remove references to "minion_event" whenever we need to use this for other things</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, opts, io_loop=None)</span>:</span></span><br><span class="line">        self.opts = salt.config.DEFAULT_MINION_OPTS.copy()</span><br><span class="line">        default_minion_sock_dir = self.opts[<span class="string">'sock_dir'</span>]</span><br><span class="line">        self.opts.update(opts)</span><br><span class="line"></span><br><span class="line">        self.io_loop = io_loop <span class="keyword">or</span> tornado.ioloop.IOLoop.current()</span><br><span class="line">        self._closing = <span class="keyword">False</span></span><br><span class="line"></span><br><span class="line">        hash_type = getattr(hashlib, self.opts[<span class="string">'hash_type'</span>])</span><br><span class="line">        <span class="comment"># Only use the first 10 chars to keep longer hashes from exceeding the</span></span><br><span class="line">        <span class="comment"># max socket path length.</span></span><br><span class="line">        id_hash = hash_type(salt.utils.to_bytes(self.opts[<span class="string">'id'</span>])).hexdigest()[:<span class="number">10</span>]</span><br><span class="line">        epub_sock_path = os.path.join(</span><br><span class="line">            self.opts[<span class="string">'sock_dir'</span>],</span><br><span class="line">            <span class="string">'minion_event_&#123;0&#125;_pub.ipc'</span>.format(id_hash)</span><br><span class="line">        )</span><br><span class="line">        <span class="keyword">if</span> os.path.exists(epub_sock_path):</span><br><span class="line">            os.unlink(epub_sock_path)</span><br><span class="line">        epull_sock_path = os.path.join(</span><br><span class="line">            self.opts[<span class="string">'sock_dir'</span>],</span><br><span class="line">            <span class="string">'minion_event_&#123;0&#125;_pull.ipc'</span>.format(id_hash)</span><br><span class="line">        )</span><br><span class="line">        <span class="keyword">if</span> os.path.exists(epull_sock_path):</span><br><span class="line">            os.unlink(epull_sock_path)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> self.opts[<span class="string">'ipc_mode'</span>] == <span class="string">'tcp'</span>:</span><br><span class="line">            epub_uri = int(self.opts[<span class="string">'tcp_pub_port'</span>])</span><br><span class="line">            epull_uri = int(self.opts[<span class="string">'tcp_pull_port'</span>])</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            epub_uri = epub_sock_path</span><br><span class="line">            epull_uri = epull_sock_path</span><br><span class="line"></span><br><span class="line">        log.debug(</span><br><span class="line">            <span class="string">'&#123;0&#125; PUB socket URI: &#123;1&#125;'</span>.format(</span><br><span class="line">                self.__class__.__name__, epub_uri</span><br><span class="line">            )</span><br><span class="line">        )</span><br><span class="line">        log.debug(</span><br><span class="line">            <span class="string">'&#123;0&#125; PULL socket URI: &#123;1&#125;'</span>.format(</span><br><span class="line">                self.__class__.__name__, epull_uri</span><br><span class="line">            )</span><br><span class="line">        )</span><br><span class="line"></span><br><span class="line">        minion_sock_dir = self.opts[<span class="string">'sock_dir'</span>]</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> os.path.isdir(minion_sock_dir):</span><br><span class="line">            <span class="comment"># Let's try to create the directory defined on the configuration</span></span><br><span class="line">            <span class="comment"># file</span></span><br><span class="line">            <span class="keyword">try</span>:</span><br><span class="line">                os.makedirs(minion_sock_dir, <span class="number">0o755</span>)</span><br><span class="line">            <span class="keyword">except</span> OSError <span class="keyword">as</span> exc:</span><br><span class="line">                log.error(<span class="string">'Could not create SOCK_DIR: &#123;0&#125;'</span>.format(exc))</span><br><span class="line">                <span class="comment"># Let's not fail yet and try using the default path</span></span><br><span class="line">                <span class="keyword">if</span> minion_sock_dir == default_minion_sock_dir:</span><br><span class="line">                    <span class="comment"># We're already trying the default system path, stop now!</span></span><br><span class="line">                    <span class="keyword">raise</span></span><br><span class="line"></span><br><span class="line">                <span class="keyword">if</span> <span class="keyword">not</span> os.path.isdir(default_minion_sock_dir):</span><br><span class="line">                    <span class="keyword">try</span>:</span><br><span class="line">                        os.makedirs(default_minion_sock_dir, <span class="number">0o755</span>)</span><br><span class="line">                    <span class="keyword">except</span> OSError <span class="keyword">as</span> exc:</span><br><span class="line">                        log.error(<span class="string">'Could not create SOCK_DIR: &#123;0&#125;'</span>.format(exc))</span><br><span class="line">                        <span class="comment"># Let's stop at this stage</span></span><br><span class="line">                        <span class="keyword">raise</span></span><br><span class="line"></span><br><span class="line">        self.publisher = salt.transport.ipc.IPCMessagePublisher(</span><br><span class="line">            self.opts,</span><br><span class="line">            epub_uri,</span><br><span class="line">            io_loop=self.io_loop</span><br><span class="line">        )</span><br><span class="line"></span><br><span class="line">        self.puller = salt.transport.ipc.IPCMessageServer(</span><br><span class="line">            epull_uri,</span><br><span class="line">            io_loop=self.io_loop,</span><br><span class="line">            payload_handler=self.handle_publish</span><br><span class="line">        )</span><br><span class="line"></span><br><span class="line">        log.info(<span class="string">'Starting pull socket on &#123;0&#125;'</span>.format(epull_uri))</span><br><span class="line">        old_umask = os.umask(<span class="number">0o177</span>)</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            self.publisher.start()</span><br><span class="line">            self.puller.start()</span><br><span class="line">        <span class="keyword">finally</span>:</span><br><span class="line">            os.umask(old_umask)</span><br></pre></td></tr></table></figure></p>
+<p>在salt.utils.event.AsyncEventPublisher的__init__中，首先使用hash(minion id)生成epub_uri和epull_uri（主要考虑到在单台机器上部署多个minion的情况，可以参考：<a href="https://groups.google.com/forum/#!topic/salt-users/FOz8mYO3sJo" target="_blank" rel="noopener">https://groups.google.com/forum/#!topic/salt-users/FOz8mYO3sJo</a> ），然后创建self.publisher（salt.transport.ipc.IPCMessagePublisher）绑定epub_uri，创建self.puller（salt.transport.ipc.IPCMessageServer）绑定epull_uri，并将handle_publish作为它的payload_handler，最后分别调用self.publisher和self.puller的start方法<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/utils/event.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">handle_publish</span><span class="params">(self, package, _)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Get something from epull, publish it out epub, and return the package (or None)</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            self.publisher.publish(package)</span><br><span class="line">            <span class="keyword">return</span> package</span><br><span class="line">        <span class="comment"># Add an extra fallback in case a forked process leeks through</span></span><br><span class="line">        <span class="keyword">except</span> Exception:</span><br><span class="line">            log.critical(<span class="string">'Unexpected error while polling minion events'</span>,</span><br><span class="line">                         exc_info=<span class="keyword">True</span>)</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">None</span></span><br></pre></td></tr></table></figure></p>
+<p>salt.utils.event.AsyncEventPublisher的handle_publish方法再调用salt.transport.ipc.IPCMessagePublisher的publish方法，用来将信息分发给所有监听在epub_uri上的订阅者</p>
+<p>接下来分别看一下IPCMessagePublisher和IPCMessageServer</p>
+<h2><span id="ipcmessagepublisher">IPCMessagePublisher</span></h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/ipc.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">start</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Perform the work necessary to start up a Tornado IPC server</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        Blocks until socket is established</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="comment"># Start up the ioloop</span></span><br><span class="line">        log.trace(<span class="string">'IPCMessagePublisher: binding to socket: &#123;0&#125;'</span>.format(self.socket_path))</span><br><span class="line">        <span class="keyword">if</span> isinstance(self.socket_path, int):</span><br><span class="line">            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)</span><br><span class="line">            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, <span class="number">1</span>)</span><br><span class="line">            self.sock.setblocking(<span class="number">0</span>)</span><br><span class="line">            self.sock.bind((<span class="string">'127.0.0.1'</span>, self.socket_path))</span><br><span class="line">            <span class="comment"># Based on default used in tornado.netutil.bind_sockets()</span></span><br><span class="line">            self.sock.listen(<span class="number">128</span>)</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            self.sock = tornado.netutil.bind_unix_socket(self.socket_path)</span><br><span class="line"></span><br><span class="line">        tornado.netutil.add_accept_handler(</span><br><span class="line">            self.sock,</span><br><span class="line">            self.handle_connection,</span><br><span class="line">            io_loop=self.io_loop,</span><br><span class="line">        )</span><br><span class="line">        self._started = <span class="keyword">True</span></span><br></pre></td></tr></table></figure>
+<p>首先调用的是其start方法，绑定epub_uri并调用add_accept_handler注册handle_connection<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/ipc.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">handle_connection</span><span class="params">(self, connection, address)</span>:</span></span><br><span class="line">        log.trace(<span class="string">'IPCServer: Handling connection to address: &#123;0&#125;'</span>.format(address))</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            <span class="keyword">if</span> self.opts[<span class="string">'ipc_write_buffer'</span>] &gt; <span class="number">0</span>:</span><br><span class="line">                log.trace(<span class="string">'Setting IPC connection write buffer: &#123;0&#125;'</span>.format((self.opts[<span class="string">'ipc_write_buffer'</span>])))</span><br><span class="line">                stream = IOStream(</span><br><span class="line">                    connection,</span><br><span class="line">                    io_loop=self.io_loop,</span><br><span class="line">                    max_write_buffer_size=self.opts[<span class="string">'ipc_write_buffer'</span>]</span><br><span class="line">                )</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                stream = IOStream(</span><br><span class="line">                    connection,</span><br><span class="line">                    io_loop=self.io_loop</span><br><span class="line">                )</span><br><span class="line">            self.streams.add(stream)</span><br><span class="line">        <span class="keyword">except</span> Exception <span class="keyword">as</span> exc:</span><br><span class="line">            log.error(<span class="string">'IPC streaming error: &#123;0&#125;'</span>.format(exc))</span><br></pre></td></tr></table></figure></p>
+<p>handle_connection将接收到的连接封装成IOStream，并添加到self.streams，以此维护Pub-Sub关系<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/ipc.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">publish</span><span class="params">(self, msg)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Send message to all connected sockets</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> len(self.streams):</span><br><span class="line">            <span class="keyword">return</span></span><br><span class="line"></span><br><span class="line">        pack = salt.transport.frame.frame_msg_ipc(msg, raw_body=<span class="keyword">True</span>)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> stream <span class="keyword">in</span> self.streams:</span><br><span class="line">            self.io_loop.spawn_callback(self._write, stream, pack)</span><br></pre></td></tr></table></figure></p>
+<p>而publish就是借助这个Pub-Sub关系，进行消息的分发</p>
+<h2><span id="ipcmessageserver">IPCMessageServer</span></h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/ipc.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">IPCMessageServer</span><span class="params">(IPCServer)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    Salt IPC message server</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    Creates a message server which can create and bind to a socket on a given</span></span><br><span class="line"><span class="string">    path and then respond to messages asynchronously.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    An example of a very simple IPCServer which prints received messages to</span></span><br><span class="line"><span class="string">    a console:</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        # Import Tornado libs</span></span><br><span class="line"><span class="string">        import tornado.ioloop</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        # Import Salt libs</span></span><br><span class="line"><span class="string">        import salt.transport.ipc</span></span><br><span class="line"><span class="string">        import salt.config</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        opts = salt.config.master_opts()</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        io_loop = tornado.ioloop.IOLoop.current()</span></span><br><span class="line"><span class="string">        ipc_server_socket_path = '/var/run/ipc_server.ipc'</span></span><br><span class="line"><span class="string">        ipc_server = salt.transport.ipc.IPCMessageServer(opts, io_loop=io_loop</span></span><br><span class="line"><span class="string">                                                         stream_handler=print_to_console)</span></span><br><span class="line"><span class="string">        # Bind to the socket and prepare to run</span></span><br><span class="line"><span class="string">        ipc_server.start(ipc_server_socket_path)</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        # Start the server</span></span><br><span class="line"><span class="string">        io_loop.start()</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        # This callback is run whenever a message is received</span></span><br><span class="line"><span class="string">        def print_to_console(payload):</span></span><br><span class="line"><span class="string">            print(payload)</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    See IPCMessageClient() for an example of sending messages to an IPCMessageServer instance</span></span><br><span class="line"><span class="string">    '''</span></span><br></pre></td></tr></table></figure>
+<p>IPCMessageServer直接继承了IPCServer<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/ipc.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">start</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Perform the work necessary to start up a Tornado IPC server</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        Blocks until socket is established</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="comment"># Start up the ioloop</span></span><br><span class="line">        log.trace(<span class="string">'IPCServer: binding to socket: &#123;0&#125;'</span>.format(self.socket_path))</span><br><span class="line">        <span class="keyword">if</span> isinstance(self.socket_path, int):</span><br><span class="line">            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)</span><br><span class="line">            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, <span class="number">1</span>)</span><br><span class="line">            self.sock.setblocking(<span class="number">0</span>)</span><br><span class="line">            self.sock.bind((<span class="string">'127.0.0.1'</span>, self.socket_path))</span><br><span class="line">            <span class="comment"># Based on default used in tornado.netutil.bind_sockets()</span></span><br><span class="line">            self.sock.listen(<span class="number">128</span>)</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            self.sock = tornado.netutil.bind_unix_socket(self.socket_path)</span><br><span class="line"></span><br><span class="line">        tornado.netutil.add_accept_handler(</span><br><span class="line">            self.sock,</span><br><span class="line">            self.handle_connection,</span><br><span class="line">            io_loop=self.io_loop,</span><br><span class="line">        )</span><br><span class="line">        self._started = <span class="keyword">True</span></span><br></pre></td></tr></table></figure></p>
+<p>直接看start方法。绑定epull_uri并调用add_accept_handler注册handle_connection<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/ipc.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">handle_connection</span><span class="params">(self, connection, address)</span>:</span></span><br><span class="line">        log.trace(<span class="string">'IPCServer: Handling connection to address: &#123;0&#125;'</span>.format(address))</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            stream = IOStream(</span><br><span class="line">                connection,</span><br><span class="line">                io_loop=self.io_loop,</span><br><span class="line">            )</span><br><span class="line">            self.io_loop.spawn_callback(self.handle_stream, stream)</span><br><span class="line">        <span class="keyword">except</span> Exception <span class="keyword">as</span> exc:</span><br><span class="line">            log.error(<span class="string">'IPC streaming error: &#123;0&#125;'</span>.format(exc))</span><br></pre></td></tr></table></figure></p>
+<p>handle_connection在接收到请求后，调用io_loop.spawn_callback注册回调函数handle_stream<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/ipc.py</span></span><br><span class="line"><span class="meta">    @tornado.gen.coroutine</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">handle_stream</span><span class="params">(self, stream)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Override this to handle the streams as they arrive</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        :param IOStream stream: An IOStream for processing</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        See https://tornado.readthedocs.io/en/latest/iostream.html#tornado.iostream.IOStream</span></span><br><span class="line"><span class="string">        for additional details.</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line"><span class="meta">        @tornado.gen.coroutine</span></span><br><span class="line">        <span class="function"><span class="keyword">def</span> <span class="title">_null</span><span class="params">(msg)</span>:</span></span><br><span class="line">            <span class="keyword">raise</span> tornado.gen.Return(<span class="keyword">None</span>)</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">def</span> <span class="title">write_callback</span><span class="params">(stream, header)</span>:</span></span><br><span class="line">            <span class="keyword">if</span> header.get(<span class="string">'mid'</span>):</span><br><span class="line"><span class="meta">                @tornado.gen.coroutine</span></span><br><span class="line">                <span class="function"><span class="keyword">def</span> <span class="title">return_message</span><span class="params">(msg)</span>:</span></span><br><span class="line">                    pack = salt.transport.frame.frame_msg_ipc(</span><br><span class="line">                        msg,</span><br><span class="line">                        header=&#123;<span class="string">'mid'</span>: header[<span class="string">'mid'</span>]&#125;,</span><br><span class="line">                        raw_body=<span class="keyword">True</span>,</span><br><span class="line">                    )</span><br><span class="line">                    <span class="keyword">yield</span> stream.write(pack)</span><br><span class="line">                <span class="keyword">return</span> return_message</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="keyword">return</span> _null</span><br><span class="line">        <span class="keyword">if</span> six.PY2:</span><br><span class="line">            encoding = <span class="keyword">None</span></span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            encoding = <span class="string">'utf-8'</span></span><br><span class="line">        unpacker = msgpack.Unpacker(encoding=encoding)</span><br><span class="line">        <span class="keyword">while</span> <span class="keyword">not</span> stream.closed():</span><br><span class="line">            <span class="keyword">try</span>:</span><br><span class="line">                wire_bytes = <span class="keyword">yield</span> stream.read_bytes(<span class="number">4096</span>, partial=<span class="keyword">True</span>)</span><br><span class="line">                unpacker.feed(wire_bytes)</span><br><span class="line">                <span class="keyword">for</span> framed_msg <span class="keyword">in</span> unpacker:</span><br><span class="line">                    body = framed_msg[<span class="string">'body'</span>]</span><br><span class="line">                    self.io_loop.spawn_callback(self.payload_handler, body, write_callback(stream, framed_msg[<span class="string">'head'</span>]))</span><br><span class="line">            <span class="keyword">except</span> tornado.iostream.StreamClosedError:</span><br><span class="line">                log.trace(<span class="string">'Client disconnected from IPC &#123;0&#125;'</span>.format(self.socket_path))</span><br><span class="line">                <span class="keyword">break</span></span><br><span class="line">            <span class="keyword">except</span> Exception <span class="keyword">as</span> exc:</span><br><span class="line">                log.error(<span class="string">'Exception occurred while handling stream: &#123;0&#125;'</span>.format(exc))</span><br></pre></td></tr></table></figure></p>
+<p>handle_stream读取客户端发来的信息，并调用payload_handler，即AsyncEventPublisher.handle_publish，将信息分发出去</p>
+<blockquote>
+<p>至此，AsyncEventPublisher分析完毕<br>其实IPCMessagePublisher和IPCMessageServer直接复用了master.EventPublisher中用到的Publisher和Server，可以参考<a href="https://winway.github.io/2017/08/03/salt-master-eventpublisher/">saltstack源码解析之master.EventPublisher</a></p>
+</blockquote>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">saltstack</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/08/26/salt-minion-AsyncEventPublisher/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-salt-minion-option-parser" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/08/11/salt-minion-option-parser/">saltstack源码解析之minion选项解析-MinionOptionParser</a>
+    </h1>
+  
+
+        
+        <a href="/2017/08/11/salt-minion-option-parser/" class="archive-article-date">
+  	<time datetime="2017-08-11T07:47:44.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-11</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p><em>ENV: Version: 2016.11.0, Transport: tcp, Multi-Master</em></p>
+<!-- toc -->
+<ul>
+<li><a href="#1-类图和重要方法说明">1. 类图和重要方法说明</a></li>
+<li><a href="#2-源码解析">2. 源码解析</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="1-类图和重要方法说明">1. 类图和重要方法说明</span></h2><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-minion-optparser-class.png" alt="salt-minion-optparser-class"><br>minion的选项解析与master很相似，除了增加了自动重启机制，MinionOptionParser直接继承了MasterOptionParser，请先阅读<a href="https://winway.github.io/2017/07/18/salt-master-option-parser">master选项解析</a></p>
+<h2><span id="2-源码解析">2. 源码解析</span></h2><p>入口函数在<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/scripts.py</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">salt_minion</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    Start the salt minion in a subprocess.</span></span><br><span class="line"><span class="string">    Auto restart minion on error.</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    <span class="keyword">import</span> signal</span><br><span class="line"></span><br><span class="line">    <span class="keyword">import</span> salt.utils.process</span><br><span class="line">    salt.utils.process.notify_systemd()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">import</span> salt.cli.daemons</span><br><span class="line">    <span class="keyword">import</span> multiprocessing</span><br><span class="line">    <span class="keyword">if</span> <span class="string">''</span> <span class="keyword">in</span> sys.path:</span><br><span class="line">        sys.path.remove(<span class="string">''</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> salt.utils.is_windows():</span><br><span class="line">        minion = salt.cli.daemons.Minion()</span><br><span class="line">        minion.start()</span><br><span class="line">        <span class="keyword">return</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> <span class="string">'--disable-keepalive'</span> <span class="keyword">in</span> sys.argv:</span><br><span class="line">        sys.argv.remove(<span class="string">'--disable-keepalive'</span>)</span><br><span class="line">        minion = salt.cli.daemons.Minion()</span><br><span class="line">        minion.start()</span><br><span class="line">        <span class="keyword">return</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">escalate_signal_to_process</span><span class="params">(pid, signum, sigframe)</span>:</span>  <span class="comment"># pylint: disable=unused-argument</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Escalate the signal received to the multiprocessing process that</span></span><br><span class="line"><span class="string">        is actually running the minion</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="comment"># escalate signal</span></span><br><span class="line">        os.kill(pid, signum)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># keep one minion subprocess running</span></span><br><span class="line">    prev_sigint_handler = signal.getsignal(signal.SIGINT)</span><br><span class="line">    prev_sigterm_handler = signal.getsignal(signal.SIGTERM)</span><br><span class="line">    <span class="keyword">while</span> <span class="keyword">True</span>:</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            process = multiprocessing.Process(target=minion_process)</span><br><span class="line">            process.start()</span><br><span class="line">            signal.signal(signal.SIGTERM,</span><br><span class="line">                          functools.partial(escalate_signal_to_process,</span><br><span class="line">                                            process.pid))</span><br><span class="line">            signal.signal(signal.SIGINT,</span><br><span class="line">                          functools.partial(escalate_signal_to_process,</span><br><span class="line">                                            process.pid))</span><br><span class="line">        <span class="keyword">except</span> Exception:  <span class="comment"># pylint: disable=broad-except</span></span><br><span class="line">            <span class="comment"># if multiprocessing does not work</span></span><br><span class="line">            minion = salt.cli.daemons.Minion()</span><br><span class="line">            minion.start()</span><br><span class="line">            <span class="keyword">break</span></span><br><span class="line"></span><br><span class="line">        process.join()</span><br><span class="line"></span><br><span class="line">        <span class="comment"># Process exited or was terminated. Since we're going to try to restart</span></span><br><span class="line">        <span class="comment"># it, we MUST, reset signal handling to the previous handlers</span></span><br><span class="line">        signal.signal(signal.SIGINT, prev_sigint_handler)</span><br><span class="line">        signal.signal(signal.SIGTERM, prev_sigterm_handler)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> process.exitcode == salt.defaults.exitcodes.SALT_KEEPALIVE:</span><br><span class="line">            sys.exit(process.exitcode)</span><br><span class="line">        <span class="comment"># ontop of the random_reauth_delay already preformed</span></span><br><span class="line">        <span class="comment"># delay extra to reduce flooding and free resources</span></span><br><span class="line">        <span class="comment"># <span class="doctag">NOTE:</span> values are static but should be fine.</span></span><br><span class="line">        time.sleep(<span class="number">2</span> + randint(<span class="number">1</span>, <span class="number">10</span>))</span><br><span class="line">        <span class="comment"># need to reset logging because new minion objects</span></span><br><span class="line">        <span class="comment"># cause extra log handlers to accumulate</span></span><br><span class="line">        rlogger = logging.getLogger()</span><br><span class="line">        <span class="keyword">for</span> handler <span class="keyword">in</span> rlogger.handlers:</span><br><span class="line">            rlogger.removeHandler(handler)</span><br><span class="line">        logging.basicConfig()</span><br></pre></td></tr></table></figure></p>
+<p>如果是windows或者有–disable-keepalive参数，则直接调用salt.cli.daemons.Minion.start<br>否则创建子进程minion_process（最终也会调用salt.cli.daemons.Minion.start），并且在子进程退出后会再创建（以下异常会进行重启：SaltClientError, SaltReqTimeoutError, SaltSystemExit），达到自动重启的效果<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/scripts.py</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">minion_process</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    Start a minion process</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    <span class="keyword">import</span> salt.utils</span><br><span class="line">    <span class="keyword">import</span> salt.cli.daemons</span><br><span class="line">    <span class="comment"># salt_minion spawns this function in a new process</span></span><br><span class="line"></span><br><span class="line">    salt.utils.appendproctitle(<span class="string">'KeepAlive'</span>)</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">suicide_when_without_parent</span><span class="params">(parent_pid)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Have the minion suicide if the parent process is gone</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        NOTE: small race issue where the parent PID could be replace</span></span><br><span class="line"><span class="string">        with another process with same PID!</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="keyword">while</span> <span class="keyword">True</span>:</span><br><span class="line">            time.sleep(<span class="number">5</span>)</span><br><span class="line">            <span class="keyword">try</span>:</span><br><span class="line">                <span class="comment"># check pid alive (Unix only trick!)</span></span><br><span class="line">                <span class="keyword">if</span> os.getuid() == <span class="number">0</span> <span class="keyword">and</span> <span class="keyword">not</span> salt.utils.is_windows():</span><br><span class="line">                    os.kill(parent_pid, <span class="number">0</span>)</span><br><span class="line">            <span class="keyword">except</span> OSError <span class="keyword">as</span> exc:</span><br><span class="line">                <span class="comment"># forcibly exit, regular sys.exit raises an exception-- which</span></span><br><span class="line">                <span class="comment"># isn't sufficient in a thread</span></span><br><span class="line">                log.error(<span class="string">'Minion process encountered exception: &#123;0&#125;'</span>.format(exc))</span><br><span class="line">                os._exit(salt.defaults.exitcodes.EX_GENERIC)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> salt.utils.is_windows():</span><br><span class="line">        thread = threading.Thread(target=suicide_when_without_parent, args=(os.getppid(),))</span><br><span class="line">        thread.start()</span><br><span class="line"></span><br><span class="line">    minion = salt.cli.daemons.Minion()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        minion.start()</span><br><span class="line">    <span class="keyword">except</span> (SaltClientError, SaltReqTimeoutError, SaltSystemExit) <span class="keyword">as</span> exc:</span><br><span class="line">        log.warning(<span class="string">'Fatal functionality error caught by minion handler:\n'</span>, exc_info=<span class="keyword">True</span>)</span><br><span class="line">        log.warning(<span class="string">'** Restarting minion **'</span>)</span><br><span class="line">        delay = <span class="number">60</span></span><br><span class="line">        <span class="keyword">if</span> minion <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span> <span class="keyword">and</span> hasattr(minion, <span class="string">'config'</span>):</span><br><span class="line">            delay = minion.config.get(<span class="string">'random_reauth_delay'</span>, <span class="number">60</span>)</span><br><span class="line">        delay = randint(<span class="number">1</span>, delay)</span><br><span class="line">        log.info(<span class="string">'waiting random_reauth_delay &#123;0&#125;s'</span>.format(delay))</span><br><span class="line">        time.sleep(delay)</span><br><span class="line">        sys.exit(salt.defaults.exitcodes.SALT_KEEPALIVE)</span><br></pre></td></tr></table></figure></p>
+<p>子进程minion_process首先创建一个线程，用于检查父进程是否存活，如果父进程不存在，则子进程退出<br>然后调用salt.cli.daemons.Minion.start开始minion的初始化</p>
+<p>接下来看一下salt.cli.daemons.Minion类<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/cli/daemons.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Minion</span><span class="params">(parsers.MinionOptionParser, DaemonsMixin)</span>:</span>  <span class="comment"># pylint: disable=no-init</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    Create a minion server</span></span><br><span class="line"><span class="string">    '''</span></span><br></pre></td></tr></table></figure></p>
+<p>salt.cli.daemons.Minion有两个父类，DaemonsMixin比较简单，重点是parsers.MinionOptionParser<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/utils/parsers.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MinionOptionParser</span><span class="params">(six.with_metaclass<span class="params">(OptionParserMeta, MasterOptionParser)</span>)</span>:</span>  <span class="comment"># pylint: disable=no-init</span></span><br><span class="line"></span><br><span class="line">    description = (</span><br><span class="line">        <span class="string">'The Salt minion, receives commands from a remote Salt master.'</span></span><br><span class="line">    )</span><br><span class="line"></span><br><span class="line">    <span class="comment"># ConfigDirMixIn config filename attribute</span></span><br><span class="line">    _config_filename_ = <span class="string">'minion'</span></span><br><span class="line">    <span class="comment"># LogLevelMixIn attributes</span></span><br><span class="line">    _default_logging_logfile_ = os.path.join(syspaths.LOGS_DIR, <span class="string">'minion'</span>)</span><br><span class="line">    _setup_mp_logging_listener_ = <span class="keyword">True</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">setup_config</span><span class="params">(self)</span>:</span></span><br><span class="line">        opts = config.minion_config(self.get_config_file_path(),  <span class="comment"># pylint: disable=no-member</span></span><br><span class="line">                                    cache_minion_id=<span class="keyword">True</span>,</span><br><span class="line">                                    ignore_config_errors=<span class="keyword">False</span>)</span><br><span class="line">        <span class="comment"># Optimization: disable multiprocessing logging if running as a</span></span><br><span class="line">        <span class="comment">#               daemon, without engines and without multiprocessing</span></span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> opts.get(<span class="string">'engines'</span>) <span class="keyword">and</span> <span class="keyword">not</span> opts.get(<span class="string">'multiprocessing'</span>, <span class="keyword">True</span>) \</span><br><span class="line">                <span class="keyword">and</span> self.options.daemon:  <span class="comment"># pylint: disable=no-member</span></span><br><span class="line">            self._setup_mp_logging_listener_ = <span class="keyword">False</span></span><br><span class="line">        <span class="keyword">return</span> opts</span><br></pre></td></tr></table></figure></p>
+<p>MinionOptionParser有一个父类，该类的元类是OptionParserMeta，父类是MasterOptionParser，可见minion直接复用了master的选项解析，详见<a href="https://winway.github.io/2017/07/18/salt-master-option-parser">master选项解析</a></p>
+<p>接下来看salt.cli.daemons.Minion的start方法<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/cli/daemon.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">start</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Start the actual minion.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        If sub-classed, don't **ever** forget to run:</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">            super(YourSubClass, self).start()</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        NOTE: Run any required code before calling `super()`.</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        super(Minion, self).start()</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            <span class="keyword">if</span> check_user(self.config[<span class="string">'user'</span>]):</span><br><span class="line">                self.action_log_info(<span class="string">'Starting up'</span>)</span><br><span class="line">                self.verify_hash_type()</span><br><span class="line">                self.minion.tune_in()</span><br><span class="line">                <span class="keyword">if</span> self.minion.restart:</span><br><span class="line">                    <span class="keyword">raise</span> SaltClientError(<span class="string">'Minion could not connect to Master'</span>)</span><br><span class="line">        <span class="keyword">except</span> (KeyboardInterrupt, SaltSystemExit) <span class="keyword">as</span> error:</span><br><span class="line">            self.action_log_info(<span class="string">'Stopping'</span>)</span><br><span class="line">            <span class="keyword">if</span> isinstance(error, KeyboardInterrupt):</span><br><span class="line">                log.warning(<span class="string">'Exiting on Ctrl-c'</span>)</span><br><span class="line">                self.shutdown()</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                log.error(str(error))</span><br><span class="line">                self.shutdown(error.code)</span><br></pre></td></tr></table></figure></p>
+<p>start函数首先调用父类的start函数，即salt.utils.parsers.DaemonMixIn.start<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># sat/utils/parser.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">prepare</span><span class="params">(self)</span>:</span></span><br><span class="line">        self.parse_args()</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">start</span><span class="params">(self)</span>:</span></span><br><span class="line">        self.prepare()</span><br><span class="line">        self._install_signal_handlers()</span><br></pre></td></tr></table></figure></p>
+<p>salt.utils.parsers.DaemonMixIn.start调用self.prepare()，即salt.cli.daemons.Minion.prepare<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/cli/daemon.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">prepare</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Run the preparation sequence required to start a salt minion.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        If sub-classed, don't **ever** forget to run:</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">            super(YourSubClass, self).prepare()</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        super(Minion, self).prepare()</span><br><span class="line"></span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            <span class="keyword">if</span> self.config[<span class="string">'verify_env'</span>]:</span><br><span class="line">                confd = self.config.get(<span class="string">'default_include'</span>)</span><br><span class="line">                <span class="keyword">if</span> confd:</span><br><span class="line">                    <span class="comment"># If 'default_include' is specified in config, then use it</span></span><br><span class="line">                    <span class="keyword">if</span> <span class="string">'*'</span> <span class="keyword">in</span> confd:</span><br><span class="line">                        <span class="comment"># Value is of the form "minion.d/*.conf"</span></span><br><span class="line">                        confd = os.path.dirname(confd)</span><br><span class="line">                    <span class="keyword">if</span> <span class="keyword">not</span> os.path.isabs(confd):</span><br><span class="line">                        <span class="comment"># If configured 'default_include' is not an absolute</span></span><br><span class="line">                        <span class="comment"># path, consider it relative to folder of 'conf_file'</span></span><br><span class="line">                        <span class="comment"># (/etc/salt by default)</span></span><br><span class="line">                        confd = os.path.join(</span><br><span class="line">                            os.path.dirname(self.config[<span class="string">'conf_file'</span>]), confd</span><br><span class="line">                        )</span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    confd = os.path.join(</span><br><span class="line">                        os.path.dirname(self.config[<span class="string">'conf_file'</span>]), <span class="string">'minion.d'</span></span><br><span class="line">                    )</span><br><span class="line"></span><br><span class="line">                v_dirs = [</span><br><span class="line">                        self.config[<span class="string">'pki_dir'</span>],</span><br><span class="line">                        self.config[<span class="string">'cachedir'</span>],</span><br><span class="line">                        self.config[<span class="string">'sock_dir'</span>],</span><br><span class="line">                        self.config[<span class="string">'extension_modules'</span>],</span><br><span class="line">                        confd,</span><br><span class="line">                    ]</span><br><span class="line"></span><br><span class="line">                <span class="keyword">if</span> self.config.get(<span class="string">'transport'</span>) == <span class="string">'raet'</span>:</span><br><span class="line">                    v_dirs.append(os.path.join(self.config[<span class="string">'pki_dir'</span>], <span class="string">'accepted'</span>))</span><br><span class="line">                    v_dirs.append(os.path.join(self.config[<span class="string">'pki_dir'</span>], <span class="string">'pending'</span>))</span><br><span class="line">                    v_dirs.append(os.path.join(self.config[<span class="string">'pki_dir'</span>], <span class="string">'rejected'</span>))</span><br><span class="line">                    v_dirs.append(os.path.join(self.config[<span class="string">'cachedir'</span>], <span class="string">'raet'</span>))</span><br><span class="line"></span><br><span class="line">                verify_env(</span><br><span class="line">                    v_dirs,</span><br><span class="line">                    self.config[<span class="string">'user'</span>],</span><br><span class="line">                    permissive=self.config[<span class="string">'permissive_pki_access'</span>],</span><br><span class="line">                    pki_dir=self.config[<span class="string">'pki_dir'</span>],</span><br><span class="line">                )</span><br><span class="line">        <span class="keyword">except</span> OSError <span class="keyword">as</span> error:</span><br><span class="line">            self.environment_failure(error)</span><br><span class="line"></span><br><span class="line">        self.setup_logfile_logger()</span><br><span class="line">        verify_log(self.config)</span><br><span class="line">        log.info(</span><br><span class="line">            <span class="string">'Setting up the Salt Minion "&#123;0&#125;"'</span>.format(</span><br><span class="line">                self.config[<span class="string">'id'</span>]</span><br><span class="line">            )</span><br><span class="line">        )</span><br><span class="line">        migrations.migrate_paths(self.config)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># Bail out if we find a process running and it matches out pidfile</span></span><br><span class="line">        <span class="keyword">if</span> self.check_running():</span><br><span class="line">            self.action_log_info(<span class="string">'An instance is already running. Exiting'</span>)</span><br><span class="line">            self.shutdown(<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">        transport = self.config.get(<span class="string">'transport'</span>).lower()</span><br><span class="line"></span><br><span class="line">        <span class="comment"># <span class="doctag">TODO:</span> AIO core is separate from transport</span></span><br><span class="line">        <span class="keyword">if</span> transport <span class="keyword">in</span> (<span class="string">'zeromq'</span>, <span class="string">'tcp'</span>, <span class="string">'detect'</span>):</span><br><span class="line">            <span class="comment"># Late import so logging works correctly</span></span><br><span class="line">            <span class="keyword">import</span> salt.minion</span><br><span class="line">            <span class="comment"># If the minion key has not been accepted, then Salt enters a loop</span></span><br><span class="line">            <span class="comment"># waiting for it, if we daemonize later then the minion could halt</span></span><br><span class="line">            <span class="comment"># the boot process waiting for a key to be accepted on the master.</span></span><br><span class="line">            <span class="comment"># This is the latest safe place to daemonize</span></span><br><span class="line">            self.daemonize_if_required()</span><br><span class="line">            self.set_pidfile()</span><br><span class="line">            <span class="keyword">if</span> self.config.get(<span class="string">'master_type'</span>) == <span class="string">'func'</span>:</span><br><span class="line">                salt.minion.eval_master_func(self.config)</span><br><span class="line">            self.minion = salt.minion.MinionManager(self.config)</span><br><span class="line">        <span class="keyword">elif</span> transport == <span class="string">'raet'</span>:</span><br><span class="line">            <span class="keyword">import</span> salt.daemons.flo</span><br><span class="line">            self.daemonize_if_required()</span><br><span class="line">            self.set_pidfile()</span><br><span class="line">            self.minion = salt.daemons.flo.IofloMinion(self.config)</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            log.error(</span><br><span class="line">                <span class="string">'The transport \'&#123;0&#125;\' is not supported. Please use one of the following: '</span></span><br><span class="line">                <span class="string">'tcp, '</span></span><br><span class="line">                <span class="string">'raet, '</span></span><br><span class="line">                <span class="string">'or zeromq.'</span>.format(transport)</span><br><span class="line">            )</span><br><span class="line">            self.shutdown(<span class="number">1</span>)</span><br></pre></td></tr></table></figure></p>
+<p>salt.cli.daemons.Minion.prepare调用父类的prepare，即salt.utils.parsers.DaemonMixIn.prepare，进行parse_args，并根据transport配置初始化对应的minion，这里是salt.minion.MinionManager，在salt.cli.daemons.Minion.start中调用tune_in进行minion的启动</p>
+<p>至此，minion完成选项解析和配置文件加载，开始启动。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">saltstack</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/08/11/salt-minion-option-parser/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-salt-master-ReqServer" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1205,215 +1425,6 @@
 
 
   
-    <article id="post-namenode-failover-by-hand" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/05/15/namenode-failover-by-hand/">NameNode主/备滚动重启步骤</a>
-    </h1>
-  
-
-        
-        <a href="/2017/05/15/namenode-failover-by-hand/" class="archive-article-date">
-  	<time datetime="2017-05-15T06:36:00.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-05-15</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#1-判断主从关系">1. 判断主从关系</a></li>
-<li><a href="#2-重启备机">2. 重启备机</a></li>
-<li><a href="#3-failover">3. failover</a></li>
-<li><a href="#4-判断主从关系">4. 判断主从关系</a></li>
-<li><a href="#5-重启备机">5. 重启备机</a></li>
-</ul>
-<!-- tocstop -->
-<h3><span id="1-判断主从关系">1. 判断主从关系</span></h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">hdfs haadmin -getServiceState nn1</span><br><span class="line"></span><br><span class="line">hdfs haadmin -getServiceState nn2</span><br></pre></td></tr></table></figure>
-<h3><span id="2-重启备机">2. 重启备机</span></h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">sh hadoop-daemon.sh stop namenode</span><br><span class="line"></span><br><span class="line">sh hadoop-daemon.sh start namenode</span><br></pre></td></tr></table></figure>
-<h3><span id="3-failover">3. failover</span></h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hdfs haadmin -failover nn1 nn2</span><br></pre></td></tr></table></figure>
-<h3><span id="4-判断主从关系">4. 判断主从关系</span></h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">hdfs haadmin -getServiceState nn1</span><br><span class="line"></span><br><span class="line">hdfs haadmin -getServiceState nn2</span><br></pre></td></tr></table></figure>
-<h3><span id="5-重启备机">5. 重启备机</span></h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">sh hadoop-daemon.sh stop namenode</span><br><span class="line"></span><br><span class="line">sh hadoop-daemon.sh start namenode</span><br></pre></td></tr></table></figure>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">hdfs</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/05/15/namenode-failover-by-hand/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-fuse-dfs" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/04/13/fuse-dfs/">使用fuse_dfs挂载hdfs</a>
-    </h1>
-  
-
-        
-        <a href="/2017/04/13/fuse-dfs/" class="archive-article-date">
-  	<time datetime="2017-04-13T03:13:06.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-04-13</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#介绍">介绍</a></li>
-<li><a href="#安装配置">安装配置</a></li>
-<li><a href="#使用">使用</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="介绍">介绍</span></h2><p>用户空间文件系统（Filesystem in Userspace，简称FUSE）是一个面向类Unix计算机操作系统的软件接口，它使无特权的用户能够无需编辑内核代码而创建自己的文件系统。目前Linux通过内核模块对此进行支持。一些文件系统如ZFS、glusterfs和lustre使用FUSE实现。Linux用于支持用户空间文件系统的内核模块名叫FUSE，FUSE一词有时特指Linux下的用户空间文件系统。<br>通过使用Hadoop的Fuse-DFS分类模块，任意一个Hadoop文件系统(不过一般为HDFS)都可以作为一个标准文件系统进行挂载。我们随后便可以使用Unix的工具(如ls和cat)与这个文件系统交互，还可以通过任意一种编程语言使用POSIX库来访问文件系统。Fuse-DFS是用C语言实现的，使用libhdfs作为与HDFS的接口。</p>
-<h2><span id="安装配置">安装配置</span></h2><p>fuse的安装比较复杂，具体包括：</p>
-<ol>
-<li><p>安装 fuse，挂载内核模块modprobe fuse</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">yum install fuse</span><br><span class="line">yum install fuse-devel</span><br><span class="line">yum install fuse-libs</span><br><span class="line">modprobe fuse</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>配置fuse</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">groupadd fuse</span><br><span class="line">chgrp fuse /dev/fuse</span><br><span class="line">usermod -a -G fuse root</span><br><span class="line">add &quot;user_allow_other&quot; to /etc/fuse.conf</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>编译hadoop源码，生成fuse_dfs可执行文件和libhdfs.so，因为 hadoop 的二进制发布包中不包含 fuse_dfs。hadoop源码编译可参考：<br><a href="https://svn.apache.org/repos/asf/hadoop/common/branches/MR-4327/BUILDING.txt" target="_blank" rel="noopener">https://svn.apache.org/repos/asf/hadoop/common/branches/MR-4327/BUILDING.txt</a><br><a href="https://pravinchavan.wordpress.com/2013/04/14/building-apache-hadoop-from-source/" target="_blank" rel="noopener">https://pravinchavan.wordpress.com/2013/04/14/building-apache-hadoop-from-source/</a><br><a href="http://www.aboutyun.com/thread-12183-1-1.html" target="_blank" rel="noopener">http://www.aboutyun.com/thread-12183-1-1.html</a></p>
-</li>
-<li>修改fuse_dfs_wrapper.sh（从hadoop源码包中获取），指定hadoop客户端信息</li>
-</ol>
-<p>最终需要的文件如下：<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/fuse-dfs.bmp" alt=""></p>
-<h2><span id="使用">使用</span></h2><ol>
-<li>mkdir -p ./mnt/hdfs/</li>
-<li>sh fuse_dfs_wrapper.sh -o uid=$(id root -u) -o gid=$(id root -g) hdfs://democluster/ ./mnt/hdfs</li>
-<li>开始使用</li>
-<li>卸载fusermount -u  ./mnt/hdfs</li>
-</ol>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">fuse-dfs</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/04/13/fuse-dfs/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/6/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/5/">5</a><a class="page-number" href="/page/6/">6</a><span class="page-number current">7</span><a class="page-number" href="/page/8/">8</a><a class="page-number" href="/page/9/">9</a><span class="space">&hellip;</span><a class="page-number" href="/page/11/">11</a><a class="extend next" rel="next" href="/page/8/">Next &raquo;</a>
@@ -1521,14 +1532,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">shell</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">监控</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
@@ -1537,15 +1540,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hive</a>
+                <a href="javascript:void(0)" class="js-tag color1">shell</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+                <a href="javascript:void(0)" class="js-tag color3">监控</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">pig</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1570,6 +1577,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">hive</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1637,15 +1648,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">tez</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">gc</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1729,11 +1740,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
