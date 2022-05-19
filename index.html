@@ -155,6 +155,273 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-bigdata-stack-clickhouse" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/05/18/bigdata-stack-clickhouse/">大数据开发之路-ClickHouse</a>
+    </h1>
+  
+
+        
+        <a href="/2022/05/18/bigdata-stack-clickhouse/" class="archive-article-date">
+  	<time datetime="2022-05-18T12:13:29.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-18</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#clickhouse-olap分析数据库的异域猛禽">ClickHouse-OLAP分析数据库的异域猛禽</a></li>
+<li><a href="#olap技术概述">OLAP技术概述</a><ul>
+<li><a href="#oltp-vs-olap">OLTP vs OLAP</a></li>
+<li><a href="#olap场景特点">OLAP场景特点</a></li>
+<li><a href="#olap分类">OLAP分类</a></li>
+<li><a href="#主流olap系统比较">主流OLAP系统比较</a></li>
+</ul>
+</li>
+<li><a href="#clickhouse特性介绍">ClickHouse特性介绍</a><ul>
+<li><a href="#简介">简介</a></li>
+<li><a href="#列式存储">列式存储</a></li>
+<li><a href="#分区">分区</a></li>
+<li><a href="#主键索引">主键索引</a></li>
+<li><a href="#跳数索引">跳数索引</a></li>
+<li><a href="#向量化引擎">向量化引擎</a></li>
+<li><a href="#动态代码生成">动态代码生成</a></li>
+<li><a href="#多核并行">多核并行</a></li>
+<li><a href="#分布式计算">分布式计算</a></li>
+<li><a href="#表引擎megretree">表引擎MegreTree</a></li>
+<li><a href="#复制表replicated-table">复制表Replicated Table</a></li>
+<li><a href="#集群cluster">集群Cluster</a></li>
+<li><a href="#分布式表distributed-table">分布式表Distributed Table</a></li>
+<li><a href="#物化视图">物化视图</a></li>
+</ul>
+</li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<blockquote>
+<p>导引<br><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a><br>关联阅读<br><a href="https://winway.github.io/2021/07/25/olapNotes/">OLAP笔记</a></p>
+</blockquote>
+<h2><span id="clickhouse-olap分析数据库的异域猛禽">ClickHouse-OLAP分析数据库的异域猛禽</span></h2><p>ClickHouse是一个用于联机分析(OLAP)的列式数据库管理系统(DBMS)。</p>
+<h2><span id="olap技术概述">OLAP技术概述</span></h2><h3><span id="oltp-vs-olap">OLTP vs OLAP</span></h3><pre><code>联机事务处理OLTP（On-Line Transaction Processing）
+    主要是事务处理，如数据库记录的增删改。比如用户的一笔充值记录，就是一个典型的事务。
+
+联机分析处理OLAP（On-Line Analytical Processing）
+    数仓的主要应用，支持复杂的分析操作。典型的应用就是复杂、动态的报表系统。
+</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904201708.png" alt=""></p>
+<h3><span id="olap场景特点">OLAP场景特点</span></h3><pre><code>数据规模巨大
+
+实时性要求不高
+
+并发不高（一般面向内部或toB，而非toC）
+
+无需事务，数据一致性要求低
+
+数据批量写入，且数据不更新或少更新：历史数据往往作为存档，不会再做更新、删除操作
+
+读多于写：数据一次性写入后，分析师需要尝试从各个角度对数据做挖掘、分析
+
+大宽表，读大量行少量列，按照维度列聚合成一个小的结果集
+
+查询灵活多变：分析维度灵活，预先建模技术适用场景有限
+</code></pre><h3><span id="olap分类">OLAP分类</span></h3><pre><code>1.MOLAP（Multi-Dimensional OLAP）
+   OLAP最初的形态，基于多维数组的存储模型，特点是对数据进行预计算，以空间换时间，但生成cube需要大量时间和空间。
+
+   MOLAP 的优点和缺点都来自于其数据预处理环节。数据预处理，将原始数据按照指定的计算规则预先做聚合计算，这样避免了查询过程中出现大量的即时计算，提升了查询性能。但是这样的预聚合处理，需要预先定义维度，会限制后期数据查询的灵活性，存储成本也很高；同时，这种方式不支持明细数据的查询，仅适用于聚合型查询（如：sum，avg，count）。
+
+   因此，MOLAP适用于查询场景相对固定并且对查询性能要求非常高的场景。如广告主经常使用的广告投放报表分析。
+
+   代表技术有Kylin、Druid
+
+2.ROLAP（Relational OLAP）
+   基于关系模型进行存储数据（事实表、维度表），不需要预计算，按需即时查询。
+
+   ROLAP收到Query请求时，会先解析Query，生成执行计划，扫描数据，执行关系型算子（过滤(Where)、聚合(Sum, Avg, Count)、关联(Join)，分组（Group By)、排序（Order By）等），最后将结果返回给用户，整个过程都是即时计算，没有预先聚合好的数据，拼的就是资源和算力。但是当数据量较大或 query 较为复杂时，查询性能无法像 MOLAP 那样稳定。所有计算都是即时触发 ( 没有预处理 )，因此会耗费更多的计算资源，带来潜在的重复计算。
+
+   因此，ROLAP适用于对查询模式不固定、查询灵活性要求高的场景。如数据分析师常用的数据分析类产品，他们往往会对数据做各种预先不能确定的分析，所以需要更高的查询灵活性。
+
+   代表技术栈有Presto、Impala、Clickhouse等
+</code></pre><h3><span id="主流olap系统比较">主流OLAP系统比较</span></h3><pre><code>目前还没有一个系统能够满足各种场景的查询需求。其本质原因是，没有一个系统能同时在数据量、性能、和灵活性三个方面做到完美，每个系统在设计时都需要在这三者间做出取舍。
+</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202146.png" alt=""></p>
+<pre><code>Apache Kylin
+固定维度的聚合查询，并发量高，查询迅速响应（亚秒级~秒级），数量级支持TB-PB
+
+ClickHouse
+大宽表，单表查询速度极佳，join表现差，支持明细数据查询，数量级支持TP-PB
+
+Apache Doris
+灵活的多维度查询，join表现比ClickHouse好，支持明细数据查询，数量级支持TP-PB，mysql语法，易运维
+</code></pre><h2><span id="clickhouse特性介绍">ClickHouse特性介绍</span></h2><h3><span id="简介">简介</span></h3><pre><code>ClickHouse是一个用于在线分析处理（OLAP）的列式数据库管理系统（DBMS）。是由俄罗斯的Yandex公司为了Yandex Metrica网络分析服务而开发。它支持分析实时更新的数据，以高性能著称。
+
+特性：
+    PB级数据处理能力
+    列式数据存储
+    优秀的数据压缩
+    向量化引擎
+    多核并行处理
+    多服务器分布式处理
+    支持实时数据更新
+    高吞吐写入
+    SQL支持（部分语句有差异）
+    近似计算
+    少依赖，上手容易
+</code></pre><h3><span id="列式存储">列式存储</span></h3><pre><code>列存模式下，只需要读取参与计算的列即可，极大的降低了IO cost，加速了查询。
+同一列中的数据属于同一类型，压缩效果显著。列存往往有着高达十倍甚至更高的压缩比，节省了大量的存储空间，降低了存储成本。
+自由的压缩算法选择。不同列的数据具有不同的数据类型，适用的压缩算法也就不尽相同。可以针对不同列类型，选择最合适的压缩算法。
+更高的压缩比意味着更小的data size，从磁盘中读取相应数据耗时更短；同等大小的内存能够存放更多数据，系统cache效果更好。
+</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202353.png" alt=""></p>
+<h3><span id="分区">分区</span></h3><pre><code>PARTITION BY toYYYYMMDD(ts)
+PARTITION BY toStartOfHour(ts)
+
+数据分区在ClickHouse中主要有两方面应用：
+
+    在partition key上进行分区裁剪，只查询必要的数据。
+    对partition进行TTL管理，淘汰过期的分区数据。
+
+每个分区在文件系统中都是以目录的形式存在。
+常用时间字段作为分区字段，数据量大的表可以按照小时分区，数据量小的表可以在按照天分区或者月分区，查询时，使用分区字段作为Where条件，可以有效的过滤掉大量非结果集数据。
+</code></pre><h3><span id="主键索引">主键索引</span></h3><pre><code>ORDER BY (CounterID, Date)  -- 排序键，排序键用于在数据片段中进行排序
+PRIMARY KEY (CounterID, Date) -- 主键，主键用于在索引文件中进行标记的写入
+
+ClickHouse将每列数据按照index granularity（默认8192行）进行划分，每个index granularity的开头第一行被称为一个mark行。主键索引存储该mark行对应的primary key的值。
+
+对于where条件中含有primary key的查询，查询时通过对主键索引进行二分查找，定位到对应的 mrk 标记文件，进而找到对应的 bin 文件的偏移量，最终扫描得到相应的数据，避免了全表扫描，从而加速查询。 值得注意的是，ClickHouse 的主键与 MySQL 等数据库不同，主键不是唯一的。
+</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202440.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202520.png" alt=""></p>
+<h3><span id="跳数索引">跳数索引</span></h3><pre><code>ClickHouse支持对任意列创建任意数量的跳数索引（二级索引）。其中被索引的value可以是任意的合法SQL Expression，并不仅仅局限于对column value本身进行索引。
+
+目前支持的索引类型包括：
+    minmax: 以index granularity为单位，存储指定表达式计算后的min、max值；在等值和范围查询中能够帮助快速跳过不满足要求的块，减少IO。
+    set(max_rows)：以index granularity为单位，存储指定表达式的distinct value集合，用于快速判断等值查询是否命中该块，减少IO。
+    ngrambf_v1(n, size_of_bloom_filter_in_bytes, number_of_hash_functions, random_seed)：将string进行ngram分词后，构建bloom filter，能够优化等值、like、in等查询条件。
+    tokenbf_v1(size_of_bloom_filter_in_bytes, number_of_hash_functions, random_seed)： 与ngrambf_v1类似，区别是不使用ngram进行分词，而是通过标点符号进行词语分割。
+    bloom_filter([false_positive])：对指定列构建bloom filter，用于加速等值、like、in等查询条件的执行。
+</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202609.png" alt=""></p>
+<h3><span id="向量化引擎">向量化引擎</span></h3><pre><code>ClickHouse实现了向量执行引擎（Vectorized execution engine），对内存中的列式数据，一个batch调用一次SIMD（Single Instruction, Multiple Data，即单条指令操作多条数据）指令（而非每一行调用一次），不仅减少了函数调用次数、降低了cache miss，而且可以充分发挥SIMD指令的并行能力，大幅缩短了计算耗时。
+
+向量执行引擎，通常能够带来数倍的性能提升。
+</code></pre><h3><span id="动态代码生成">动态代码生成</span></h3><pre><code>在经典的数据库实现中，通常对表达式计算采用火山模型(将整个 SQL 构建成一个 Operator 树)。为了连接不同算子（如HashJoin、Scan、IndexScan、Aggregation等），operator之间采用统一的接口（如open/next/close），在每个算子内部都实现了父类的这些虚函数。在分析场景中单条SQL要处理数据通常高达数亿行，虚函数的调用开销不再可以忽略不计。另外，在每个算子内部都要考虑多种变量，比如列类型、列的size、列的个数等，存在着大量的if-else分支判断导致CPU分支预测失效。
+
+ClickHouse实现了Expression级别的runtime codegen，动态地根据当前SQL直接生成代码，然后编译执行。不仅消除了大量的虚函数调用（即图中多个function pointer的调用），而且由于在运行时表达式的参数类型、个数等都是已知的，也消除了不必要的if-else分支判断。
+</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202656.png" alt=""></p>
+<h3><span id="多核并行">多核并行</span></h3><pre><code>ClickHouse将数据划分为多个partition，每个partition再进一步划分为多个index granularity，然后通过多个CPU核心分别处理其中的一部分来实现并行数据处理。
+
+在这种设计下，单条Query就能利用整机所有CPU。极致的并行处理能力，极大的降低了查询延时。
+</code></pre><h3><span id="分布式计算">分布式计算</span></h3><pre><code>除了优秀的单机并行处理能力，ClickHouse还提供了可线性拓展的分布式计算能力。ClickHouse会自动将查询拆解为多个task下发到集群中，然后进行多机并行处理，最后把结果汇聚到一起。
+
+在存在多副本的情况下，ClickHouse还提供了多种query下发策略。
+</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202746.png" alt=""></p>
+<h3><span id="表引擎megretree">表引擎MegreTree</span></h3><pre><code>MergeTree 和 LSM 结构类似，数据按照主键排序，每次写入数据分区形成一个个的 Parts 文件，Parts 内部有序。
+
+ClickHouse在数据导入时全部是顺序append写，写入后数据段不可更改，在后台compaction时也是多个段merge sort后顺序写回磁盘。顺序写的特性，充分利用了磁盘的吞吐能力，即便在HDD上也有着优异的写入性能。
+
+官方公开benchmark测试显示能够达到50MB-200MB/s的写入吞吐能力，按照每行100Byte估算，大约相当于50W-200W条/s的写入速度。
+</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202818.png" alt=""></p>
+<pre><code>ReplacingMergeTree: 会根据主键进行去重，但是这是后台合并时才会去重，无法控制合并时机，尽管可以用 OPTIMIZE … FINAL 语句来强制合并执行，但是由于性能原因一般不会使用。
+
+CollapsingMergeTree: 异步的删除（折叠）这些除了特定列 Sign 有 1 和 -1 的值以外，其余所有字段的值都相等的成对的行。没有成对的行会被保留。
+
+VersionedCollapsingMergeTree: 类似于 CollapsingMergeTree, 多了 Version 列，支持多线程乱序插入的场景，相比之下, CollapsingMergeTree 只允许严格连续插入。
+
+AggregatingMergeTree: 做增量数据的聚合统计，包括物化视图的数据聚。
+
+ReplicatedXXXMergeTree: 使得以上 MergeTree 家族拥有副本机制，保证高可用，用于生产环境。
+</code></pre><h3><span id="复制表replicated-table">复制表Replicated Table</span></h3><pre><code>简单理解就是相同的数据备份。
+
+先写入一个副本，再通过内部端口将数据复制到其他实例上去，同时更新ZK集群上记录的信息。
+
+在ClickHouse中通过复制表，我们实现保障了数据可靠性外，也通过多副本的方式，增加了ClickHouse查询的并发能力。
+</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202917.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202935.png" alt=""></p>
+<h3><span id="集群cluster">集群Cluster</span></h3><p>分片<br>一个分片本身就是ClickHouse一个实例节点，分片的本质就是为了提高查询效率，将一份全量的数据分成多份（片），从而降低单节点的数据扫描数量，提高查询性能。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203009.png" alt=""></p>
+<p>ClickHouse的分布式是一个有意思的设计方式，多个节点部署完成后，节点与节点之间并没有联系。通过ClickHouse集群的配置文件来形成集群。配置中包含集群的节点信息，复制节点，分片节点，同构成一个Cluster。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203045.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203032.png" alt=""></p>
+<p>这样就形成了一个有意思的现象。我们可以抽象为：”集群定义节点和节点的关系，节点不知道集群”。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203112.png" alt=""></p>
+<h3><span id="分布式表distributed-table">分布式表Distributed Table</span></h3><p>ClickHouse分布式表的本质并不是一张表，而是一些本地物理表（分片）的分布式视图（集群配置），本身并不存储数据。<br>Distributed表引擎的定位就好比是一个中间件，能自动的将SQL查询路由到每个分片。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203138.png" alt=""></p>
+<p>在分布式表上执行查询的流程简图如下所示。<br>发出查询后，分布式表引擎将我们的查询请求发送到所有分片进行查询，最终汇总到同一个实例上返回给用户。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203201.png" alt=""></p>
+<p>（1） 写本地表<br>数据写入时，可以由客户端控制数据分布，直接写入集群中ClickHouse实例的本地表。也可以通过LB组件（如LVS，Nginx）进行控制。</p>
+<p>（2） 写分布式表<br>数据写入时，先写入集群中的分布式表下的节点临时目录，再由分布式表将Insert语句分发到集群各个节点上执行，分布式表不存储实际数据。</p>
+<p>推荐的数据写入方式：本地表写入。</p>
+<h3><span id="物化视图">物化视图</span></h3><p>物化视图是查询结果集的一份持久化存储。产生物化视图的过程就叫做“物化”（materialization）。广义地讲，物化视图是数据库中的预计算逻辑+显式缓存，典型的空间换时间思路。所以用得好的话，它可以避免对基础表的频繁查询并复用结果，从而显著提升查询的性能。</p>
+<p>物化视图会计算当前批次的数据汇总一次，然后根据维度自动merge聚合统计的指标，但是不会跨节点和分区</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203240.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203252.png" alt=""></p>
+<h2><span id="参考资料">参考资料</span></h2><p><a href="https://winway.github.io/2021/07/25/olapNotes/">https://winway.github.io/2021/07/25/olapNotes/</a></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">olap</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">clickhouse</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2022/05/18/bigdata-stack-clickhouse/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-bigdata-stack-kylin" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -346,6 +613,7 @@
 <li><a href="#odbc-external-table-of-doris">ODBC External Table Of Doris</a></li>
 </ul>
 </li>
+<li><a href="#参考资料">参考资料</a></li>
 </ul>
 <!-- tocstop -->
 <blockquote>
@@ -356,7 +624,8 @@
 <ul>
 <li>Mesa是一种高度可扩展的分析数据存储系统，用于存储与Google的互联网广告业务有关的关键测量数据。Mesa旨在满足一系列复杂且具有挑战性的用户和系统需求，包括接近实时的数据提取和查询能力，以及针对大数据和查询量的高可用性，可靠性，容错性和可伸缩性。</li>
 <li>Impala是为Hadoop数据处理环境从头开始构建的现代开源MPP SQL引擎。</li>
-<li>Mesa可以满足我们许多存储的需求，但是Mesa本身不提供SQL查询引擎；Impala是一个非常好的MPP SQL查询引擎，但是缺少完美的分布式存储引擎；ORCFile：采用列式存储（只访问查询涉及的列，能大量降低系统I/O；列数据相对来说比较类似，压缩比更高；每一列由一个线程来处理，更有利于查询的并发处理）。因此选择了这三种技术的组合。</li>
+<li>ORCFile采用列式存储，只访问查询涉及的列，能大量降低系统I/O；列数据相对来说比较类似，压缩比更高；每一列由一个线程来处理，更有利于查询的并发处理；</li>
+<li>Mesa可以满足我们许多存储的需求，但是Mesa本身不提供SQL查询引擎。Impala是一个非常好的MPP SQL查询引擎，但是缺少完美的分布式存储引擎。因此选择了这三种技术的组合。</li>
 </ul>
 <h2><span id="特性">特性</span></h2><ul>
 <li>MPP架构的关系型分析数据库，主要用于多维分析和报表查询，同时支持明细和聚合查询</li>
@@ -410,20 +679,21 @@
 <li>以数据存储的角度观之，FE 存储、维护集群元数据；BE 存储物理数据。</li>
 <li>以查询处理的角度观之, FE 节点接收、解析查询请求，规划查询计划，调度查询执行，返回查询结果；BE 节点依据 FE 生成的物理计划，分布式地执行查询。</li>
 </ul>
-<p>FE 主要有有三个角色，一个是leader，一个是follower，还有一个observer。</p>
+<p>FE 主要有三个角色，一个是leader，一个是follower，还有一个observer。</p>
 <ul>
 <li>leader跟follower，主要是用来达到元数据的高可用，保证单节点宕机的情况下，元数据能够实时地在线恢复，而不影响整个服务。</li>
-<li>observer 只是用来扩展查询节点，就是说如果在发现集群压力非常大的情况下，需要去扩展整个查询的能力，那么可以加observer的节点。observer不参与任何的写入，只参与读取。<br>数据的可靠性由 BE 保证，BE 会对整个数据存储多副本或者是三副本。副本数可根据需求动态调整。</li>
+<li>observer 只是用来扩展查询节点，就是说如果在发现集群压力非常大的情况下，需要去扩展整个查询的能力，那么可以加observer的节点。observer不参与任何的写入，只参与读取。</li>
 </ul>
-<p><img src="https://static001.infoq.cn/resource/image/35/e8/3530685b109151bf2d353897b78f5ae8.png" alt=""><br>元数据层面，Doris 采用 Paxos 协议以及 Memory + Checkpoint + Journal的机制来确保元数据的高性能及高可靠。元数据的每次更新，都首先写入到磁盘的日志文件中，然后再写到内存中，最后定期checkpoint到本地磁盘上。相当于是一个纯内存的一个结构，也就是说所有的元数据都会缓存在内存之中，从而保证FE在宕机后能够快速恢复元数据，而且不丢失元数据。Leader、follower 和 observer 它们三个构成一个可靠的服务。</p>
+<p>数据的可靠性由 BE 保证，BE 会对整个数据存储多副本或者是三副本。副本数可根据需求动态调整。</p>
+<p><img src="https://static001.infoq.cn/resource/image/35/e8/3530685b109151bf2d353897b78f5ae8.png" alt=""><br>元数据层面，Doris 采用 Paxos 协议以及 Memory + Checkpoint + Journal的机制来确保元数据的高性能及高可靠。元数据的每次更新，都首先写入到磁盘的日志文件中，然后再写到内存中，最后定期checkpoint到本地磁盘上。相当于是一个纯内存的结构，也就是说所有的元数据都会缓存在内存之中，从而保证FE在宕机后能够快速恢复元数据，而且不丢失元数据。Leader、follower 和 observer 它们三个构成一个可靠的服务。</p>
 <h3><span id="数据分布">数据分布</span></h3><p><img src="https://img-blog.csdnimg.cn/img_convert/d5fe3623dfef76befaee8a13d2016da0.png" alt=""><br>从表的角度来看数据结构，用户的一张 Table 会拆成多个 Tablet，Tablet 会存成多副本，存储在不同的 BE 中，从而保证数据的高可用和高可靠。<br>数据主要都是存储在 BE 里面，BE 节点上物理数据的可靠性通过多副本来实现，默认是 3 副本，副本数可配置且可随时动态调整,满足不同可用性级别的业务需求。FE 调度 BE 上副本的分布与补齐。如果说用户对可用性要求不高，而对资源的消耗比较敏感的话，我们可以在建表的时候选择建两副本或者一副本。</p>
 <h3><span id="mysql-兼容性">MySQL 兼容性</span></h3><p><img src="https://static001.infoq.cn/resource/image/a8/11/a807f8420a7d47d713e99e004daf7111.png" alt=""><br>Doris 和用户交互兼容 MySQL 的协议。</p>
 <h3><span id="查询计划">查询计划</span></h3><ul>
 <li>分布式逻辑查询计划<br><img src="https://static001.infoq.cn/resource/image/13/ed/13b093cf4cf96ece2ed0e4d70f0d26ed.png" alt=""><br>借鉴了 Impala 的查询引擎，把它改造了一下引入到 Doris 里面形成一个分布式的查询引擎。Impala 是一个完全的 P2P 的结构，每个节点都缓存元数据，对于一个高性能的报表分析来说，它有可能会面临着元数据落后的问题。Doris把它查询规划所有的部分，都放到了一个 FE 里面，即在这个图中所看到的整个的逻辑规划，都会由 FE 来完成。FE 来根据用户的查询生成一个完整的逻辑规划，然后这个逻辑规划最后生成一个分布式的逻辑规划，会发给整个集群去执行。</li>
-<li>分布式物理查询计划<br><img src="https://static001.infoq.cn/resource/image/ca/5f/cada7ce15079b21de05b22157093405f.png" alt=""><br>查询会生成几个算子，主要有扫描的算子，聚合的算子，还有 Join 的算子，最后再排序。右边就相当于对整个的算子的一个实际物理划分。这个规划途中单个方框我们称之为一个 Fragment， Fragment 由单个 BE 节点执行，Fragment 之间的数据交换通过 RPC 来完成。整个物理规划执行完之后，由 FE 把数据收集起来反馈给用户。返回用户的方式就是前面提到过的通过一个 MySQL 的协议。<br>Doris 是有工具可以让你去看一下物理规划，可以分析出这个物理规划的性能可能在哪里不够好，可能稍微改一下查询它的规划就会更契合整个建表的结构，以及整个查询引擎的处理方式。</li>
+<li>分布式物理查询计划<br><img src="https://static001.infoq.cn/resource/image/ca/5f/cada7ce15079b21de05b22157093405f.png" alt=""><br>查询会生成几个算子，主要有扫描的算子，聚合的算子，还有 Join 的算子，最后再排序。右边就相当于对整个算子的一个实际物理划分。这个规划图中单个方框我们称之为一个 Fragment， Fragment 由单个 BE 节点执行，Fragment 之间的数据交换通过 RPC 来完成。整个物理规划执行完之后，由 FE 把数据收集起来反馈给用户。返回用户的方式就是前面提到过的通过一个 MySQL 的协议。<br>Doris 是有工具可以让你去看一下物理规划，可以分析出这个物理规划的性能可能在哪里不够好，可能稍微改一下查询它的规划就会更契合整个建表的结构，以及整个查询引擎的处理方式。</li>
 </ul>
 <h3><span id="数据模型">数据模型</span></h3><p><img src="https://static001.infoq.cn/resource/image/4a/36/4aef1f0ff404789642eb85c777dd9436.png" alt=""><br>Mesa的merge策略，引入了cumulative compaction和base compaction的概念。 Mesa中将包含了一定版本的数据称为deltas, 表示为[V1, V2]，刚实时写入的小deltas， 称之为singleton deltas，然后每到一定的版本数，图中是10，就通过cumulative compaction将10个singleton deltas合并为1个cumulative deltas，最终每天会通过base compaction将所有一定周期的内的deltas都合并为base deltas。 所以查询时只需要查询1个base deltas， 1个cumulative deltas和少数singleton deltas即可。</p>
-<p><img src="https://static001.infoq.cn/resource/image/1e/45/1e7f30383bf66329154bad263a605e45.png" alt=""><br>Doris把导入分成了三级，左边是一个 Base，也就是最早导入的数据的合并，然后中间是一个增量的部分，最后是每一次导入就生成的一个单独的版本。然后这个单独的版本会逐渐的合并到一个更高的增量的版本，增量的版本再合并成一个 Base 的版本。分几级的目的其实就是想尽量把小文件合并成一个中等规模的文件，然后再把中等规模的文件合并成一个大文件，这样会减少一个大文件直接跟一个小文件合并的读写放大量。因为大文件大量的读取其实是划不来的，所以 Doris 采用一个分级的策略去做整个的合并。</p>
+<p><img src="https://static001.infoq.cn/resource/image/1e/45/1e7f30383bf66329154bad263a605e45.png" alt=""><br>Doris把导入分成了三级，上边是一个 Base，也就是最早导入的数据的合并，然后中间是一个增量的部分，最后是每一次导入就生成的一个单独的版本。然后这个单独的版本会逐渐的合并到一个更高的增量的版本，增量的版本再合并成一个 Base 的版本。分几级的目的其实就是想尽量把小文件合并成一个中等规模的文件，然后再把中等规模的文件合并成一个大文件，这样会减少一个大文件直接跟一个小文件合并的读写放大量。因为大文件大量的读取其实是划不来的，所以 Doris 采用一个分级的策略去做整个的合并。</p>
 <p>同时这样做还有一个好处就是新来的导入，不会影响正在进行的查询。因为我现在的导入只有在整个批次完成的时候查询（也就是我们前面所讲的 FE 的元数据）才能感知到，这样它可以做到一个比较好的读写分离，用户在查询历史数据不会受到新来导入的影响。</p>
 <p>Doris保证整个导入的原子性，就是说一个单批次的导入要么生效，要么不生效。即使是一个批次，导入多张表，也是同样。比如这几张表是一个关联表，你想一次把它们全部导入，这样我们也保证整个一个批次的导入对这几张表要么同时生效，要么同时不生效。</p>
 <ul>
@@ -431,8 +701,38 @@
 <li>Uniq模型（唯一主键）<br>在整个历史数据导入的时候，我们保证 Key 的唯一，不聚合。主要面向留存分析或者订单分析的场景，他们需要一个 Unique Key 的约束去保证整个数据不丢不重。<br>该模型本质上是聚合模型的一个特例，也是一种简化的表结构表示方式。</li>
 <li>Duplicate模型（冗余模型）<br>导入之后把这个数据全部放在数据库里面，我们不再做提前的聚合，也不单独保证唯一性，只做一个排序。对于有些日志分析它不太在意数据多几条或者少几条，可能只关心排序，这个时候可能重复 Key 的模型会更加有效果。<br><img src="https://p5.toutiaoimg.com/origin/pgc-image/b242bc76439b447081a995dc9096d9e1?from=pc" alt=""></li>
 </ul>
-<h3><span id="数据组织">数据组织</span></h3><p><img src="https://static001.infoq.cn/resource/image/aa/30/aa5ef73679fd952540dbcb237b15dc30.png" alt=""><br>Doris 作为一个数据库，主要是一个列存的数据库。可以只访问查询涉及的列，大量降低 I/O，达到一个比较好的 I/O 的效果。同时因为按列存储，数据类型一致，方便压缩。<br>除了简单的压缩之外，还有很重要的一个特点就是对数据会排序（数据模型KEY指定的列）。多数分析型数据库都只会去建一个稀疏索引，这个时候把数据排一下序，然后按一个一千行或者一万行，甚至是十万行的维度去建一个稀疏的索引，效果是非常明显的。<br>Doris 存储引擎对于排序列，会存储 min/max/sum 等智能索引技术，将数据集扫描范围尽可能地缩小，减少磁盘 I/O，提升查询性能。比如说这一列排过序了，然后我在这一列的十万行所组成的一个粒度上面，给它加一个 min/max，然后这样查询的时候，它就可以快速去过滤这个十万行，这会大大地减少整个数据的扫描量，从而减少 I/O。</p>
-<h3><span id="前缀索引">前缀索引</span></h3><p>前缀索引，即在排序的基础上，实现的一种根据给定前缀列，快速查询数据的索引方式。<br>Doris 的数据存储在类似 SSTable（一种有序的数据结构，可以按照指定的列进行排序存储）的数据结构中。在这种数据结构上，以排序列作为条件进行查找，会非常的高效。<br>Doris中将一行数据的前 36 个字节 作为这行数据的前缀索引。当遇到 VARCHAR 类型时，前缀索引会直接截断。<br>以下表结构的前缀索引为 user_id(8Byte) + age(8Bytes) + message(prefix 20 Bytes)<br>| ColumnName | Type |<br>|——–|——–|<br>|user_id|bigint|<br>|age|int|<br>|message|varchar(100)|<br>|max_dwell_time|datetime|<br>|min_dwell_time|datetime|</p>
+<h3><span id="数据组织">数据组织</span></h3><p><img src="https://static001.infoq.cn/resource/image/aa/30/aa5ef73679fd952540dbcb237b15dc30.png" alt=""><br>Doris 作为一个数据库，主要是一个列存的数据库。可以只访问查询涉及的列，大量降低 I/O，达到一个比较好的 I/O 效果。同时因为按列存储，数据类型一致，方便压缩。<br>除了简单的压缩之外，还有很重要的一个特点就是对数据会排序（数据模型KEY指定的列）。多数分析型数据库都只会去建一个稀疏索引，这个时候把数据排一下序，然后按一个一千行或者一万行，甚至是十万行的维度去建一个稀疏的索引，效果是非常明显的。<br>Doris 存储引擎对于排序列，会存储 min/max/sum 等智能索引技术，将数据集扫描范围尽可能地缩小，减少磁盘 I/O，提升查询性能。比如说这一列排过序了，然后我在这一列的十万行所组成的一个粒度上面，给它加一个 min/max，然后这样查询的时候，它就可以快速去过滤这个十万行，这会大大地减少整个数据的扫描量，从而减少 I/O。</p>
+<h3><span id="前缀索引">前缀索引</span></h3><p>前缀索引，即在排序的基础上，实现的一种根据给定前缀列，快速查询数据的索引方式。<br>Doris 的数据存储在类似 SSTable（一种有序的数据结构，可以按照指定的列进行排序存储）的数据结构中。在这种数据结构上，以排序列作为条件进行查找，会非常的高效。<br>Doris中将一行数据的前 36 个字节 作为这行数据的前缀索引。当遇到 VARCHAR 类型时，前缀索引会直接截断。<br>以下表结构的前缀索引为 user_id(8Byte) + age(8Bytes) + message(prefix 20 Bytes)</p>
+<table>
+<thead>
+<tr>
+<th>ColumnName</th>
+<th>Type</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>user_id</td>
+<td>bigint</td>
+</tr>
+<tr>
+<td>age</td>
+<td>int</td>
+</tr>
+<tr>
+<td>message</td>
+<td>varchar(100)</td>
+</tr>
+<tr>
+<td>max_dwell_time</td>
+<td>datetime</td>
+</tr>
+<tr>
+<td>min_dwell_time</td>
+<td>datetime</td>
+</tr>
+</tbody>
+</table>
 <p>当我们的查询条件，是前缀索引的前缀时，可以极大的加快查询速度。比如在第一个例子中，我们执行如下查询：<br><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> * <span class="keyword">FROM</span> <span class="keyword">table</span> <span class="keyword">WHERE</span> user_id=<span class="number">1829239</span> <span class="keyword">and</span> age=<span class="number">20</span>；</span><br></pre></td></tr></table></figure></p>
 <p>该查询的效率会远高于如下查询：<br><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> * <span class="keyword">FROM</span> <span class="keyword">table</span> <span class="keyword">WHERE</span> age=<span class="number">20</span>；</span><br></pre></td></tr></table></figure></p>
 <p>所以在建表时，正确的选择列顺序，能够极大地提高查询效率。</p>
@@ -448,7 +748,7 @@
 <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> site_visit <span class="keyword">MODIFY</span> <span class="keyword">COLUMN</span> username <span class="built_in">varchar</span>(<span class="number">64</span>);</span><br></pre></td></tr></table></figure>
 </li>
 </ul>
-<h3><span id="向量化执行">向量化执行</span></h3><p><img src="https://static001.infoq.cn/resource/image/14/19/142be1d5e532c74e06aa98dfeceeaa19.png" alt=""><br>这是列存数据库特有的一个优化技巧，可以达到一个减少 CPU 的消耗，提升整个 CPU 的利用率。向量化执行的方式可以提高 3 到 4 倍的性能</p>
+<h3><span id="向量化执行">向量化执行</span></h3><p><img src="https://static001.infoq.cn/resource/image/14/19/142be1d5e532c74e06aa98dfeceeaa19.png" alt=""><br>这是列存数据库特有的一个优化技巧，可以达到减少 CPU 的消耗，提升整个 CPU 的利用率。向量化执行的方式可以提高 3 到 4 倍的性能</p>
 <h3><span id="物化视图-rollup">物化视图-ROLLUP</span></h3><p><img src="https://static001.infoq.cn/resource/image/af/34/af23adeaf32b581d25d94ba41b2fee34.png" alt=""><br>以这个图为例，左下角是原始数据，右边是把这个数据重新排序，因为改变排序就会相应地去改变整个数据的前缀索引的方式，这样的话就可以去换维度进行分析了，可以更好地去满足整个查询的需求。<br>如果说经常只按一个维度进行组合分析，我可以只选它其中部分列，把它聚合，达到一个更好的聚合效果。这样的方式就可以满足不同的统计分析的需求，以及不同的多维分析的需求（右下角）。<br>物化视图，核心是空间换时间，跟原来的表是一个绑定的形式。但是在导入的时候会保证它跟原始表一定是一个原子生效的过程，查询的时候会自动去判断它满不满足物化视图，满足的话就会自动落在它的上面，用户不需要修改任何的查询。用户所需要做的是发现业务可能换一个表的结构，会更好地满足整个查询需求，那么去建一个物化视图就行了，物化视图发起之后后续所有的操作，从导入到查询，用户都不需要再关心。</p>
 <h3><span id="两层区分与分级存储">两层区分与分级存储</span></h3><p>Doris支持两级分区存储, 第一层为RANGE分区(partition), 第二层为HASH分桶(bucket)。<br><img src="https://static001.infoq.cn/resource/image/e8/cb/e896716a5ac8a1a3a2e95ecded48c5cb.png" alt=""></p>
 <ul>
@@ -463,8 +763,7 @@
 <li>支持Doris与各种数据源中的表联合查询，进行更加复杂的分析操作</li>
 <li>通过insert into将Doris执行的查询结果写入外部的数据源</li>
 </ul>
-<p>参考资料</p>
-<ul>
+<h2><span id="参考资料">参考资料</span></h2><ul>
 <li><a href="https://www.infoq.cn/article/vxup94ub59ya*k0tnefe" target="_blank" rel="noopener">Apache Doris (Incubating) 原理与实践</a></li>
 <li><a href="https://tech.meituan.com/2020/04/09/doris-in-meituan-waimai.html" target="_blank" rel="noopener">Apache Doris在美团外卖数仓中的应用实践</a></li>
 <li><a href="https://www.modb.pro/db/225426" target="_blank" rel="noopener">Doris系列1-Doris介绍</a></li>
@@ -1728,117 +2027,6 @@
 
 
   
-    <article id="post-bigdata-stack-flume-canal" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/11/bigdata-stack-flume-canal/">大数据开发之路-canal</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/11/bigdata-stack-flume-canal/" class="archive-article-date">
-  	<time datetime="2022-05-11T12:06:39.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-11</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#canal-基于mysql-binlog的增量同步工具">canal-基于MySQL binlog的增量同步工具</a></li>
-<li><a href="#canal可以做什么">canal可以做什么</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引<br><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></p>
-</blockquote>
-<h2><span id="canal-基于mysql-binlog的增量同步工具">canal-基于MySQL binlog的增量同步工具</span></h2><p><img src="https://imgconvert.csdnimg.cn/aHR0cHM6Ly9zdGF0aWMubG92ZWJpbGliaWxpLmNvbS9waWMvY2FuYWxfc3l0LnBuZw?x-oss-process=image/format,png" alt=""></p>
-<p>canal归根结底也是解决数据同步的问题，但不像sqoop和datax，canal解决的是数据实时同步的问题。准确的说是，如何将实时变化的mysql中的数据实时同步到Kafka/Redis/Memcached/Hbase/Solr/Elasticsearch等存储或应用中。</p>
-<p>canal的工作原理就是把自己伪装成MySQL slave，模拟MySQL slave的交互协议向MySQL Mater发送 dump协议，MySQL master收到canal发送过来的dump请求，开始推送binary log给canal，然后canal解析binary log，再发送到存储目的地，比如MySQL，Kafka，Elastic Search等等。</p>
-<h2><span id="canal可以做什么">canal可以做什么</span></h2><p>基于binary log增量订阅和消费，canal可以做：</p>
-<ul>
-<li>数据库镜像</li>
-<li>数据库实时备份</li>
-<li>索引构建和实时维护</li>
-<li>业务cache(缓存)刷新</li>
-<li>带业务逻辑的增量数据处理</li>
-</ul>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://developer.aliyun.com/article/770496" target="_blank" rel="noopener">超详细的canal入门看这篇就够了</a></li>
-<li><a href="https://www.cnblogs.com/binghe001/p/13445117.html" target="_blank" rel="noopener">【Canal】数据同步的终极解决方案，阿里巴巴开源的Canal框架当之无愧！！</a></li>
-<li><a href="https://github.com/alibaba/canal/issues/1623" target="_blank" rel="noopener">canal.serverMode 同时支持tcp和kafka么？</a></li>
-<li><a href="https://github.com/alibaba/canal/wiki" target="_blank" rel="noopener">canal wiki</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">canal</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/11/bigdata-stack-flume-canal/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/11/">11</a><a class="extend next" rel="next" href="/page/2/">Next &raquo;</a>
@@ -1938,19 +2126,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1962,15 +2142,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hive</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
+                <a href="javascript:void(0)" class="js-tag color4">pig</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1982,10 +2170,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
               </li>
              
@@ -1994,11 +2178,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">olap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2046,6 +2242,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">hexo</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">github pages</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">tez</a>
               </li>
              
@@ -2083,14 +2287,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hexo</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">github pages</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2158,10 +2354,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">olap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
@@ -2203,10 +2395,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">doris</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
               </li>
             
             <div class="clearfix"></div>
