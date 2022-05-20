@@ -8,13 +8,13 @@
   <link rel="dns-prefetch" href="https://winway.github.io">
   <title>cap原则-分布式系统设计的指导思想 | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="cap原则-分布式系统设计的指导思想 什么是cap？ Partition tolerance-分区容忍性 Consistency-一致性 Availability-可用性   Consistency 和 Availability 的矛盾 提出 CAP 是为了解决什么问题？ CAP的权衡 CA without P CP without A AP wihtout C 适合的才是最好的   数据分片">
+  <meta name="description" content="cap原则-分布式系统设计的指导思想 什么是cap？ Partition tolerance-分区容忍性 Consistency-一致性 Availability-可用性 Consistency 和 Availability 的矛盾   提出 CAP 是为了解决什么问题？ CAP的权衡 CA without P CP without A AP wihtout C 适合的才是最好的   数据分片">
 <meta name="keywords" content="cap">
 <meta property="og:type" content="article">
 <meta property="og:title" content="cap原则-分布式系统设计的指导思想">
 <meta property="og:url" content="https://winway.github.io/2022/05/20/bigdata-stack-cap/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:description" content="cap原则-分布式系统设计的指导思想 什么是cap？ Partition tolerance-分区容忍性 Consistency-一致性 Availability-可用性   Consistency 和 Availability 的矛盾 提出 CAP 是为了解决什么问题？ CAP的权衡 CA without P CP without A AP wihtout C 适合的才是最好的   数据分片">
+<meta property="og:description" content="cap原则-分布式系统设计的指导思想 什么是cap？ Partition tolerance-分区容忍性 Consistency-一致性 Availability-可用性 Consistency 和 Availability 的矛盾   提出 CAP 是为了解决什么问题？ CAP的权衡 CA without P CP without A AP wihtout C 适合的才是最好的   数据分片">
 <meta property="og:locale" content="default">
 <meta property="og:image" content="http://www.hollischuang.com/wp-content/uploads/2015/12/Teorema-CAP-2.png">
 <meta property="og:image" content="https://www.wangbase.com/blogimg/asset/201807/bg2018071601.png">
@@ -22,10 +22,10 @@
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155113.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155141.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155216.png">
-<meta property="og:updated_time" content="2022-05-20T07:52:43.808Z">
+<meta property="og:updated_time" content="2022-05-20T12:29:45.633Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="cap原则-分布式系统设计的指导思想">
-<meta name="twitter:description" content="cap原则-分布式系统设计的指导思想 什么是cap？ Partition tolerance-分区容忍性 Consistency-一致性 Availability-可用性   Consistency 和 Availability 的矛盾 提出 CAP 是为了解决什么问题？ CAP的权衡 CA without P CP without A AP wihtout C 适合的才是最好的   数据分片">
+<meta name="twitter:description" content="cap原则-分布式系统设计的指导思想 什么是cap？ Partition tolerance-分区容忍性 Consistency-一致性 Availability-可用性 Consistency 和 Availability 的矛盾   提出 CAP 是为了解决什么问题？ CAP的权衡 CA without P CP without A AP wihtout C 适合的才是最好的   数据分片">
 <meta name="twitter:image" content="http://www.hollischuang.com/wp-content/uploads/2015/12/Teorema-CAP-2.png">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
@@ -189,9 +189,9 @@
 <li><a href="#partition-tolerance-分区容忍性">Partition tolerance-分区容忍性</a></li>
 <li><a href="#consistency-一致性">Consistency-一致性</a></li>
 <li><a href="#availability-可用性">Availability-可用性</a></li>
+<li><a href="#consistency-和-availability-的矛盾">Consistency 和 Availability 的矛盾</a></li>
 </ul>
 </li>
-<li><a href="#consistency-和-availability-的矛盾">Consistency 和 Availability 的矛盾</a></li>
 <li><a href="#提出-cap-是为了解决什么问题">提出 CAP 是为了解决什么问题？</a></li>
 <li><a href="#cap的权衡">CAP的权衡</a><ul>
 <li><a href="#ca-without-p">CA without P</a></li>
@@ -225,7 +225,7 @@
 <p>Reads and writes always succeed。</p>
 </blockquote>
 <p>用户可以选择向 G1 或 G2 发起读操作。不管是哪台服务器，只要收到请求，就必须告诉用户，到底是 v0 还是 v1，否则就不满足可用性。</p>
-<h2><span id="consistency-和-availability-的矛盾">Consistency 和 Availability 的矛盾</span></h2><p>一致性和可用性，为什么不可能同时成立？答案很简单，因为可能通信失败（即出现分区容错）。<br>如果保证 G2 的一致性，那么 G1 必须在写操作时，锁定 G2 的读操作和写操作。只有数据同步后，才能重新开放读写。锁定期间，G2 不能读写，没有可用性。<br>如果保证 G2 的可用性，那么势必不能锁定 G2，所以一致性不成立。<br>综上所述，G2 无法同时做到一致性和可用性。系统设计时只能选择一个目标。如果追求一致性，那么无法保证所有节点的可用性；如果追求所有节点的可用性，那就没法做到一致性。</p>
+<h3><span id="consistency-和-availability-的矛盾">Consistency 和 Availability 的矛盾</span></h3><p>一致性和可用性，为什么不可能同时成立？答案很简单，因为可能通信失败（即出现分区容错）。<br>如果保证 G2 的一致性，那么 G1 必须在写操作时，锁定 G2 的读操作和写操作。只有数据同步后，才能重新开放读写。锁定期间，G2 不能读写，没有可用性。<br>如果保证 G2 的可用性，那么势必不能锁定 G2，所以一致性不成立。<br>综上所述，G2 无法同时做到一致性和可用性。系统设计时只能选择一个目标。如果追求一致性，那么无法保证所有节点的可用性；如果追求所有节点的可用性，那就没法做到一致性。</p>
 <p>而根据一致性和可用性的选择不同，开源的分布式系统往往又被分为 CP 系统和 AP 系统。<br>当一套系统在发生分区故障后，客户端的任何请求都被卡死或者超时，但是，系统的每个节点总是会返回一致的数据，则这套系统就是 CP 系统，经典的比如 Zookeeper。<br>如果一套系统发生分区故障后，客户端依然可以访问系统，但是获取的数据有的是新的数据，有的还是老数据，那么这套系统就是 AP 系统，经典的比如 Eureka。</p>
 <h2><span id="提出-cap-是为了解决什么问题">提出 CAP 是为了解决什么问题？</span></h2><p>CAP准确描述和定义了分布式系统设计中的trade-off问题，用于指导分布式系统的设计，避免系统不同模块之间因设计理念不统一而导致混乱。</p>
 <h2><span id="cap的权衡">CAP的权衡</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155025.png" alt=""><br>通过CAP理论及前面的证明，我们知道无法同时满足一致性、可用性和分区容错性这三个特性，那要舍弃哪个呢？我们分三种情况来阐述一下。</p>
