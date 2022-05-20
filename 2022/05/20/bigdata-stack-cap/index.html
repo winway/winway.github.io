@@ -8,24 +8,24 @@
   <link rel="dns-prefetch" href="https://winway.github.io">
   <title>cap原则-分布式系统设计的指导思想 | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="cap原则-分布式系统设计的指导思想 什么是cap？ Partition tolerance-分区容忍性 Consistency-一致性 Availability-可用性   Consistency 和 Availability 的矛盾 提出 CAP 是为了解决什么问题？ CAP权衡 CA without P CP without A AP wihtout C 适合的才是最好的   数据分片和">
+  <meta name="description" content="cap原则-分布式系统设计的指导思想 什么是cap？ Partition tolerance-分区容忍性 Consistency-一致性 Availability-可用性   Consistency 和 Availability 的矛盾 提出 CAP 是为了解决什么问题？ CAP的权衡 CA without P CP without A AP wihtout C 适合的才是最好的   数据分片">
 <meta name="keywords" content="cap">
 <meta property="og:type" content="article">
 <meta property="og:title" content="cap原则-分布式系统设计的指导思想">
 <meta property="og:url" content="https://winway.github.io/2022/05/20/bigdata-stack-cap/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:description" content="cap原则-分布式系统设计的指导思想 什么是cap？ Partition tolerance-分区容忍性 Consistency-一致性 Availability-可用性   Consistency 和 Availability 的矛盾 提出 CAP 是为了解决什么问题？ CAP权衡 CA without P CP without A AP wihtout C 适合的才是最好的   数据分片和">
+<meta property="og:description" content="cap原则-分布式系统设计的指导思想 什么是cap？ Partition tolerance-分区容忍性 Consistency-一致性 Availability-可用性   Consistency 和 Availability 的矛盾 提出 CAP 是为了解决什么问题？ CAP的权衡 CA without P CP without A AP wihtout C 适合的才是最好的   数据分片">
 <meta property="og:locale" content="default">
 <meta property="og:image" content="http://www.hollischuang.com/wp-content/uploads/2015/12/Teorema-CAP-2.png">
 <meta property="og:image" content="https://www.wangbase.com/blogimg/asset/201807/bg2018071601.png">
-<meta property="og:image" content="http://i1.kknews.cc/2M0smcd8-r9RVSR2aFxFc-tyYckaryf-9g/0.jpg">
-<meta property="og:image" content="https://ask.qcloudimg.com/http-save/yehe-7686797/deab7877d41a420c42d9f5411d960573.png?imageView2/2/w/1620">
-<meta property="og:image" content="https://ask.qcloudimg.com/http-save/yehe-7686797/c814cb0ec83e7ac6723d35c8c90ee960.png?imageView2/2/w/1620">
-<meta property="og:image" content="https://ask.qcloudimg.com/http-save/yehe-7686797/5d70455fdaf2b89ea04fc8ed2ffef8e7.png?imageView2/2/w/1620">
-<meta property="og:updated_time" content="2022-05-20T07:41:04.631Z">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155025.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155113.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155141.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155216.png">
+<meta property="og:updated_time" content="2022-05-20T07:52:43.808Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="cap原则-分布式系统设计的指导思想">
-<meta name="twitter:description" content="cap原则-分布式系统设计的指导思想 什么是cap？ Partition tolerance-分区容忍性 Consistency-一致性 Availability-可用性   Consistency 和 Availability 的矛盾 提出 CAP 是为了解决什么问题？ CAP权衡 CA without P CP without A AP wihtout C 适合的才是最好的   数据分片和">
+<meta name="twitter:description" content="cap原则-分布式系统设计的指导思想 什么是cap？ Partition tolerance-分区容忍性 Consistency-一致性 Availability-可用性   Consistency 和 Availability 的矛盾 提出 CAP 是为了解决什么问题？ CAP的权衡 CA without P CP without A AP wihtout C 适合的才是最好的   数据分片">
 <meta name="twitter:image" content="http://www.hollischuang.com/wp-content/uploads/2015/12/Teorema-CAP-2.png">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
@@ -193,7 +193,7 @@
 </li>
 <li><a href="#consistency-和-availability-的矛盾">Consistency 和 Availability 的矛盾</a></li>
 <li><a href="#提出-cap-是为了解决什么问题">提出 CAP 是为了解决什么问题？</a></li>
-<li><a href="#cap权衡">CAP权衡</a><ul>
+<li><a href="#cap的权衡">CAP的权衡</a><ul>
 <li><a href="#ca-without-p">CA without P</a></li>
 <li><a href="#cp-without-a">CP without A</a></li>
 <li><a href="#ap-wihtout-c">AP wihtout C</a></li>
@@ -228,7 +228,7 @@
 <h2><span id="consistency-和-availability-的矛盾">Consistency 和 Availability 的矛盾</span></h2><p>一致性和可用性，为什么不可能同时成立？答案很简单，因为可能通信失败（即出现分区容错）。<br>如果保证 G2 的一致性，那么 G1 必须在写操作时，锁定 G2 的读操作和写操作。只有数据同步后，才能重新开放读写。锁定期间，G2 不能读写，没有可用性。<br>如果保证 G2 的可用性，那么势必不能锁定 G2，所以一致性不成立。<br>综上所述，G2 无法同时做到一致性和可用性。系统设计时只能选择一个目标。如果追求一致性，那么无法保证所有节点的可用性；如果追求所有节点的可用性，那就没法做到一致性。</p>
 <p>而根据一致性和可用性的选择不同，开源的分布式系统往往又被分为 CP 系统和 AP 系统。<br>当一套系统在发生分区故障后，客户端的任何请求都被卡死或者超时，但是，系统的每个节点总是会返回一致的数据，则这套系统就是 CP 系统，经典的比如 Zookeeper。<br>如果一套系统发生分区故障后，客户端依然可以访问系统，但是获取的数据有的是新的数据，有的还是老数据，那么这套系统就是 AP 系统，经典的比如 Eureka。</p>
 <h2><span id="提出-cap-是为了解决什么问题">提出 CAP 是为了解决什么问题？</span></h2><p>CAP准确描述和定义了分布式系统设计中的trade-off问题，用于指导分布式系统的设计，避免系统不同模块之间因设计理念不统一而导致混乱。</p>
-<h2><span id="cap权衡">CAP权衡</span></h2><p><img src="http://i1.kknews.cc/2M0smcd8-r9RVSR2aFxFc-tyYckaryf-9g/0.jpg" alt=""><br>通过CAP理论及前面的证明，我们知道无法同时满足一致性、可用性和分区容错性这三个特性，那要舍弃哪个呢？我们分三种情况来阐述一下。</p>
+<h2><span id="cap的权衡">CAP的权衡</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155025.png" alt=""><br>通过CAP理论及前面的证明，我们知道无法同时满足一致性、可用性和分区容错性这三个特性，那要舍弃哪个呢？我们分三种情况来阐述一下。</p>
 <h3><span id="ca-without-p">CA without P</span></h3><p>这种情况在分布式系统中几乎是不存在的。首先在分布式环境下，网络分区是一个自然的事实。因为分区是必然的，所以如果舍弃P，意味着要舍弃分布式系统。那也就没有必要再讨论CAP理论了。这也是为什么在前面的CAP证明中，我们以系统满足P为前提论述了无法同时满足C和A。<br>比如我们熟知的关系型数据库，如MySql和Oracle就是保证了可用性和数据一致性，但是他并不是个分布式系统。一旦关系型数据库要考虑主备同步、集群部署等就必须要把P也考虑进来。<br>其实，在CAP理论中。C，A，P三者并不是平等的，CAP之父在《Spanner，真时，CAP理论》一文中写到：</p>
 <blockquote>
 <p>如果说Spanner真有什么特别之处，那就是谷歌的广域网。Google通过建立私有网络以及强大的网络工程能力来保证P，在多年运营改进的基础上，在生产环境中可以最大程度的减少分区发生，从而实现高可用性。</p>
@@ -241,8 +241,8 @@
 <li>对于涉及到钱财这样不能有一丝让步的场景，C必须保证。网络发生故障宁可停止服务，这是保证CP，舍弃A。比如前几年支付宝光缆被挖断的事件，在网络出现故障的时候，支付宝就在可用性和数据一致性之间选择了数据一致性，用户感受到的是支付宝系统长时间宕机，但是其实背后是无数的工程师在恢复数据，保证数数据的一致性。</li>
 <li>对于其他场景，比较普遍的做法是选择可用性和分区容错性，舍弃强一致性，退而求其次使用最终一致性来保证数据的安全。这其实是分布式领域的另外一个理论——BASE理论。</li>
 </ul>
-<h2><span id="数据分片和数据副本的分布式系统是否都遵守-cap-定理">数据分片和数据副本的分布式系统是否都遵守 CAP 定理</span></h2><p>比如，我们有个分布式系统，由三个节点 a、b、c 组成。其中节点 a 存放了 A 表的数据，b 存放了 B 表的数据，c 存放了 C 表的数据。<br>如果有一个业务，它的意图是想往 A 表插入一条新数据，在 B 表删除一条已有数据，在 C 表更新一条老数据，这个分布式系统该怎么处理这种业务？<br>技术上我们对这种一个意图想做多件事的情况往往会包装成一个事务。当我们包装成一个事务以后，我们可能会通过先在 a 节点执行，然后去 b 节点执行，最后去 c 节点执行，等到都成功了，才会返回成功。<br>但是，发生了分区以后怎么办？当在 a、b 节点都成功了，到 c 发现发生了通信故障？<br>此时，根据 CAP 定理，你有两个选择，要么就直接返回一个部分成功的结果给客户端，要么直接卡死等客户端超时或者返回失败给客户端。当返回部分成功的时候，这就是选择了可用性（A），当卡死或者返回失败给客户端的时候，就是选择了一致性（C）。<br>可是，我们将请求包装成了事务，而事务是要求要么都成功，要么都失败……为了遵守这种要求，对于分布式只有分片的情况，迫于客观条件，只能选择C。所以分片的分布式系统，往往都是 CP 的系统。<br><img src="https://ask.qcloudimg.com/http-save/yehe-7686797/deab7877d41a420c42d9f5411d960573.png?imageView2/2/w/1620" alt=""></p>
-<p>而当分布式系统是多个节点，每个节点存储了完整的一套数据，别的节点只是完整数据的备份的时候，即使事务只在一台机器上成功，当发生分区故障的时候，我们也是可以有充分的余地选择是单机事务的回退 or 就此认为写成功的。就此认为写成功，则可以认为选择了可用性。<br><img src="https://ask.qcloudimg.com/http-save/yehe-7686797/c814cb0ec83e7ac6723d35c8c90ee960.png?imageView2/2/w/1620" alt=""><br>单机事务的回退，就可以对外表现为选择了一致性。<br><img src="https://ask.qcloudimg.com/http-save/yehe-7686797/5d70455fdaf2b89ea04fc8ed2ffef8e7.png?imageView2/2/w/1620" alt=""></p>
+<h2><span id="数据分片和数据副本的分布式系统是否都遵守-cap-定理">数据分片和数据副本的分布式系统是否都遵守 CAP 定理</span></h2><p>比如，我们有个分布式系统，由三个节点 a、b、c 组成。其中节点 a 存放了 A 表的数据，b 存放了 B 表的数据，c 存放了 C 表的数据。<br>如果有一个业务，它的意图是想往 A 表插入一条新数据，在 B 表删除一条已有数据，在 C 表更新一条老数据，这个分布式系统该怎么处理这种业务？<br>技术上我们对这种一个意图想做多件事的情况往往会包装成一个事务。当我们包装成一个事务以后，我们可能会通过先在 a 节点执行，然后去 b 节点执行，最后去 c 节点执行，等到都成功了，才会返回成功。<br>但是，发生了分区以后怎么办？当在 a、b 节点都成功了，到 c 发现发生了通信故障？<br>此时，根据 CAP 定理，你有两个选择，要么就直接返回一个部分成功的结果给客户端，要么直接卡死等客户端超时或者返回失败给客户端。当返回部分成功的时候，这就是选择了可用性（A），当卡死或者返回失败给客户端的时候，就是选择了一致性（C）。<br>可是，我们将请求包装成了事务，而事务是要求要么都成功，要么都失败……为了遵守这种要求，对于分布式只有分片的情况，迫于客观条件，只能选择C。所以分片的分布式系统，往往都是 CP 的系统。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155113.png" alt=""></p>
+<p>而当分布式系统是多个节点，每个节点存储了完整的一套数据，别的节点只是完整数据的备份的时候，即使事务只在一台机器上成功，当发生分区故障的时候，我们也是可以有充分的余地选择是单机事务的回退 or 就此认为写成功的。就此认为写成功，则可以认为选择了可用性。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155141.png" alt=""><br>单机事务的回退，就可以对外表现为选择了一致性。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155216.png" alt=""></p>
 <h2><span id="总结">总结</span></h2><p>总结一下，通俗的讲，当分布式系统出现故障时（可能是一个节点宕机了，这种情况应该很常见，或者网络故障导致部分节点失联），</p>
 <ul>
 <li>如果系统依然可以提供服务，哪怕数据有可能不是最新的，因为故障很可能会导致不同节点间数据同步中断/滞后，这就是AP；</li>
