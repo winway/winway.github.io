@@ -155,6 +155,196 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-bigdata-stack-row-col" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a>
+    </h1>
+  
+
+        
+        <a href="/2022/05/20/bigdata-stack-row-col/" class="archive-article-date">
+  	<time datetime="2022-05-20T10:37:49.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-20</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#行存和列存-大数据存取的选择">行存和列存-大数据存取的选择</a></li>
+<li><a href="#定义">定义</a></li>
+<li><a href="#行存-vs-列存">行存 Vs 列存</a><ul>
+<li><a href="#写入">写入</a></li>
+<li><a href="#读取">读取</a></li>
+<li><a href="#解析">解析</a></li>
+<li><a href="#总结">总结</a></li>
+</ul>
+</li>
+<li><a href="#适用场景">适用场景</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="行存和列存-大数据存取的选择">行存和列存-大数据存取的选择</span></h2><p><img src="https://img-blog.csdn.net/20180706125239844?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1hpbmd4aW54aW54aW4=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70" alt=""><br>目前大数据存储有两种方案可供选择：行存储（Row-Based）和列存储（Column-Based）。</p>
+<h2><span id="定义">定义</span></h2><p>我们常用的关系型数据库mysql，oracle等都是基于行存储，以最常用的mysql数据库innodb引擎为例。多个连续的行记录，组成一个data page（大小16k），然后按照B+树的结构进行组织存储。<br><img src="https://upload-images.jianshu.io/upload_images/15439830-bd33138646f55b48.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp" alt=""><br><img src="https://upload-images.jianshu.io/upload_images/15439830-bc2ef52beca5f85f.png?imageMogr2/auto-orient/strip|imageView2/2/w/641/format/webp" alt=""></p>
+<p>列式存储(column-based)是相对于传统关系型数据库的行式存储(Row-basedstorage)来说的。简单来说两者的区别就是如何组织表：</p>
+<ul>
+<li>Row-based storage storesatable in a sequence of rows.</li>
+<li>Column-based storage storesatable in a sequence of columns.</li>
+</ul>
+<p><img src="https://upload-images.jianshu.io/upload_images/15439830-ed3daae94e7e792f.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp" alt=""></p>
+<h2><span id="行存-vs-列存">行存 Vs 列存</span></h2><h3><span id="写入">写入</span></h3><ul>
+<li>行存储的写入是一次完成。如果这种写入建立在操作系统的文件系统上，可以保证写入过程的成功或者失败，数据的完整性因此可以确定。</li>
+<li>列存储由于需要把一行记录拆分成单列保存，写入次数明显比行存储多，再加上磁头需要在盘片上移动和定位花费的时间，实际时间消耗会更大。所以，行存储在写入上占有很大的优势。</li>
+<li>还有数据修改,这实际也是一次写入过程。不同的是，数据修改是对磁盘上的记录做删除标记。行存储是在指定位置写入一次，列存储是将磁盘定位到多个列上分别写入，这个过程仍是行存储的列数倍。所以，数据修改也是以行存储占优。</li>
+</ul>
+<h3><span id="读取">读取</span></h3><ul>
+<li>数据读取时，行存储通常将一行数据完全读出，如果只需要其中几列数据的情况，就会存在冗余列，出于缩短处理时间的考量，消除冗余列的过程通常是在内存中进行的。</li>
+<li>列存储每次读取的数据是集合的一段或者全部，如果读取多列时，就需要移动磁头，再次定位到下一列的位置继续读取。</li>
+</ul>
+<h3><span id="解析">解析</span></h3><ul>
+<li>由于列存储的每一列数据类型是同质的，不存在二义性问题。比如说某列数据类型为整型(int)，那么它的数据集合一定是整型数据。这种情况使数据解析变得十分容易。</li>
+<li>相比之下，行存储则要复杂得多，因为在一行记录中保存了多种类型的数据，数据解析需要在多种数据类型之间频繁转换，这个操作很消耗CPU，增加了解析的时间。所以，列存储的解析过程更有利于分析大数据。</li>
+<li>列存储由于每一列数据类型一致，更有利于压缩和检索。<br><img src="https://img-blog.csdn.net/20180706125401662?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1hpbmd4aW54aW54aW4=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70" alt=""><br><img src="https://img-blog.csdn.net/20180706125430267?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1hpbmd4aW54aW54aW4=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70" alt=""></li>
+</ul>
+<h3><span id="总结">总结</span></h3><table>
+<thead>
+<tr>
+<th>对比方面</th>
+<th>行存储</th>
+<th>列存储</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>存储方式</td>
+<td>按行存储</td>
+<td>按列存储，即每一列单独存放</td>
+</tr>
+<tr>
+<td>数据完整性</td>
+<td>提供数据完整性保证</td>
+<td>缺乏数据完整性保证</td>
+</tr>
+<tr>
+<td>写性能</td>
+<td>写入是一次完成，写入效率高</td>
+<td>把一行记录拆分成单列保存，写入次数明显比行存储多，写入效率低</td>
+</tr>
+<tr>
+<td>读性能</td>
+<td>读取少数几列时，需遍历其他无关列，IO开销较大；读取整行数据时，依次顺序读即可，性能高</td>
+<td>读取少数几列时，无需读取无关列，性能高；读取整行时，需分别读取所有列，并拼装成行，性能低</td>
+</tr>
+<tr>
+<td>索引</td>
+<td>没有索引的查询使用大量I/O。比如一般的数据库表都会建立索引，通过索引加快查询效率</td>
+<td>数据即索引</td>
+</tr>
+<tr>
+<td>数据压缩</td>
+<td>每行数据存储在一起，压缩比较低</td>
+<td>以列为单位存储数据，这使得类型相同的数据存放在一起，对压缩算法友好，压缩比较高</td>
+</tr>
+<tr>
+<td>典型代表</td>
+<td>Text File、 Sequence File等</td>
+<td>ORC、 Parquet、 Carbon Data等</td>
+</tr>
+<tr>
+<td>应用领域</td>
+<td>商业领域/互联网</td>
+<td>互联网</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>如果首要考虑是数据的完整性和可靠性，那么行存储是不二选择，列存储只有在增加磁盘并改进软件设计后才能接近这样的目标。</li>
+<li>如果以保存数据为主，行存储的写入性能比列存储高很多。</li>
+<li>在需要频繁读取单列集合数据的应用中，列存储是最合适的。</li>
+<li>如果每次读取多列，两个方案可酌情选择：<ul>
+<li>采用行存储时，设计中应考虑减少或避免冗余列；</li>
+<li>若采用列存储方案，为保证读写入效率，每列数据尽可能分别保存到不同的磁盘上，多个线程并行读写各自的数据，这样避免了磁盘竞用的同时也提高了处理效率。</li>
+</ul>
+</li>
+<li>无论选择哪种方案，将同内容数据聚凑在一起都是必须的，这是减少磁头在磁盘上的移动，提高数据读取时间的有效办法。</li>
+</ul>
+<h2><span id="适用场景">适用场景</span></h2><ul>
+<li><p>行存储的写入是一次性完成，消耗的时间比列存储少，并且能够保证数据的完整性，缺点是数据读取过程中会产生冗余数据，如果只有少量数据，此影响可以忽略；数量大可能会影响到数据的处理效率。</p>
+<ul>
+<li>所以，行存对于 OLTP 比较友好，一行记录的所有列连续存储，一次IO可以实现整行读取或者写入，实现数据库的ACID特性就比较简单。但在读取的时候会将整行数据全读出来，在一些分析场景下压力会有点大。</li>
+</ul>
+</li>
+<li><p>列存储在写入效率、保证数据完整性上都不如行存储，它的优势是在读取过程，不会产生冗余数据，这对数据完整性要求不高的大数据处理领域，比如互联网，犹为重要。</p>
+<ul>
+<li>所以，列存则是对于 OLAP 非常友好，但在刷盘的时候压力可能会比较大，如果一个 table 有很多 column，写入性能可会有点影响。</li>
+</ul>
+</li>
+</ul>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://www.infoq.cn/article/bigdata-store-choose" target="_blank" rel="noopener">大数据存取的选择：行存储还是列存储？</a></li>
+<li><a href="https://blog.csdn.net/Xingxinxinxin/article/details/80939277" target="_blank" rel="noopener">行存储 VS 列存储</a></li>
+<li><a href="https://juejin.cn/post/7001508701706125320" target="_blank" rel="noopener">列式存储和行式存储有什么区别？</a></li>
+<li><a href="https://www.jianshu.com/p/7ee1f9703a41" target="_blank" rel="noopener">行存储、列存储、行列混存</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2022/05/20/bigdata-stack-row-col/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-bigdata-stack-cap" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1962,152 +2152,6 @@ ReplicatedXXXMergeTree: 使得以上 MergeTree 家族拥有副本机制，保证
 
 
   
-    <article id="post-bigdata-stack-streamtune" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/14/bigdata-stack-streamtune/">大数据开发之路-实时任务优化</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/14/bigdata-stack-streamtune/" class="archive-article-date">
-  	<time datetime="2022-05-14T14:23:40.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-14</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#实时任务优化-数据开发的看家本领">实时任务优化-数据开发的看家本领</a></li>
-<li><a href="#采用-direct-连接方式取代receiver-的形式">采用 Direct 连接方式取代Receiver 的形式</a></li>
-<li><a href="#合理设置并行度">合理设置并行度</a></li>
-<li><a href="#合理的-kafka-拉取量防止单个批次读取太多的数据超过处理上限">合理的 Kafka 拉取量，防止单个批次读取太多的数据超过处理上限</a></li>
-<li><a href="#合理设置批次时间">合理设置批次时间</a></li>
-<li><a href="#反压根据jobscheduler反馈作业的执行信息来动态调整数据接收率">反压，根据JobScheduler反馈作业的执行信息来动态调整数据接收率</a></li>
-<li><a href="#广播大变量">广播大变量</a></li>
-<li><a href="#gc优化sparkstreaming-程序对实时性要求会较高所以我们需要尽可能降低-jvm-垃圾回收所导致的延迟">gc优化，SparkStreaming 程序对实时性要求会较高，所以我们需要尽可能降低 JVM 垃圾回收所导致的延迟</a></li>
-<li><a href="#设置合理的-cpu-资源数">设置合理的 CPU 资源数</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引</p>
-<ol>
-<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
-<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-flume-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-flume-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-flume-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
-<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
-<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
-</ol>
-</blockquote>
-<h2><span id="实时任务优化-数据开发的看家本领">实时任务优化-数据开发的看家本领</span></h2><p><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">《大数据开发之路-离线任务优化》</a>中的大部分思路和方法也适用于实时任务的优化，可以参考一下。本篇重点总结一下跟spark streaming和kafka相关的内容。</p>
-<h2><span id="采用-direct-连接方式取代receiver-的形式">采用 Direct 连接方式取代Receiver 的形式</span></h2><ul>
-<li>前者在executor中有Receiver接收数据，并且1个Receiver占用一个core；而后者无Receiver，所以不会暂用core</li>
-<li>前者InputDStream的分区是<code>num_receiver*batchInterval/blockInteral</code>，后者的分区数是kafka topic partition的数量。Receiver模式下num_receiver的设置不合理会影响性能或造成资源浪费；如果设置太小，并行度不够，整个链路上接收数据将是瓶颈；如果设置太多，则会浪费资源</li>
-<li>前者使用zookeeper来维护consumer的偏移量，而后者需要自己维护偏移量</li>
-<li>为了保证不丢失数据，前者需要开启WAL机制，而后者不需要，只需要在程序中成功消费完数据后再更新偏移量即可</li>
-</ul>
-<p>由于以上特点，receiver模式下会造成一定的资源浪费；使用checkpoint保存状态, 如果需要升级程序，则会导致checkpoint无法使用；receiver模式下会导致程序不太稳定；并且如果设置receiver数量不合理也会造成性能瓶颈在receiver。为了优化资源和程序稳定性，应将receiver模式改造成direct模式。</p>
-<h2><span id="合理设置并行度">合理设置并行度</span></h2><p>spark streaming任务的并行度一般设置为kafka topic的分区数，所以kafka topic的分区数是否合理，分区数据量是否均衡很关键。可以优先通过调整topic分区数控制每个partition的数据量，如果无法调整分区数，再通过repartition增加并行度。</p>
-<h2><span id="合理的-kafka-拉取量防止单个批次读取太多的数据超过处理上限">合理的 Kafka 拉取量，防止单个批次读取太多的数据超过处理上限</span></h2><p>结合 batchDuration 设置的值，调整<code>spark.streaming.kafka.maxRatePerPatition</code>参数，注意该参数配置的是 Kafka 每个 partition 拉取的上限，数据总量还需乘以所有的 partition 数量，调整两个参数 maxRatePerPartition 和 batchDuration 使得数据的拉取和处理能够平衡，尽可能地增加整个系统的吞吐量。</p>
-<h2><span id="合理设置批次时间">合理设置批次时间</span></h2><p>batchDuration 本身不能设置为小于 500ms，这会导致 SparkStreaming 进行频繁地提交作业，造成额外的开销，减少整个系统的吞吐量；相反如果将 batchDuration 时间设置得过长，也会影响整个系统的吞吐量<br>通过调整并行度/executor内存，尽量将每个批次的处理时间控制在批次间隔的40%~80%之间，达到资源和效率的均衡。<br>如何选取合适的批处理时间呢？一个好的方法是：先保守地设置一个较大的批处理间隔（如5～10s），以及一个很低的数据速率，来观测系统是否能够赶上数据传输速率。我们可以通过查看每个处理好的 batch 的端到端延迟来观察，也可以看全局延迟来观察（可以在 Sparklog4j 的日志里或者使用 StreamingListener 接口，也可以直接在 UI 界面查看）。如果延迟保持在一个相对稳定的状态，则整个系统是稳定的，否则延迟不断上升，那说明整个系统是不稳定的。在实际场景中，也可以通过观察<a href="https://winway.github.io/2022/01/16/spark-metrics/">spark metrics</a>来分析任务的性能状态。</p>
-<h2><span id="反压根据jobscheduler反馈作业的执行信息来动态调整数据接收率">反压，根据JobScheduler反馈作业的执行信息来动态调整数据接收率</span></h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">spark.streaming.backpressure.enabled</span><br></pre></td></tr></table></figure>
-<h2><span id="广播大变量">广播大变量</span></h2><p>在集群节点间进行数据传输时，都会有序列化和反序列化的开销，如果我们的应用有非常大的对象时，这部分开销是巨大的。比如应用中的任何子任务需要使用 Driver 节点的一个大型配置查询表，这时就可以考虑将该表通过共享变量的方式，广播到每一个子节点，从而大大减少在传输和序列化上的开销。<br>更新广播变量的方式是，利用 unpersist()函数先将已经发布的广播变量删除，然后修改数据后重新进行广播</p>
-<h2><span id="gc优化sparkstreaming-程序对实时性要求会较高所以我们需要尽可能降低-jvm-垃圾回收所导致的延迟">gc优化，SparkStreaming 程序对实时性要求会较高，所以我们需要尽可能降低 JVM 垃圾回收所导致的延迟</span></h2><ul>
-<li>通过配置<code>spark.rdd.compress</code>进行更进一步的压缩</li>
-<li>及时清理老数据：默认情况下所有的输入数据和由 DStream 的 Transormation 操作产生的持久 RDD 会被自动清理，即 SparkStreaming 会决定何时对数据进行清理。例如，假设我们使用 10 分钟的窗口操作，SparkStreaming 会保存之前 10 分钟的所有数据，并及时清理过时的老数据。数据保存的时间可以通过 stremingContext.remember 进行设置</li>
-<li>CMS 垃圾回收器：不同于Spark，由于需要减少 GC 间的停顿，所以这里建议使用并发标记清除类的 GC 方式。即使并发 GC 会降低全局系统的生产吞吐量，但是使用这种 GC 可以使得每个 Batch 的处理时间更加一致（不会因为某个 Batch 处理时发生了 GC，而导致处理时间剧增）。我们需要确保在 Driver 节点（在 spark-submit 中使用—driver-java-options）和 Executor 节点（在 Spark 配置中使用 spark.executor.extraJavaOptions=-XX:+UseConcMarkSweepGC）都设置了 CMSGC 方式</li>
-</ul>
-<h2><span id="设置合理的-cpu-资源数">设置合理的 CPU 资源数</span></h2><p>每个 Executor 可以占用一个或多个 core，观察 CPU 使用率（Linux 命令 top）来了解计算资源的使用情况。例如，很常见的一种浪费是一个 Executor 占用了多个 core，但是总的 CPU 使用率却不高（因为一个 Executor 并不会一直充分利用多核的能力），这个时候可以考虑让单个 Executor 占用更少的 core，同时 Worker 下面增加更多的 Executor；或者从另一个角度，增加单个节点的 worker 数量，当然这需要修改 Spark 集群的配置，从而增加 CPU 利用率。值得注意是，这里的优化有一个平衡，Executor 的数量需要考虑其他计算资源的配置，Executor 的数量和每个 Executor 分到的内存大小成反比，如果每个 Executor 的内存过小，容易产生内存溢出（outofmemory）的问题。</p>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://www.jianshu.com/p/7ed12f883d42" target="_blank" rel="noopener">Spark Streaming性能优化总结</a></li>
-<li><a href="https://www.infoq.cn/article/ihved9gi9ucv*dhg9acm" target="_blank" rel="noopener">Spark Streaming 调优实践</a></li>
-<li><a href="https://ask.dcloud.net.cn/article/36032" target="_blank" rel="noopener">Spark Streaming的优化之路——从Receiver到Direct模式</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">spark streaming</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/14/bigdata-stack-streamtune/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><a class="extend next" rel="next" href="/page/2/">Next &raquo;</a>
@@ -2211,14 +2255,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">C</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
@@ -2231,11 +2267,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hive</a>
+                <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+                <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2243,11 +2279,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">canal</a>
+                <a href="javascript:void(0)" class="js-tag color4">pig</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
+                <a href="javascript:void(0)" class="js-tag color5">hive</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">canal</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2255,15 +2295,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">flume</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2275,7 +2319,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2283,7 +2327,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2292,6 +2336,50 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">storm</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">olap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">presto</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2311,14 +2399,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hexo</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">github pages</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">tez</a>
               </li>
              
@@ -2327,15 +2407,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+                <a href="javascript:void(0)" class="js-tag color5">hexo</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+                <a href="javascript:void(0)" class="js-tag color3">github pages</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2347,15 +2423,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2371,15 +2447,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2387,7 +2459,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
+                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2415,35 +2491,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+                <a href="javascript:void(0)" class="js-tag color1">doris</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">storm</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">olap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">presto</a>
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2471,19 +2523,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">doris</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
             
             <div class="clearfix"></div>

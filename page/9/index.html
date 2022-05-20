@@ -155,6 +155,145 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-big-data-hive" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/01/13/big-data-hive/">Hadoop生态系统介绍-Hive</a>
+    </h1>
+  
+
+        
+        <a href="/2017/01/13/big-data-hive/" class="archive-article-date">
+  	<time datetime="2017-01-13T03:56:44.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-01-13</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#前言">前言</a></li>
+<li><a href="#工作原理">工作原理</a><ul>
+<li><a href="#特点">特点</a></li>
+<li><a href="#架构">架构</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h2><span id="前言">前言</span></h2><p>提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。</p>
+<ol>
+<li><a href="https://winway.github.io/2017/01/07/big-data-intro/">Hadoop生态系统介绍-概览</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-kerberos/">Hadoop生态系统介绍-Kerberos</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-zookeeper/">Hadoop生态系统介绍-Zookeeper</a></li>
+<li><a href="https://winway.github.io/2017/01/11/big-data-hdfs/">Hadoop生态系统介绍-HDFS</a></li>
+<li><a href="https://winway.github.io/2017/01/12/big-data-yarn/">Hadoop生态系统介绍-YARN</a></li>
+<li><a href="https://winway.github.io/2017/01/12/big-data-mapreduce/">Hadoop生态系统介绍-MapReduce</a></li>
+<li><strong><a href="https://winway.github.io/2017/01/13/big-data-hive/">Hadoop生态系统介绍-Hive</a></strong></li>
+<li><a href="https://winway.github.io/2017/01/13/big-data-pig/">Hadoop生态系统介绍-Pig</a></li>
+<li><a href="https://winway.github.io/2017/01/21/big-data-storm/">Hadoop生态系统介绍-Storm</a></li>
+<li><a href="https://winway.github.io/2017/01/26/big-data-hbase/">Hadoop生态系统介绍-Hbase</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-phoenix/">Hadoop生态系统介绍-Phoenix</a></li>
+</ol>
+<p>本文对数据仓库Hive的工作原理进行介绍。</p>
+<h2><span id="工作原理">工作原理</span></h2><h3><span id="特点">特点</span></h3><p>Hive是基于Hadoop的一个数据仓库工具，可以将结构化的数据文件映射为一张数据库表，并提供完整的sql查询功能，可以将sql语句转换为MapReduce任务进行运行。其优点是学习成本低，可以通过类SQL语句快速实现简单的MapReduce统计，不必开发专门的MapReduce应用，十分适合数据仓库的统计分析。</p>
+<p>Hive提供了一系列的工具，可以用来进行数据提取转化加载（ETL），这是一种可以存储、查询和分析存储在 Hadoop 中的大规模数据的机制。Hive 定义了简单的类 SQL 查询语言，称为 HQL，它允许熟悉 SQL 的用户查询数据。同时，这个语言也允许熟悉 MapReduce 的开发者开发自定义的 mapper 和 reducer 来处理内建的 mapper 和 reducer 无法完成的复杂的分析工作。</p>
+<h3><span id="架构">架构</span></h3><p>hadoop和mapreduce是hive架构的根基。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519094827.png" alt=""><br>Hive架构包括如下组件：</p>
+<ul>
+<li>CLI（command line interface）</li>
+<li>JDBC/ODBC</li>
+<li>Thrift Server</li>
+<li>WEB GUI</li>
+<li>Metastore</li>
+<li>Driver(Complier、Optimizer和Executor)</li>
+</ul>
+<p>这些组件可以分为两大类：服务端组件和客户端组件。</p>
+<p><strong>服务端组件</strong></p>
+<ul>
+<li>Driver组件：该组件包括Complier、Optimizer和Executor，它的作用是将我们写的HiveQL（类SQL）语句进行解析、编译优化，生成执行计划，然后调用底层的mapreduce计算框架。</li>
+<li>Metastore组件：元数据服务组件，这个组件存储hive的元数据，hive的元数据存储在关系数据库里，hive支持的关系数据库有derby、mysql。元数据对于hive十分重要，因此hive支持把metastore服务独立出来，安装到远程的服务器集群里，从而解耦hive服务和metastore服务，保证hive运行的健壮性。</li>
+<li>Thrift服务：thrift是facebook开发的一个软件框架，它用来进行可扩展且跨语言的服务的开发，hive集成了该服务，能让不同的编程语言调用hive的接口。</li>
+</ul>
+<p><strong>客户端组件</strong></p>
+<ul>
+<li>CLI：command line interface，命令行接口。</li>
+<li>Thrift客户端：上面的架构图里没有写上Thrift客户端，但是hive架构的许多客户端接口是建立在thrift客户端之上，包括JDBC和ODBC接口。</li>
+<li>WEBGUI：hive客户端提供了一种通过网页的方式访问hive所提供的服务。这个接口对应hive的hwi组件（hive web interface），使用前要启动hwi服务。</li>
+</ul>
+<p><strong>执行流程</strong><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519094921.png" alt=""></p>
+<ol>
+<li>客户使用不同的客户端组件提交HQL</li>
+<li>Hive完成HQL的解释、优化、生成查询计划</li>
+<li>查询计划被转化为MapReduce任务，在Hadoop中执行（有些查询没有MR任务，如：select * from table）</li>
+</ol>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">hive</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/01/13/big-data-hive/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-big-data-mapreduce" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1614,120 +1753,6 @@
 
 
   
-    <article id="post-mongodb-replicaset-monitoring" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2016/07/12/mongodb-replicaset-monitoring/">MongoDB副本集监控</a>
-    </h1>
-  
-
-        
-        <a href="/2016/07/12/mongodb-replicaset-monitoring/" class="archive-article-date">
-  	<time datetime="2016-07-12T08:19:33.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2016-07-12</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#1-副本集简介">1. 副本集简介</a></li>
-<li><a href="#2-常用监控介绍">2. 常用监控介绍</a><ul>
-<li><a href="#副本集状态">副本集状态</a></li>
-<li><a href="#主从复制延迟">主从复制延迟</a></li>
-<li><a href="#oplog长度">Oplog长度</a></li>
-<li><a href="#namespace的使用率">Namespace的使用率</a></li>
-</ul>
-</li>
-</ul>
-<!-- tocstop -->
-<h2><span id="1-副本集简介">1. 副本集简介</span></h2><p>MongoDB复本集由一组Mongod实例（进程）组成，包含一个Primary节点和多个Secondary节点，MongoDB Driver（客户端）的所有数据都写入Primary，Secondary从Primary同步写入的数据，以保持复制集内所有成员存储相同的数据集，提供数据的高可用。<br>下图（图片源于MongoDB官方文档）是一个典型的MongoDB复制集，包含一个Primary节点和2个Secondary节点。<br><img src="https://docs.mongodb.com/manual/_images/replica-set-read-write-operations-primary.bakedsvg.svg" alt="MongoDB-arch"></p>
-<p>副本集特征：</p>
-<ul>
-<li>N 个节点的集群</li>
-<li>任何节点可作为主节点</li>
-<li>所有写入操作都在主节点上</li>
-<li>自动故障转移</li>
-<li>自动恢复</li>
-</ul>
-<h2><span id="2-常用监控介绍">2. 常用监控介绍</span></h2><h3><span id="副本集状态">副本集状态</span></h3><p>MongoDB副本集节点包括若干状态，其中PRIMARY、SECONDARY、ARBITER属于正常状态，如果出现其他状态，则意味着有节点存在异常。可以使用rs.status()获取集群各节点状态，依此判断集群运行是否正常。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval 'var a = rs.status(); a.members.forEach(function(e)&#123;print(e.name, e.stateStr)&#125;)'</span><br><span class="line">demo01.mongodb:1988 PRIMARY</span><br><span class="line">demo02.mongodb:1988 SECONDARY</span><br><span class="line">demo03.mongodb:1988 SECONDARY</span><br><span class="line">demo04.mongodb:1988 SECONDARY</span><br></pre></td></tr></table></figure></p>
-<h3><span id="主从复制延迟">主从复制延迟</span></h3><p>MongoDB副本集使用Oplog进行主从同步，类似于Mysql的binlog。可以比较SECONDARY节点同步到的Oplog event和最新的Oplog event的时间，计算出主从延迟。<br>获取最新的Oplog event时间<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval 'db.printReplicationInfo()'</span><br><span class="line">configured oplog size:   45000MB</span><br><span class="line">log length start to end: 5270894secs (1464.14hrs)</span><br><span class="line">oplog first event time:  Mon Jul 31 2017 02:35:34 GMT+0800 (CST)</span><br><span class="line">oplog last event time:   Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</span><br><span class="line">now:                     Sat Sep 30 2017 15:56:33 GMT+0800 (CST)</span><br><span class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval 'db.printReplicationInfo()' | awk 'BEGIN&#123;FS = "time:"&#125;/oplog last event time/&#123;print $2&#125;'</span><br><span class="line">Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</span><br></pre></td></tr></table></figure></p>
-<p>获取SECONDARY同步到的Oplog event时间<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval 'db.printSlaveReplicationInfo()'</span><br><span class="line">source: demo02.mongodb:1988</span><br><span class="line">        syncedTo: Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</span><br><span class="line">        0 secs (0 hrs) behind the primary</span><br><span class="line">source: demo03.mongodb:1988</span><br><span class="line">        syncedTo: Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</span><br><span class="line">        0 secs (0 hrs) behind the primary</span><br><span class="line">source: demo04.mongodb:1988</span><br><span class="line">        syncedTo: Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</span><br><span class="line">        0 secs (0 hrs) behind the primary</span><br><span class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval 'db.printSlaveReplicationInfo()' | awk 'BEGIN&#123;FS = "syncedTo:"&#125;/syncedTo/&#123;print $2&#125;'</span><br><span class="line"> Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</span><br><span class="line"> Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</span><br><span class="line"> Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</span><br></pre></td></tr></table></figure></p>
-<h3><span id="oplog长度">Oplog长度</span></h3><p>Oplog是一个capped collection，新写入的Oplog会将最旧的Oplog覆盖掉，Oplog的时间跨度越小，SECONDARY复制跟不上PRIMARY的风险就越大，允许SECONDARY暂停维护的时间窗口就越短，所以Oplog长度太小是有问题的。<br>获取Oplog的时间跨度<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval 'db.printReplicationInfo()'</span><br><span class="line">configured oplog size:   45000MB</span><br><span class="line">log length start to end: 5270894secs (1464.14hrs)</span><br><span class="line">oplog first event time:  Mon Jul 31 2017 02:35:34 GMT+0800 (CST)</span><br><span class="line">oplog last event time:   Sat Sep 30 2017 02:43:48 GMT+0800 (CST)</span><br><span class="line">now:                     Sat Sep 30 2017 16:20:21 GMT+0800 (CST)</span><br><span class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval 'db.printReplicationInfo()' | sed -n '/log length start to end:/s/.*(\([0-9][0-9]*\).*/\1/p'</span><br><span class="line">1464</span><br></pre></td></tr></table></figure></p>
-<h3><span id="namespace的使用率">Namespace的使用率</span></h3><p>MongoDB（MMAPV1引擎）可支持的collection数量是由nssize参数指定的，它指定了dbname.ns磁盘文件的大小，也就指定了DB可支持的最大collection数目，ns为namespace缩写，默认nssize为16MB。<br>如果Namespace满了，就无法创建新的collection，所以需要关注一下<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> mongo admin --port 1988 -u read -p read --quiet --eval '</span><br><span class="line"><span class="meta">&gt;</span> var dbs = db.adminCommand("listDatabases");</span><br><span class="line"><span class="meta">&gt;</span> dbs.databases.forEach(function(e) &#123;</span><br><span class="line"><span class="meta">&gt;</span>     db.getMongo().setSlaveOk();</span><br><span class="line"><span class="meta">&gt;</span>     db = db.getMongo().getDB(e.name);</span><br><span class="line"><span class="meta">&gt;</span>     var used = db.system.namespaces.count();</span><br><span class="line"><span class="meta">&gt;</span>     var stat = db.stats();</span><br><span class="line"><span class="meta">&gt;</span>     var max = Math.floor(stat.nsSizeMB*1024*1024/700);</span><br><span class="line"><span class="meta">&gt;</span>     if (max &gt; 0) &#123;</span><br><span class="line"><span class="meta">&gt;</span>         print(e.name, used, max, Math.floor(used*100/max));</span><br><span class="line"><span class="meta">&gt;</span>     &#125; else &#123;</span><br><span class="line"><span class="meta">&gt;</span>         print(e.name, used, max, 0);</span><br><span class="line"><span class="meta">&gt;</span>     &#125;</span><br><span class="line"><span class="meta">&gt;</span> &#125;)'</span><br><span class="line">local 7 23967 0</span><br><span class="line">admin 3 23967 0</span><br><span class="line">testdb 3 23967 0</span><br><span class="line">default 15 23967 0</span><br></pre></td></tr></table></figure></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">监控</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">MongoDB</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/数据库/" class="article-tag-list-link color4">数据库</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2016/07/12/mongodb-replicaset-monitoring/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/8/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/7/">7</a><a class="page-number" href="/page/8/">8</a><span class="page-number current">9</span><a class="page-number" href="/page/10/">10</a><a class="page-number" href="/page/11/">11</a><a class="page-number" href="/page/12/">12</a><a class="extend next" rel="next" href="/page/10/">Next &raquo;</a>
@@ -1831,14 +1856,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">C</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
@@ -1851,11 +1868,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hive</a>
+                <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+                <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1863,11 +1880,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">canal</a>
+                <a href="javascript:void(0)" class="js-tag color4">pig</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
+                <a href="javascript:void(0)" class="js-tag color5">hive</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">canal</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1875,15 +1896,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">flume</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1895,7 +1920,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1903,7 +1928,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1912,6 +1937,50 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">storm</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">olap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">presto</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1931,14 +2000,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hexo</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">github pages</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">tez</a>
               </li>
              
@@ -1947,15 +2008,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+                <a href="javascript:void(0)" class="js-tag color5">hexo</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+                <a href="javascript:void(0)" class="js-tag color3">github pages</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1967,15 +2024,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1991,15 +2048,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2007,7 +2060,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
+                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2035,35 +2092,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+                <a href="javascript:void(0)" class="js-tag color1">doris</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">storm</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">olap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">presto</a>
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2091,19 +2124,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">doris</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
             
             <div class="clearfix"></div>

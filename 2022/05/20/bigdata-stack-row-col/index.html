@@ -6,23 +6,26 @@
   <meta name="renderer" content="webkit">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <link rel="dns-prefetch" href="https://winway.github.io">
-  <title>一个简易的服务器监控框架(1) | winway&#39;s blog</title>
+  <title>行存和列存-大数据存取的选择 | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="花了两天时间写了个监控服务器各项指标的框架，主要功能包括：根据设置产生各指标项的数据报表，并可以根据阈值的设定产生警告信息。https://github.com/winway/a-simple-monitor-framework/tree/v1.0   1. 简介 2. 配置 3. 数据存储 4. 展示 5. 使用   1. 简介主要功能包括：根据设置产生各指标项的数据报表，并可以根据阈值的设定产">
-<meta name="keywords" content="shell,监控">
+  <meta name="description" content="行存和列存-大数据存取的选择 定义 行存 Vs 列存 写入 读取 解析 总结   适用场景 参考资料   行存和列存-大数据存取的选择目前大数据存储有两种方案可供选择：行存储（Row-Based）和列存储（Column-Based）。 定义我们常用的关系型数据库mysql，oracle等都是基于行存储，以最常用的mysql数据库innodb引擎为例。多个连续的行记录，组成一个data page">
 <meta property="og:type" content="article">
-<meta property="og:title" content="一个简易的服务器监控框架(1)">
-<meta property="og:url" content="https://winway.github.io/2013/07/01/a-simple-Linux-app-monitor-framework-1/index.html">
+<meta property="og:title" content="行存和列存-大数据存取的选择">
+<meta property="og:url" content="https://winway.github.io/2022/05/20/bigdata-stack-row-col/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:description" content="花了两天时间写了个监控服务器各项指标的框架，主要功能包括：根据设置产生各指标项的数据报表，并可以根据阈值的设定产生警告信息。https://github.com/winway/a-simple-monitor-framework/tree/v1.0   1. 简介 2. 配置 3. 数据存储 4. 展示 5. 使用   1. 简介主要功能包括：根据设置产生各指标项的数据报表，并可以根据阈值的设定产">
+<meta property="og:description" content="行存和列存-大数据存取的选择 定义 行存 Vs 列存 写入 读取 解析 总结   适用场景 参考资料   行存和列存-大数据存取的选择目前大数据存储有两种方案可供选择：行存储（Row-Based）和列存储（Column-Based）。 定义我们常用的关系型数据库mysql，oracle等都是基于行存储，以最常用的mysql数据库innodb引擎为例。多个连续的行记录，组成一个data page">
 <meta property="og:locale" content="default">
-<meta property="og:image" content="http://raw.githubusercontent.com/winway/picRepo/master/pics/monitor_v1_list.png">
-<meta property="og:image" content="http://raw.githubusercontent.com/winway/picRepo/master/pics/monito_v1_demo.bmp">
-<meta property="og:updated_time" content="2022-05-14T14:08:14.249Z">
+<meta property="og:image" content="https://img-blog.csdn.net/20180706125239844?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1hpbmd4aW54aW54aW4=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70">
+<meta property="og:image" content="https://upload-images.jianshu.io/upload_images/15439830-bd33138646f55b48.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp">
+<meta property="og:image" content="https://upload-images.jianshu.io/upload_images/15439830-bc2ef52beca5f85f.png?imageMogr2/auto-orient/strip|imageView2/2/w/641/format/webp">
+<meta property="og:image" content="https://upload-images.jianshu.io/upload_images/15439830-ed3daae94e7e792f.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp">
+<meta property="og:image" content="https://img-blog.csdn.net/20180706125401662?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1hpbmd4aW54aW54aW4=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70">
+<meta property="og:image" content="https://img-blog.csdn.net/20180706125430267?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1hpbmd4aW54aW54aW4=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70">
+<meta property="og:updated_time" content="2022-05-20T12:19:25.625Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="一个简易的服务器监控框架(1)">
-<meta name="twitter:description" content="花了两天时间写了个监控服务器各项指标的框架，主要功能包括：根据设置产生各指标项的数据报表，并可以根据阈值的设定产生警告信息。https://github.com/winway/a-simple-monitor-framework/tree/v1.0   1. 简介 2. 配置 3. 数据存储 4. 展示 5. 使用   1. 简介主要功能包括：根据设置产生各指标项的数据报表，并可以根据阈值的设定产">
-<meta name="twitter:image" content="http://raw.githubusercontent.com/winway/picRepo/master/pics/monitor_v1_list.png">
+<meta name="twitter:title" content="行存和列存-大数据存取的选择">
+<meta name="twitter:description" content="行存和列存-大数据存取的选择 定义 行存 Vs 列存 写入 读取 解析 总结   适用场景 参考资料   行存和列存-大数据存取的选择目前大数据存储有两种方案可供选择：行存储（Row-Based）和列存储（Column-Based）。 定义我们常用的关系型数据库mysql，oracle等都是基于行存储，以最常用的mysql数据库innodb引擎为例。多个连续的行记录，组成一个data page">
+<meta name="twitter:image" content="https://img-blog.csdn.net/20180706125239844?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1hpbmd4aW54aW54aW4=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
   
@@ -158,63 +161,143 @@
             <canvas data-colors="#eaeaea" data-sectionHeight="100" data-contentId="js-content" id="myCanvas1" class="anm-canvas"></canvas>
           </div>
           <div id="js-content" class="content-ll">
-            <article id="post-a-simple-Linux-app-monitor-framework-1" class="article article-type-post " itemscope="" itemprop="blogPost">
+            <article id="post-bigdata-stack-row-col" class="article article-type-post " itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
       <header class="article-header">
         
   
     <h1 class="article-title" itemprop="name">
-      一个简易的服务器监控框架(1)
+      行存和列存-大数据存取的选择
     </h1>
   
 
         
-        <a href="/2013/07/01/a-simple-Linux-app-monitor-framework-1/" class="archive-article-date">
-  	<time datetime="2013-07-01T13:14:09.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-07-01</time>
+        <a href="/2022/05/20/bigdata-stack-row-col/" class="archive-article-date">
+  	<time datetime="2022-05-20T10:37:49.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-20</time>
 </a>
         
       </header>
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>花了两天时间写了个监控服务器各项指标的框架，主要功能包括：根据设置产生各指标项的数据报表，并可以根据阈值的设定产生警告信息。<br><a href="https://github.com/winway/a-simple-monitor-framework/tree/v1.0" target="_blank" rel="noopener">https://github.com/winway/a-simple-monitor-framework/tree/v1.0</a></p>
-<!-- toc -->
+        <!-- toc -->
 <ul>
-<li><a href="#1-简介">1. 简介</a></li>
-<li><a href="#2-配置">2. 配置</a></li>
-<li><a href="#3-数据存储">3. 数据存储</a></li>
-<li><a href="#4-展示">4. 展示</a></li>
-<li><a href="#5-使用">5. 使用</a></li>
+<li><a href="#行存和列存-大数据存取的选择">行存和列存-大数据存取的选择</a></li>
+<li><a href="#定义">定义</a></li>
+<li><a href="#行存-vs-列存">行存 Vs 列存</a><ul>
+<li><a href="#写入">写入</a></li>
+<li><a href="#读取">读取</a></li>
+<li><a href="#解析">解析</a></li>
+<li><a href="#总结">总结</a></li>
+</ul>
+</li>
+<li><a href="#适用场景">适用场景</a></li>
+<li><a href="#参考资料">参考资料</a></li>
 </ul>
 <!-- tocstop -->
-<h2><span id="1-简介">1. 简介</span></h2><p>主要功能包括：根据设置产生各指标项的数据报表，并可以根据阈值的设定产生警告信息。程序包括以下文件和文件夹：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">$ ls -l</span><br><span class="line">总计 88</span><br><span class="line">-rwxrw-r-- 1 winway winway 277 06-27 19:30 analyse.sh</span><br><span class="line">-rwxrw-r-- 1 winway winway 122 06-29 10:18 config.sh</span><br><span class="line">drwxrwxr-x 5 winway winway 4096 07-01 20:08 data</span><br><span class="line">drwxrwxr-x 2 winway winway 4096 07-01 20:08 display</span><br><span class="line">-rwxrw-r-- 1 winway winway 148 06-28 09:39 display.sh</span><br><span class="line">drwxrwxr-x 5 winway winway 4096 07-01 20:07 etc</span><br><span class="line">-rwxrw-r-- 1 winway winway 471 06-28 09:33 format.sh</span><br><span class="line">-rwxrw-r-- 1 winway winway 253 06-27 19:28 monitor.sh</span><br><span class="line">-rw-rw-r-- 1 winway winway 3036 06-29 15:19 raw2html.py</span><br><span class="line">-rw-rw-r-- 1 winway winway 2107 06-29 13:44 raw_analyse.py</span><br><span class="line">-rwxrw-r-- 1 winway winway 849 06-29 10:24 snatch.sh</span><br></pre></td></tr></table></figure></p>
+<h2><span id="行存和列存-大数据存取的选择">行存和列存-大数据存取的选择</span></h2><p><img src="https://img-blog.csdn.net/20180706125239844?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1hpbmd4aW54aW54aW4=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70" alt=""><br>目前大数据存储有两种方案可供选择：行存储（Row-Based）和列存储（Column-Based）。</p>
+<h2><span id="定义">定义</span></h2><p>我们常用的关系型数据库mysql，oracle等都是基于行存储，以最常用的mysql数据库innodb引擎为例。多个连续的行记录，组成一个data page（大小16k），然后按照B+树的结构进行组织存储。<br><img src="https://upload-images.jianshu.io/upload_images/15439830-bd33138646f55b48.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp" alt=""><br><img src="https://upload-images.jianshu.io/upload_images/15439830-bc2ef52beca5f85f.png?imageMogr2/auto-orient/strip|imageView2/2/w/641/format/webp" alt=""></p>
+<p>列式存储(column-based)是相对于传统关系型数据库的行式存储(Row-basedstorage)来说的。简单来说两者的区别就是如何组织表：</p>
 <ul>
-<li>monitor.sh<br>主程序，会依次调用snatch.sh、analyse.sh、format.sh、display.sh</li>
-<li>snatch.sh<br>数据采集，基于mussh（不了解的可以参考下这里）实现，周期性抓取各服务器上感兴趣的数据项，存储到data文件夹中</li>
-<li>analyse.sh<br>数据分析，根据etc文件夹中的阈值配置文件，产生需要告警的条目，主要工作由raw_analyse.py完成</li>
-<li>format.sh<br>数据格式化，将原始的纯文本数据格式化为html格式，主要工作由raw2html.py完成</li>
-<li>display.sh<br>数据展示，更新display文件夹下的软连接，指向最新的html文件</li>
-<li>config.sh<br>一些变量的定义</li>
+<li>Row-based storage storesatable in a sequence of rows.</li>
+<li>Column-based storage storesatable in a sequence of columns.</li>
 </ul>
-<h2><span id="2-配置">2. 配置</span></h2><p>配置文件结构如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">etc/</span><br><span class="line">|-- lst.d</span><br><span class="line">| `-- database.lst</span><br><span class="line">|-- monitor.conf</span><br><span class="line">|-- sh.d</span><br><span class="line">| `-- database.sh</span><br><span class="line">`-- thv.d</span><br><span class="line">`-- database.thv</span><br></pre></td></tr></table></figure></p>
-<p>其中monitor.conf是主配置文件<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> cat monitor.conf</span><br><span class="line"><span class="meta">#</span> 类型 IP列表文件 检查脚本文件 阈值文件</span><br><span class="line">database database.lst database.sh database.thv</span><br></pre></td></tr></table></figure></p>
-<p>类型是指服务器的角色，如数据库服务器，web服务器等；IP列表文件是对应这一角色的服务器的ip集合，格式为<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 归属地 用户@IP</span><br><span class="line">哈尔滨 root@x.x.x.x</span><br><span class="line">哈尔滨 root@x.x.x.x</span><br></pre></td></tr></table></figure></p>
-<p>这里“<a href="mailto:root@x.x.x.x" target="_blank" rel="noopener">root@x.x.x.x</a>”的格式是为了mussh执行起来方便而这么写的。<br>检查脚本文件是获取这个服务器数据应该执行的脚本。在目标机器上执行这个脚本，就可以获得我们关心的各项数据，这个脚本根据需要而定制，且输出信息的格式有要求。demo:<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> cat sh.d/database.sh</span><br><span class="line"><span class="meta">#</span>! /bin/bash</span><br><span class="line"><span class="meta">#</span></span><br><span class="line">echo -n "&lt;hostname&gt;"</span><br><span class="line">hostname</span><br><span class="line">echo -n '&lt;time&gt;'</span><br><span class="line">date '+%Y-%m-%d %H:%M:%S'</span><br><span class="line">echo -n '&lt;uptime&gt;'</span><br><span class="line">uptime | sed -r 's/.*up\s*([^,]*).*/\1/'</span><br><span class="line">echo -n '&lt;interface&gt;'</span><br><span class="line">/sbin/ifconfig | sed -nr '/^\S/&#123;N;s/\s+.*inet addr:(\S+).*/ \1/;H&#125;;$&#123;x;s/^\s*//g;s/\n/+/g;p&#125;'</span><br><span class="line">echo -n '&lt;process_number&gt;'</span><br><span class="line">ps -e | wc -l</span><br><span class="line">echo -n '&lt;disk_usage&gt;'</span><br><span class="line">df -h | awk -F'[ %]+' '$NF == "/"&#123;print $(NF-1)&#125;'</span><br></pre></td></tr></table></figure></p>
-<p>由于mussh具有远程执行本地脚本的能力，所以我们不需要把这个脚本拷贝到远程主机上。<br>阈值文件用来判断某项数据是否超标。比如如下示例，进程数超过180，我们认为要告警；磁盘使用率超过80%，也需要告警。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> cat etc/thv.d/database.thv</span><br><span class="line"><span class="meta">#</span>###########################################</span><br><span class="line"><span class="meta">#</span> 注意!!! #</span><br><span class="line"><span class="meta">#</span> 指标要与检查脚本里的名字一致 #</span><br><span class="line"><span class="meta">#</span>###########################################</span><br><span class="line"><span class="meta">#</span> 指标 最小值 最大值</span><br><span class="line">process_number 180 300</span><br><span class="line">disk_usage 0 80</span><br></pre></td></tr></table></figure></p>
-<p>这里需要注意的是检查脚本中出现的数据项的名字要和这里保持一致，这样程序才能找到关联。<br>所以，如果你想加入对一批相同类型的机器的监控，你需要：</p>
-<ol>
-<li>编辑一个IP列表文件，将他们的IP地址按合法的格式编辑</li>
-<li>根据自己关心的数据项，定制一个检查脚本，脚本的输出信息格式如示例脚本所示</li>
-<li>给你所关心数据项设置告警阈值</li>
-<li>在monitor.conf里添加一条配置</li>
-</ol>
-<h2><span id="3-数据存储">3. 数据存储</span></h2><p>所有数据存储在data文件夹中<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">data/</span><br><span class="line">|-- all_html</span><br><span class="line">| `-- 20130701</span><br><span class="line">| `-- 2008</span><br><span class="line">| `-- database_all.html</span><br><span class="line">|-- newest.txt</span><br><span class="line">|-- raw</span><br><span class="line">| `-- 20130701</span><br><span class="line">| `-- 2008</span><br><span class="line">| |-- database_all.raw</span><br><span class="line">| `-- database_warn.raw</span><br><span class="line">`-- warn_html</span><br><span class="line">`-- 20130701</span><br><span class="line">`-- 2008</span><br><span class="line">`-- database_warn.html</span><br></pre></td></tr></table></figure></p>
-<p>raw文件夹用于存储原始的数据<br>all_html用于存储包含所有数据项的html文件<br>warn_html用于存储只包含警告数据项的html文件<br>newest.txt用于记录最新的数据所在的文件夹<br>执行完snatch.sh，会在相应的日期时间目录下生成<em>_all.raw文件<br>执行完analyse.sh，会在相应的日期时间目录下生成</em>_warn.raw文件<br>执行完format.sh，会在相应的日期时间目录下生成<em>_all.html和</em>_warn.html文件</p>
-<h2><span id="4-展示">4. 展示</span></h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">display</span><br><span class="line">|-- new_warning -&gt; ../data/warn_html/20130701/2008</span><br><span class="line">|-- overall -&gt; ../data/all_html/</span><br><span class="line">`-- warning -&gt; ../data/warn_html/</span><br></pre></td></tr></table></figure>
-<p>display文件夹包含三个软连接<br>new_warning指向最新的警告数据<br>overall指向all_html文件夹<br>warning指向warn_html文件夹<br>在display目录下执行<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">nohup python -m SimpleHTTPServer 80 &amp;&gt;/dev/null &amp;</span><br></pre></td></tr></table></figure></p>
-<p>就可以在浏览器中查看这些数据了。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/monitor_v1_list.png" alt="monitor_v1_list"><br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/monito_v1_demo.bmp" alt="monitor_v1_demo"></p>
-<h2><span id="5-使用">5. 使用</span></h2><p>运行环境需要需要安装mussh和python的PyH模块。根据需要编辑crontab文件，如<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">*/30 8-16 * * * cd ~winway/monitor &amp;&amp; ./monitor.sh</span><br><span class="line">0 0-7,17-23 * * * cd ~winway/monitor &amp;&amp; ./monitor.sh</span><br></pre></td></tr></table></figure></p>
+<p><img src="https://upload-images.jianshu.io/upload_images/15439830-ed3daae94e7e792f.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp" alt=""></p>
+<h2><span id="行存-vs-列存">行存 Vs 列存</span></h2><h3><span id="写入">写入</span></h3><ul>
+<li>行存储的写入是一次完成。如果这种写入建立在操作系统的文件系统上，可以保证写入过程的成功或者失败，数据的完整性因此可以确定。</li>
+<li>列存储由于需要把一行记录拆分成单列保存，写入次数明显比行存储多，再加上磁头需要在盘片上移动和定位花费的时间，实际时间消耗会更大。所以，行存储在写入上占有很大的优势。</li>
+<li>还有数据修改,这实际也是一次写入过程。不同的是，数据修改是对磁盘上的记录做删除标记。行存储是在指定位置写入一次，列存储是将磁盘定位到多个列上分别写入，这个过程仍是行存储的列数倍。所以，数据修改也是以行存储占优。</li>
+</ul>
+<h3><span id="读取">读取</span></h3><ul>
+<li>数据读取时，行存储通常将一行数据完全读出，如果只需要其中几列数据的情况，就会存在冗余列，出于缩短处理时间的考量，消除冗余列的过程通常是在内存中进行的。</li>
+<li>列存储每次读取的数据是集合的一段或者全部，如果读取多列时，就需要移动磁头，再次定位到下一列的位置继续读取。</li>
+</ul>
+<h3><span id="解析">解析</span></h3><ul>
+<li>由于列存储的每一列数据类型是同质的，不存在二义性问题。比如说某列数据类型为整型(int)，那么它的数据集合一定是整型数据。这种情况使数据解析变得十分容易。</li>
+<li>相比之下，行存储则要复杂得多，因为在一行记录中保存了多种类型的数据，数据解析需要在多种数据类型之间频繁转换，这个操作很消耗CPU，增加了解析的时间。所以，列存储的解析过程更有利于分析大数据。</li>
+<li>列存储由于每一列数据类型一致，更有利于压缩和检索。<br><img src="https://img-blog.csdn.net/20180706125401662?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1hpbmd4aW54aW54aW4=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70" alt=""><br><img src="https://img-blog.csdn.net/20180706125430267?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1hpbmd4aW54aW54aW4=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70" alt=""></li>
+</ul>
+<h3><span id="总结">总结</span></h3><table>
+<thead>
+<tr>
+<th>对比方面</th>
+<th>行存储</th>
+<th>列存储</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>存储方式</td>
+<td>按行存储</td>
+<td>按列存储，即每一列单独存放</td>
+</tr>
+<tr>
+<td>数据完整性</td>
+<td>提供数据完整性保证</td>
+<td>缺乏数据完整性保证</td>
+</tr>
+<tr>
+<td>写性能</td>
+<td>写入是一次完成，写入效率高</td>
+<td>把一行记录拆分成单列保存，写入次数明显比行存储多，写入效率低</td>
+</tr>
+<tr>
+<td>读性能</td>
+<td>读取少数几列时，需遍历其他无关列，IO开销较大；读取整行数据时，依次顺序读即可，性能高</td>
+<td>读取少数几列时，无需读取无关列，性能高；读取整行时，需分别读取所有列，并拼装成行，性能低</td>
+</tr>
+<tr>
+<td>索引</td>
+<td>没有索引的查询使用大量I/O。比如一般的数据库表都会建立索引，通过索引加快查询效率</td>
+<td>数据即索引</td>
+</tr>
+<tr>
+<td>数据压缩</td>
+<td>每行数据存储在一起，压缩比较低</td>
+<td>以列为单位存储数据，这使得类型相同的数据存放在一起，对压缩算法友好，压缩比较高</td>
+</tr>
+<tr>
+<td>典型代表</td>
+<td>Text File、 Sequence File等</td>
+<td>ORC、 Parquet、 Carbon Data等</td>
+</tr>
+<tr>
+<td>应用领域</td>
+<td>商业领域/互联网</td>
+<td>互联网</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>如果首要考虑是数据的完整性和可靠性，那么行存储是不二选择，列存储只有在增加磁盘并改进软件设计后才能接近这样的目标。</li>
+<li>如果以保存数据为主，行存储的写入性能比列存储高很多。</li>
+<li>在需要频繁读取单列集合数据的应用中，列存储是最合适的。</li>
+<li>如果每次读取多列，两个方案可酌情选择：<ul>
+<li>采用行存储时，设计中应考虑减少或避免冗余列；</li>
+<li>若采用列存储方案，为保证读写入效率，每列数据尽可能分别保存到不同的磁盘上，多个线程并行读写各自的数据，这样避免了磁盘竞用的同时也提高了处理效率。</li>
+</ul>
+</li>
+<li>无论选择哪种方案，将同内容数据聚凑在一起都是必须的，这是减少磁头在磁盘上的移动，提高数据读取时间的有效办法。</li>
+</ul>
+<h2><span id="适用场景">适用场景</span></h2><ul>
+<li><p>行存储的写入是一次性完成，消耗的时间比列存储少，并且能够保证数据的完整性，缺点是数据读取过程中会产生冗余数据，如果只有少量数据，此影响可以忽略；数量大可能会影响到数据的处理效率。</p>
+<ul>
+<li>所以，行存对于 OLTP 比较友好，一行记录的所有列连续存储，一次IO可以实现整行读取或者写入，实现数据库的ACID特性就比较简单。但在读取的时候会将整行数据全读出来，在一些分析场景下压力会有点大。</li>
+</ul>
+</li>
+<li><p>列存储在写入效率、保证数据完整性上都不如行存储，它的优势是在读取过程，不会产生冗余数据，这对数据完整性要求不高的大数据处理领域，比如互联网，犹为重要。</p>
+<ul>
+<li>所以，列存则是对于 OLAP 非常友好，但在刷盘的时候压力可能会比较大，如果一个 table 有很多 column，写入性能可会有点影响。</li>
+</ul>
+</li>
+</ul>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://www.infoq.cn/article/bigdata-store-choose" target="_blank" rel="noopener">大数据存取的选择：行存储还是列存储？</a></li>
+<li><a href="https://blog.csdn.net/Xingxinxinxin/article/details/80939277" target="_blank" rel="noopener">行存储 VS 列存储</a></li>
+<li><a href="https://juejin.cn/post/7001508701706125320" target="_blank" rel="noopener">列式存储和行式存储有什么区别？</a></li>
+<li><a href="https://www.jianshu.com/p/7ee1f9703a41" target="_blank" rel="noopener">行存储、列存储、行列混存</a></li>
+</ul>
 
       
 
@@ -254,28 +337,13 @@
     <div class="article-info article-info-index">
       
       
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">shell</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">监控</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
       
 	<div class="article-category tagcloud">
 		<i class="icon-book icon"></i>
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
         		</li>
       		
 		</ul>
@@ -330,7 +398,7 @@
     <a class="close js-modal-close" href="javascript:;"><i class="icon icon-close"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="http://s.jiathis.com/qrcode.php?url=https://winway.github.io/2013/07/01/a-simple-Linux-app-monitor-framework-1/" alt="微信分享二维码">
+      <img src="http://s.jiathis.com/qrcode.php?url=https://winway.github.io/2022/05/20/bigdata-stack-row-col/" alt="微信分享二维码">
     </div>
 </div>
 
@@ -344,18 +412,9 @@
   
 <nav id="article-nav">
   
-    <a href="/2013/07/09/a-LAN-arp-attacker/" id="article-nav-newer" class="article-nav-link-wrap">
-      <i class="icon-circle-left"></i>
-      <div class="article-nav-title">
-        
-          局域网ARP欺骗程序
-        
-      </div>
-    </a>
   
-  
-    <a href="/2013/06/24/python-multiprocessing-demo/" id="article-nav-older" class="article-nav-link-wrap">
-      <div class="article-nav-title">一个基于multiprocessing的并发模型</div>
+    <a href="/2022/05/20/bigdata-stack-cap/" id="article-nav-older" class="article-nav-link-wrap">
+      <div class="article-nav-title">cap原则-分布式系统设计的指导思想</div>
       <i class="icon-circle-right"></i>
     </a>
   
