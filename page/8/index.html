@@ -155,6 +155,147 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-salt-master-publisher" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/07/27/salt-master-publisher/">saltstack源码解析之master.publisher</a>
+    </h1>
+  
+
+        
+        <a href="/2017/07/27/salt-master-publisher/" class="archive-article-date">
+  	<time datetime="2017-07-27T11:39:44.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-07-27</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p><em>ENV: Version: 2016.11.0, Transport: tcp, Multi-Master</em></p>
+<!-- toc -->
+<ul>
+<li><a href="#1-架构图">1. 架构图</a></li>
+<li><a href="#2-类图和重要方法说明">2. 类图和重要方法说明</a></li>
+<li><a href="#3-源码解析">3. 源码解析</a><ul>
+<li><a href="#pubserver">PubServer</a></li>
+<li><a href="#ipcmessageserver">IPCMessageServer</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h2><span id="1-架构图">1. 架构图</span></h2><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-publisher-arch.png" alt="salt-master-publisher-arch"></p>
+<h2><span id="2-类图和重要方法说明">2. 类图和重要方法说明</span></h2><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-publisher-class1.png" alt="salt-master-publisher-class1"></p>
+<p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-publisher-class2.png" alt="salt-master-publisher-class2"></p>
+<p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-publisher-class3.png" alt="salt-master-publisher-class3"></p>
+<p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-publisher-class4.png" alt="salt-master-publisher-class4"></p>
+<h2><span id="3-源码解析">3. 源码解析</span></h2><p>代码入口salt.master.Master.start<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/master.py</span></span><br><span class="line">            pub_channels = []</span><br><span class="line">            log.info(<span class="string">'Creating master publisher process'</span>)</span><br><span class="line">            <span class="keyword">for</span> transport, opts <span class="keyword">in</span> iter_transport_opts(self.opts):</span><br><span class="line">                chan = salt.transport.server.PubServerChannel.factory(opts)</span><br><span class="line">                chan.pre_fork(self.process_manager)</span><br><span class="line">                pub_channels.append(chan)</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li>iter_transport_opts是一个生成器，会产生所有的transport, opts<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/\_\_init\_\_.py</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">iter_transport_opts</span><span class="params">(opts)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    Yield transport, opts for all master configured transports</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    transports = set()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> transport, opts_overrides <span class="keyword">in</span> six.iteritems(opts.get(<span class="string">'transport_opts'</span>, &#123;&#125;)):</span><br><span class="line">        t_opts = dict(opts)</span><br><span class="line">        t_opts.update(opts_overrides)</span><br><span class="line">        t_opts[<span class="string">'transport'</span>] = transport</span><br><span class="line">        transports.add(transport)</span><br><span class="line">        <span class="keyword">yield</span> transport, t_opts</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> opts[<span class="string">'transport'</span>] <span class="keyword">not</span> <span class="keyword">in</span> transports:</span><br><span class="line">        <span class="keyword">yield</span> opts[<span class="string">'transport'</span>], opts</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>transport_opts配置实例：<br><figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">transport_opts:</span></span><br><span class="line"><span class="attr">  tcp:</span></span><br><span class="line"><span class="attr">    publish_port:</span> <span class="number">4605</span></span><br><span class="line"><span class="attr">    ret_port:</span> <span class="number">4606</span></span><br><span class="line"><span class="attr">  zeromq:</span> <span class="string">[]</span></span><br></pre></td></tr></table></figure></p>
+<ul>
+<li><p>salt.transport.server.PubServerChannel是工厂类，根据opts中的transport配置，返回对应的PubServerChannel，这里以TCPPubServerChannel为例</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/server.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">PubServerChannel</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    Factory class to create subscription channels to the master's Publisher</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line"><span class="meta">    @staticmethod</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">factory</span><span class="params">(opts, **kwargs)</span>:</span></span><br><span class="line">        <span class="comment"># Default to ZeroMQ for now</span></span><br><span class="line">        ttype = <span class="string">'zeromq'</span></span><br><span class="line"></span><br><span class="line">        <span class="comment"># determine the ttype</span></span><br><span class="line">        <span class="keyword">if</span> <span class="string">'transport'</span> <span class="keyword">in</span> opts:</span><br><span class="line">            ttype = opts[<span class="string">'transport'</span>]</span><br><span class="line">        <span class="keyword">elif</span> <span class="string">'transport'</span> <span class="keyword">in</span> opts.get(<span class="string">'pillar'</span>, &#123;&#125;).get(<span class="string">'master'</span>, &#123;&#125;):</span><br><span class="line">            ttype = opts[<span class="string">'pillar'</span>][<span class="string">'master'</span>][<span class="string">'transport'</span>]</span><br><span class="line"></span><br><span class="line">        <span class="comment"># switch on available ttypes</span></span><br><span class="line">        <span class="keyword">if</span> ttype == <span class="string">'zeromq'</span>:</span><br><span class="line">            <span class="keyword">import</span> salt.transport.zeromq</span><br><span class="line">            <span class="keyword">return</span> salt.transport.zeromq.ZeroMQPubServerChannel(opts, **kwargs)</span><br><span class="line">        <span class="keyword">elif</span> ttype == <span class="string">'raet'</span>:  <span class="comment"># <span class="doctag">TODO:</span></span></span><br><span class="line">            <span class="keyword">import</span> salt.transport.raet</span><br><span class="line">            <span class="keyword">return</span> salt.transport.raet.RAETPubServerChannel(opts, **kwargs)</span><br><span class="line">        <span class="keyword">elif</span> ttype == <span class="string">'tcp'</span>:</span><br><span class="line">            <span class="keyword">import</span> salt.transport.tcp</span><br><span class="line">            <span class="keyword">return</span> salt.transport.tcp.TCPPubServerChannel(opts)</span><br><span class="line">        <span class="keyword">elif</span> ttype == <span class="string">'local'</span>:  <span class="comment"># <span class="doctag">TODO:</span></span></span><br><span class="line">            <span class="keyword">import</span> salt.transport.local</span><br><span class="line">            <span class="keyword">return</span> salt.transport.local.LocalPubServerChannel(opts, **kwargs)</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">raise</span> Exception(<span class="string">'Channels are only defined for ZeroMQ and raet'</span>)</span><br><span class="line">            <span class="comment"># return NewKindOfChannel(opts, **kwargs)</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">pre_fork</span><span class="params">(self, process_manager)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Do anything necessary pre-fork. Since this is on the master side this will</span></span><br><span class="line"><span class="string">        primarily be used to create IPC channels and create our daemon process to</span></span><br><span class="line"><span class="string">        do the actual publishing</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="keyword">pass</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">publish</span><span class="params">(self, load)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Publish "load" to minions</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="keyword">raise</span> NotImplementedError()</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>调用chan.pre_fork，即salt.transport.tcp.TCPPubServerChannel.pre_fork</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/tcp.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">pre_fork</span><span class="params">(self, process_manager)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Do anything necessary pre-fork. Since this is on the master side this will</span></span><br><span class="line"><span class="string">        primarily be used to create IPC channels and create our daemon process to</span></span><br><span class="line"><span class="string">        do the actual publishing</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        kwargs = &#123;&#125;</span><br><span class="line">        <span class="keyword">if</span> salt.utils.is_windows():</span><br><span class="line">            kwargs[<span class="string">'log_queue'</span>] = (</span><br><span class="line">                salt.log.setup.get_multiprocessing_logging_queue()</span><br><span class="line">            )</span><br><span class="line"></span><br><span class="line">        process_manager.add_process(self._publish_daemon, kwargs=kwargs)</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>pre_fork创建进程self._publish_daemon<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/tcp.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">_publish_daemon</span><span class="params">(self, log_queue=None)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Bind to the interface specified in the configuration file</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        salt.utils.appendproctitle(self.__class__.__name__)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> log_queue <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span>:</span><br><span class="line">            salt.log.setup.set_multiprocessing_logging_queue(log_queue)</span><br><span class="line">        salt.log.setup.setup_multiprocessing_logging(log_queue)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># Check if io_loop was set outside</span></span><br><span class="line">        <span class="keyword">if</span> self.io_loop <span class="keyword">is</span> <span class="keyword">None</span>:</span><br><span class="line">            self.io_loop = tornado.ioloop.IOLoop.current()</span><br><span class="line"></span><br><span class="line">        <span class="comment"># Spin up the publisher</span></span><br><span class="line">        pub_server = PubServer(self.opts, io_loop=self.io_loop)</span><br><span class="line">        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)</span><br><span class="line">        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, <span class="number">1</span>)</span><br><span class="line">        _set_tcp_keepalive(sock, self.opts)</span><br><span class="line">        sock.setblocking(<span class="number">0</span>)</span><br><span class="line">        sock.bind((self.opts[<span class="string">'interface'</span>], int(self.opts[<span class="string">'publish_port'</span>])))</span><br><span class="line">        sock.listen(self.backlog)</span><br><span class="line">        <span class="comment"># pub_server will take ownership of the socket</span></span><br><span class="line">        pub_server.add_socket(sock)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># Set up Salt IPC server</span></span><br><span class="line">        <span class="keyword">if</span> self.opts.get(<span class="string">'ipc_mode'</span>, <span class="string">''</span>) == <span class="string">'tcp'</span>:</span><br><span class="line">            pull_uri = int(self.opts.get(<span class="string">'tcp_master_publish_pull'</span>, <span class="number">4514</span>))</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            pull_uri = os.path.join(self.opts[<span class="string">'sock_dir'</span>], <span class="string">'publish_pull.ipc'</span>)</span><br><span class="line"></span><br><span class="line">        pull_sock = salt.transport.ipc.IPCMessageServer(</span><br><span class="line">            pull_uri,</span><br><span class="line">            io_loop=self.io_loop,</span><br><span class="line">            payload_handler=pub_server.publish_payload,</span><br><span class="line">        )</span><br><span class="line"></span><br><span class="line">        <span class="comment"># Securely create socket</span></span><br><span class="line">        log.info(<span class="string">'Starting the Salt Puller on &#123;0&#125;'</span>.format(pull_uri))</span><br><span class="line">        old_umask = os.umask(<span class="number">0o177</span>)</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            pull_sock.start()</span><br><span class="line">        <span class="keyword">finally</span>:</span><br><span class="line">            os.umask(old_umask)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># run forever</span></span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            self.io_loop.start()</span><br><span class="line">        <span class="keyword">except</span> (KeyboardInterrupt, SystemExit):</span><br><span class="line">            salt.log.setup.shutdown_multiprocessing_logging()</span><br></pre></td></tr></table></figure></p>
+<p>_publish_daemon创建PubServer和IPCMessageServer，其中PubServer绑定、监听publish_port，即4505；IPCMessageServer绑定、监听UNIX域套接字publish_pull.ipc，接下来分别进行介绍。</p>
+<h3><span id="pubserver">PubServer</span></h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/tcp.py</span></span><br><span class="line">        <span class="comment"># Spin up the publisher</span></span><br><span class="line">        pub_server = PubServer(self.opts, io_loop=self.io_loop)</span><br><span class="line">        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)</span><br><span class="line">        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, <span class="number">1</span>)</span><br><span class="line">        _set_tcp_keepalive(sock, self.opts)</span><br><span class="line">        sock.setblocking(<span class="number">0</span>)</span><br><span class="line">        sock.bind((self.opts[<span class="string">'interface'</span>], int(self.opts[<span class="string">'publish_port'</span>])))</span><br><span class="line">        sock.listen(self.backlog)</span><br><span class="line">        <span class="comment"># pub_server will take ownership of the socket</span></span><br><span class="line">        pub_server.add_socket(sock)</span><br></pre></td></tr></table></figure>
+<p>首先来看PubServer，PubServer继承自tornado.tcpserver.TCPServer<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">PubServer</span><span class="params">(tornado.tcpserver.TCPServer, object)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    TCP publisher</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, opts, io_loop=None)</span>:</span></span><br><span class="line">        <span class="keyword">if</span> <span class="string">'ssl_cert'</span> <span class="keyword">in</span> opts <span class="keyword">and</span> <span class="string">'ssl_key'</span> <span class="keyword">in</span> opts:</span><br><span class="line">            ssl_options = &#123;</span><br><span class="line">                    <span class="string">'certfile'</span>: opts[<span class="string">'ssl_cert'</span>],</span><br><span class="line">                    <span class="string">'keyfile'</span>: opts[<span class="string">'ssl_key'</span>],</span><br><span class="line">                    &#125;</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            ssl_options = <span class="keyword">None</span></span><br><span class="line">        super(PubServer, self).__init__(io_loop=io_loop, ssl_options=ssl_options)</span><br><span class="line">        self.opts = opts</span><br><span class="line">        self._closing = <span class="keyword">False</span></span><br><span class="line">        self.clients = set()</span><br><span class="line">        self.aes_funcs = salt.master.AESFuncs(self.opts)</span><br><span class="line">        self.present = &#123;&#125;</span><br><span class="line">        self.presence_events = <span class="keyword">False</span></span><br><span class="line">        <span class="keyword">if</span> self.opts.get(<span class="string">'presence_events'</span>, <span class="keyword">False</span>):</span><br><span class="line">            tcp_only = <span class="keyword">True</span></span><br><span class="line">            <span class="keyword">for</span> transport, _ <span class="keyword">in</span> iter_transport_opts(self.opts):</span><br><span class="line">                <span class="keyword">if</span> transport != <span class="string">'tcp'</span>:</span><br><span class="line">                    tcp_only = <span class="keyword">False</span></span><br><span class="line">            <span class="keyword">if</span> tcp_only:</span><br><span class="line">                <span class="comment"># Only when the transport is TCP only, the presence events will</span></span><br><span class="line">                <span class="comment"># be handled here. Otherwise, it will be handled in the</span></span><br><span class="line">                <span class="comment"># 'Maintenance' process.</span></span><br><span class="line">                self.presence_events = <span class="keyword">True</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> self.presence_events:</span><br><span class="line">            self.event = salt.utils.event.get_event(</span><br><span class="line">                <span class="string">'master'</span>,</span><br><span class="line">                opts=self.opts,</span><br><span class="line">                listen=<span class="keyword">False</span></span><br><span class="line">            )</span><br></pre></td></tr></table></figure></p>
+<p>在__init__中，会根据presence_events决定是否创建event对象<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">presence_events</span><br><span class="line"></span><br><span class="line">Default: False</span><br><span class="line"></span><br><span class="line">Causes the master to periodically look for actively connected minions. Presence events are fired on the event bus on a regular interval with a list of connected minions, as well as events with lists of newly connected or disconnected minions. This is a master-only operation that does not send executions to minions. Note, this does not detect minions that connect to a master via localhost.</span><br></pre></td></tr></table></figure></p>
+<p>salt.utils.event.get_event最终会调用salt.utils.event.SaltEvent.connect_pub，创建一个IPCMessageSubscriber，监听master_event_pub.ipc，即eventbus，该event对象也会用来向eventbus fire_event<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/utils/event.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">connect_pub</span><span class="params">(self, timeout=None)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Establish the publish connection</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="keyword">if</span> self.cpub:</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">True</span></span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> self._run_io_loop_sync:</span><br><span class="line">            <span class="keyword">with</span> salt.utils.<span class="keyword">async</span>.current_ioloop(self.io_loop):</span><br><span class="line">                <span class="keyword">if</span> self.subscriber <span class="keyword">is</span> <span class="keyword">None</span>:</span><br><span class="line">                    self.subscriber = salt.transport.ipc.IPCMessageSubscriber(</span><br><span class="line">                    self.puburi,</span><br><span class="line">                    io_loop=self.io_loop</span><br><span class="line">                )</span><br><span class="line">                <span class="keyword">try</span>:</span><br><span class="line">                    self.io_loop.run_sync(</span><br><span class="line">                        <span class="keyword">lambda</span>: self.subscriber.connect(timeout=timeout))</span><br><span class="line">                    self.cpub = <span class="keyword">True</span></span><br><span class="line">                <span class="keyword">except</span> Exception:</span><br><span class="line">                    <span class="keyword">pass</span></span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">if</span> self.subscriber <span class="keyword">is</span> <span class="keyword">None</span>:</span><br><span class="line">                self.subscriber = salt.transport.ipc.IPCMessageSubscriber(</span><br><span class="line">                self.puburi,</span><br><span class="line">                io_loop=self.io_loop</span><br><span class="line">            )</span><br><span class="line"></span><br><span class="line">            <span class="comment"># For the async case, the connect will be defered to when</span></span><br><span class="line">            <span class="comment"># set_event_handler() is invoked.</span></span><br><span class="line">            self.cpub = <span class="keyword">True</span></span><br><span class="line">        <span class="keyword">return</span> self.cpub</span><br></pre></td></tr></table></figure></p>
+<p>PubServer中最重要的方法是handle_stream，继承tornado.tcpserver.TCPServer的类，都需要实现handle_stream方法。当连接到来时，handle_stream被调用，传入stream(IOStream对象，而不是原始的fd)和address，之后就可以用IOStream对象方法收发消息了<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/tcp.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">handle_stream</span><span class="params">(self, stream, address)</span>:</span></span><br><span class="line">        log.trace(<span class="string">'Subscriber at &#123;0&#125; connected'</span>.format(address))</span><br><span class="line">        client = Subscriber(stream, address)</span><br><span class="line">        self.clients.add(client)</span><br><span class="line">        self.io_loop.spawn_callback(self._stream_read, client)</span><br></pre></td></tr></table></figure></p>
+<p>handle_stream负责创建一个Subscriber，并添加进self.clients。Subscriber实现比较简单，一个Subscriber对应一个客户端，即minion<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/tcp.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Subscriber</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    Client object for use with the TCP publisher server</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, stream, address)</span>:</span></span><br><span class="line">        self.stream = stream</span><br><span class="line">        self.address = address</span><br><span class="line">        self._closing = <span class="keyword">False</span></span><br><span class="line">        self._read_until_future = <span class="keyword">None</span></span><br><span class="line">        self.id_ = <span class="keyword">None</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">close</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="keyword">if</span> self._closing:</span><br><span class="line">            <span class="keyword">return</span></span><br><span class="line">        self._closing = <span class="keyword">True</span></span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> self.stream.closed():</span><br><span class="line">            self.stream.close()</span><br><span class="line">            <span class="keyword">if</span> self._read_until_future <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span>:</span><br><span class="line">                <span class="comment"># This will prevent this message from showing up:</span></span><br><span class="line">                <span class="comment"># '[ERROR   ] Future exception was never retrieved:</span></span><br><span class="line">                <span class="comment"># StreamClosedError'</span></span><br><span class="line">                <span class="comment"># This happens because the logic is always waiting to read</span></span><br><span class="line">                <span class="comment"># the next message and the associated read future is marked</span></span><br><span class="line">                <span class="comment"># 'StreamClosedError' when the stream is closed.</span></span><br><span class="line">                self._read_until_future.exc_info()</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__del__</span><span class="params">(self)</span>:</span></span><br><span class="line">        self.close()</span><br></pre></td></tr></table></figure></p>
+<p>然后调用self._stream_read，_stream_read负责与client通信，并调用self._add_client_present(client)和self._remove_client_present(client)更新present列表<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/tcp.py</span></span><br><span class="line"><span class="meta">    @tornado.gen.coroutine</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">_stream_read</span><span class="params">(self, client)</span>:</span></span><br><span class="line">        unpacker = msgpack.Unpacker()</span><br><span class="line">        <span class="keyword">while</span> <span class="keyword">not</span> self._closing:</span><br><span class="line">            <span class="keyword">try</span>:</span><br><span class="line">                client._read_until_future = client.stream.read_bytes(<span class="number">4096</span>, partial=<span class="keyword">True</span>)</span><br><span class="line">                wire_bytes = <span class="keyword">yield</span> client._read_until_future</span><br><span class="line">                unpacker.feed(wire_bytes)</span><br><span class="line">                <span class="keyword">for</span> framed_msg <span class="keyword">in</span> unpacker:</span><br><span class="line">                    <span class="keyword">if</span> six.PY3:</span><br><span class="line">                        framed_msg = salt.transport.frame.decode_embedded_strs(</span><br><span class="line">                            framed_msg</span><br><span class="line">                        )</span><br><span class="line">                    body = framed_msg[<span class="string">'body'</span>]</span><br><span class="line">                    <span class="keyword">if</span> body[<span class="string">'enc'</span>] != <span class="string">'aes'</span>:</span><br><span class="line">                        <span class="comment"># We only accept 'aes' encoded messages for 'id'</span></span><br><span class="line">                        <span class="keyword">continue</span></span><br><span class="line">                    crypticle = salt.crypt.Crypticle(self.opts, salt.master.SMaster.secrets[<span class="string">'aes'</span>][<span class="string">'secret'</span>].value)</span><br><span class="line">                    load = crypticle.loads(body[<span class="string">'load'</span>])</span><br><span class="line">                    <span class="keyword">if</span> six.PY3:</span><br><span class="line">                        load = salt.transport.frame.decode_embedded_strs(load)</span><br><span class="line">                    <span class="keyword">if</span> <span class="keyword">not</span> self.aes_funcs.verify_minion(load[<span class="string">'id'</span>], load[<span class="string">'tok'</span>]):</span><br><span class="line">                        <span class="keyword">continue</span></span><br><span class="line">                    client.id_ = load[<span class="string">'id'</span>]</span><br><span class="line">                    self._add_client_present(client)</span><br><span class="line">            <span class="keyword">except</span> tornado.iostream.StreamClosedError <span class="keyword">as</span> e:</span><br><span class="line">                log.debug(<span class="string">'tcp stream to &#123;0&#125; closed, unable to recv'</span>.format(client.address))</span><br><span class="line">                client.close()</span><br><span class="line">                self._remove_client_present(client)</span><br><span class="line">                self.clients.discard(client)</span><br><span class="line">                <span class="keyword">break</span></span><br><span class="line">            <span class="keyword">except</span> Exception <span class="keyword">as</span> e:</span><br><span class="line">                log.error(<span class="string">'Exception parsing response'</span>, exc_info=<span class="keyword">True</span>)</span><br><span class="line">                <span class="keyword">continue</span></span><br></pre></td></tr></table></figure></p>
+<p>以_add_client_present为例，会将新来的client加入present，并向eventbus发送事件<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/tcp.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">_add_client_present</span><span class="params">(self, client)</span>:</span></span><br><span class="line">        id_ = client.id_</span><br><span class="line">        <span class="keyword">if</span> id_ <span class="keyword">in</span> self.present:</span><br><span class="line">            clients = self.present[id_]</span><br><span class="line">            clients.add(client)</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            self.present[id_] = set([client])</span><br><span class="line">            <span class="keyword">if</span> self.presence_events:</span><br><span class="line">                data = &#123;<span class="string">'new'</span>: [id_],</span><br><span class="line">                        <span class="string">'lost'</span>: []&#125;</span><br><span class="line">                self.event.fire_event(</span><br><span class="line">                    data,</span><br><span class="line">                    salt.utils.event.tagify(<span class="string">'change'</span>, <span class="string">'presence'</span>)</span><br><span class="line">                )</span><br><span class="line">                data = &#123;<span class="string">'present'</span>: list(self.present.keys())&#125;</span><br><span class="line">                self.event.fire_event(</span><br><span class="line">                    data,</span><br><span class="line">                    salt.utils.event.tagify(<span class="string">'present'</span>, <span class="string">'presence'</span>)</span><br><span class="line">                )</span><br></pre></td></tr></table></figure></p>
+<p>发送的事件是<br><figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="string">Presence</span> <span class="string">Events</span></span><br><span class="line"></span><br><span class="line"><span class="string">salt/presence/present</span></span><br><span class="line"></span><br><span class="line">    <span class="string">Events</span> <span class="string">fired</span> <span class="string">on</span> <span class="string">a</span> <span class="string">regular</span> <span class="string">interval</span> <span class="string">about</span> <span class="string">currently</span> <span class="string">connected,</span> <span class="string">newly</span> <span class="string">connected,</span> <span class="string">or</span> <span class="string">recently</span> <span class="string">disconnected</span> <span class="string">minions.</span> <span class="string">Requires</span> <span class="string">the</span> <span class="string">presence_events</span> <span class="string">setting</span> <span class="string">to</span> <span class="string">be</span> <span class="string">enabled.</span></span><br><span class="line"><span class="attr">    Variables:</span>	<span class="string">present</span> <span class="bullet">--</span> <span class="string">A</span> <span class="string">list</span> <span class="string">of</span> <span class="string">minions</span> <span class="string">that</span> <span class="string">are</span> <span class="string">currently</span> <span class="string">connected</span> <span class="string">to</span> <span class="string">the</span> <span class="string">Salt</span> <span class="string">master.</span></span><br><span class="line"></span><br><span class="line"><span class="string">salt/presence/change</span></span><br><span class="line"></span><br><span class="line">    <span class="string">Fired</span> <span class="string">when</span> <span class="string">the</span> <span class="string">Presence</span> <span class="string">system</span> <span class="string">detects</span> <span class="string">new</span> <span class="string">minions</span> <span class="string">connect</span> <span class="string">or</span> <span class="string">disconnect.</span></span><br><span class="line"><span class="attr">    Variables:</span></span><br><span class="line"></span><br><span class="line">        <span class="string">new</span> <span class="bullet">--</span> <span class="string">A</span> <span class="string">list</span> <span class="string">of</span> <span class="string">minions</span> <span class="string">that</span> <span class="string">have</span> <span class="string">connected</span> <span class="string">since</span> <span class="string">the</span> <span class="string">last</span> <span class="string">presence</span> <span class="string">event.</span></span><br><span class="line">        <span class="string">lost</span> <span class="bullet">--</span> <span class="string">A</span> <span class="string">list</span> <span class="string">of</span> <span class="string">minions</span> <span class="string">that</span> <span class="string">have</span> <span class="string">disconnected</span> <span class="string">since</span> <span class="string">the</span> <span class="string">last</span> <span class="string">presence</span> <span class="string">event.</span></span><br></pre></td></tr></table></figure></p>
+<blockquote>
+<p>至此，PubServer分析完毕，PubServer负责维护master和minion的PUB-SUB关系，并维护present列表，定期发送presence events到eventbus</p>
+</blockquote>
+<h3><span id="ipcmessageserver">IPCMessageServer</span></h3><p>现在来看IPCMessageServer<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/tcp.py</span></span><br><span class="line">        <span class="comment"># Set up Salt IPC server</span></span><br><span class="line">        <span class="keyword">if</span> self.opts.get(<span class="string">'ipc_mode'</span>, <span class="string">''</span>) == <span class="string">'tcp'</span>:</span><br><span class="line">            pull_uri = int(self.opts.get(<span class="string">'tcp_master_publish_pull'</span>, <span class="number">4514</span>))</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            pull_uri = os.path.join(self.opts[<span class="string">'sock_dir'</span>], <span class="string">'publish_pull.ipc'</span>)</span><br><span class="line"></span><br><span class="line">        pull_sock = salt.transport.ipc.IPCMessageServer(</span><br><span class="line">            pull_uri,</span><br><span class="line">            io_loop=self.io_loop,</span><br><span class="line">            payload_handler=pub_server.publish_payload,</span><br><span class="line">        )</span><br></pre></td></tr></table></figure></p>
+<p>IPCMessageServer监听publish_pull.ipc，并将pub_server.publish_payload作为payload_handler<br>IPCMessageServer继承了IPCServer<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/ipc.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">IPCMessageServer</span><span class="params">(IPCServer)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    Salt IPC message server</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    Creates a message server which can create and bind to a socket on a given</span></span><br><span class="line"><span class="string">    path and then respond to messages asynchronously.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    An example of a very simple IPCServer which prints received messages to</span></span><br><span class="line"><span class="string">    a console:</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        # Import Tornado libs</span></span><br><span class="line"><span class="string">        import tornado.ioloop</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        # Import Salt libs</span></span><br><span class="line"><span class="string">        import salt.transport.ipc</span></span><br><span class="line"><span class="string">        import salt.config</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        opts = salt.config.master_opts()</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        io_loop = tornado.ioloop.IOLoop.current()</span></span><br><span class="line"><span class="string">        ipc_server_socket_path = '/var/run/ipc_server.ipc'</span></span><br><span class="line"><span class="string">        ipc_server = salt.transport.ipc.IPCMessageServer(opts, io_loop=io_loop</span></span><br><span class="line"><span class="string">                                                         stream_handler=print_to_console)</span></span><br><span class="line"><span class="string">        # Bind to the socket and prepare to run</span></span><br><span class="line"><span class="string">        ipc_server.start(ipc_server_socket_path)</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        # Start the server</span></span><br><span class="line"><span class="string">        io_loop.start()</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        # This callback is run whenever a message is received</span></span><br><span class="line"><span class="string">        def print_to_console(payload):</span></span><br><span class="line"><span class="string">            print(payload)</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    See IPCMessageClient() for an example of sending messages to an IPCMessageServer instance</span></span><br><span class="line"><span class="string">    '''</span></span><br></pre></td></tr></table></figure></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/ipc.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">IPCServer</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    A Tornado IPC server very similar to Tornado's TCPServer class</span></span><br><span class="line"><span class="string">    but using either UNIX domain sockets or TCP sockets</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, socket_path, io_loop=None, payload_handler=None)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Create a new Tornado IPC server</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        :param str/int socket_path: Path on the filesystem for the</span></span><br><span class="line"><span class="string">                                    socket to bind to. This socket does</span></span><br><span class="line"><span class="string">                                    not need to exist prior to calling</span></span><br><span class="line"><span class="string">                                    this method, but parent directories</span></span><br><span class="line"><span class="string">                                    should.</span></span><br><span class="line"><span class="string">                                    It may also be of type 'int', in</span></span><br><span class="line"><span class="string">                                    which case it is used as the port</span></span><br><span class="line"><span class="string">                                    for a tcp localhost connection.</span></span><br><span class="line"><span class="string">        :param IOLoop io_loop: A Tornado ioloop to handle scheduling</span></span><br><span class="line"><span class="string">        :param func payload_handler: A function to customize handling of</span></span><br><span class="line"><span class="string">                                     incoming data.</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        self.socket_path = socket_path</span><br><span class="line">        self._started = <span class="keyword">False</span></span><br><span class="line">        self.payload_handler = payload_handler</span><br><span class="line"></span><br><span class="line">        <span class="comment"># Placeholders for attributes to be populated by method calls</span></span><br><span class="line">        self.sock = <span class="keyword">None</span></span><br><span class="line">        self.io_loop = io_loop <span class="keyword">or</span> IOLoop.current()</span><br><span class="line">        self._closing = <span class="keyword">False</span></span><br></pre></td></tr></table></figure>
+<p>在创建完IPCMessageServer，首先调用的是它的start，start绑定UNIX域套接字，并注册回调函数self.handle_connection<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/ipc.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">start</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Perform the work necessary to start up a Tornado IPC server</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        Blocks until socket is established</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="comment"># Start up the ioloop</span></span><br><span class="line">        log.trace(<span class="string">'IPCServer: binding to socket: &#123;0&#125;'</span>.format(self.socket_path))</span><br><span class="line">        <span class="keyword">if</span> isinstance(self.socket_path, int):</span><br><span class="line">            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)</span><br><span class="line">            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, <span class="number">1</span>)</span><br><span class="line">            self.sock.setblocking(<span class="number">0</span>)</span><br><span class="line">            self.sock.bind((<span class="string">'127.0.0.1'</span>, self.socket_path))</span><br><span class="line">            <span class="comment"># Based on default used in tornado.netutil.bind_sockets()</span></span><br><span class="line">            self.sock.listen(<span class="number">128</span>)</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            self.sock = tornado.netutil.bind_unix_socket(self.socket_path)</span><br><span class="line"></span><br><span class="line">        tornado.netutil.add_accept_handler(</span><br><span class="line">            self.sock,</span><br><span class="line">            self.handle_connection,</span><br><span class="line">            io_loop=self.io_loop,</span><br><span class="line">        )</span><br><span class="line">        self._started = <span class="keyword">True</span></span><br></pre></td></tr></table></figure></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/ipc.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">handle_connection</span><span class="params">(self, connection, address)</span>:</span></span><br><span class="line">        log.trace(<span class="string">'IPCServer: Handling connection to address: &#123;0&#125;'</span>.format(address))</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            stream = IOStream(</span><br><span class="line">                connection,</span><br><span class="line">                io_loop=self.io_loop,</span><br><span class="line">            )</span><br><span class="line">            self.io_loop.spawn_callback(self.handle_stream, stream)</span><br><span class="line">        <span class="keyword">except</span> Exception <span class="keyword">as</span> exc:</span><br><span class="line">            log.error(<span class="string">'IPC streaming error: &#123;0&#125;'</span>.format(exc))</span><br></pre></td></tr></table></figure>
+<p>handle_connection会将每个链接封装成IOStream，然后调用self.handle_stream<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/ipc.py</span></span><br><span class="line"><span class="meta">    @tornado.gen.coroutine</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">handle_stream</span><span class="params">(self, stream)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Override this to handle the streams as they arrive</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        :param IOStream stream: An IOStream for processing</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        See https://tornado.readthedocs.io/en/latest/iostream.html#tornado.iostream.IOStream</span></span><br><span class="line"><span class="string">        for additional details.</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line"><span class="meta">        @tornado.gen.coroutine</span></span><br><span class="line">        <span class="function"><span class="keyword">def</span> <span class="title">_null</span><span class="params">(msg)</span>:</span></span><br><span class="line">            <span class="keyword">raise</span> tornado.gen.Return(<span class="keyword">None</span>)</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">def</span> <span class="title">write_callback</span><span class="params">(stream, header)</span>:</span></span><br><span class="line">            <span class="keyword">if</span> header.get(<span class="string">'mid'</span>):</span><br><span class="line"><span class="meta">                @tornado.gen.coroutine</span></span><br><span class="line">                <span class="function"><span class="keyword">def</span> <span class="title">return_message</span><span class="params">(msg)</span>:</span></span><br><span class="line">                    pack = salt.transport.frame.frame_msg_ipc(</span><br><span class="line">                        msg,</span><br><span class="line">                        header=&#123;<span class="string">'mid'</span>: header[<span class="string">'mid'</span>]&#125;,</span><br><span class="line">                        raw_body=<span class="keyword">True</span>,</span><br><span class="line">                    )</span><br><span class="line">                    <span class="keyword">yield</span> stream.write(pack)</span><br><span class="line">                <span class="keyword">return</span> return_message</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="keyword">return</span> _null</span><br><span class="line">        <span class="keyword">if</span> six.PY2:</span><br><span class="line">            encoding = <span class="keyword">None</span></span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            encoding = <span class="string">'utf-8'</span></span><br><span class="line">        unpacker = msgpack.Unpacker(encoding=encoding)</span><br><span class="line">        <span class="keyword">while</span> <span class="keyword">not</span> stream.closed():</span><br><span class="line">            <span class="keyword">try</span>:</span><br><span class="line">                wire_bytes = <span class="keyword">yield</span> stream.read_bytes(<span class="number">4096</span>, partial=<span class="keyword">True</span>)</span><br><span class="line">                unpacker.feed(wire_bytes)</span><br><span class="line">                <span class="keyword">for</span> framed_msg <span class="keyword">in</span> unpacker:</span><br><span class="line">                    body = framed_msg[<span class="string">'body'</span>]</span><br><span class="line">                    self.io_loop.spawn_callback(self.payload_handler, body, write_callback(stream, framed_msg[<span class="string">'head'</span>]))</span><br><span class="line">            <span class="keyword">except</span> tornado.iostream.StreamClosedError:</span><br><span class="line">                log.trace(<span class="string">'Client disconnected from IPC &#123;0&#125;'</span>.format(self.socket_path))</span><br><span class="line">                <span class="keyword">break</span></span><br><span class="line">            <span class="keyword">except</span> Exception <span class="keyword">as</span> exc:</span><br><span class="line">                log.error(<span class="string">'Exception occurred while handling stream: &#123;0&#125;'</span>.format(exc))</span><br></pre></td></tr></table></figure></p>
+<p>handle_stream会调用self.payload_handler，即PubServer.publish_payload，借助PubServer维护的PUB-SUB关系，进行消息分发。在分发消息时，会根据expr_form是否为list，决定进行指定消息分发或广播。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/tcp.py</span></span><br><span class="line">    <span class="comment"># <span class="doctag">TODO:</span> ACK the publish through IPC</span></span><br><span class="line"><span class="meta">    @tornado.gen.coroutine</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">publish_payload</span><span class="params">(self, package, _)</span>:</span></span><br><span class="line">        log.debug(<span class="string">'TCP PubServer sending payload: &#123;0&#125;'</span>.format(package))</span><br><span class="line">        payload = salt.transport.frame.frame_msg(package[<span class="string">'payload'</span>])</span><br><span class="line"></span><br><span class="line">        to_remove = []</span><br><span class="line">        <span class="keyword">if</span> <span class="string">'topic_lst'</span> <span class="keyword">in</span> package:</span><br><span class="line">            topic_lst = package[<span class="string">'topic_lst'</span>]</span><br><span class="line">            <span class="keyword">for</span> topic <span class="keyword">in</span> topic_lst:</span><br><span class="line">                <span class="keyword">if</span> topic <span class="keyword">in</span> self.present:</span><br><span class="line">                    <span class="comment"># This will rarely be a list of more than 1 item. It will</span></span><br><span class="line">                    <span class="comment"># be more than 1 item if the minion disconnects from the</span></span><br><span class="line">                    <span class="comment"># master in an unclean manner (eg cable yank), then</span></span><br><span class="line">                    <span class="comment"># restarts and the master is yet to detect the disconnect</span></span><br><span class="line">                    <span class="comment"># via TCP keep-alive.</span></span><br><span class="line">                    <span class="keyword">for</span> client <span class="keyword">in</span> self.present[topic]:</span><br><span class="line">                        <span class="keyword">try</span>:</span><br><span class="line">                            <span class="comment"># Write the packed str</span></span><br><span class="line">                            f = client.stream.write(payload)</span><br><span class="line">                            self.io_loop.add_future(f, <span class="keyword">lambda</span> f: <span class="keyword">True</span>)</span><br><span class="line">                        <span class="keyword">except</span> tornado.iostream.StreamClosedError:</span><br><span class="line">                            to_remove.append(client)</span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    log.debug(<span class="string">'Publish target &#123;0&#125; not connected'</span>.format(topic))</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">for</span> client <span class="keyword">in</span> self.clients:</span><br><span class="line">                <span class="keyword">try</span>:</span><br><span class="line">                    <span class="comment"># Write the packed str</span></span><br><span class="line">                    f = client.stream.write(payload)</span><br><span class="line">                    self.io_loop.add_future(f, <span class="keyword">lambda</span> f: <span class="keyword">True</span>)</span><br><span class="line">                <span class="keyword">except</span> tornado.iostream.StreamClosedError:</span><br><span class="line">                    to_remove.append(client)</span><br><span class="line">        <span class="keyword">for</span> client <span class="keyword">in</span> to_remove:</span><br><span class="line">            log.debug(<span class="string">'Subscriber at &#123;0&#125; has disconnected from publisher'</span>.format(client.address))</span><br><span class="line">            client.close()</span><br><span class="line">            self._remove_client_present(client)</span><br><span class="line">            self.clients.discard(client)</span><br><span class="line">        log.trace(<span class="string">'TCP PubServer finished publishing payload'</span>)</span><br></pre></td></tr></table></figure></p>
+<blockquote>
+<p>至此，publisher进程分析完毕。</p>
+</blockquote>
+<p><strong>发送命令是从哪个地方发起的呢？</strong><br>使用salt执行命令时，如salt ‘*’ test.ping，首先发送给ReqServer，然后经过MWorker处理，并调用salt.master.ClearFuncs._send_pub发送给IPCMessageServer<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/master.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">_send_pub</span><span class="params">(self, load)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Take a load and send it across the network to connected minions</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="keyword">for</span> transport, opts <span class="keyword">in</span> iter_transport_opts(self.opts):</span><br><span class="line">            chan = salt.transport.server.PubServerChannel.factory(opts)</span><br><span class="line">            chan.publish(load)</span><br></pre></td></tr></table></figure></p>
+<p>_send_pub中调用的正是TCPPubServerChannel.publish<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/tcp.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">publish</span><span class="params">(self, load)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Publish "load" to minions</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        payload = &#123;<span class="string">'enc'</span>: <span class="string">'aes'</span>&#125;</span><br><span class="line"></span><br><span class="line">        crypticle = salt.crypt.Crypticle(self.opts, salt.master.SMaster.secrets[<span class="string">'aes'</span>][<span class="string">'secret'</span>].value)</span><br><span class="line">        payload[<span class="string">'load'</span>] = crypticle.dumps(load)</span><br><span class="line">        <span class="keyword">if</span> self.opts[<span class="string">'sign_pub_messages'</span>]:</span><br><span class="line">            master_pem_path = os.path.join(self.opts[<span class="string">'pki_dir'</span>], <span class="string">'master.pem'</span>)</span><br><span class="line">            log.debug(<span class="string">"Signing data packet"</span>)</span><br><span class="line">            payload[<span class="string">'sig'</span>] = salt.crypt.sign_message(master_pem_path, payload[<span class="string">'load'</span>])</span><br><span class="line">        <span class="comment"># Use the Salt IPC server</span></span><br><span class="line">        <span class="keyword">if</span> self.opts.get(<span class="string">'ipc_mode'</span>, <span class="string">''</span>) == <span class="string">'tcp'</span>:</span><br><span class="line">            pull_uri = int(self.opts.get(<span class="string">'tcp_master_publish_pull'</span>, <span class="number">4514</span>))</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            pull_uri = os.path.join(self.opts[<span class="string">'sock_dir'</span>], <span class="string">'publish_pull.ipc'</span>)</span><br><span class="line">        <span class="comment"># <span class="doctag">TODO:</span> switch to the actual async interface</span></span><br><span class="line">        <span class="comment">#pub_sock = salt.transport.ipc.IPCMessageClient(self.opts, io_loop=self.io_loop)</span></span><br><span class="line">        pub_sock = salt.utils.<span class="keyword">async</span>.SyncWrapper(</span><br><span class="line">            salt.transport.ipc.IPCMessageClient,</span><br><span class="line">            (pull_uri,)</span><br><span class="line">        )</span><br><span class="line">        pub_sock.connect()</span><br><span class="line"></span><br><span class="line">        int_payload = &#123;<span class="string">'payload'</span>: self.serial.dumps(payload)&#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment"># add some targeting stuff for lists only (for now)</span></span><br><span class="line">        <span class="keyword">if</span> load[<span class="string">'tgt_type'</span>] == <span class="string">'list'</span>:</span><br><span class="line">            int_payload[<span class="string">'topic_lst'</span>] = load[<span class="string">'tgt'</span>]</span><br><span class="line">        <span class="comment"># Send it over IPC!</span></span><br><span class="line">        pub_sock.send(int_payload)</span><br></pre></td></tr></table></figure></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">saltstack</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/07/27/salt-master-publisher/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-salt-master-startup-procedure" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1372,121 +1513,6 @@
 
 
   
-    <article id="post-big-data-pig" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/01/13/big-data-pig/">Hadoop生态系统介绍-Pig</a>
-    </h1>
-  
-
-        
-        <a href="/2017/01/13/big-data-pig/" class="archive-article-date">
-  	<time datetime="2017-01-13T04:10:44.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-01-13</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#前言">前言</a></li>
-<li><a href="#工作原理">工作原理</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="前言">前言</span></h2><p>提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。</p>
-<ol>
-<li><a href="https://winway.github.io/2017/01/07/big-data-intro/">Hadoop生态系统介绍-概览</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-kerberos/">Hadoop生态系统介绍-Kerberos</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-zookeeper/">Hadoop生态系统介绍-Zookeeper</a></li>
-<li><a href="https://winway.github.io/2017/01/11/big-data-hdfs/">Hadoop生态系统介绍-HDFS</a></li>
-<li><a href="https://winway.github.io/2017/01/12/big-data-yarn/">Hadoop生态系统介绍-YARN</a></li>
-<li><a href="https://winway.github.io/2017/01/12/big-data-mapreduce/">Hadoop生态系统介绍-MapReduce</a></li>
-<li><a href="https://winway.github.io/2017/01/13/big-data-hive/">Hadoop生态系统介绍-Hive</a></li>
-<li><strong><a href="https://winway.github.io/2017/01/13/big-data-pig/">Hadoop生态系统介绍-Pig</a></strong></li>
-<li><a href="https://winway.github.io/2017/01/21/big-data-storm/">Hadoop生态系统介绍-Storm</a></li>
-<li><a href="https://winway.github.io/2017/01/26/big-data-hbase/">Hadoop生态系统介绍-Hbase</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-phoenix/">Hadoop生态系统介绍-Phoenix</a></li>
-</ol>
-<p>本文对Pig的工作原理进行介绍。</p>
-<h2><span id="工作原理">工作原理</span></h2><p><strong>Pig的定位</strong></p>
-<p>Pig 是一种探索大规模数据集的脚本语言。与hive类似，pig也是为了解决MapReduce的一个主要的缺点：开发周期长。我们要编写mapper和reducer，然后对代码进行编译打出jar包，提交到本地的JVM或者是hadoop的集群上，最后获取结果，这个周期是非常耗时的。</p>
-<p>Pig的强大之处就是他只要几行Pig Latin代码就能处理TB级别的数据。Pig提供了多个命令用于检查和处理程序中的数据结构，因此它能很好的支持我们查询。</p>
-<p><strong>示例</strong></p>
-<p>搜索满足某个给定搜索条件的记录（grep）<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">messages = LOAD <span class="string">'messages'</span>;</span><br><span class="line">warns = FILTER messages BY $<span class="number">0</span> MATCHES <span class="string">'.*WARN+.*'</span>;</span><br><span class="line">STORE warns INTO <span class="string">'warnings'</span>;</span><br></pre></td></tr></table></figure></p>
-<ol>
-<li>将数据集（messages）读取到代表元组集合的包中</li>
-<li>用一个正则表达式来筛选该数据（元组中的惟一条目，表示为 $0 或 field 1），然后查找字符序列 WARN</li>
-<li>在主机文件系统中将这个包存储在一个名为 warnings 的新文件中，这个包现在代表来自messages的包含 WARN 的所有元组</li>
-</ol>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">pig</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/01/13/big-data-pig/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/7/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/6/">6</a><a class="page-number" href="/page/7/">7</a><span class="page-number current">8</span><a class="page-number" href="/page/9/">9</a><a class="page-number" href="/page/10/">10</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><a class="extend next" rel="next" href="/page/9/">Next &raquo;</a>
@@ -1586,11 +1612,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
+                <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
+                <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1602,15 +1632,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">C</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1622,11 +1644,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">canal</a>
+                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+                <a href="javascript:void(0)" class="js-tag color1">canal</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1638,11 +1660,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">datax</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1654,11 +1680,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
+                <a href="javascript:void(0)" class="js-tag color2">Python</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1666,59 +1692,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">storm</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">olap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">presto</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
+                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1734,11 +1712,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">tez</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">gc</a>
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1750,6 +1724,30 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">tez</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">gc</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
               </li>
              
@@ -1758,15 +1756,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1782,15 +1776,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">telent</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1826,11 +1820,39 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">doris</a>
+                <a href="javascript:void(0)" class="js-tag color1">storm</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">olap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">presto</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1863,6 +1885,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">doris</a>
               </li>
             
             <div class="clearfix"></div>
