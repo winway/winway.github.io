@@ -155,6 +155,305 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-extend-snmpd-using-shell-scripts" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/09/25/extend-snmpd-using-shell-scripts/">使用shell脚本扩展snmp</a>
+    </h1>
+  
+
+        
+        <a href="/2017/09/25/extend-snmpd-using-shell-scripts/" class="archive-article-date">
+  	<time datetime="2017-09-25T11:56:07.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-09-25</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#1-背景">1. 背景</a></li>
+<li><a href="#2-实践">2. 实践</a><ul>
+<li><a href="#1-编写shell脚本采集文件句柄使用信息">1. 编写shell脚本，采集文件句柄使用信息</a></li>
+<li><a href="#2-配置snmpdconf支持文件句柄采集">2. 配置snmpd.conf，支持文件句柄采集</a></li>
+<li><a href="#3-测试">3. 测试</a></li>
+</ul>
+</li>
+<li><a href="#3-参考资料">3. 参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="1-背景">1. 背景</span></h2><p>最近线上服务器出现文件句柄使用超出65535的异常现象，计划使用zabbix监控Linux服务器的文件句柄使用情况，由于目前zabbix使用的是snmp方式获取数据，并未使用agent，所以考虑使用snmp采集文件句柄使用情况。snmp默认不包括文件句柄使用情况信息，但是可以使用shell脚本对snmp进行扩展。</p>
+<h2><span id="2-实践">2. 实践</span></h2><h3><span id="1-编写shell脚本采集文件句柄使用信息">1. 编写shell脚本，采集文件句柄使用信息</span></h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> cat /tmp/check_lsof.sh</span><br><span class="line"><span class="meta">#</span>! /bin/bash</span><br><span class="line"><span class="meta">#</span></span><br><span class="line"></span><br><span class="line">type=$1</span><br><span class="line"></span><br><span class="line">if [[ $type == "eventpoll" ]]</span><br><span class="line">then</span><br><span class="line">    cnt=$(lsof -c java | grep -c '\[eventpoll\]$')</span><br><span class="line">elif [[ $type == "pipe" ]]</span><br><span class="line">then</span><br><span class="line">    cnt=$(lsof -c java | grep -c 'pipe$')</span><br><span class="line">elif [[ $type == "socket" ]]</span><br><span class="line">then</span><br><span class="line">    cnt=$(lsof -c java | grep -c 'socket$')</span><br><span class="line">elif [[ $type == "other" ]]</span><br><span class="line">then</span><br><span class="line">    cnt=$(lsof -c java | grep -cvE '\[eventpoll\]$|pipe$|socket$')</span><br><span class="line">else</span><br><span class="line">    cnt=0</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">echo $cnt</span><br></pre></td></tr></table></figure>
+<h3><span id="2-配置snmpdconf支持文件句柄采集">2. 配置snmpd.conf，支持文件句柄采集</span></h3><p>追加如下内容到/etc/snmp/snmpd.conf，并重启snmpd服务<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">extend lsof_eventpoll /tmp/check_lsof.sh eventpoll</span><br><span class="line">extend lsof_pipe /tmp/check_lsof.sh pipe</span><br><span class="line">extend lsof_socket /tmp/check_lsof.sh socket</span><br><span class="line">extend lsof_other /tmp/check_lsof.sh other</span><br></pre></td></tr></table></figure></p>
+<h3><span id="3-测试">3. 测试</span></h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> snmpwalk -v2c -c kat 10.14.19.20 NET-SNMP-EXTEND-MIB::nsExtendOutput1Line</span><br><span class="line">NET-SNMP-EXTEND-MIB::nsExtendOutput1Line."lsof_pipe" = STRING: 910</span><br><span class="line">NET-SNMP-EXTEND-MIB::nsExtendOutput1Line."lsof_other" = STRING: 1750</span><br><span class="line">NET-SNMP-EXTEND-MIB::nsExtendOutput1Line."lsof_socket" = STRING: 1</span><br><span class="line">NET-SNMP-EXTEND-MIB::nsExtendOutput1Line."lsof_eventpoll" = STRING: 0</span><br></pre></td></tr></table></figure>
+<h2><span id="3-参考资料">3. 参考资料</span></h2><p><a href="http://net-snmp.sourceforge.net/wiki/index.php/Tut:Extending_snmpd_using_shell_scripts" target="_blank" rel="noopener">http://net-snmp.sourceforge.net/wiki/index.php/Tut:Extending_snmpd_using_shell_scripts</a></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">shell</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">snmp</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/09/25/extend-snmpd-using-shell-scripts/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-open-falcon-transfer" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/09/04/open-falcon-transfer/">open-falcon源码阅读之transfer</a>
+    </h1>
+  
+
+        
+        <a href="/2017/09/04/open-falcon-transfer/" class="archive-article-date">
+  	<time datetime="2017-09-04T11:27:32.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-09-04</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p><em>Version：0.2.0</em></p>
+<!-- toc -->
+<ul>
+<li><a href="#1-架构图">1. 架构图</a></li>
+<li><a href="#2-流程图">2. 流程图</a></li>
+<li><a href="#3-源码解析">3. 源码解析</a></li>
+</ul>
+<!-- tocstop -->
+<h1><span id="1-架构图">1. 架构图</span></h1><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/open-falcon-transfer-arch.png" alt="open-falcon-transfer-arch"></p>
+<h1><span id="2-流程图">2. 流程图</span></h1><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/open-falcon-transfer-flow.png" alt="open-falcon-transfer-flow"></p>
+<h1><span id="3-源码解析">3. 源码解析</span></h1><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"># modules/transfer/main.<span class="keyword">go</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	cfg := flag.String(<span class="string">"c"</span>, <span class="string">"cfg.json"</span>, <span class="string">"configuration file"</span>)</span><br><span class="line">	version := flag.Bool(<span class="string">"v"</span>, <span class="literal">false</span>, <span class="string">"show version"</span>)</span><br><span class="line">	versionGit := flag.Bool(<span class="string">"vg"</span>, <span class="literal">false</span>, <span class="string">"show version"</span>)</span><br><span class="line">	flag.Parse()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> *version &#123;</span><br><span class="line">		fmt.Println(g.VERSION)</span><br><span class="line">		os.Exit(<span class="number">0</span>)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> *versionGit &#123;</span><br><span class="line">		fmt.Println(g.VERSION, g.COMMIT)</span><br><span class="line">		os.Exit(<span class="number">0</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// global config</span></span><br><span class="line">	g.ParseConfig(*cfg) <span class="comment">// 加载配置文件到GlobalConfig</span></span><br><span class="line">	<span class="comment">// proc</span></span><br><span class="line">	proc.Start()</span><br><span class="line"></span><br><span class="line">	sender.Start() <span class="comment">// 创建连接池、发送队列，初始化一致性哈希，启动发送goroutine</span></span><br><span class="line">	receiver.Start() <span class="comment">// 创建rpcServer和telnetServer，将上报的item放入对应的发送队列</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// http</span></span><br><span class="line">	http.Start() <span class="comment">// 启动httpserver，提供运行状态查询、统计信息查询、上报数据等接口</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">select</span> &#123;&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>详细代码注释请参考<a href="https://github.com/winway/falcon-plus-learn" target="_blank" rel="noopener">https://github.com/winway/falcon-plus-learn</a>，持续更新中</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">open-falcon</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/09/04/open-falcon-transfer/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-open-falcon-hbs" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/09/04/open-falcon-hbs/">open-falcon源码阅读之hbs</a>
+    </h1>
+  
+
+        
+        <a href="/2017/09/04/open-falcon-hbs/" class="archive-article-date">
+  	<time datetime="2017-09-04T11:26:26.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-09-04</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p><em>Version：0.2.0</em></p>
+<!-- toc -->
+<ul>
+<li><a href="#1-监控配置关系">1. 监控配置关系</a></li>
+<li><a href="#2-架构图">2. 架构图</a></li>
+<li><a href="#3-流程图">3. 流程图</a></li>
+<li><a href="#4-源码解析">4. 源码解析</a></li>
+</ul>
+<!-- tocstop -->
+<h1><span id="1-监控配置关系">1. 监控配置关系</span></h1><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/open-falcon-hbs-relation.png" alt="open-falcon-hbs-relation"></p>
+<h1><span id="2-架构图">2. 架构图</span></h1><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/open-falcon-hbs-arch.png" alt="open-falcon-hbs-arch"></p>
+<h1><span id="3-流程图">3. 流程图</span></h1><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/open-falcon-hbs-flow.png" alt="open-falcon-hbs-flow"></p>
+<h1><span id="4-源码解析">4. 源码解析</span></h1><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br></pre></td><td class="code"><pre><span class="line"># modules/hbs/main.<span class="keyword">go</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	cfg := flag.String(<span class="string">"c"</span>, <span class="string">"cfg.json"</span>, <span class="string">"configuration file"</span>)</span><br><span class="line">	version := flag.Bool(<span class="string">"v"</span>, <span class="literal">false</span>, <span class="string">"show version"</span>)</span><br><span class="line">	flag.Parse()  <span class="comment">// 解析命令行</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 打印version信息</span></span><br><span class="line">	<span class="keyword">if</span> *version &#123;</span><br><span class="line">		fmt.Println(g.VERSION)</span><br><span class="line">		os.Exit(<span class="number">0</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	g.ParseConfig(*cfg) <span class="comment">// 加载配置文件到GlobalConfig</span></span><br><span class="line"></span><br><span class="line">	db.Init() <span class="comment">// 初始化数据库连接</span></span><br><span class="line">	cache.Init() <span class="comment">// 周期性加载hostgroup、plugin、host、template、strategy、expression等配置信息到内存</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">go</span> cache.DeleteStaleAgents() <span class="comment">// 每天运行一次，删除内存中超过一天没有心跳的agent</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">go</span> http.Start() <span class="comment">// 启动http server，提供运行状态和报警配置信息查询</span></span><br><span class="line">	<span class="keyword">go</span> rpc.Start() <span class="comment">// 启动rpc server，提供心跳、配置下载等接口</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	程序退出信号处理，golang中的信号处理，请看底部demo</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	sigs := <span class="built_in">make</span>(<span class="keyword">chan</span> os.Signal, <span class="number">1</span>)</span><br><span class="line">	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)</span><br><span class="line">	<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		&lt;-sigs</span><br><span class="line">		fmt.Println()</span><br><span class="line">		db.DB.Close()</span><br><span class="line">		os.Exit(<span class="number">0</span>)</span><br><span class="line">	&#125;()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">select</span> &#123;&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">golang中的信号处理</span></span><br><span class="line"><span class="comment">有时候我们想在Go程序中处理Signal信号，比如收到SIGTERM信号后优雅的关闭程序(参看下一节的应用)。</span></span><br><span class="line"><span class="comment">Go信号通知机制可以通过往一个channel中发送os.Signal实现。</span></span><br><span class="line"><span class="comment">首先我们创建一个os.Signal channel，然后使用signal.Notify注册要接收的信号。</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">package main</span></span><br><span class="line"><span class="comment">import "fmt"</span></span><br><span class="line"><span class="comment">import "os"</span></span><br><span class="line"><span class="comment">import "os/signal"</span></span><br><span class="line"><span class="comment">import "syscall"</span></span><br><span class="line"><span class="comment">func main() &#123;</span></span><br><span class="line"><span class="comment">    // Go signal notification works by sending `os.Signal`</span></span><br><span class="line"><span class="comment">    // values on a channel. We'll create a channel to</span></span><br><span class="line"><span class="comment">    // receive these notifications (we'll also make one to</span></span><br><span class="line"><span class="comment">    // notify us when the program can exit).</span></span><br><span class="line"><span class="comment">    sigs := make(chan os.Signal, 1)</span></span><br><span class="line"><span class="comment">    done := make(chan bool, 1)</span></span><br><span class="line"><span class="comment">    // `signal.Notify` registers the given channel to</span></span><br><span class="line"><span class="comment">    // receive notifications of the specified signals.</span></span><br><span class="line"><span class="comment">    signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)</span></span><br><span class="line"><span class="comment">    // This goroutine executes a blocking receive for</span></span><br><span class="line"><span class="comment">    // signals. When it gets one it'll print it out</span></span><br><span class="line"><span class="comment">    // and then notify the program that it can finish.</span></span><br><span class="line"><span class="comment">    go func() &#123;</span></span><br><span class="line"><span class="comment">        sig := &lt;-sigs</span></span><br><span class="line"><span class="comment">        fmt.Println()</span></span><br><span class="line"><span class="comment">        fmt.Println(sig)</span></span><br><span class="line"><span class="comment">        done &lt;- true</span></span><br><span class="line"><span class="comment">    &#125;()</span></span><br><span class="line"><span class="comment">    // The program will wait here until it gets the</span></span><br><span class="line"><span class="comment">    // expected signal (as indicated by the goroutine</span></span><br><span class="line"><span class="comment">    // above sending a value on `done`) and then exit.</span></span><br><span class="line"><span class="comment">    fmt.Println("awaiting signal")</span></span><br><span class="line"><span class="comment">    &lt;-done</span></span><br><span class="line"><span class="comment">    fmt.Println("exiting")</span></span><br><span class="line"><span class="comment">&#125;</span></span><br><span class="line"><span class="comment"> */</span></span><br></pre></td></tr></table></figure>
+<p>详细代码注释请参考<a href="https://github.com/winway/falcon-plus-learn" target="_blank" rel="noopener">https://github.com/winway/falcon-plus-learn</a>，持续更新中</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">open-falcon</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/09/04/open-falcon-hbs/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-webhdfs-intro" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -913,352 +1212,6 @@
 
 
   
-    <article id="post-salt-master-ReqServer" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/08/10/salt-master-ReqServer/">saltstack源码解析之master.ReqServer</a>
-    </h1>
-  
-
-        
-        <a href="/2017/08/10/salt-master-ReqServer/" class="archive-article-date">
-  	<time datetime="2017-08-10T10:30:25.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-10</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p><em>ENV: Version: 2016.11.0, Transport: tcp, Multi-Master</em></p>
-<!-- toc -->
-<ul>
-<li><a href="#1-架构图">1. 架构图</a></li>
-<li><a href="#2-类图和重要方法">2. 类图和重要方法</a></li>
-<li><a href="#3-源码解析">3. 源码解析</a><ul>
-<li><a href="#req_channels">req_channels</a></li>
-<li><a href="#mworker">MWorker</a></li>
-</ul>
-</li>
-</ul>
-<!-- tocstop -->
-<h2><span id="1-架构图">1. 架构图</span></h2><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-ReqServer-arch.png" alt="salt-master-ReqServer-arch"></p>
-<blockquote>
-<p>每个MWorker都在自己的进程空间，有对应的SaltMessageServer，共同监听4506。TCPReqServerChannel并没有绑定workers.ipc。</p>
-</blockquote>
-<h2><span id="2-类图和重要方法">2. 类图和重要方法</span></h2><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-ReqServer-class1.png" alt="salt-master-ReqServer-class1"></p>
-<p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-ReqServer-class2.png" alt="salt-master-ReqServer-class2"></p>
-<p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-ReqServer-class3.png" alt="salt-master-ReqServer-class3"></p>
-<p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-ReqServer-class4.png" alt="salt-master-ReqServer-class4"></p>
-<h2><span id="3-源码解析">3. 源码解析</span></h2><p>代码入口<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># sat/master.py</span></span><br><span class="line">            self.process_manager.add_process(</span><br><span class="line">                ReqServer,</span><br><span class="line">                args=(self.opts, self.key, self.master_key),</span><br><span class="line">                kwargs=kwargs,</span><br><span class="line">                name=<span class="string">'ReqServer'</span>)</span><br></pre></td></tr></table></figure></p>
-<p>ReqServer最终继承自multiprocessing.Process，我们直接看run方法<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># sat/master.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">run</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Start up the ReqServer</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        self.__bind()</span><br></pre></td></tr></table></figure></p>
-<p>run中又调用了__bind<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># sat/master.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__bind</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Binds the reply server</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="keyword">if</span> self.log_queue <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span>:</span><br><span class="line">            salt.log.setup.set_multiprocessing_logging_queue(self.log_queue)</span><br><span class="line">        salt.log.setup.setup_multiprocessing_logging(self.log_queue)</span><br><span class="line">        <span class="keyword">if</span> self.secrets <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span>:</span><br><span class="line">            SMaster.secrets = self.secrets</span><br><span class="line"></span><br><span class="line">        dfn = os.path.join(self.opts[<span class="string">'cachedir'</span>], <span class="string">'.dfn'</span>)</span><br><span class="line">        <span class="keyword">if</span> os.path.isfile(dfn):</span><br><span class="line">            <span class="keyword">try</span>:</span><br><span class="line">                <span class="keyword">if</span> salt.utils.is_windows() <span class="keyword">and</span> <span class="keyword">not</span> os.access(dfn, os.W_OK):</span><br><span class="line">                    <span class="comment"># Cannot delete read-only files on Windows.</span></span><br><span class="line">                    os.chmod(dfn, stat.S_IRUSR | stat.S_IWUSR)</span><br><span class="line">                os.remove(dfn)</span><br><span class="line">            <span class="keyword">except</span> os.error:</span><br><span class="line">                <span class="keyword">pass</span></span><br><span class="line"></span><br><span class="line">        <span class="comment"># Wait for kill should be less then parent's ProcessManager.</span></span><br><span class="line">        self.process_manager = salt.utils.process.ProcessManager(name=<span class="string">'ReqServer_ProcessManager'</span>,</span><br><span class="line">                                                                 wait_for_kill=<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">        req_channels = []</span><br><span class="line">        tcp_only = <span class="keyword">True</span></span><br><span class="line">        <span class="keyword">for</span> transport, opts <span class="keyword">in</span> iter_transport_opts(self.opts):</span><br><span class="line">            chan = salt.transport.server.ReqServerChannel.factory(opts)</span><br><span class="line">            chan.pre_fork(self.process_manager)</span><br><span class="line">            req_channels.append(chan)</span><br><span class="line">            <span class="keyword">if</span> transport != <span class="string">'tcp'</span>:</span><br><span class="line">                tcp_only = <span class="keyword">False</span></span><br><span class="line"></span><br><span class="line">        kwargs = &#123;&#125;</span><br><span class="line">        <span class="keyword">if</span> salt.utils.is_windows():</span><br><span class="line">            kwargs[<span class="string">'log_queue'</span>] = self.log_queue</span><br><span class="line">            <span class="comment"># Use one worker thread if only the TCP transport is set up on</span></span><br><span class="line">            <span class="comment"># Windows and we are using Python 2. There is load balancer</span></span><br><span class="line">            <span class="comment"># support on Windows for the TCP transport when using Python 3.</span></span><br><span class="line">            <span class="keyword">if</span> tcp_only <span class="keyword">and</span> six.PY2 <span class="keyword">and</span> int(self.opts[<span class="string">'worker_threads'</span>]) != <span class="number">1</span>:</span><br><span class="line">                log.warning(<span class="string">'TCP transport supports only 1 worker on Windows '</span></span><br><span class="line">                            <span class="string">'when using Python 2.'</span>)</span><br><span class="line">                self.opts[<span class="string">'worker_threads'</span>] = <span class="number">1</span></span><br><span class="line"></span><br><span class="line">        <span class="comment"># Reset signals to default ones before adding processes to the process</span></span><br><span class="line">        <span class="comment"># manager. We don't want the processes being started to inherit those</span></span><br><span class="line">        <span class="comment"># signal handlers</span></span><br><span class="line">        <span class="keyword">with</span> default_signals(signal.SIGINT, signal.SIGTERM):</span><br><span class="line">            <span class="keyword">for</span> ind <span class="keyword">in</span> range(int(self.opts[<span class="string">'worker_threads'</span>])):</span><br><span class="line">                name = <span class="string">'MWorker-&#123;0&#125;'</span>.format(ind)</span><br><span class="line">                self.process_manager.add_process(MWorker,</span><br><span class="line">                                                 args=(self.opts,</span><br><span class="line">                                                       self.master_key,</span><br><span class="line">                                                       self.key,</span><br><span class="line">                                                       req_channels,</span><br><span class="line">                                                       name),</span><br><span class="line">                                                 kwargs=kwargs,</span><br><span class="line">                                                 name=name)</span><br><span class="line">        self.process_manager.run()</span><br></pre></td></tr></table></figure></p>
-<p>__bind中完成了主要工作，包括创建ReqServer_ProcessManager用于管理MWorker；创建req_channels；创建若干MWorker</p>
-<h3><span id="req_channels">req_channels</span></h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># sat/master.py</span></span><br><span class="line">        req_channels = []</span><br><span class="line">        tcp_only = <span class="keyword">True</span></span><br><span class="line">        <span class="keyword">for</span> transport, opts <span class="keyword">in</span> iter_transport_opts(self.opts):</span><br><span class="line">            chan = salt.transport.server.ReqServerChannel.factory(opts)</span><br><span class="line">            chan.pre_fork(self.process_manager)</span><br><span class="line">            req_channels.append(chan)</span><br><span class="line">            <span class="keyword">if</span> transport != <span class="string">'tcp'</span>:</span><br><span class="line">                tcp_only = <span class="keyword">False</span></span><br></pre></td></tr></table></figure>
-<p>iter_transport_opts是一个生成器，会产生所有的transport, opts。<br>salt.transport.server.ReqServerChannel是一个工厂类，根据opts返回对应的对象，这里是salt.transport.tcp.TCPReqServerChannel<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/server.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">ReqServerChannel</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    Factory class to create a communication channels to the ReqServer</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, opts)</span>:</span></span><br><span class="line">        self.opts = opts</span><br><span class="line"></span><br><span class="line"><span class="meta">    @staticmethod</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">factory</span><span class="params">(opts, **kwargs)</span>:</span></span><br><span class="line">        <span class="comment"># Default to ZeroMQ for now</span></span><br><span class="line">        ttype = <span class="string">'zeromq'</span></span><br><span class="line"></span><br><span class="line">        <span class="comment"># determine the ttype</span></span><br><span class="line">        <span class="keyword">if</span> <span class="string">'transport'</span> <span class="keyword">in</span> opts:</span><br><span class="line">            ttype = opts[<span class="string">'transport'</span>]</span><br><span class="line">        <span class="keyword">elif</span> <span class="string">'transport'</span> <span class="keyword">in</span> opts.get(<span class="string">'pillar'</span>, &#123;&#125;).get(<span class="string">'master'</span>, &#123;&#125;):</span><br><span class="line">            ttype = opts[<span class="string">'pillar'</span>][<span class="string">'master'</span>][<span class="string">'transport'</span>]</span><br><span class="line"></span><br><span class="line">        <span class="comment"># switch on available ttypes</span></span><br><span class="line">        <span class="keyword">if</span> ttype == <span class="string">'zeromq'</span>:</span><br><span class="line">            <span class="keyword">import</span> salt.transport.zeromq</span><br><span class="line">            <span class="keyword">return</span> salt.transport.zeromq.ZeroMQReqServerChannel(opts)</span><br><span class="line">        <span class="keyword">elif</span> ttype == <span class="string">'raet'</span>:</span><br><span class="line">            <span class="keyword">import</span> salt.transport.raet</span><br><span class="line">            <span class="keyword">return</span> salt.transport.raet.RAETReqServerChannel(opts)</span><br><span class="line">        <span class="keyword">elif</span> ttype == <span class="string">'tcp'</span>:</span><br><span class="line">            <span class="keyword">import</span> salt.transport.tcp</span><br><span class="line">            <span class="keyword">return</span> salt.transport.tcp.TCPReqServerChannel(opts)</span><br><span class="line">        <span class="keyword">elif</span> ttype == <span class="string">'local'</span>:</span><br><span class="line">            <span class="keyword">import</span> salt.transport.local</span><br><span class="line">            <span class="keyword">return</span> salt.transport.local.LocalServerChannel(opts)</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">raise</span> Exception(<span class="string">'Channels are only defined for ZeroMQ and raet'</span>)</span><br><span class="line">            <span class="comment"># return NewKindOfChannel(opts, **kwargs)</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">pre_fork</span><span class="params">(self, process_manager)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Do anything necessary pre-fork. Since this is on the master side this will</span></span><br><span class="line"><span class="string">        primarily be bind and listen (or the equivalent for your network library)</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="keyword">pass</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">post_fork</span><span class="params">(self, payload_handler, io_loop)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Do anything you need post-fork. This should handle all incoming payloads</span></span><br><span class="line"><span class="string">        and call payload_handler. You will also be passed io_loop, for all of your</span></span><br><span class="line"><span class="string">        async needs</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="keyword">pass</span></span><br></pre></td></tr></table></figure></p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/tcp.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">pre_fork</span><span class="params">(self, process_manager)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Pre-fork we need to create the zmq router device</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        salt.transport.mixins.auth.AESReqServerMixin.pre_fork(self, process_manager)</span><br><span class="line">        <span class="keyword">if</span> USE_LOAD_BALANCER:</span><br><span class="line">            self.socket_queue = multiprocessing.Queue()</span><br><span class="line">            process_manager.add_process(</span><br><span class="line">                LoadBalancerServer, args=(self.opts, self.socket_queue)</span><br><span class="line">            )</span><br><span class="line">        <span class="keyword">elif</span> <span class="keyword">not</span> salt.utils.is_windows():</span><br><span class="line">            self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)</span><br><span class="line">            self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, <span class="number">1</span>)</span><br><span class="line">            _set_tcp_keepalive(self._socket, self.opts)</span><br><span class="line">            self._socket.setblocking(<span class="number">0</span>)</span><br><span class="line">            self._socket.bind((self.opts[<span class="string">'interface'</span>], int(self.opts[<span class="string">'ret_port'</span>])))</span><br></pre></td></tr></table></figure>
-<p>首先调用的是TCPReqServerChannel的pre_fork，在pre_fork中进行AESReqServerMixin的初始化和绑定4506端口以及设置端口属性，这里没有用到USE_LOAD_BALANCER<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/tcp.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">post_fork</span><span class="params">(self, payload_handler, io_loop)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        After forking we need to create all of the local sockets to listen to the</span></span><br><span class="line"><span class="string">        router</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        payload_handler: function to call with your payloads</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        self.payload_handler = payload_handler</span><br><span class="line">        self.io_loop = io_loop</span><br><span class="line">        self.serial = salt.payload.Serial(self.opts)</span><br><span class="line">        <span class="keyword">if</span> <span class="string">'ssl_cert'</span> <span class="keyword">in</span> self.opts <span class="keyword">and</span> <span class="string">'ssl_key'</span> <span class="keyword">in</span> self.opts:</span><br><span class="line">            ssl_options = &#123;</span><br><span class="line">                    <span class="string">'certfile'</span>: self.opts[<span class="string">'ssl_cert'</span>],</span><br><span class="line">                    <span class="string">'keyfile'</span>: self.opts[<span class="string">'ssl_key'</span>],</span><br><span class="line">                    &#125;</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            ssl_options = <span class="keyword">None</span></span><br><span class="line">        <span class="keyword">if</span> USE_LOAD_BALANCER:</span><br><span class="line">            self.req_server = LoadBalancerWorker(</span><br><span class="line">                self.socket_queue, self.handle_message, io_loop=self.io_loop, ssl_options=ssl_options</span><br><span class="line">            )</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">if</span> salt.utils.is_windows():</span><br><span class="line">                self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)</span><br><span class="line">                self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, <span class="number">1</span>)</span><br><span class="line">                _set_tcp_keepalive(self._socket, self.opts)</span><br><span class="line">                self._socket.setblocking(<span class="number">0</span>)</span><br><span class="line">                self._socket.bind((self.opts[<span class="string">'interface'</span>], int(self.opts[<span class="string">'ret_port'</span>])))</span><br><span class="line">            self.req_server = SaltMessageServer(self.handle_message,</span><br><span class="line">                                                io_loop=self.io_loop,</span><br><span class="line">                                                ssl_options=ssl_options)</span><br><span class="line">            self.req_server.add_socket(self._socket)</span><br><span class="line">            self._socket.listen(self.backlog)</span><br><span class="line">        salt.transport.mixins.auth.AESReqServerMixin.post_fork(self, payload_handler, io_loop)</span><br></pre></td></tr></table></figure></p>
-<p>post_fork将会在MWorker.run中调用，将payload_handler设置为MWorker._handle_payload；并创建SaltMessageServer，将TCPReqServerChannel.handle_message作为message_handler，监听4506；最后调用AESReqServerMixin.post_fork<br>SaltMessageServer继承自tornado.tcpserver.TCPServer，我们直接看handle_stream方法<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/tcp.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">SaltMessageServer</span><span class="params">(tornado.tcpserver.TCPServer, object)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    Raw TCP server which will receive all of the TCP streams and re-assemble</span></span><br><span class="line"><span class="string">    messages that are sent through to us</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, message_handler, *args, **kwargs)</span>:</span></span><br><span class="line">        super(SaltMessageServer, self).__init__(*args, **kwargs)</span><br><span class="line"></span><br><span class="line">        self.clients = []</span><br><span class="line">        self.message_handler = message_handler</span><br><span class="line"></span><br><span class="line"><span class="meta">    @tornado.gen.coroutine</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">handle_stream</span><span class="params">(self, stream, address)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Handle incoming streams and add messages to the incoming queue</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        log.trace(<span class="string">'Req client &#123;0&#125; connected'</span>.format(address))</span><br><span class="line">        self.clients.append((stream, address))</span><br><span class="line">        unpacker = msgpack.Unpacker()</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            <span class="keyword">while</span> <span class="keyword">True</span>:</span><br><span class="line">                wire_bytes = <span class="keyword">yield</span> stream.read_bytes(<span class="number">4096</span>, partial=<span class="keyword">True</span>)</span><br><span class="line">                unpacker.feed(wire_bytes)</span><br><span class="line">                <span class="keyword">for</span> framed_msg <span class="keyword">in</span> unpacker:</span><br><span class="line">                    <span class="keyword">if</span> six.PY3:</span><br><span class="line">                        framed_msg = salt.transport.frame.decode_embedded_strs(</span><br><span class="line">                            framed_msg</span><br><span class="line">                        )</span><br><span class="line">                    header = framed_msg[<span class="string">'head'</span>]</span><br><span class="line">                    self.io_loop.spawn_callback(self.message_handler, stream, header, framed_msg[<span class="string">'body'</span>])</span><br><span class="line"></span><br><span class="line">        <span class="keyword">except</span> tornado.iostream.StreamClosedError:</span><br><span class="line">            log.trace(<span class="string">'req client disconnected &#123;0&#125;'</span>.format(address))</span><br><span class="line">            self.clients.remove((stream, address))</span><br><span class="line">        <span class="keyword">except</span> Exception <span class="keyword">as</span> e:</span><br><span class="line">            log.trace(<span class="string">'other master-side exception: &#123;0&#125;'</span>.format(e))</span><br><span class="line">            self.clients.remove((stream, address))</span><br><span class="line">            stream.close()</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">shutdown</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Shutdown the whole server</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="keyword">for</span> item <span class="keyword">in</span> self.clients:</span><br><span class="line">            client, address = item</span><br><span class="line">            client.close()</span><br><span class="line">            self.clients.remove(item)</span><br></pre></td></tr></table></figure></p>
-<p>handle_stream接收4506的请求，调用message_handler即TCPReqServerChannel.handle_message进行处理<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/tcp.py</span></span><br><span class="line"><span class="meta">    @tornado.gen.coroutine</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">handle_message</span><span class="params">(self, stream, header, payload)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Handle incoming messages from underylying tcp streams</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            payload = self._decode_payload(payload)</span><br><span class="line">        <span class="keyword">except</span> Exception:</span><br><span class="line">            stream.write(salt.transport.frame.frame_msg(<span class="string">'bad load'</span>, header=header))</span><br><span class="line">            <span class="keyword">raise</span> tornado.gen.Return()</span><br><span class="line"></span><br><span class="line">        <span class="comment"># TODO helper functions to normalize payload?</span></span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> isinstance(payload, dict) <span class="keyword">or</span> <span class="keyword">not</span> isinstance(payload.get(<span class="string">'load'</span>), dict):</span><br><span class="line">            <span class="keyword">yield</span> stream.write(salt.transport.frame.frame_msg(</span><br><span class="line">                <span class="string">'payload and load must be a dict'</span>, header=header))</span><br><span class="line">            <span class="keyword">raise</span> tornado.gen.Return()</span><br><span class="line"></span><br><span class="line">        <span class="comment"># intercept the "_auth" commands, since the main daemon shouldn't know</span></span><br><span class="line">        <span class="comment"># anything about our key auth</span></span><br><span class="line">        <span class="keyword">if</span> payload[<span class="string">'enc'</span>] == <span class="string">'clear'</span> <span class="keyword">and</span> payload.get(<span class="string">'load'</span>, &#123;&#125;).get(<span class="string">'cmd'</span>) == <span class="string">'_auth'</span>:</span><br><span class="line">            <span class="keyword">yield</span> stream.write(salt.transport.frame.frame_msg(</span><br><span class="line">                self._auth(payload[<span class="string">'load'</span>]), header=header))</span><br><span class="line">            <span class="keyword">raise</span> tornado.gen.Return()</span><br><span class="line"></span><br><span class="line">        <span class="comment"># <span class="doctag">TODO:</span> test</span></span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            ret, req_opts = <span class="keyword">yield</span> self.payload_handler(payload)</span><br><span class="line">        <span class="keyword">except</span> Exception <span class="keyword">as</span> e:</span><br><span class="line">            <span class="comment"># always attempt to return an error to the minion</span></span><br><span class="line">            stream.write(<span class="string">'Some exception handling minion payload'</span>)</span><br><span class="line">            log.error(<span class="string">'Some exception handling a payload from minion'</span>, exc_info=<span class="keyword">True</span>)</span><br><span class="line">            stream.close()</span><br><span class="line">            <span class="keyword">raise</span> tornado.gen.Return()</span><br><span class="line"></span><br><span class="line">        req_fun = req_opts.get(<span class="string">'fun'</span>, <span class="string">'send'</span>)</span><br><span class="line">        <span class="keyword">if</span> req_fun == <span class="string">'send_clear'</span>:</span><br><span class="line">            stream.write(salt.transport.frame.frame_msg(ret, header=header))</span><br><span class="line">        <span class="keyword">elif</span> req_fun == <span class="string">'send'</span>:</span><br><span class="line">            stream.write(salt.transport.frame.frame_msg(self.crypticle.dumps(ret), header=header))</span><br><span class="line">        <span class="keyword">elif</span> req_fun == <span class="string">'send_private'</span>:</span><br><span class="line">            stream.write(salt.transport.frame.frame_msg(self._encrypt_private(ret,</span><br><span class="line">                                                         req_opts[<span class="string">'key'</span>],</span><br><span class="line">                                                         req_opts[<span class="string">'tgt'</span>],</span><br><span class="line">                                                         ), header=header))</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            log.error(<span class="string">'Unknown req_fun &#123;0&#125;'</span>.format(req_fun))</span><br><span class="line">            <span class="comment"># always attempt to return an error to the minion</span></span><br><span class="line">            stream.write(<span class="string">'Server-side exception handling payload'</span>)</span><br><span class="line">            stream.close()</span><br><span class="line">        <span class="keyword">raise</span> tornado.gen.Return()</span><br></pre></td></tr></table></figure></p>
-<p>handle_message又调用payload_handler即MWorker._handle_payload进行处理，并将处理结果返回给客户端</p>
-<h3><span id="mworker">MWorker</span></h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/master.py</span></span><br><span class="line">        <span class="comment"># Reset signals to default ones before adding processes to the process</span></span><br><span class="line">        <span class="comment"># manager. We don't want the processes being started to inherit those</span></span><br><span class="line">        <span class="comment"># signal handlers</span></span><br><span class="line">        <span class="keyword">with</span> default_signals(signal.SIGINT, signal.SIGTERM):</span><br><span class="line">            <span class="keyword">for</span> ind <span class="keyword">in</span> range(int(self.opts[<span class="string">'worker_threads'</span>])):</span><br><span class="line">                name = <span class="string">'MWorker-&#123;0&#125;'</span>.format(ind)</span><br><span class="line">                self.process_manager.add_process(MWorker,</span><br><span class="line">                                                 args=(self.opts,</span><br><span class="line">                                                       self.master_key,</span><br><span class="line">                                                       self.key,</span><br><span class="line">                                                       req_channels,</span><br><span class="line">                                                       name),</span><br><span class="line">                                                 kwargs=kwargs,</span><br><span class="line">                                                 name=name)</span><br></pre></td></tr></table></figure>
-<p>创建若干MWorker进程，添加到ReqServer_ProcessManager，个数由参数worker_threads决定<br>MWorker最终继承自multiprocessing.Process，我们直接看run方法<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/master.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">run</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Start a Master Worker</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        salt.utils.appendproctitle(self.name)</span><br><span class="line">        self.clear_funcs = ClearFuncs(</span><br><span class="line">           self.opts,</span><br><span class="line">           self.key,</span><br><span class="line">           )</span><br><span class="line">        self.aes_funcs = AESFuncs(self.opts)</span><br><span class="line">        salt.utils.reinit_crypto()</span><br><span class="line">        self.__bind()</span><br></pre></td></tr></table></figure></p>
-<p>这里最重要的是clear_funcs和aes_funcs，集中了核心处理函数<br>clear_funcs：Set up functions that are safe to execute when commands sent to the master without encryption and authentication<br>aes_funcs：Set up functions that are available when the load is encrypted with AES<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">A Note on ClearFuncs vs. AESFuncs</span><br><span class="line"></span><br><span class="line">A common source of confusion is determining when messages are passed in the clear and when they are passed using encryption. There are two rules governing this behaviour:</span><br><span class="line">1) ClearFuncs is used for intra-master communication and during the initial authentication handshake between a minion and master during the key exhange.</span><br><span class="line">2) AESFuncs is used everywhere else.</span><br></pre></td></tr></table></figure></p>
-<p>在进行fork后，需要reinit_crypto<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/utils/__init__.py</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">reinit_crypto</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    When a fork arrises, pycrypto needs to reinit</span></span><br><span class="line"><span class="string">    From its doc::</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        Caveat: For the random number generator to work correctly,</span></span><br><span class="line"><span class="string">        you must call Random.atfork() in both the parent and</span></span><br><span class="line"><span class="string">        child processes after using os.fork()</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    <span class="keyword">if</span> HAS_CRYPTO:</span><br><span class="line">        Crypto.Random.atfork()</span><br></pre></td></tr></table></figure></p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/master.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__bind</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Bind to the local port</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="comment"># using ZMQIOLoop since we *might* need zmq in there</span></span><br><span class="line">        <span class="keyword">if</span> HAS_ZMQ:</span><br><span class="line">            zmq.eventloop.ioloop.install()    <span class="comment"># With PyZMQ’s ioloop, you can use zmq sockets in any tornado application. You can tell tornado to use zmq’s poller by calling the ioloop.install() function</span></span><br><span class="line">        self.io_loop = LOOP_CLASS()</span><br><span class="line">        self.io_loop.make_current()</span><br><span class="line">        <span class="keyword">for</span> req_channel <span class="keyword">in</span> self.req_channels:</span><br><span class="line">            req_channel.post_fork(self._handle_payload, io_loop=self.io_loop)  <span class="comment"># <span class="doctag">TODO:</span> cleaner? Maybe lazily?</span></span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            self.io_loop.start()</span><br><span class="line">        <span class="keyword">except</span> (KeyboardInterrupt, SystemExit):</span><br><span class="line">            <span class="comment"># Tornado knows what to do</span></span><br><span class="line">            <span class="keyword">pass</span></span><br></pre></td></tr></table></figure>
-<p>__bind调用了req_channels的post_fork（post_fork见上文），并将MWorker._handle_payload作为payload_handler，然后开启ioloop循环<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/master.py</span></span><br><span class="line"><span class="meta">    @tornado.gen.coroutine</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">_handle_payload</span><span class="params">(self, payload)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        The _handle_payload method is the key method used to figure out what</span></span><br><span class="line"><span class="string">        needs to be done with communication to the server</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        Example cleartext payload generated for 'salt myminion test.ping':</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        &#123;'enc': 'clear',</span></span><br><span class="line"><span class="string">         'load': &#123;'arg': [],</span></span><br><span class="line"><span class="string">                  'cmd': 'publish',</span></span><br><span class="line"><span class="string">                  'fun': 'test.ping',</span></span><br><span class="line"><span class="string">                  'jid': '',</span></span><br><span class="line"><span class="string">                  'key': 'alsdkjfa.,maljf-==adflkjadflkjalkjadfadflkajdflkj',</span></span><br><span class="line"><span class="string">                  'kwargs': &#123;'show_jid': False, 'show_timeout': False&#125;,</span></span><br><span class="line"><span class="string">                  'ret': '',</span></span><br><span class="line"><span class="string">                  'tgt': 'myminion',</span></span><br><span class="line"><span class="string">                  'tgt_type': 'glob',</span></span><br><span class="line"><span class="string">                  'user': 'root'&#125;&#125;</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        :param dict payload: The payload route to the appropriate handler</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        key = payload[<span class="string">'enc'</span>]</span><br><span class="line">        load = payload[<span class="string">'load'</span>]</span><br><span class="line">        ret = &#123;<span class="string">'aes'</span>: self._handle_aes,</span><br><span class="line">               <span class="string">'clear'</span>: self._handle_clear&#125;[key](load)</span><br><span class="line">        <span class="keyword">raise</span> tornado.gen.Return(ret)</span><br></pre></td></tr></table></figure></p>
-<p>_handle_payload根据enc类型分别调用_handle_aes（即clear_funcs）和_handle_clear（即aes_funcs）进行处理<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/master.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">_handle_clear</span><span class="params">(self, load)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Process a cleartext command</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        :param dict load: Cleartext payload</span></span><br><span class="line"><span class="string">        :return: The result of passing the load to a function in ClearFuncs corresponding to</span></span><br><span class="line"><span class="string">                 the command specified in the load's 'cmd' key.</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        log.trace(<span class="string">'Clear payload received with command &#123;cmd&#125;'</span>.format(**load))</span><br><span class="line">        <span class="keyword">if</span> load[<span class="string">'cmd'</span>].startswith(<span class="string">'__'</span>):</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">False</span></span><br><span class="line">        <span class="keyword">return</span> getattr(self.clear_funcs, load[<span class="string">'cmd'</span>])(load), &#123;<span class="string">'fun'</span>: <span class="string">'send_clear'</span>&#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">_handle_aes</span><span class="params">(self, data)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Process a command sent via an AES key</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        :param str load: Encrypted payload</span></span><br><span class="line"><span class="string">        :return: The result of passing the load to a function in AESFuncs corresponding to</span></span><br><span class="line"><span class="string">                 the command specified in the load's 'cmd' key.</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="keyword">if</span> <span class="string">'cmd'</span> <span class="keyword">not</span> <span class="keyword">in</span> data:</span><br><span class="line">            log.error(<span class="string">'Received malformed command &#123;0&#125;'</span>.format(data))</span><br><span class="line">            <span class="keyword">return</span> &#123;&#125;</span><br><span class="line">        log.trace(<span class="string">'AES payload received with command &#123;0&#125;'</span>.format(data[<span class="string">'cmd'</span>]))</span><br><span class="line">        <span class="keyword">if</span> data[<span class="string">'cmd'</span>].startswith(<span class="string">'__'</span>):</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">False</span></span><br><span class="line">        <span class="keyword">return</span> self.aes_funcs.run_func(data[<span class="string">'cmd'</span>], data)</span><br></pre></td></tr></table></figure></p>
-<p>_handle_clear和_handle_aes根据cmd最终调用clear_funcs和aes_funcs中对应的函数</p>
-<blockquote>
-<p>注意：由于创建了多个MWorker子进程，每个MWorker都分别调用了TCPReqServerChannel.post_fork，所以每个子进程都创建了一个SaltMessageServer，并同时监听4506，这种方法是允许的，具体请参考<br><a href="http://xiaorui.cc/2015/06/16/%E4%BD%BF%E7%94%A8python%E5%AE%9E%E7%8E%B0linux%E6%9C%8D%E5%8A%A1%E7%AB%AF%E7%9A%84prefork%E6%A8%A1%E5%BC%8F/" target="_blank" rel="noopener">http://xiaorui.cc/2015/06/16/%E4%BD%BF%E7%94%A8python%E5%AE%9E%E7%8E%B0linux%E6%9C%8D%E5%8A%A1%E7%AB%AF%E7%9A%84prefork%E6%A8%A1%E5%BC%8F/</a><br><a href="https://www.zhihu.com/question/22607470" target="_blank" rel="noopener">https://www.zhihu.com/question/22607470</a></p>
-</blockquote>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">saltstack</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/08/10/salt-master-ReqServer/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-salt-master-eventpublisher" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/08/03/salt-master-eventpublisher/">saltstack源码解析之master.EventPublisher</a>
-    </h1>
-  
-
-        
-        <a href="/2017/08/03/salt-master-eventpublisher/" class="archive-article-date">
-  	<time datetime="2017-08-03T12:16:15.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-03</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p><em>ENV: Version: 2016.11.0, Transport: tcp, Multi-Master</em></p>
-<!-- toc -->
-<ul>
-<li><a href="#1-架构图">1. 架构图</a></li>
-<li><a href="#2-类图和重要方法说明">2. 类图和重要方法说明</a></li>
-<li><a href="#3-源码解析">3. 源码解析</a><ul>
-<li><a href="#ipcmessagepublisher">IPCMessagePublisher</a></li>
-<li><a href="#ipcmessageserver">IPCMessageServer</a></li>
-</ul>
-</li>
-</ul>
-<!-- tocstop -->
-<h2><span id="1-架构图">1. 架构图</span></h2><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-eventpublisher-arch.png" alt="salt-master-eventpublisher"></p>
-<h2><span id="2-类图和重要方法说明">2. 类图和重要方法说明</span></h2><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-eventpublisher-class1.png" alt="salt-master-eventpublisher-class1"></p>
-<p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-eventpublisher-class3.png" alt="salt-master-eventpublisher-class2"></p>
-<p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/salt-master-eventpublisher-class2.png" alt="salt-master-eventpublisher-class3"></p>
-<h2><span id="3-源码解析">3. 源码解析</span></h2><p>代码入口<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/master.py</span></span><br><span class="line">            log.info(<span class="string">'Creating master event publisher process'</span>)</span><br><span class="line">            self.process_manager.add_process(salt.utils.event.EventPublisher, args=(self.opts,))</span><br></pre></td></tr></table></figure></p>
-<p>由于salt.utils.event.EventPublisher最终继承了multiprocessing.Process，我们直接看他的run方法<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/utils/event.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">run</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Bind the pub and pull sockets for events</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        salt.utils.appendproctitle(self.__class__.__name__)</span><br><span class="line">        self.io_loop = tornado.ioloop.IOLoop()</span><br><span class="line">        <span class="keyword">with</span> salt.utils.<span class="keyword">async</span>.current_ioloop(self.io_loop):</span><br><span class="line">            <span class="keyword">if</span> self.opts[<span class="string">'ipc_mode'</span>] == <span class="string">'tcp'</span>:</span><br><span class="line">                epub_uri = int(self.opts[<span class="string">'tcp_master_pub_port'</span>])</span><br><span class="line">                epull_uri = int(self.opts[<span class="string">'tcp_master_pull_port'</span>])</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                epub_uri = os.path.join(</span><br><span class="line">                    self.opts[<span class="string">'sock_dir'</span>],</span><br><span class="line">                    <span class="string">'master_event_pub.ipc'</span></span><br><span class="line">                )</span><br><span class="line">                epull_uri = os.path.join(</span><br><span class="line">                    self.opts[<span class="string">'sock_dir'</span>],</span><br><span class="line">                    <span class="string">'master_event_pull.ipc'</span></span><br><span class="line">                )</span><br><span class="line"></span><br><span class="line">            self.publisher = salt.transport.ipc.IPCMessagePublisher(</span><br><span class="line">                self.opts,</span><br><span class="line">                epub_uri,</span><br><span class="line">                io_loop=self.io_loop</span><br><span class="line">            )</span><br><span class="line"></span><br><span class="line">            self.puller = salt.transport.ipc.IPCMessageServer(</span><br><span class="line">                epull_uri,</span><br><span class="line">                io_loop=self.io_loop,</span><br><span class="line">                payload_handler=self.handle_publish,</span><br><span class="line">            )</span><br><span class="line"></span><br><span class="line">            <span class="comment"># Start the master event publisher</span></span><br><span class="line">            old_umask = os.umask(<span class="number">0o177</span>)</span><br><span class="line">            <span class="keyword">try</span>:</span><br><span class="line">                self.publisher.start()</span><br><span class="line">                self.puller.start()</span><br><span class="line">                <span class="keyword">if</span> self.opts[<span class="string">'client_acl'</span>] <span class="keyword">or</span> self.opts[<span class="string">'client_acl_blacklist'</span>]:</span><br><span class="line">                    salt.utils.warn_until(</span><br><span class="line">                            <span class="string">'Nitrogen'</span>,</span><br><span class="line">                            <span class="string">'ACL rules should be configured with \'publisher_acl\' and '</span></span><br><span class="line">                            <span class="string">'\'publisher_acl_blacklist\' not \'client_acl\' and '</span></span><br><span class="line">                            <span class="string">'\'client_acl_blacklist\'. This functionality will be removed in Salt '</span></span><br><span class="line">                            <span class="string">'Nitrogen.'</span></span><br><span class="line">                            )</span><br><span class="line">                <span class="keyword">if</span> (self.opts[<span class="string">'ipc_mode'</span>] != <span class="string">'tcp'</span> <span class="keyword">and</span> (</span><br><span class="line">                        self.opts[<span class="string">'publisher_acl'</span>] <span class="keyword">or</span></span><br><span class="line">                        self.opts[<span class="string">'client_acl'</span>] <span class="keyword">or</span></span><br><span class="line">                        self.opts[<span class="string">'external_auth'</span>])):</span><br><span class="line">                    os.chmod(os.path.join(</span><br><span class="line">                        self.opts[<span class="string">'sock_dir'</span>], <span class="string">'master_event_pub.ipc'</span>), <span class="number">0o666</span>)</span><br><span class="line">            <span class="keyword">finally</span>:</span><br><span class="line">                os.umask(old_umask)</span><br><span class="line"></span><br><span class="line">            <span class="comment"># Make sure the IO loop and respective sockets are closed and</span></span><br><span class="line">            <span class="comment"># destroyed</span></span><br><span class="line">            Finalize(self, self.close, exitpriority=<span class="number">15</span>)</span><br><span class="line"></span><br><span class="line">            self.io_loop.start()</span><br></pre></td></tr></table></figure></p>
-<p>run里创建了salt.transport.ipc.IPCMessagePublisher，监听master_event_pub.ipc；创建了salt.transport.ipc.IPCMessageServer，监听master_event_pull.ipc，并将EventPublisher.handle_publish作为payload_handler。然后调用他们的start函数，并使用multiprocessing.util.Finalize确保进程结束时调用他们的close函数。</p>
-<h3><span id="ipcmessagepublisher">IPCMessagePublisher</span></h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/utils/event.py</span></span><br><span class="line">            self.publisher = salt.transport.ipc.IPCMessagePublisher(</span><br><span class="line">                self.opts,</span><br><span class="line">                epub_uri,</span><br><span class="line">                io_loop=self.io_loop</span><br><span class="line">            )</span><br></pre></td></tr></table></figure>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/ipc.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">start</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Perform the work necessary to start up a Tornado IPC server</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        Blocks until socket is established</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="comment"># Start up the ioloop</span></span><br><span class="line">        log.trace(<span class="string">'IPCMessagePublisher: binding to socket: &#123;0&#125;'</span>.format(self.socket_path))</span><br><span class="line">        <span class="keyword">if</span> isinstance(self.socket_path, int):</span><br><span class="line">            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)</span><br><span class="line">            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, <span class="number">1</span>)</span><br><span class="line">            self.sock.setblocking(<span class="number">0</span>)</span><br><span class="line">            self.sock.bind((<span class="string">'127.0.0.1'</span>, self.socket_path))</span><br><span class="line">            <span class="comment"># Based on default used in tornado.netutil.bind_sockets()</span></span><br><span class="line">            self.sock.listen(<span class="number">128</span>)</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            self.sock = tornado.netutil.bind_unix_socket(self.socket_path)</span><br><span class="line"></span><br><span class="line">        tornado.netutil.add_accept_handler(</span><br><span class="line">            self.sock,</span><br><span class="line">            self.handle_connection,</span><br><span class="line">            io_loop=self.io_loop,</span><br><span class="line">        )</span><br><span class="line">        self._started = <span class="keyword">True</span></span><br></pre></td></tr></table></figure>
-<p>绑定master_event_pub.ipc，并add_accept_handler handle_connection，其中<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">tornado.netutil.add_accept_handler(sock, callback, io_loop=None)</span><br><span class="line"></span><br><span class="line">    Adds an IOLoop event handler to accept new connections on sock.</span><br><span class="line"></span><br><span class="line">    When a connection is accepted, callback(connection, address) will be run (connection is a socket object, and address is the address of the other end of the connection). Note that this signature is different from the callback(fd, events) signature used for IOLoop handlers.</span><br><span class="line"></span><br><span class="line">    Changed in version 4.1: The io_loop argument is deprecated.</span><br></pre></td></tr></table></figure></p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/ipc.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">handle_connection</span><span class="params">(self, connection, address)</span>:</span></span><br><span class="line">        log.trace(<span class="string">'IPCServer: Handling connection to address: &#123;0&#125;'</span>.format(address))</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            <span class="keyword">if</span> self.opts[<span class="string">'ipc_write_buffer'</span>] &gt; <span class="number">0</span>:</span><br><span class="line">                log.trace(<span class="string">'Setting IPC connection write buffer: &#123;0&#125;'</span>.format((self.opts[<span class="string">'ipc_write_buffer'</span>])))</span><br><span class="line">                stream = IOStream(</span><br><span class="line">                    connection,</span><br><span class="line">                    io_loop=self.io_loop,</span><br><span class="line">                    max_write_buffer_size=self.opts[<span class="string">'ipc_write_buffer'</span>]</span><br><span class="line">                )</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                stream = IOStream(</span><br><span class="line">                    connection,</span><br><span class="line">                    io_loop=self.io_loop</span><br><span class="line">                )</span><br><span class="line">            self.streams.add(stream)</span><br><span class="line">        <span class="keyword">except</span> Exception <span class="keyword">as</span> exc:</span><br><span class="line">            log.error(<span class="string">'IPC streaming error: &#123;0&#125;'</span>.format(exc))</span><br></pre></td></tr></table></figure>
-<p>将connection封装成IOStream，加入self.streams，用于维护PUB-SUB关系<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/ipc.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">publish</span><span class="params">(self, msg)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Send message to all connected sockets</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> len(self.streams):</span><br><span class="line">            <span class="keyword">return</span></span><br><span class="line"></span><br><span class="line">        pack = salt.transport.frame.frame_msg_ipc(msg, raw_body=<span class="keyword">True</span>)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> stream <span class="keyword">in</span> self.streams:</span><br><span class="line">            self.io_loop.spawn_callback(self._write, stream, pack)</span><br></pre></td></tr></table></figure></p>
-<p>publish就是将msg广播给self.streams里的所有stream，下面的EventPublisher.handle_publish会调用</p>
-<h3><span id="ipcmessageserver">IPCMessageServer</span></h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/utils/event.py</span></span><br><span class="line">            self.puller = salt.transport.ipc.IPCMessageServer(</span><br><span class="line">                epull_uri,</span><br><span class="line">                io_loop=self.io_loop,</span><br><span class="line">                payload_handler=self.handle_publish,</span><br><span class="line">            )</span><br></pre></td></tr></table></figure>
-<p>IPCMessageServer监听master_event_pull.ipc，并将EventPublisher.handle_publish作为payload_handler<br>IPCMessageServer继承了IPCServer<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/ipc.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">IPCMessageServer</span><span class="params">(IPCServer)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    Salt IPC message server</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    Creates a message server which can create and bind to a socket on a given</span></span><br><span class="line"><span class="string">    path and then respond to messages asynchronously.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    An example of a very simple IPCServer which prints received messages to</span></span><br><span class="line"><span class="string">    a console:</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        # Import Tornado libs</span></span><br><span class="line"><span class="string">        import tornado.ioloop</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        # Import Salt libs</span></span><br><span class="line"><span class="string">        import salt.transport.ipc</span></span><br><span class="line"><span class="string">        import salt.config</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        opts = salt.config.master_opts()</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        io_loop = tornado.ioloop.IOLoop.current()</span></span><br><span class="line"><span class="string">        ipc_server_socket_path = '/var/run/ipc_server.ipc'</span></span><br><span class="line"><span class="string">        ipc_server = salt.transport.ipc.IPCMessageServer(opts, io_loop=io_loop</span></span><br><span class="line"><span class="string">                                                         stream_handler=print_to_console)</span></span><br><span class="line"><span class="string">        # Bind to the socket and prepare to run</span></span><br><span class="line"><span class="string">        ipc_server.start(ipc_server_socket_path)</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        # Start the server</span></span><br><span class="line"><span class="string">        io_loop.start()</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        # This callback is run whenever a message is received</span></span><br><span class="line"><span class="string">        def print_to_console(payload):</span></span><br><span class="line"><span class="string">            print(payload)</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">    See IPCMessageClient() for an example of sending messages to an IPCMessageServer instance</span></span><br><span class="line"><span class="string">    '''</span></span><br></pre></td></tr></table></figure></p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/ipc.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">IPCServer</span><span class="params">(object)</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    A Tornado IPC server very similar to Tornado's TCPServer class</span></span><br><span class="line"><span class="string">    but using either UNIX domain sockets or TCP sockets</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__init__</span><span class="params">(self, socket_path, io_loop=None, payload_handler=None)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Create a new Tornado IPC server</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        :param str/int socket_path: Path on the filesystem for the</span></span><br><span class="line"><span class="string">                                    socket to bind to. This socket does</span></span><br><span class="line"><span class="string">                                    not need to exist prior to calling</span></span><br><span class="line"><span class="string">                                    this method, but parent directories</span></span><br><span class="line"><span class="string">                                    should.</span></span><br><span class="line"><span class="string">                                    It may also be of type 'int', in</span></span><br><span class="line"><span class="string">                                    which case it is used as the port</span></span><br><span class="line"><span class="string">                                    for a tcp localhost connection.</span></span><br><span class="line"><span class="string">        :param IOLoop io_loop: A Tornado ioloop to handle scheduling</span></span><br><span class="line"><span class="string">        :param func payload_handler: A function to customize handling of</span></span><br><span class="line"><span class="string">                                     incoming data.</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        self.socket_path = socket_path</span><br><span class="line">        self._started = <span class="keyword">False</span></span><br><span class="line">        self.payload_handler = payload_handler</span><br><span class="line"></span><br><span class="line">        <span class="comment"># Placeholders for attributes to be populated by method calls</span></span><br><span class="line">        self.sock = <span class="keyword">None</span></span><br><span class="line">        self.io_loop = io_loop <span class="keyword">or</span> IOLoop.current()</span><br><span class="line">        self._closing = <span class="keyword">False</span></span><br></pre></td></tr></table></figure>
-<p>在创建完IPCMessageServer，首先调用的是它的start，start绑定UNIX域套接字，并注册回调函数self.handle_connection<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/ipc.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">start</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Perform the work necessary to start up a Tornado IPC server</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        Blocks until socket is established</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="comment"># Start up the ioloop</span></span><br><span class="line">        log.trace(<span class="string">'IPCServer: binding to socket: &#123;0&#125;'</span>.format(self.socket_path))</span><br><span class="line">        <span class="keyword">if</span> isinstance(self.socket_path, int):</span><br><span class="line">            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)</span><br><span class="line">            self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, <span class="number">1</span>)</span><br><span class="line">            self.sock.setblocking(<span class="number">0</span>)</span><br><span class="line">            self.sock.bind((<span class="string">'127.0.0.1'</span>, self.socket_path))</span><br><span class="line">            <span class="comment"># Based on default used in tornado.netutil.bind_sockets()</span></span><br><span class="line">            self.sock.listen(<span class="number">128</span>)</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            self.sock = tornado.netutil.bind_unix_socket(self.socket_path)</span><br><span class="line"></span><br><span class="line">        tornado.netutil.add_accept_handler(</span><br><span class="line">            self.sock,</span><br><span class="line">            self.handle_connection,</span><br><span class="line">            io_loop=self.io_loop,</span><br><span class="line">        )</span><br><span class="line">        self._started = <span class="keyword">True</span></span><br></pre></td></tr></table></figure></p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/ipc.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">handle_connection</span><span class="params">(self, connection, address)</span>:</span></span><br><span class="line">        log.trace(<span class="string">'IPCServer: Handling connection to address: &#123;0&#125;'</span>.format(address))</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            stream = IOStream(</span><br><span class="line">                connection,</span><br><span class="line">                io_loop=self.io_loop,</span><br><span class="line">            )</span><br><span class="line">            self.io_loop.spawn_callback(self.handle_stream, stream)</span><br><span class="line">        <span class="keyword">except</span> Exception <span class="keyword">as</span> exc:</span><br><span class="line">            log.error(<span class="string">'IPC streaming error: &#123;0&#125;'</span>.format(exc))</span><br></pre></td></tr></table></figure>
-<p>handle_connection会将每个链接封装成IOStream，然后调用self.handle_stream<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/transport/ipc.py</span></span><br><span class="line"><span class="meta">    @tornado.gen.coroutine</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">handle_stream</span><span class="params">(self, stream)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Override this to handle the streams as they arrive</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        :param IOStream stream: An IOStream for processing</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        See https://tornado.readthedocs.io/en/latest/iostream.html#tornado.iostream.IOStream</span></span><br><span class="line"><span class="string">        for additional details.</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line"><span class="meta">        @tornado.gen.coroutine</span></span><br><span class="line">        <span class="function"><span class="keyword">def</span> <span class="title">_null</span><span class="params">(msg)</span>:</span></span><br><span class="line">            <span class="keyword">raise</span> tornado.gen.Return(<span class="keyword">None</span>)</span><br><span class="line"></span><br><span class="line">        <span class="function"><span class="keyword">def</span> <span class="title">write_callback</span><span class="params">(stream, header)</span>:</span></span><br><span class="line">            <span class="keyword">if</span> header.get(<span class="string">'mid'</span>):</span><br><span class="line"><span class="meta">                @tornado.gen.coroutine</span></span><br><span class="line">                <span class="function"><span class="keyword">def</span> <span class="title">return_message</span><span class="params">(msg)</span>:</span></span><br><span class="line">                    pack = salt.transport.frame.frame_msg_ipc(</span><br><span class="line">                        msg,</span><br><span class="line">                        header=&#123;<span class="string">'mid'</span>: header[<span class="string">'mid'</span>]&#125;,</span><br><span class="line">                        raw_body=<span class="keyword">True</span>,</span><br><span class="line">                    )</span><br><span class="line">                    <span class="keyword">yield</span> stream.write(pack)</span><br><span class="line">                <span class="keyword">return</span> return_message</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                <span class="keyword">return</span> _null</span><br><span class="line">        <span class="keyword">if</span> six.PY2:</span><br><span class="line">            encoding = <span class="keyword">None</span></span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            encoding = <span class="string">'utf-8'</span></span><br><span class="line">        unpacker = msgpack.Unpacker(encoding=encoding)</span><br><span class="line">        <span class="keyword">while</span> <span class="keyword">not</span> stream.closed():</span><br><span class="line">            <span class="keyword">try</span>:</span><br><span class="line">                wire_bytes = <span class="keyword">yield</span> stream.read_bytes(<span class="number">4096</span>, partial=<span class="keyword">True</span>)</span><br><span class="line">                unpacker.feed(wire_bytes)</span><br><span class="line">                <span class="keyword">for</span> framed_msg <span class="keyword">in</span> unpacker:</span><br><span class="line">                    body = framed_msg[<span class="string">'body'</span>]</span><br><span class="line">                    self.io_loop.spawn_callback(self.payload_handler, body, write_callback(stream, framed_msg[<span class="string">'head'</span>]))</span><br><span class="line">            <span class="keyword">except</span> tornado.iostream.StreamClosedError:</span><br><span class="line">                log.trace(<span class="string">'Client disconnected from IPC &#123;0&#125;'</span>.format(self.socket_path))</span><br><span class="line">                <span class="keyword">break</span></span><br><span class="line">            <span class="keyword">except</span> Exception <span class="keyword">as</span> exc:</span><br><span class="line">                log.error(<span class="string">'Exception occurred while handling stream: &#123;0&#125;'</span>.format(exc))</span><br></pre></td></tr></table></figure></p>
-<p>handle_stream会调用self.payload_handler，即EventPublisher.handle_publish，handle_publish又会调用IPCMessagePublisher.publish，借助IPCMessagePublisher维护的PUB-SUB关系，进行消息分发。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/utils/event.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">handle_publish</span><span class="params">(self, package, _)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Get something from epull, publish it out epub, and return the package (or None)</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            self.publisher.publish(package)</span><br><span class="line">            <span class="keyword">return</span> package</span><br><span class="line">        <span class="comment"># Add an extra fallback in case a forked process leeks through</span></span><br><span class="line">        <span class="keyword">except</span> Exception:</span><br><span class="line">            log.critical(<span class="string">'Unexpected error while polling master events'</span>,</span><br><span class="line">                         exc_info=<span class="keyword">True</span>)</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">None</span></span><br></pre></td></tr></table></figure></p>
-<blockquote>
-<p>至此，EventPublisher进程分析完毕</p>
-</blockquote>
-<p>可见publisher和EventPublisher中均用到了IPCMessageServer，用法很相似，publisher和EventPublisher的架构也极为相似。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">saltstack</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/08/03/salt-master-eventpublisher/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-centos-7-tmp-file-removed-when-logout" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/08/01/centos-7-tmp-file-removed-when-logout/">systemd-logind.service的RemoveIPC参数影响</a>
-    </h1>
-  
-
-        
-        <a href="/2017/08/01/centos-7-tmp-file-removed-when-logout/" class="archive-article-date">
-  	<time datetime="2017-08-01T09:48:21.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-01</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#1-背景">1. 背景</a></li>
-<li><a href="#2-原因">2. 原因</a></li>
-<li><a href="#3-解决方法">3. 解决方法</a></li>
-<li><a href="#4-参考资料">4. 参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="1-背景">1. 背景</span></h2><p>最近在centos7.2上遇到一个奇怪的问题，用户在/tmp目录下创建的文件，在用户logout后会被删除，具体场景如下：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">Last login: Tue Aug  1 17:47:23 2017 from 192.168.37.12</span><br><span class="line"><span class="meta">$</span> ll /tmp/test.file</span><br><span class="line">ls: cannot access /tmp/test.file: No such file or directory</span><br><span class="line"><span class="meta">$</span> touch /tmp/test.file</span><br><span class="line"><span class="meta">$</span> ll /tmp/test.file</span><br><span class="line">-rw-rw-r-- 1 biztech biztech 0 Aug  1 17:52 /tmp/test.file</span><br><span class="line"><span class="meta">$</span> logout</span><br><span class="line">Connection to 10.144.103.141 closed.</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Last login: Tue Aug  1 17:52:09 2017 from 192.168.37.12</span><br><span class="line"><span class="meta">$</span> ll /tmp/test.file</span><br><span class="line">ls: cannot access /tmp/test.file: No such file or directory</span><br></pre></td></tr></table></figure></p>
-<h2><span id="2-原因">2. 原因</span></h2><p>经过艰苦卓绝的google，发现是systemd-logind.service的RemoveIPC参数导致的。因为我的系统里/tmp是共享内存实现的，刚好满足了这个场景。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">RemoveIPC=</span><br><span class="line"></span><br><span class="line">    Controls whether System V and POSIX IPC objects belonging to the user shall be removed when the user fully logs out. Takes a boolean argument. If enabled, the user may not consume IPC resources after the last of the user's sessions terminated. This covers System V semaphores, shared memory and message queues, as well as POSIX shared memory and message queues. Note that IPC objects of the root user and other system users are excluded from the effect of this setting. Defaults to "yes".</span><br></pre></td></tr></table></figure></p>
-<h2><span id="3-解决方法">3. 解决方法</span></h2><p>如果想关闭这个特性，可以按如下操作：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> sed -i 's/.*RemoveIPC.*/RemoveIPC=no/' /etc/systemd/logind.conf </span><br><span class="line"><span class="meta">#</span> grep RemoveIPC /etc/systemd/logind.conf</span><br><span class="line">RemoveIPC=no</span><br><span class="line"><span class="meta">#</span> systemctl restart systemd-logind.service</span><br></pre></td></tr></table></figure></p>
-<h2><span id="4-参考资料">4. 参考资料</span></h2><ol>
-<li><a href="https://bbs.archlinux.org/viewtopic.php?id=191409" target="_blank" rel="noopener">https://bbs.archlinux.org/viewtopic.php?id=191409</a></li>
-<li><a href="https://www.freedesktop.org/software/systemd/man/logind.conf.html" target="_blank" rel="noopener">https://www.freedesktop.org/software/systemd/man/logind.conf.html</a></li>
-<li><a href="https://docs.oracle.com/cd/E52668_01/E67200/html/section-t51_kcn_f5.html" target="_blank" rel="noopener">https://docs.oracle.com/cd/E52668_01/E67200/html/section-t51_kcn_f5.html</a></li>
-</ol>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">systemd</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/08/01/centos-7-tmp-file-removed-when-logout/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/6/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/5/">5</a><a class="page-number" href="/page/6/">6</a><span class="page-number current">7</span><a class="page-number" href="/page/8/">8</a><a class="page-number" href="/page/9/">9</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><a class="extend next" rel="next" href="/page/8/">Next &raquo;</a>
@@ -1378,15 +1331,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">hive</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">pig</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hive</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1398,6 +1351,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
               </li>
              
@@ -1406,7 +1363,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+                <a href="javascript:void(0)" class="js-tag color3">大数据开发之路</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1426,6 +1383,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Python</a>
               </li>
              
@@ -1438,11 +1399,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1458,10 +1415,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hexo</a>
               </li>
              
@@ -1470,15 +1423,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">tez</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">gc</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1502,11 +1463,51 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
+                <a href="javascript:void(0)" class="js-tag color1">storm</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">olap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">presto</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">iptables</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1522,14 +1523,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
@@ -1539,6 +1532,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1566,47 +1567,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">storm</a>
+                <a href="javascript:void(0)" class="js-tag color5">数据仓库</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">olap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">presto</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">iptables</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
+                <a href="javascript:void(0)" class="js-tag color1">doris</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1631,14 +1600,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">doris</a>
               </li>
             
             <div class="clearfix"></div>

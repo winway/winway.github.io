@@ -155,6 +155,307 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-open-falcon-graph" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2018/04/22/open-falcon-graph/">open-falcon源码阅读之graph</a>
+    </h1>
+  
+
+        
+        <a href="/2018/04/22/open-falcon-graph/" class="archive-article-date">
+  	<time datetime="2018-04-22T14:34:17.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-04-22</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p><em>Version：0.2.0</em></p>
+<!-- toc -->
+<ul>
+<li><a href="#1-架构图">1. 架构图</a></li>
+<li><a href="#2-数据结构">2. 数据结构</a></li>
+<li><a href="#3-流程图">3. 流程图</a></li>
+<li><a href="#4-源码解析">4. 源码解析</a></li>
+</ul>
+<!-- tocstop -->
+<h1><span id="1-架构图">1. 架构图</span></h1><p>Graph接收transfer使用rpc调用上报的监控数据，在内存中维护，同时以rrd文件的形式落盘，供其他组件查询。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/open-falcon-graph-arch.png" alt=""></p>
+<h1><span id="2-数据结构">2. 数据结构</span></h1><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/open-falcon-graph-datastructure.png" alt=""></p>
+<h1><span id="3-流程图">3. 流程图</span></h1><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/open-falcon-graph-flow.png" alt=""></p>
+<h1><span id="4-源码解析">4. 源码解析</span></h1><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">"flag"</span></span><br><span class="line">	<span class="string">"fmt"</span></span><br><span class="line">	<span class="string">"github.com/gin-gonic/gin"</span></span><br><span class="line">	<span class="string">"log"</span></span><br><span class="line">	<span class="string">"os"</span></span><br><span class="line">	<span class="string">"os/signal"</span></span><br><span class="line">	<span class="string">"syscall"</span></span><br><span class="line"></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/graph/api"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/graph/cron"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/graph/g"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/graph/http"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/graph/index"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/graph/rrdtool"</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">注册信号处理，在接收到syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT信号时，</span></span><br><span class="line"><span class="comment">依次关闭http、rpc服务，rrd落盘</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">start_signal</span><span class="params">(pid <span class="keyword">int</span>, cfg *g.GlobalConfig)</span></span> &#123;</span><br><span class="line">	sigs := <span class="built_in">make</span>(<span class="keyword">chan</span> os.Signal, <span class="number">1</span>)</span><br><span class="line">	log.Println(pid, <span class="string">"register signal notify"</span>)</span><br><span class="line">	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		s := &lt;-sigs</span><br><span class="line">		log.Println(<span class="string">"recv"</span>, s)</span><br><span class="line"></span><br><span class="line">		<span class="keyword">switch</span> s &#123;</span><br><span class="line">		<span class="keyword">case</span> syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT:</span><br><span class="line">			log.Println(<span class="string">"graceful shut down"</span>)</span><br><span class="line">			<span class="keyword">if</span> cfg.Http.Enabled &#123;</span><br><span class="line">				http.Close_chan &lt;- <span class="number">1</span></span><br><span class="line">				&lt;-http.Close_done_chan</span><br><span class="line">			&#125;</span><br><span class="line">			log.Println(<span class="string">"http stop ok"</span>)</span><br><span class="line"></span><br><span class="line">			<span class="keyword">if</span> cfg.Rpc.Enabled &#123;</span><br><span class="line">				api.Close_chan &lt;- <span class="number">1</span></span><br><span class="line">				&lt;-api.Close_done_chan</span><br><span class="line">			&#125;</span><br><span class="line">			log.Println(<span class="string">"rpc stop ok"</span>)</span><br><span class="line"></span><br><span class="line">			rrdtool.Out_done_chan &lt;- <span class="number">1</span></span><br><span class="line">			rrdtool.FlushAll(<span class="literal">true</span>)  <span class="comment">// 全部刷新到文件</span></span><br><span class="line">			log.Println(<span class="string">"rrdtool stop ok"</span>)</span><br><span class="line"></span><br><span class="line">			log.Println(pid, <span class="string">"exit"</span>)</span><br><span class="line">			os.Exit(<span class="number">0</span>)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	cfg := flag.String(<span class="string">"c"</span>, <span class="string">"cfg.json"</span>, <span class="string">"specify config file"</span>)</span><br><span class="line">	version := flag.Bool(<span class="string">"v"</span>, <span class="literal">false</span>, <span class="string">"show version"</span>)</span><br><span class="line">	versionGit := flag.Bool(<span class="string">"vg"</span>, <span class="literal">false</span>, <span class="string">"show version and git commit log"</span>)</span><br><span class="line">	flag.Parse()  <span class="comment">// 参数解析</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> *version &#123;  <span class="comment">// 打印版本信息</span></span><br><span class="line">		fmt.Println(g.VERSION)</span><br><span class="line">		os.Exit(<span class="number">0</span>)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> *versionGit &#123;</span><br><span class="line">		fmt.Println(g.VERSION, g.COMMIT)</span><br><span class="line">		os.Exit(<span class="number">0</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// global config</span></span><br><span class="line">	g.ParseConfig(*cfg)  <span class="comment">// 加载配置文件到GlobalConfig ptr</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> g.Config().Debug &#123;  <span class="comment">// 设置日志级别log.SetLevel</span></span><br><span class="line">		g.InitLog(<span class="string">"debug"</span>)</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		g.InitLog(<span class="string">"info"</span>)</span><br><span class="line">		gin.SetMode(gin.ReleaseMode)</span><br><span class="line">		<span class="comment">/*</span></span><br><span class="line"><span class="comment">		Gin is a web framework written in Go (Golang).</span></span><br><span class="line"><span class="comment">		It features a martini-like API with much better performance,</span></span><br><span class="line"><span class="comment">		up to 40 times faster thanks to httprouter.</span></span><br><span class="line"><span class="comment">		If you need performance and good productivity, you will love Gin.</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">		HttpRouter is a lightweight high performance HTTP request router</span></span><br><span class="line"><span class="comment">		(also called multiplexer or just mux for short) for Go.</span></span><br><span class="line"><span class="comment">		In contrast to the default mux of Go's net/http package,</span></span><br><span class="line"><span class="comment">		this router supports variables in the routing pattern and matches against the request method.</span></span><br><span class="line"><span class="comment">		It also scales better.The router is optimized for high performance and a small memory footprint.</span></span><br><span class="line"><span class="comment">		It scales well even with very long paths and a large number of routes.</span></span><br><span class="line"><span class="comment">		A compressing dynamic trie (radix tree) structure is used for efficient matching.</span></span><br><span class="line"><span class="comment">		 */</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// init db</span></span><br><span class="line">	g.InitDB() <span class="comment">// 创建数据库连接DB *sql.DB，看是否能成功创建，初始化连接池dbConnMap</span></span><br><span class="line">	<span class="comment">// rrdtool before api for disable loopback connection</span></span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	开启net_task_worker goroutine监听net_task任务管道用于同其他graph传输监控数据</span></span><br><span class="line"><span class="comment">	开启ioworker goroutine监听io_task任务管道用于读写本地rrd文件</span></span><br><span class="line"><span class="comment">	开启syncdisk goroutine用于周期性刷新GraphItems缓存到rrd文件</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	rrdtool.Start()</span><br><span class="line">	<span class="comment">// start api</span></span><br><span class="line">	<span class="keyword">go</span> api.Start() <span class="comment">// 启动rpc服务，提供监控数据传输接口</span></span><br><span class="line">	<span class="comment">// start indexing</span></span><br><span class="line">	index.Start() <span class="comment">// 初始化索引功能模块</span></span><br><span class="line">	<span class="comment">// start http server</span></span><br><span class="line">	<span class="keyword">go</span> http.Start() <span class="comment">// 启动http服务，提供统计信息查询接口</span></span><br><span class="line">	<span class="keyword">go</span> cron.CleanCache() <span class="comment">// 开启GraphItems和historyCache清理goroutine</span></span><br><span class="line"></span><br><span class="line">	start_signal(os.Getpid(), g.Config()) <span class="comment">// 注册信号处理函数，关闭各个goroutine</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>详细代码注释请参考<a href="https://github.com/winway/falcon-plus-learn，持续更新中" target="_blank" rel="noopener">https://github.com/winway/falcon-plus-learn，持续更新中</a></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">open-falcon</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2018/04/22/open-falcon-graph/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-AsimplePlugin" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2018/02/23/AsimplePlugin/">一个Python实现的简单插件机制</a>
+    </h1>
+  
+
+        
+        <a href="/2018/02/23/AsimplePlugin/" class="archive-article-date">
+  	<time datetime="2018-02-23T12:53:49.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-02-23</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#1-介绍">1. 介绍</a><ul>
+<li><a href="#定义插件">定义插件</a></li>
+<li><a href="#插件同步">插件同步</a></li>
+<li><a href="#插件加载">插件加载</a></li>
+<li><a href="#测试">测试</a></li>
+</ul>
+</li>
+<li><a href="#2-代码">2. 代码</a></li>
+<li><a href="#3-参考资料">3. 参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<h1><span id="1-介绍">1. 介绍</span></h1><p>本文介绍了一个Python实现的简单插件机制，可以为程序动态的增加功能，而无需重新部署程序甚至重启。<br>该机制包括两部分，同步机制和加载机制。同步机制用于获取插件代码；加载机制负责导入插件。</p>
+<h2><span id="定义插件">定义插件</span></h2><p>插件中实现名称相同的类、函数等，但是类和函数具有不同的实现，这样才能进行统一调用。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line">[root@winway plugin]<span class="comment"># ll plugins/</span></span><br><span class="line">total <span class="number">16</span></span><br><span class="line">-rw-r--r--. <span class="number">1</span> root root <span class="number">948</span> Feb <span class="number">23</span> <span class="number">17</span>:<span class="number">04</span> pluginA.py</span><br><span class="line">-rw-r--r--. <span class="number">1</span> root root <span class="number">948</span> Feb <span class="number">23</span> <span class="number">16</span>:<span class="number">49</span> pluginB.py</span><br><span class="line">-rw-r--r--. <span class="number">1</span> root root <span class="number">948</span> Feb <span class="number">23</span> <span class="number">16</span>:<span class="number">49</span> pluginC.py</span><br><span class="line"></span><br><span class="line">[root@winway plugin]<span class="comment"># cat plugins/pluginA.py</span></span><br><span class="line"><span class="comment">#!/usr/bin/env python</span></span><br><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"></span><br><span class="line"><span class="string">r"""</span></span><br><span class="line"><span class="string">plugin A</span></span><br><span class="line"><span class="string">"""</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">f</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'plugin A'</span></span><br><span class="line">[root@winway plugin]<span class="comment"># cat plugins/pluginB.py</span></span><br><span class="line"><span class="comment">#!/usr/bin/env python</span></span><br><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"></span><br><span class="line"><span class="string">r"""</span></span><br><span class="line"><span class="string">plugin B</span></span><br><span class="line"><span class="string">"""</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">f</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'plugin B'</span></span><br><span class="line">[root@winway plugin]<span class="comment"># cat plugins/pluginC.py</span></span><br><span class="line"><span class="comment">#!/usr/bin/env python</span></span><br><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"></span><br><span class="line"><span class="string">r"""</span></span><br><span class="line"><span class="string">plugin C</span></span><br><span class="line"><span class="string">"""</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">f</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'plugin C'</span></span><br></pre></td></tr></table></figure></p>
+<h2><span id="插件同步">插件同步</span></h2><p>插件下载通过http完成。开启http服务，提供插件下载功能。需要插件的地方可以通过http下载插件代码。<br>http服务代码如下：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">startHttpFileServer</span><span class="params">(dir, port)</span>:</span></span><br><span class="line">    <span class="string">"""http服务器，用于下载plugin文件"""</span></span><br><span class="line"></span><br><span class="line">    print(<span class="string">'startHttpFileServer'</span>)</span><br><span class="line"></span><br><span class="line">    ServerClass = BaseHTTPServer.HTTPServer</span><br><span class="line">    HandlerClass = SimpleHTTPRequestHandler</span><br><span class="line">    Protocol = <span class="string">"HTTP/1.0"</span></span><br><span class="line">    server_address = (<span class="string">'0.0.0.0'</span>, port)</span><br><span class="line"></span><br><span class="line">    HandlerClass.protocol_version = Protocol</span><br><span class="line">    httpd = ServerClass(server_address, HandlerClass)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> os.path.isdir(dir):  <span class="comment"># 切换到插件所在目录</span></span><br><span class="line">        os.chdir(dir)</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        print(<span class="string">'no such dir: %s'</span> % dir)</span><br><span class="line">        sys.exit()</span><br><span class="line"></span><br><span class="line">    sa = httpd.socket.getsockname()</span><br><span class="line">    print(<span class="string">"Serving HTTP on %s:%s"</span> % (sa[<span class="number">0</span>], sa[<span class="number">1</span>]))</span><br><span class="line"></span><br><span class="line">    httpd.serve_forever()  <span class="comment"># 启动http服务器</span></span><br></pre></td></tr></table></figure></p>
+<h2><span id="插件加载">插件加载</span></h2><p>根据名称，在插件目录中动态查找插件代码，并导入。使用md5判断是否需要重新导入插件。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">findPlugin</span><span class="params">(self, moduleName)</span>:</span></span><br><span class="line">    <span class="string">"""查找moduleName，并计算md5"""</span></span><br><span class="line"></span><br><span class="line">    location = os.path.join(self.pluginDir, moduleName)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> os.path.isdir(location) <span class="keyword">and</span> <span class="string">'__init__.py'</span> <span class="keyword">in</span> os.listdir(location):  <span class="comment"># package</span></span><br><span class="line">        info = imp.find_module(<span class="string">'__init__'</span>, [location])</span><br><span class="line">        md5 = self.computeMd5(location)</span><br><span class="line">    <span class="keyword">elif</span> os.path.isfile(location + <span class="string">'.py'</span>):  <span class="comment"># module</span></span><br><span class="line">        info = imp.find_module(moduleName, [self.pluginDir])</span><br><span class="line">        md5 = self.computeMd5(location + <span class="string">'.py'</span>)</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">False</span>, <span class="string">'no such module: %s'</span> % moduleName</span><br><span class="line"></span><br><span class="line">    plugin = &#123;<span class="string">"name"</span>: moduleName, <span class="string">"info"</span>: info, <span class="string">'md5'</span>: md5&#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">True</span>, plugin</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">loadPlugin</span><span class="params">(self, moduleName)</span>:</span></span><br><span class="line">    <span class="string">"""加载moduleName</span></span><br><span class="line"><span class="string">    如果没有加载过或有更新，则重新加载，否则直接返回self.plugins中保存的</span></span><br><span class="line"><span class="string">    """</span></span><br><span class="line"></span><br><span class="line">    ok, plugin = self.findPlugin(moduleName)</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> ok:</span><br><span class="line">        <span class="keyword">return</span> ok, plugin</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> plugin[<span class="string">'name'</span>] <span class="keyword">not</span> <span class="keyword">in</span> self.plugins:  <span class="comment"># 新增</span></span><br><span class="line">        print(<span class="string">'add plugin: %s'</span> % plugin[<span class="string">'name'</span>])</span><br><span class="line">        self.plugins[plugin[<span class="string">'name'</span>]] = &#123;&#125;</span><br><span class="line">        self.plugins[plugin[<span class="string">'name'</span>]][<span class="string">'module'</span>] = imp.load_module(plugin[<span class="string">'name'</span>], *plugin[<span class="string">"info"</span>])</span><br><span class="line">        self.plugins[plugin[<span class="string">'name'</span>]][<span class="string">'md5'</span>] = plugin[<span class="string">'md5'</span>]</span><br><span class="line">    <span class="keyword">elif</span> plugin[<span class="string">'name'</span>] <span class="keyword">in</span> self.plugins <span class="keyword">and</span> plugin[<span class="string">'md5'</span>] != self.plugins[plugin[<span class="string">'name'</span>]][<span class="string">'md5'</span>]:  <span class="comment"># 更新</span></span><br><span class="line">        print(<span class="string">'update plugin: %s'</span> % plugin[<span class="string">'name'</span>])</span><br><span class="line">        self.plugins[plugin[<span class="string">'name'</span>]][<span class="string">'module'</span>] = imp.load_module(plugin[<span class="string">'name'</span>], *plugin[<span class="string">"info"</span>])</span><br><span class="line">        self.plugins[plugin[<span class="string">'name'</span>]][<span class="string">'md5'</span>] = plugin[<span class="string">'md5'</span>]</span><br><span class="line"></span><br><span class="line">    <span class="comment"># TODO：删除遗留的module</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">True</span>, self.plugins[plugin[<span class="string">'name'</span>]][<span class="string">'module'</span>]</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">computeMd5</span><span class="params">(self, entry)</span>:</span></span><br><span class="line">    <span class="string">"""计算文件或目录的md5值"""</span></span><br><span class="line"></span><br><span class="line">    md5 = hashlib.md5()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> os.path.isfile(entry):</span><br><span class="line">        md5.update(open(entry, <span class="string">'rb'</span>).read())</span><br><span class="line">    <span class="keyword">elif</span> os.path.isdir(entry):</span><br><span class="line">        <span class="keyword">for</span> path, dirList, fileList <span class="keyword">in</span> os.walk(entry):</span><br><span class="line">            <span class="keyword">for</span> file <span class="keyword">in</span> fileList:</span><br><span class="line">                <span class="keyword">if</span> glob.fnmatch.fnmatch(file, <span class="string">'*.py'</span>):</span><br><span class="line">                    md5.update(open(os.path.join(path, file), <span class="string">'rb'</span>).read())</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> md5.hexdigest()</span><br></pre></td></tr></table></figure></p>
+<h2><span id="测试">测试</span></h2><p>测试代码如下：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">import</span> time</span><br><span class="line"></span><br><span class="line"><span class="keyword">from</span> plugin <span class="keyword">import</span> loader</span><br><span class="line"></span><br><span class="line">p = loader.Loader(<span class="string">'/tmp'</span>)  <span class="comment"># 插件目录设置为/tmp</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">while</span> <span class="keyword">True</span>:</span><br><span class="line">    <span class="comment"># 下载插件</span></span><br><span class="line">    os.system(<span class="string">"wget -q -r -np -nH --reject='index.html*,*.pyc' -P %s 'http://127.0.0.1:8080'"</span> % p.pluginDir)</span><br><span class="line"></span><br><span class="line">    ok, m = p.loadPlugin(<span class="string">'pluginA'</span>)  <span class="comment"># 动态查找并加载插件。新增插件或插件更新可以自动更新</span></span><br><span class="line">    <span class="keyword">if</span> ok:</span><br><span class="line">        getattr(m, <span class="string">'f'</span>)()</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">print</span> <span class="string">'no such plugin pluginA'</span></span><br><span class="line"></span><br><span class="line">    ok, m = p.loadPlugin(<span class="string">'pluginB'</span>)  <span class="comment"># 动态查找并加载插件</span></span><br><span class="line">    <span class="keyword">if</span> ok:</span><br><span class="line">        getattr(m, <span class="string">'f'</span>)()</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">print</span> <span class="string">'no such plugin pluginB'</span></span><br><span class="line"></span><br><span class="line">    ok, m = p.loadPlugin(<span class="string">'pluginC'</span>)  <span class="comment"># 动态查找并加载插件</span></span><br><span class="line">    <span class="keyword">if</span> ok:</span><br><span class="line">        getattr(m, <span class="string">'f'</span>)()</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">print</span> <span class="string">'no such plugin pluginC'</span></span><br><span class="line"></span><br><span class="line">    ok, m = p.loadPlugin(<span class="string">'pluginD'</span>)  <span class="comment"># 动态查找并加载插件</span></span><br><span class="line">    <span class="keyword">if</span> ok:</span><br><span class="line">        getattr(m, <span class="string">'f'</span>)()</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">print</span> <span class="string">'no such plugin pluginD'</span></span><br><span class="line"></span><br><span class="line">    time.sleep(<span class="number">5</span>)</span><br></pre></td></tr></table></figure></p>
+<h1><span id="2-代码">2. 代码</span></h1><p>代码地址：<a href="https://github.com/winway/simple-plugin" target="_blank" rel="noopener">https://github.com/winway/simple-plugin</a></p>
+<h1><span id="3-参考资料">3. 参考资料</span></h1><ul>
+<li><a href="https://stackoverflow.com/questions/932069/building-a-minimal-plugin-architecture-in-python" target="_blank" rel="noopener">https://stackoverflow.com/questions/932069/building-a-minimal-plugin-architecture-in-python</a></li>
+<li><a href="https://lkubuntu.wordpress.com/2012/10/02/writing-a-python-plugin-api/s" target="_blank" rel="noopener">https://lkubuntu.wordpress.com/2012/10/02/writing-a-python-plugin-api/</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">python</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2018/02/23/AsimplePlugin/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-open-falcon-alarm" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/12/23/open-falcon-alarm/">open-falcon源码阅读之alarm</a>
+    </h1>
+  
+
+        
+        <a href="/2017/12/23/open-falcon-alarm/" class="archive-article-date">
+  	<time datetime="2017-12-23T00:42:19.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-12-23</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p><em>Version：0.2.0</em></p>
+<!-- toc -->
+<ul>
+<li><a href="#1-架构图">1. 架构图</a></li>
+<li><a href="#2-流程图">2. 流程图</a></li>
+<li><a href="#3-源码解析">3. 源码解析</a></li>
+</ul>
+<!-- tocstop -->
+<h1><span id="1-架构图">1. 架构图</span></h1><p>Alarm读取Redis中的event，持久化到Mysql，并将event放到Redis的待发送队列或待合并队列。开启goroutine调用对应的接口异步发送。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/open-falcon-alarm-arch.png" alt=""></p>
+<h1><span id="2-流程图">2. 流程图</span></h1><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/open-falcon-alarm-flow.png" alt=""></p>
+<h1><span id="3-源码解析">3. 源码解析</span></h1><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">"flag"</span></span><br><span class="line">	<span class="string">"fmt"</span></span><br><span class="line">	<span class="string">"os"</span></span><br><span class="line">	<span class="string">"os/signal"</span></span><br><span class="line">	<span class="string">"syscall"</span></span><br><span class="line"></span><br><span class="line">	<span class="string">"github.com/gin-gonic/gin"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/cron"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/g"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/http"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/model"</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	cfg := flag.String(<span class="string">"c"</span>, <span class="string">"cfg.json"</span>, <span class="string">"configuration file"</span>)</span><br><span class="line">	version := flag.Bool(<span class="string">"v"</span>, <span class="literal">false</span>, <span class="string">"show version"</span>)</span><br><span class="line">	help := flag.Bool(<span class="string">"h"</span>, <span class="literal">false</span>, <span class="string">"help"</span>)</span><br><span class="line">	flag.Parse()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> *version &#123;</span><br><span class="line">		fmt.Println(g.VERSION)</span><br><span class="line">		os.Exit(<span class="number">0</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> *help &#123;</span><br><span class="line">		flag.Usage()</span><br><span class="line">		os.Exit(<span class="number">0</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	g.ParseConfig(*cfg) <span class="comment">// 加载配置文件</span></span><br><span class="line"></span><br><span class="line">	g.InitLog(g.Config().LogLevel) <span class="comment">// 根据配置文件设置日志级别</span></span><br><span class="line">	<span class="keyword">if</span> g.Config().LogLevel != <span class="string">"debug"</span> &#123;</span><br><span class="line">		gin.SetMode(gin.ReleaseMode)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	Gin is a web framework written in Go (Golang).</span></span><br><span class="line"><span class="comment">	It features a martini-like API with much better performance,</span></span><br><span class="line"><span class="comment">	up to 40 times faster thanks to httprouter.</span></span><br><span class="line"><span class="comment">	If you need performance and good productivity, you will love Gin.</span></span><br><span class="line"><span class="comment">	HttpRouter is a lightweight high performance HTTP request router</span></span><br><span class="line"><span class="comment">	(also called multiplexer or just mux for short) for Go.</span></span><br><span class="line"><span class="comment">	In contrast to the default mux of Go's net/http package,</span></span><br><span class="line"><span class="comment">	this router supports variables in the routing pattern and matches against the request method.</span></span><br><span class="line"><span class="comment">	It also scales better.The router is optimized for high performance and a small memory footprint.</span></span><br><span class="line"><span class="comment">	It scales well even with very long paths and a large number of routes.</span></span><br><span class="line"><span class="comment">	A compressing dynamic trie (radix tree) structure is used for efficient matching.</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line"></span><br><span class="line">	g.InitRedisConnPool() <span class="comment">// 创建redis连接池</span></span><br><span class="line">	model.InitDatabase() <span class="comment">// 创建数据库连接和数据库表，使用了beego的orm</span></span><br><span class="line">	cron.InitSenderWorker() <span class="comment">// 创建IMWorkerChan/SmsWorkerChan/MailWorkerChan，根据配置设置channel长度</span></span><br><span class="line">	                        <span class="comment">// 实际在用信号量做并发控制，避免同时发送过多</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">go</span> http.Start() <span class="comment">// 启动http服务（使用gin框架实现），提供版本查询、健康查询、工作查询接口</span></span><br><span class="line">	<span class="keyword">go</span> cron.ReadHighEvent() <span class="comment">// 处理高优先级报警事件，包括入库、调callback、报警入redis待发送队列</span></span><br><span class="line">	<span class="keyword">go</span> cron.ReadLowEvent() <span class="comment">// 处理低优先级报警事件，包括入库、调callback、报警入redis待合并队列</span></span><br><span class="line">	<span class="keyword">go</span> cron.CombineSms() <span class="comment">// 读取/queue/user/sms队列中的短信内容，聚合后入库，并发送聚合短信</span></span><br><span class="line">	<span class="keyword">go</span> cron.CombineMail() <span class="comment">// 读取/queue/user/mail队列中的邮件内容，聚合发送</span></span><br><span class="line">	<span class="keyword">go</span> cron.CombineIM() <span class="comment">// 读取/queue/user/im队列中的IM内容，聚合后入库，并发送聚合消息</span></span><br><span class="line">	<span class="keyword">go</span> cron.ConsumeIM() <span class="comment">// 读取/im队列中的内容，调用微信发送网关地址发送</span></span><br><span class="line">	<span class="keyword">go</span> cron.ConsumeSms() <span class="comment">// 读取/sms队列中的内容，调用短信发送网关地址发送</span></span><br><span class="line">	<span class="keyword">go</span> cron.ConsumeMail() <span class="comment">// 读取/mail队列中的内容，调用邮件发送网关地址发送</span></span><br><span class="line">	<span class="keyword">go</span> cron.CleanExpiredEvent() <span class="comment">// 删除events表的旧数据，默认7天之前</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 注册信号处理程序，监听syscall.SIGINT和syscall.SIGTERM信号</span></span><br><span class="line">	sigs := <span class="built_in">make</span>(<span class="keyword">chan</span> os.Signal, <span class="number">1</span>)</span><br><span class="line">	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)</span><br><span class="line">	<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		&lt;-sigs</span><br><span class="line">		fmt.Println()</span><br><span class="line">		g.RedisConnPool.Close()</span><br><span class="line">		os.Exit(<span class="number">0</span>)</span><br><span class="line">	&#125;()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">select</span> &#123;&#125; <span class="comment">// 等待</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>详细代码注释请参考<a href="https://github.com/winway/falcon-plus-learn，持续更新中" target="_blank" rel="noopener">https://github.com/winway/falcon-plus-learn，持续更新中</a></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">open-falcon</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/12/23/open-falcon-alarm/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-open-falcon-judge" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1069,305 +1370,6 @@
 
 
   
-    <article id="post-extend-snmpd-using-shell-scripts" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/09/25/extend-snmpd-using-shell-scripts/">使用shell脚本扩展snmp</a>
-    </h1>
-  
-
-        
-        <a href="/2017/09/25/extend-snmpd-using-shell-scripts/" class="archive-article-date">
-  	<time datetime="2017-09-25T11:56:07.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-09-25</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#1-背景">1. 背景</a></li>
-<li><a href="#2-实践">2. 实践</a><ul>
-<li><a href="#1-编写shell脚本采集文件句柄使用信息">1. 编写shell脚本，采集文件句柄使用信息</a></li>
-<li><a href="#2-配置snmpdconf支持文件句柄采集">2. 配置snmpd.conf，支持文件句柄采集</a></li>
-<li><a href="#3-测试">3. 测试</a></li>
-</ul>
-</li>
-<li><a href="#3-参考资料">3. 参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="1-背景">1. 背景</span></h2><p>最近线上服务器出现文件句柄使用超出65535的异常现象，计划使用zabbix监控Linux服务器的文件句柄使用情况，由于目前zabbix使用的是snmp方式获取数据，并未使用agent，所以考虑使用snmp采集文件句柄使用情况。snmp默认不包括文件句柄使用情况信息，但是可以使用shell脚本对snmp进行扩展。</p>
-<h2><span id="2-实践">2. 实践</span></h2><h3><span id="1-编写shell脚本采集文件句柄使用信息">1. 编写shell脚本，采集文件句柄使用信息</span></h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> cat /tmp/check_lsof.sh</span><br><span class="line"><span class="meta">#</span>! /bin/bash</span><br><span class="line"><span class="meta">#</span></span><br><span class="line"></span><br><span class="line">type=$1</span><br><span class="line"></span><br><span class="line">if [[ $type == "eventpoll" ]]</span><br><span class="line">then</span><br><span class="line">    cnt=$(lsof -c java | grep -c '\[eventpoll\]$')</span><br><span class="line">elif [[ $type == "pipe" ]]</span><br><span class="line">then</span><br><span class="line">    cnt=$(lsof -c java | grep -c 'pipe$')</span><br><span class="line">elif [[ $type == "socket" ]]</span><br><span class="line">then</span><br><span class="line">    cnt=$(lsof -c java | grep -c 'socket$')</span><br><span class="line">elif [[ $type == "other" ]]</span><br><span class="line">then</span><br><span class="line">    cnt=$(lsof -c java | grep -cvE '\[eventpoll\]$|pipe$|socket$')</span><br><span class="line">else</span><br><span class="line">    cnt=0</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">echo $cnt</span><br></pre></td></tr></table></figure>
-<h3><span id="2-配置snmpdconf支持文件句柄采集">2. 配置snmpd.conf，支持文件句柄采集</span></h3><p>追加如下内容到/etc/snmp/snmpd.conf，并重启snmpd服务<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">extend lsof_eventpoll /tmp/check_lsof.sh eventpoll</span><br><span class="line">extend lsof_pipe /tmp/check_lsof.sh pipe</span><br><span class="line">extend lsof_socket /tmp/check_lsof.sh socket</span><br><span class="line">extend lsof_other /tmp/check_lsof.sh other</span><br></pre></td></tr></table></figure></p>
-<h3><span id="3-测试">3. 测试</span></h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> snmpwalk -v2c -c kat 10.14.19.20 NET-SNMP-EXTEND-MIB::nsExtendOutput1Line</span><br><span class="line">NET-SNMP-EXTEND-MIB::nsExtendOutput1Line."lsof_pipe" = STRING: 910</span><br><span class="line">NET-SNMP-EXTEND-MIB::nsExtendOutput1Line."lsof_other" = STRING: 1750</span><br><span class="line">NET-SNMP-EXTEND-MIB::nsExtendOutput1Line."lsof_socket" = STRING: 1</span><br><span class="line">NET-SNMP-EXTEND-MIB::nsExtendOutput1Line."lsof_eventpoll" = STRING: 0</span><br></pre></td></tr></table></figure>
-<h2><span id="3-参考资料">3. 参考资料</span></h2><p><a href="http://net-snmp.sourceforge.net/wiki/index.php/Tut:Extending_snmpd_using_shell_scripts" target="_blank" rel="noopener">http://net-snmp.sourceforge.net/wiki/index.php/Tut:Extending_snmpd_using_shell_scripts</a></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">shell</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">snmp</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/09/25/extend-snmpd-using-shell-scripts/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-open-falcon-transfer" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/09/04/open-falcon-transfer/">open-falcon源码阅读之transfer</a>
-    </h1>
-  
-
-        
-        <a href="/2017/09/04/open-falcon-transfer/" class="archive-article-date">
-  	<time datetime="2017-09-04T11:27:32.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-09-04</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p><em>Version：0.2.0</em></p>
-<!-- toc -->
-<ul>
-<li><a href="#1-架构图">1. 架构图</a></li>
-<li><a href="#2-流程图">2. 流程图</a></li>
-<li><a href="#3-源码解析">3. 源码解析</a></li>
-</ul>
-<!-- tocstop -->
-<h1><span id="1-架构图">1. 架构图</span></h1><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/open-falcon-transfer-arch.png" alt="open-falcon-transfer-arch"></p>
-<h1><span id="2-流程图">2. 流程图</span></h1><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/open-falcon-transfer-flow.png" alt="open-falcon-transfer-flow"></p>
-<h1><span id="3-源码解析">3. 源码解析</span></h1><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"># modules/transfer/main.<span class="keyword">go</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	cfg := flag.String(<span class="string">"c"</span>, <span class="string">"cfg.json"</span>, <span class="string">"configuration file"</span>)</span><br><span class="line">	version := flag.Bool(<span class="string">"v"</span>, <span class="literal">false</span>, <span class="string">"show version"</span>)</span><br><span class="line">	versionGit := flag.Bool(<span class="string">"vg"</span>, <span class="literal">false</span>, <span class="string">"show version"</span>)</span><br><span class="line">	flag.Parse()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> *version &#123;</span><br><span class="line">		fmt.Println(g.VERSION)</span><br><span class="line">		os.Exit(<span class="number">0</span>)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> *versionGit &#123;</span><br><span class="line">		fmt.Println(g.VERSION, g.COMMIT)</span><br><span class="line">		os.Exit(<span class="number">0</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// global config</span></span><br><span class="line">	g.ParseConfig(*cfg) <span class="comment">// 加载配置文件到GlobalConfig</span></span><br><span class="line">	<span class="comment">// proc</span></span><br><span class="line">	proc.Start()</span><br><span class="line"></span><br><span class="line">	sender.Start() <span class="comment">// 创建连接池、发送队列，初始化一致性哈希，启动发送goroutine</span></span><br><span class="line">	receiver.Start() <span class="comment">// 创建rpcServer和telnetServer，将上报的item放入对应的发送队列</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// http</span></span><br><span class="line">	http.Start() <span class="comment">// 启动httpserver，提供运行状态查询、统计信息查询、上报数据等接口</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">select</span> &#123;&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>详细代码注释请参考<a href="https://github.com/winway/falcon-plus-learn" target="_blank" rel="noopener">https://github.com/winway/falcon-plus-learn</a>，持续更新中</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">open-falcon</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/09/04/open-falcon-transfer/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-open-falcon-hbs" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/09/04/open-falcon-hbs/">open-falcon源码阅读之hbs</a>
-    </h1>
-  
-
-        
-        <a href="/2017/09/04/open-falcon-hbs/" class="archive-article-date">
-  	<time datetime="2017-09-04T11:26:26.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-09-04</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p><em>Version：0.2.0</em></p>
-<!-- toc -->
-<ul>
-<li><a href="#1-监控配置关系">1. 监控配置关系</a></li>
-<li><a href="#2-架构图">2. 架构图</a></li>
-<li><a href="#3-流程图">3. 流程图</a></li>
-<li><a href="#4-源码解析">4. 源码解析</a></li>
-</ul>
-<!-- tocstop -->
-<h1><span id="1-监控配置关系">1. 监控配置关系</span></h1><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/open-falcon-hbs-relation.png" alt="open-falcon-hbs-relation"></p>
-<h1><span id="2-架构图">2. 架构图</span></h1><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/open-falcon-hbs-arch.png" alt="open-falcon-hbs-arch"></p>
-<h1><span id="3-流程图">3. 流程图</span></h1><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/open-falcon-hbs-flow.png" alt="open-falcon-hbs-flow"></p>
-<h1><span id="4-源码解析">4. 源码解析</span></h1><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br></pre></td><td class="code"><pre><span class="line"># modules/hbs/main.<span class="keyword">go</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	cfg := flag.String(<span class="string">"c"</span>, <span class="string">"cfg.json"</span>, <span class="string">"configuration file"</span>)</span><br><span class="line">	version := flag.Bool(<span class="string">"v"</span>, <span class="literal">false</span>, <span class="string">"show version"</span>)</span><br><span class="line">	flag.Parse()  <span class="comment">// 解析命令行</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 打印version信息</span></span><br><span class="line">	<span class="keyword">if</span> *version &#123;</span><br><span class="line">		fmt.Println(g.VERSION)</span><br><span class="line">		os.Exit(<span class="number">0</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	g.ParseConfig(*cfg) <span class="comment">// 加载配置文件到GlobalConfig</span></span><br><span class="line"></span><br><span class="line">	db.Init() <span class="comment">// 初始化数据库连接</span></span><br><span class="line">	cache.Init() <span class="comment">// 周期性加载hostgroup、plugin、host、template、strategy、expression等配置信息到内存</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">go</span> cache.DeleteStaleAgents() <span class="comment">// 每天运行一次，删除内存中超过一天没有心跳的agent</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">go</span> http.Start() <span class="comment">// 启动http server，提供运行状态和报警配置信息查询</span></span><br><span class="line">	<span class="keyword">go</span> rpc.Start() <span class="comment">// 启动rpc server，提供心跳、配置下载等接口</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	程序退出信号处理，golang中的信号处理，请看底部demo</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	sigs := <span class="built_in">make</span>(<span class="keyword">chan</span> os.Signal, <span class="number">1</span>)</span><br><span class="line">	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)</span><br><span class="line">	<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		&lt;-sigs</span><br><span class="line">		fmt.Println()</span><br><span class="line">		db.DB.Close()</span><br><span class="line">		os.Exit(<span class="number">0</span>)</span><br><span class="line">	&#125;()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">select</span> &#123;&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">golang中的信号处理</span></span><br><span class="line"><span class="comment">有时候我们想在Go程序中处理Signal信号，比如收到SIGTERM信号后优雅的关闭程序(参看下一节的应用)。</span></span><br><span class="line"><span class="comment">Go信号通知机制可以通过往一个channel中发送os.Signal实现。</span></span><br><span class="line"><span class="comment">首先我们创建一个os.Signal channel，然后使用signal.Notify注册要接收的信号。</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">package main</span></span><br><span class="line"><span class="comment">import "fmt"</span></span><br><span class="line"><span class="comment">import "os"</span></span><br><span class="line"><span class="comment">import "os/signal"</span></span><br><span class="line"><span class="comment">import "syscall"</span></span><br><span class="line"><span class="comment">func main() &#123;</span></span><br><span class="line"><span class="comment">    // Go signal notification works by sending `os.Signal`</span></span><br><span class="line"><span class="comment">    // values on a channel. We'll create a channel to</span></span><br><span class="line"><span class="comment">    // receive these notifications (we'll also make one to</span></span><br><span class="line"><span class="comment">    // notify us when the program can exit).</span></span><br><span class="line"><span class="comment">    sigs := make(chan os.Signal, 1)</span></span><br><span class="line"><span class="comment">    done := make(chan bool, 1)</span></span><br><span class="line"><span class="comment">    // `signal.Notify` registers the given channel to</span></span><br><span class="line"><span class="comment">    // receive notifications of the specified signals.</span></span><br><span class="line"><span class="comment">    signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)</span></span><br><span class="line"><span class="comment">    // This goroutine executes a blocking receive for</span></span><br><span class="line"><span class="comment">    // signals. When it gets one it'll print it out</span></span><br><span class="line"><span class="comment">    // and then notify the program that it can finish.</span></span><br><span class="line"><span class="comment">    go func() &#123;</span></span><br><span class="line"><span class="comment">        sig := &lt;-sigs</span></span><br><span class="line"><span class="comment">        fmt.Println()</span></span><br><span class="line"><span class="comment">        fmt.Println(sig)</span></span><br><span class="line"><span class="comment">        done &lt;- true</span></span><br><span class="line"><span class="comment">    &#125;()</span></span><br><span class="line"><span class="comment">    // The program will wait here until it gets the</span></span><br><span class="line"><span class="comment">    // expected signal (as indicated by the goroutine</span></span><br><span class="line"><span class="comment">    // above sending a value on `done`) and then exit.</span></span><br><span class="line"><span class="comment">    fmt.Println("awaiting signal")</span></span><br><span class="line"><span class="comment">    &lt;-done</span></span><br><span class="line"><span class="comment">    fmt.Println("exiting")</span></span><br><span class="line"><span class="comment">&#125;</span></span><br><span class="line"><span class="comment"> */</span></span><br></pre></td></tr></table></figure>
-<p>详细代码注释请参考<a href="https://github.com/winway/falcon-plus-learn" target="_blank" rel="noopener">https://github.com/winway/falcon-plus-learn</a>，持续更新中</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">open-falcon</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/09/04/open-falcon-hbs/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/5/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/4/">4</a><a class="page-number" href="/page/5/">5</a><span class="page-number current">6</span><a class="page-number" href="/page/7/">7</a><a class="page-number" href="/page/8/">8</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><a class="extend next" rel="next" href="/page/7/">Next &raquo;</a>
@@ -1487,15 +1489,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">hive</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">pig</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hive</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1507,6 +1509,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
               </li>
              
@@ -1515,7 +1521,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+                <a href="javascript:void(0)" class="js-tag color3">大数据开发之路</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1535,6 +1541,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Python</a>
               </li>
              
@@ -1547,11 +1557,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1567,10 +1573,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hexo</a>
               </li>
              
@@ -1579,15 +1581,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">tez</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">gc</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1611,11 +1621,51 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
+                <a href="javascript:void(0)" class="js-tag color1">storm</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">olap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">presto</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">iptables</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1631,14 +1681,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
@@ -1648,6 +1690,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1675,47 +1725,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">storm</a>
+                <a href="javascript:void(0)" class="js-tag color5">数据仓库</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">olap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">presto</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">iptables</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
+                <a href="javascript:void(0)" class="js-tag color1">doris</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1740,14 +1758,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">doris</a>
               </li>
             
             <div class="clearfix"></div>

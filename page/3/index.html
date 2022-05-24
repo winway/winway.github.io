@@ -155,6 +155,414 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-bigdata-stack-flume-canal" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/05/11/bigdata-stack-flume-canal/">大数据开发之路-canal</a>
+    </h1>
+  
+
+        
+        <a href="/2022/05/11/bigdata-stack-flume-canal/" class="archive-article-date">
+  	<time datetime="2022-05-11T12:06:39.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-11</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#canal-基于mysql-binlog的增量同步工具">canal-基于MySQL binlog的增量同步工具</a></li>
+<li><a href="#canal可以做什么">canal可以做什么</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<blockquote>
+<p>导引</p>
+<ol>
+<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
+<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-flume-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-flume-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-flume-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
+<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
+<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
+<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
+<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
+<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
+</ol>
+</blockquote>
+<h2><span id="canal-基于mysql-binlog的增量同步工具">canal-基于MySQL binlog的增量同步工具</span></h2><p><img src="https://imgconvert.csdnimg.cn/aHR0cHM6Ly9zdGF0aWMubG92ZWJpbGliaWxpLmNvbS9waWMvY2FuYWxfc3l0LnBuZw?x-oss-process=image/format,png" alt=""></p>
+<p>canal归根结底也是解决数据同步的问题，但不像sqoop和datax，canal解决的是数据实时同步的问题。准确的说是，如何将实时变化的mysql中的数据实时同步到Kafka/Redis/Memcached/Hbase/Solr/Elasticsearch等存储或应用中。</p>
+<p>canal的工作原理就是把自己伪装成MySQL slave，模拟MySQL slave的交互协议向MySQL Mater发送 dump协议，MySQL master收到canal发送过来的dump请求，开始推送binary log给canal，然后canal解析binary log，再发送到存储目的地，比如MySQL，Kafka，Elastic Search等等。</p>
+<h2><span id="canal可以做什么">canal可以做什么</span></h2><p>基于binary log增量订阅和消费，canal可以做：</p>
+<ul>
+<li>数据库镜像</li>
+<li>数据库实时备份</li>
+<li>索引构建和实时维护</li>
+<li>业务cache(缓存)刷新</li>
+<li>带业务逻辑的增量数据处理</li>
+</ul>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://developer.aliyun.com/article/770496" target="_blank" rel="noopener">超详细的canal入门看这篇就够了</a></li>
+<li><a href="https://www.cnblogs.com/binghe001/p/13445117.html" target="_blank" rel="noopener">【Canal】数据同步的终极解决方案，阿里巴巴开源的Canal框架当之无愧！！</a></li>
+<li><a href="https://github.com/alibaba/canal/issues/1623" target="_blank" rel="noopener">canal.serverMode 同时支持tcp和kafka么？</a></li>
+<li><a href="https://github.com/alibaba/canal/wiki" target="_blank" rel="noopener">canal wiki</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">canal</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2022/05/11/bigdata-stack-flume-canal/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-bigdata-stack-flume-datax" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/05/11/bigdata-stack-flume-datax/">大数据开发之路-datax</a>
+    </h1>
+  
+
+        
+        <a href="/2022/05/11/bigdata-stack-flume-datax/" class="archive-article-date">
+  	<time datetime="2022-05-11T11:51:53.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-11</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#datax-多种异构数据源间的高效数据同步工具">datax-多种异构数据源间的高效数据同步工具</a></li>
+<li><a href="#datax核心组件">datax核心组件</a></li>
+<li><a href="#datax优点">datax优点</a></li>
+<li><a href="#datax不足">datax不足</a></li>
+<li><a href="#sqoopdatax如何选择">sqoop/datax如何选择</a></li>
+<li><a href="#示例">示例</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<blockquote>
+<p>导引</p>
+<ol>
+<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
+<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-flume-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-flume-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-flume-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
+<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
+<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
+<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
+<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
+<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
+</ol>
+</blockquote>
+<h2><span id="datax-多种异构数据源间的高效数据同步工具">datax-多种异构数据源间的高效数据同步工具</span></h2><p><img src="https://upload-images.jianshu.io/upload_images/25044609-c7230d68a895bb59.png?imageMogr2/auto-orient/strip|imageView2/2/w/1037/format/webp" alt=""></p>
+<p>同样作为数据同步工具，datax不仅支持rdbms和hadoop之间的数据同步，还支持任意两种异构数据源（主流的RDBMS数据库、NOSQL、大数据系统）间的数据同步。<br>datax没有使用mr，而是采用单机多线程的方式同步数据。<br><img src="https://upload-images.jianshu.io/upload_images/25044609-496a992e5502b24d.png?imageMogr2/auto-orient/strip|imageView2/2/w/829/format/webp" alt=""></p>
+<h2><span id="datax核心组件">datax核心组件</span></h2><ul>
+<li>Reader：数据采集模块，负责采集数据源的数据，将数据发送给 Framework；</li>
+<li>Writer： 数据写入模块，负责不断向 Framework 取数据，并将数据写入到目的端；</li>
+<li>Framework：用于连接 reader 和 writer，作为两者的数据传输通道，并处理缓冲，流控，并发，数据转换等核心技术问题。</li>
+</ul>
+<h2><span id="datax优点">datax优点</span></h2><ul>
+<li>支持的数据源更丰富</li>
+<li>支持分库分表场景</li>
+<li>支持写orc格式文件</li>
+<li>有数据转换功能</li>
+<li>可以控制速度（避免读爆源库）</li>
+</ul>
+<h2><span id="datax不足">datax不足</span></h2><ul>
+<li>写hive没有sqoop友好，不会自动创建hive表，目标路径必须存在</li>
+<li>由于采用的是单机多线程模式，扩展性没有sqoop好</li>
+<li>配置文件略繁琐，没有sqoop命令简洁</li>
+</ul>
+<h2><span id="sqoopdatax如何选择">sqoop/datax如何选择</span></h2><p>对于rdbms到hive/hdfs的需求，分库分表场景、源库压力敏感、日志量偏小的情况选datax，否则选sqoop</p>
+<h2><span id="示例">示例</span></h2><figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> <span class="keyword">EXTERNAL</span> <span class="keyword">TABLE</span> <span class="string">`tmp.log_schema`</span>(</span><br><span class="line">  <span class="string">`id`</span> <span class="built_in">BIGINT</span>, </span><br><span class="line">  <span class="string">`log_hdfs_path`</span> <span class="keyword">STRING</span>, </span><br><span class="line">  <span class="string">`log_demo`</span> <span class="keyword">STRING</span></span><br><span class="line">)</span><br><span class="line">PARTITIONED <span class="keyword">BY</span> (<span class="string">`day`</span> <span class="keyword">STRING</span>)</span><br><span class="line"><span class="keyword">STORED</span> <span class="keyword">AS</span> ORC</span><br><span class="line">TBLPROPERTIES (<span class="string">'orc.compress'</span>=<span class="string">'SNAPPY'</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> tmp.log_schema <span class="keyword">ADD</span> <span class="keyword">IF</span> <span class="keyword">NOT</span> <span class="keyword">EXISTS</span> <span class="keyword">PARTITION</span> (<span class="keyword">day</span>=<span class="string">'2022-04-12'</span>) LOCATION <span class="string">'hdfs://emr-cluster/tmp/log_schema/day=2022-04-12'</span>;</span><br><span class="line"></span><br><span class="line">&#123;</span><br><span class="line">    "job": &#123;</span><br><span class="line">        "content": [</span><br><span class="line">            &#123;</span><br><span class="line">                "reader": &#123;</span><br><span class="line">                    "name": "mysqlreader", </span><br><span class="line">                    "parameter": &#123;</span><br><span class="line">                        "username": "bob", </span><br><span class="line">                        "password": "123456", </span><br><span class="line">                        "connection": [</span><br><span class="line">                            &#123;</span><br><span class="line">                                "jdbcUrl": ["jdbc:mysql://x.x.x.x:3306/test?tinyInt1isBit=false"], </span><br><span class="line">                                "table": ["log_schema"]</span><br><span class="line">                            &#125;</span><br><span class="line">                        ], </span><br><span class="line">                        "column": ["id", "log_hdfs_path", "log_demo"], </span><br><span class="line">                        "where": "id&gt;10"</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;, </span><br><span class="line">                "writer": &#123;</span><br><span class="line">                    "name": "hdfswriter", </span><br><span class="line">                    "parameter": &#123;</span><br><span class="line">                        "column": [&#123;"name":"id", "type":"bigint"&#125;,</span><br><span class="line">                                   &#123;"name":"log_hdfs_path", "type":"string"&#125;,</span><br><span class="line">                                   &#123;"name":"log_demo", "type":"string"&#125;], </span><br><span class="line">                        "compress":"SNAPPY",</span><br><span class="line">                        "defaultFS": "hdfs://emr-cluster", </span><br><span class="line">                        "fieldDelimiter": "\t", </span><br><span class="line">                        "fileName": "log_schema", </span><br><span class="line">                        "fileType": "orc", </span><br><span class="line">                        "path": "/tmp/log_schema/day=2022-04-12", </span><br><span class="line">                        "writeMode": "nonConflict",</span><br><span class="line">                        "hadoopConfig":&#123;</span><br><span class="line">                            "dfs.nameservices": "emr-cluster",</span><br><span class="line">                            "dfs.ha.namenodes.emr-cluster": "nn1,nn2",</span><br><span class="line">                            "dfs.namenode.rpc-address.emr-cluster.nn1": "emr-header-1:8020",</span><br><span class="line">                            "dfs.namenode.rpc-address.emr-cluster.nn2": "emr-header-2:8020",</span><br><span class="line">                            "dfs.client.failover.proxy.provider.emr-cluster": "org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider"</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        ], </span><br><span class="line">        "setting": &#123;</span><br><span class="line">            "speed": &#123;</span><br><span class="line">                "channel": "1"</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://www.jianshu.com/p/56f25c699ec1" target="_blank" rel="noopener">DataX 快速入门</a></li>
+<li><a href="https://blog.csdn.net/weixin_42487460/article/details/113753186" target="_blank" rel="noopener">DataX入门———用法及一些简单的案例介绍</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/81817787" target="_blank" rel="noopener">DataX介绍以及优缺点分析</a></li>
+<li><a href="https://github.com/alibaba/DataX/blob/master/introduction.md" target="_blank" rel="noopener">阿里云开源离线同步工具DataX3.0介绍</a></li>
+<li><a href="https://segmentfault.com/a/1190000022951666" target="_blank" rel="noopener">DataX HIVE分区同步</a></li>
+<li><a href="https://blog.csdn.net/qq_46893497/article/details/110110808" target="_blank" rel="noopener">datax–分库分表mysql同步数据到hive中</a></li>
+<li><a href="https://blog.csdn.net/u013289115/article/details/106277937" target="_blank" rel="noopener">异构数据源导redis不用找了!DataX二次开发插件rediswriter已上菜</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">datax</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2022/05/11/bigdata-stack-flume-datax/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-bigdata-stack-flume-sqoop" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/05/11/bigdata-stack-flume-sqoop/">大数据开发之路-sqoop</a>
+    </h1>
+  
+
+        
+        <a href="/2022/05/11/bigdata-stack-flume-sqoop/" class="archive-article-date">
+  	<time datetime="2022-05-11T11:44:13.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-11</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#sqoop-rdbms和hadoop之间的数据同步工具">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
+<li><a href="#不足">不足</a></li>
+<li><a href="#示例">示例</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<blockquote>
+<p>导引</p>
+<ol>
+<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
+<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-flume-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-flume-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-flume-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
+<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
+<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
+<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
+<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
+<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
+</ol>
+</blockquote>
+<h2><span id="sqoop-rdbms和hadoop之间的数据同步工具">sqoop-rdbms和hadoop之间的数据同步工具</span></h2><p><img src="https://images2018.cnblogs.com/blog/1228818/201804/1228818-20180412130640231-449939615.png" alt=""><br>sqoop本质就是数据导入、导出工具，导入、导出方式就是把sqoop的命令转换成mr程序。<br>sqoop分为sqoop1和sqoop2两个版本，二者不兼容，差异较大，一般使用sqoop1。</p>
+<h2><span id="不足">不足</span></h2><ul>
+<li>1.不支持分库分表场景</li>
+<li>2.<a href="https://stackoverflow.com/questions/29978522/sqoop-import-as-orc-file" target="_blank" rel="noopener">不支持写orc格式的文件</a></li>
+</ul>
+<h2><span id="示例">示例</span></h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">sqoop import \</span><br><span class="line">-Dmapreduce.job.queuename=imp \</span><br><span class="line">-Dmapreduce.job.name="testsqoop" \</span><br><span class="line">--connect "jdbc:mysql://127.0.0.1:3306/test?tinyInt1isBit=false" --username "bob"  --password "123456" \</span><br><span class="line">--table "log_schema" \</span><br><span class="line">--columns "id,log_hdfs_path,log_demo" \</span><br><span class="line">--where "id&gt;10" \</span><br><span class="line">--hive-import \</span><br><span class="line">--hive-overwrite \</span><br><span class="line">--hive-table "tmp.log_schema" \</span><br><span class="line">--hive-partition-key dt \</span><br><span class="line">--hive-partition-value 2022-04-11 \</span><br><span class="line">--hive-delims-replacement " " \</span><br><span class="line">--null-string '\\N' \</span><br><span class="line">--null-non-string '\\N' \</span><br><span class="line">--target-dir "hdfs://emr-cluster/user/sqoop_import_tmp/log_schema/" \</span><br><span class="line">--delete-target-dir \</span><br><span class="line">--direct \</span><br><span class="line">-m 1</span><br></pre></td></tr></table></figure>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://www.cnblogs.com/qingyunzong/p/8807252.html" target="_blank" rel="noopener">Sqoop学习之路 （一）</a></li>
+<li><a href="https://www.jianshu.com/p/ec9003d8918c" target="_blank" rel="noopener">真正了解sqoop的一切</a></li>
+<li><a href="https://blog.51cto.com/u_14582976/2829476" target="_blank" rel="noopener">Sqoop看这篇文章就够了</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">sqoop</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2022/05/11/bigdata-stack-flume-sqoop/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-tezVsSparksql" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -308,12 +716,13 @@
 </ul>
 </li>
 <li><a href="#主题划分">主题划分</a></li>
-<li><a href="#建模实战">建模实战</a><ul>
+<li><a href="#建模实战从烟囱到共享">建模实战：从“烟囱”到“共享”</a><ul>
 <li><a href="#第一接管ods层控制源头">第一，接管ODS层，控制源头。</a></li>
 <li><a href="#第二划分主题域构建总线矩阵">第二，划分主题域，构建总线矩阵。</a></li>
 <li><a href="#第三构建一致性维度">第三，构建⼀致性维度。</a></li>
 <li><a href="#第四事实表整合">第四，事实表整合。</a></li>
 <li><a href="#第五模型开发">第五，模型开发。</a></li>
+<li><a href="#第六应用迁移">第六，应⽤迁移。</a></li>
 </ul>
 </li>
 <li><a href="#总结">总结</a></li>
@@ -396,7 +805,7 @@
 </blockquote>
 <p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220509174800.png" alt=""></p>
 <h2><span id="主题划分">主题划分</span></h2><p>主题主要是根据业务进行的划分，通过表名中的主题词识别数据相关的业务。在添加新表时首先明确该数据是属于哪个业务的，即决定主题词。<br>主题划分有利于数据的组织清晰和便于日常沟通。</p>
-<h2><span id="建模实战">建模实战</span></h2><h3><span id="第一接管ods层控制源头">第一，接管ODS层，控制源头。</span></h3><p>ODS是业务数据进⼊数据中台的第⼀站，是所有数据加⼯的源头，控制住源头，才能从根本上防⽌⼀个重复的数据体系的出现。<br>数据中台团队必须明确职责，全⾯接管ODS层数据，从业务系统的源数据库权限⼊⼿，确保数据从业务系统产⽣后进⼊数据仓库时，只能在数据中台保持⼀份。这个可以跟业务系统数据库管理者达成⼀致，只有中台团队的账号才能同步数据。<br>ODS层表的数据必须和数据源的表结构、表记录数⼀致，⾼度⽆损，对于ODS层表的命名采⽤ODS_业务系统数据库名_业务系统数据库表名⽅式，⽐如ods_warehous_stock，warehous是业务系统数据库名，stock是该库下⾯的表名。</p>
+<h2><span id="建模实战从烟囱到共享">建模实战：从“烟囱”到“共享”</span></h2><h3><span id="第一接管ods层控制源头">第一，接管ODS层，控制源头。</span></h3><p>ODS是业务数据进⼊数据中台的第⼀站，是所有数据加⼯的源头，控制住源头，才能从根本上防⽌⼀个重复的数据体系的出现。<br>数据中台团队必须明确职责，全⾯接管ODS层数据，从业务系统的源数据库权限⼊⼿，确保数据从业务系统产⽣后进⼊数据仓库时，只能在数据中台保持⼀份。这个可以跟业务系统数据库管理者达成⼀致，只有中台团队的账号才能同步数据。<br>ODS层表的数据必须和数据源的表结构、表记录数⼀致，⾼度⽆损，对于ODS层表的命名采⽤ODS_业务系统数据库名_业务系统数据库表名⽅式，⽐如ods_warehous_stock，warehous是业务系统数据库名，stock是该库下⾯的表名。</p>
 <h3><span id="第二划分主题域构建总线矩阵">第二，划分主题域，构建总线矩阵。</span></h3><p>主题域是业务过程的抽象集合。可能这么讲，稍微有点⼉抽象，但其实业务过程就是企业经营过程中⼀个个不可拆分的⾏为事件，⽐如仓储管理⾥⾯有⼊库、出库、发货、签收，都是业务过程，抽象出来的主题域就是仓储域。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220523113041.png" alt=""><br>主题域划分要尽量涵盖所有业务需求，保持相对稳定性，还具备⼀定的扩展性（新加⼊⼀个主题域，不影响已经划分的主题域的表）。<br>主题域划分好以后，就要开始构建总线矩阵，明确每个主题域下的业务过程有哪些分析维度，举个例⼦：<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220523113114.png" alt=""></p>
 <h3><span id="第三构建一致性维度">第三，构建⼀致性维度。</span></h3><p>售后团队的投诉⼯单数量有针对地区的分析维度，⽽配送团队的配送延迟也有针对地区的分析维度，你想分析因为配送延迟导致的投诉增加，但是两个地区的分析维度包含内容不⼀致，最终会导致⼀些地区没办法分析。所以我们构建全局⼀致性的维表，确保维表只存⼀份。<br>维度统⼀的最⼤的难题在于维度属性（如果维度是商品，那么商品类别、商品品牌、商品尺⼨等商品的属性，我们称为维度属性）的整合。是不是所有维度属性都要整合到⼀个⼤的维表中，也不⻅得，我给你⼏个 建议。</p>
 <ol>
@@ -413,6 +822,8 @@
 <li>⽣命周期的管理，对于ODS和DWD，⼀般尽可能保留所有历史数据，对于DWS/ADS/DM需要设置⽣命周期，7〜30天不等；</li>
 <li>DWD层表宜采⽤压缩的⽅式存储，可⽤lzo压缩。</li>
 </ol>
+<h3><span id="第六应用迁移">第六，应⽤迁移。</span></h3><p>最后⼀步就是应⽤的迁移，这个过程的核⼼是要注意数据的⽐对，确保数据的完全⼀致，然后进⾏应⽤迁移，删除⽼的数据表。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220524092120.png" alt=""></p>
 <h2><span id="总结">总结</span></h2><p>分层/分主题的目标是为了更好的组织数据，近而使数据更方便查找和复用。</p>
 <p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220509174904.png" alt=""></p>
 <p>Linus说： “烂程序员关心的是代码。好程序员关心的是数据结构和它们之间的关系。”</p>
@@ -657,12 +1068,12 @@
 <li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
 </ol>
 </blockquote>
-<h3><span id="前言">前言</span></h3><p>2018.07 ~ 2022.05在一家初创公司从事大数据开发的工作，见证了研发团队从几十人到上百人，数据团队从二、三人到十几人的发展过程。现将这期间大数据的相关工作总结记录成《大数据开发之路》系列文章，为这段旅程划上一个句号。</p>
+<h3><span id="前言">前言</span></h3><p>2018.07 ~ 2022.05在一家初创公司从事大数据开发的工作，见证了研发团队从几十人到上百人，数据团队从二、三人到十几人的发展过程。现将这期间工作涉及的大数据相关知识、心得总结记录成《大数据开发之路》系列文章，为这段旅程划上一个句号。</p>
 <p>整个工作历程可以划分成三个阶段：</p>
 <ul>
 <li>阶段一、从零开始，需求至上<br> 内容：从零开始搭建数据采集、存储、处理、调度等基础设施和流程，建设数仓，满足报表、算法特征、线上业务等数据需求<br> 特点：几乎无规范、无平台工具，数仓野蛮生长</li>
 <li>阶段二、需求开发和数仓规范化改造并行<br>内容：满足数据需求依然是重点工作内容，同时数仓开始暴露出各种问题，组织混乱、找数困难、指标口径混乱、数据不一致、数据质量无保证、烟囱开发、性能差、无SLA<br>特点：开始制定数仓规范、开发数据治理配套工具，进行数仓规范化改造和数据治理</li>
-<li>阶段三、数据架构升级、优化，降本增效<br> 内容：存储成本优化、增加鉴权机制、组件和计算任务优化、相关工具迭代、开发<br> 特点：重点关注成本、效率、稳定性</li>
+<li>阶段三、数据架构升级、优化，降本增效<br> 内容：存算分离、存储成本优化、增加鉴权机制、组件和计算任务优化、相关工具迭代、开发<br> 特点：重点关注成本、效率、稳定性</li>
 </ul>
 <p>对于大数据开发，按照我的理解应该至少包括下述三部分能力。</p>
 <ul>
@@ -731,6 +1142,17 @@
     <div class="article-info article-info-index">
       
       
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">大数据开发之路</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
       
 	<div class="article-category tagcloud">
 		<i class="icon-book icon"></i>
@@ -1143,316 +1565,6 @@
 
 
   
-    <article id="post-sparksql-cluster" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/01/16/sparksql-cluster/">Spark-sql支持cluster模式</a>
-    </h1>
-  
-
-        
-        <a href="/2022/01/16/sparksql-cluster/" class="archive-article-date">
-  	<time datetime="2022-01-16T03:29:16.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-01-16</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#问题">问题</a></li>
-<li><a href="#解决">解决</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="问题">问题</span></h2><p>使用Spark-sql执行sql不支持cluster模式，导致driver只能启动在提交机器，进而占用提交机大量内存。</p>
-<blockquote>
-<p>Exception in thread “main” org.apache.spark.SparkException: Cluster deploy mode is not applicable to Spark SQL shell.</p>
-</blockquote>
-<h2><span id="解决">解决</span></h2><p>开发一个spark程序，功能是读取sql内容，并逐个执行。使用spark-submit提交执行时设置为cluster模式。代码如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> cn.winway.data;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> org.apache.spark.SparkConf;</span><br><span class="line"><span class="keyword">import</span> org.apache.spark.sql.SparkSession;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.util.ArrayList;</span><br><span class="line"><span class="keyword">import</span> java.util.HashMap;</span><br><span class="line"><span class="keyword">import</span> java.util.List;</span><br><span class="line"><span class="keyword">import</span> java.util.Map;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * * <span class="doctag">@Project</span>: spark_sql_executor</span></span><br><span class="line"><span class="comment"> * * <span class="doctag">@ClassName</span>: SparkSqlExecutor</span></span><br><span class="line"><span class="comment"> * * <span class="doctag">@Description</span>: spark-submit执行sql，使用cluster模式</span></span><br><span class="line"><span class="comment"> * * 参考资料</span></span><br><span class="line"><span class="comment"> * * https://blog.csdn.net/qq_16038125/article/details/86682466</span></span><br><span class="line"><span class="comment"> * * https://www.zhihu.com/question/454650801/answer/1836054040</span></span><br><span class="line"><span class="comment"> * * https://blog.csdn.net/zhiwenshow/article/details/107105339</span></span><br><span class="line"><span class="comment"> * * https://blog.csdn.net/qq_42567973/article/details/119568448</span></span><br><span class="line"><span class="comment"> * * <span class="doctag">@Author</span>: winway1988@163.com</span></span><br><span class="line"><span class="comment"> * * <span class="doctag">@Create</span>: 2022-01-11 16:58</span></span><br><span class="line"><span class="comment"> **/</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SparkSqlExecutor</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> HashMap&lt;String, String&gt; argsMap = <span class="keyword">new</span> HashMap&lt;&gt;();</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> String fileContent;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 参数解析</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">parseArgs</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        String argType = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (String arg : args) &#123;</span><br><span class="line">            System.out.println(<span class="string">"====&gt;&gt; arg: "</span> + arg);</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (<span class="string">"--hivevar"</span>.equals(arg) || <span class="string">"--hiveconf"</span>.equals(arg)) &#123;</span><br><span class="line">                argType = <span class="string">"ARG"</span>;</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (<span class="string">"-f"</span>.equals(arg)) &#123;</span><br><span class="line">                argType = <span class="string">"FILE"</span>;</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (<span class="string">"ARG"</span>.equals(argType)) &#123;</span><br><span class="line">                String[] argSplit = arg.split(<span class="string">"="</span>, <span class="number">2</span>);</span><br><span class="line">                argsMap.put(argSplit[<span class="number">0</span>], argSplit[<span class="number">1</span>]);</span><br><span class="line"></span><br><span class="line">                argType = <span class="keyword">null</span>;</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (<span class="string">"FILE"</span>.equals(argType)) &#123;</span><br><span class="line">                fileContent = arg;</span><br><span class="line"></span><br><span class="line">                argType = <span class="keyword">null</span>;</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> Exception(<span class="string">"Error args: "</span> + arg);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 删除注释</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">static</span> String <span class="title">deleteComment</span><span class="params">(String sqlFileContent)</span> </span>&#123;</span><br><span class="line">        StringBuilder sb = <span class="keyword">new</span> StringBuilder();</span><br><span class="line"></span><br><span class="line">        String[] sqlFileContentLine = sqlFileContent.split(<span class="string">"\n"</span>);</span><br><span class="line">        <span class="keyword">for</span> (String line : sqlFileContentLine) &#123;</span><br><span class="line">            sb.append(line.replaceAll(<span class="string">"^[ \t]*--.*$"</span>, <span class="string">""</span>).replaceAll(<span class="string">"--[^'\"]*$"</span>, <span class="string">""</span>));</span><br><span class="line">            sb.append(<span class="string">"\n"</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> sb.toString();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 替换变量</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">static</span> String <span class="title">substituteVar</span><span class="params">(String sqlFileContent)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">for</span> (Map.Entry&lt;String, String&gt; e : argsMap.entrySet()) &#123;</span><br><span class="line">            String varName = e.getKey();</span><br><span class="line">            String varValue = e.getValue();</span><br><span class="line"></span><br><span class="line">            sqlFileContent = sqlFileContent.replace(<span class="string">"$&#123;hivevar:"</span> + varName + <span class="string">"&#125;"</span>, varValue);</span><br><span class="line">            sqlFileContent = sqlFileContent.replace(<span class="string">"$&#123;hiveconf:"</span> + varName + <span class="string">"&#125;"</span>, varValue);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> sqlFileContent;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 根据指定分隔符分割sql，忽略在引号里面的分隔符</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> List&lt;String&gt; <span class="title">splitSql</span><span class="params">(String str, <span class="keyword">char</span> delimiter)</span> </span>&#123;</span><br><span class="line">        List&lt;String&gt; tokensList = <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br><span class="line">        <span class="keyword">boolean</span> inQuotes = <span class="keyword">false</span>;</span><br><span class="line">        <span class="keyword">boolean</span> inSingleQuotes = <span class="keyword">false</span>;</span><br><span class="line"></span><br><span class="line">        StringBuilder b = <span class="keyword">new</span> StringBuilder();</span><br><span class="line">        <span class="keyword">char</span>[] chars = str.toCharArray();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">int</span> idx = <span class="number">0</span>;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">char</span> c : chars) &#123; <span class="comment">// 逐个字符遍历</span></span><br><span class="line">            <span class="keyword">char</span> flag = <span class="number">0</span>;</span><br><span class="line">            <span class="keyword">if</span> (idx &gt; <span class="number">0</span>) &#123;</span><br><span class="line">                flag = chars[idx - <span class="number">1</span>]; <span class="comment">// 前一个字符</span></span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">if</span> (c == delimiter) &#123; <span class="comment">// 遇到分隔符</span></span><br><span class="line">                <span class="keyword">if</span> (inQuotes) &#123;</span><br><span class="line">                    b.append(c);</span><br><span class="line">                &#125; <span class="keyword">else</span> <span class="keyword">if</span> (inSingleQuotes) &#123;</span><br><span class="line">                    b.append(c);</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    tokensList.add(b.toString());</span><br><span class="line">                    b = <span class="keyword">new</span> StringBuilder();</span><br><span class="line">                &#125;</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (c == <span class="string">'\"'</span> &amp;&amp; <span class="string">'\\'</span> != flag &amp;&amp; !inSingleQuotes) &#123; <span class="comment">// 遇到双引号</span></span><br><span class="line">                inQuotes = !inQuotes;</span><br><span class="line">                b.append(c);</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (c == <span class="string">'\''</span> &amp;&amp; <span class="string">'\\'</span> != flag &amp;&amp; !inQuotes) &#123; <span class="comment">// 遇到单引号</span></span><br><span class="line">                inSingleQuotes = !inSingleQuotes;</span><br><span class="line">                b.append(c);</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                b.append(c);</span><br><span class="line">            &#125;</span><br><span class="line">            idx++;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        tokensList.add(b.toString());</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> tokensList;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        SparkConf sparkConf = <span class="keyword">new</span> SparkConf();</span><br><span class="line"></span><br><span class="line">        sparkConf.set(<span class="string">"spark.serializer"</span>, <span class="string">"org.apache.spark.serializer.KryoSerializer"</span>)</span><br><span class="line">                .set(<span class="string">"spark.sql.codegen"</span>, <span class="string">"true"</span>)</span><br><span class="line">                .set(<span class="string">"spark.rdd.compress"</span>, <span class="string">"true"</span>)</span><br><span class="line">                .set(<span class="string">"spark.sql.catalogImplementation"</span>, <span class="string">"hive"</span>)</span><br><span class="line">                .set(<span class="string">"hive.support.concurrency"</span>, <span class="string">"true"</span>);</span><br><span class="line"></span><br><span class="line">        SparkSession ss = SparkSession.builder()</span><br><span class="line">                .config(sparkConf)</span><br><span class="line">                .enableHiveSupport()</span><br><span class="line">                .getOrCreate();</span><br><span class="line"></span><br><span class="line">        parseArgs(args);</span><br><span class="line"></span><br><span class="line">        System.out.println(<span class="string">"====&gt;&gt; argsMap: "</span>);</span><br><span class="line">        System.out.println(argsMap);</span><br><span class="line">        System.out.println(<span class="string">"====&gt;&gt; fileContent: "</span>);</span><br><span class="line">        System.out.println(fileContent);</span><br><span class="line"></span><br><span class="line">        String sqlFileContent = deleteComment(fileContent);</span><br><span class="line"></span><br><span class="line">        System.out.println(<span class="string">"====&gt;&gt; sqlFileContent: "</span>);</span><br><span class="line">        System.out.println(sqlFileContent);</span><br><span class="line"></span><br><span class="line">        sqlFileContent = substituteVar(sqlFileContent);</span><br><span class="line"></span><br><span class="line">        System.out.println(<span class="string">"====&gt;&gt; sqlFileContent: "</span>);</span><br><span class="line">        System.out.println(sqlFileContent);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (String sql : splitSql(sqlFileContent, <span class="string">';'</span>)) &#123;</span><br><span class="line">            System.out.println(<span class="string">"====&gt;&gt; sql: "</span>);</span><br><span class="line">            System.out.println(sql.trim().length());</span><br><span class="line">            System.out.println(sql.trim());</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (sql.trim().length() &gt; <span class="number">0</span>) &#123;</span><br><span class="line">                ss.sql(sql.trim());</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        ss.stop();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>提交命令：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">spark-submit \</span><br><span class="line">    --class cn.winway.data.SparkSqlExecutor \</span><br><span class="line">    --master yarn \</span><br><span class="line">    --deploy-mode cluster \</span><br><span class="line">    --name "SparkSqlExecutor" \</span><br><span class="line">    --driver-cores 1  \</span><br><span class="line">    --driver-memory 1G \</span><br><span class="line">    --executor-cores 2  \</span><br><span class="line">    --executor-memory 2G \</span><br><span class="line">    --conf spark.executor.memoryOverhead=1G \</span><br><span class="line">    --conf spark.dynamicAllocation.enabled=true \</span><br><span class="line">    --conf spark.shuffle.service.enabled=true \</span><br><span class="line">    --conf spark.dynamicAllocation.minExecutors=10 \</span><br><span class="line">    --conf spark.dynamicAllocation.maxExecutors=400 \</span><br><span class="line">    --conf spark.dynamicAllocation.initialExecutors=10 \</span><br><span class="line">    --conf spark.sql.shuffle.partitions=500 \</span><br><span class="line">    --conf spark.sql.files.maxPartitionBytes=268435456 \</span><br><span class="line">    --conf spark.default.parallelism=500 \</span><br><span class="line">    --conf spark.sql.broadcastTimeout=900 \</span><br><span class="line">    --conf spark.ui.showConsoleProgress=true \</span><br><span class="line">    --conf spark.sql.hive.caseSensitiveInferenceMode=NEVER_INFER \</span><br><span class="line">    --conf spark.sql.adaptive.enabled=false \</span><br><span class="line">    --conf spark.debug.maxToStringFields=100 \</span><br><span class="line">    --conf spark.port.maxRetries=300 \</span><br><span class="line">    spark_sql_executor-1.0-SNAPSHOT.jar \</span><br><span class="line">    --hivevar etl_time="2022-01-11 11:11:11" \</span><br><span class="line">    --hivevar etl_date=2022-01-11 \</span><br><span class="line">    --hivevar rpt_date="2022-01-11" \</span><br><span class="line">    --hivevar year=2022 \</span><br><span class="line">    --hivevar month=2022-01 \</span><br><span class="line">    --hivevar hour="2022-01-11 11" \</span><br><span class="line">    -f "$(cat test.hql)"</span><br></pre></td></tr></table></figure></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">spark</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/01/16/sparksql-cluster/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-hs2-gc" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/01/16/hs2-gc/">HiveServer2 gc问题引发的幽灵问题</a>
-    </h1>
-  
-
-        
-        <a href="/2022/01/16/hs2-gc/" class="archive-article-date">
-  	<time datetime="2022-01-16T02:24:09.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-01-16</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#问题">问题</a></li>
-<li><a href="#排查">排查</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="问题">问题</span></h2><p>数仓批处理任务有很多是使用TEZ引擎执行的，TEZ经常偶发一个报错，但是找不到具体的报错信息，而且重试基本能成功。<br>提交客户端只能看到以下信息。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">07-01-2022 13:31:29 CST - FAILED: Execution Error, return code 1 from org.apache.hadoop.hive.ql.exec.tez.TezTask</span><br><span class="line">07-01-2022 13:31:29 CST - Error: org.apache.hive.service.cli.HiveSQLException: Error while processing statement: FAILED: Execution Error, return code 1 from org.apache.hadoop.hive.ql.exec.tez.TezTask</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.Operation.toSQLException(Operation.java:380)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.SQLOperation.runQuery(SQLOperation.java:257)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.SQLOperation.access$800(SQLOperation.java:91)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.SQLOperation$BackgroundWork$1.run(SQLOperation.java:348)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.security.AccessController.doPrivileged(Native Method)</span><br><span class="line">07-01-2022 13:31:29 CST -   at javax.security.auth.Subject.doAs(Subject.java:422)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hadoop.security.UserGroupInformation.doAs(UserGroupInformation.java:1734)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.SQLOperation$BackgroundWork.run(SQLOperation.java:362)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.util.concurrent.FutureTask.run(FutureTask.java:266)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.lang.Thread.run(Thread.java:748) (state=08S01,code=1)</span><br></pre></td></tr></table></figure></p>
-<p>以下是对应时间点HiveServer2的日志报错信息。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">2022-01-07T13:31:27,255 ERROR [Thread-308969] exec.Task: Failed to execute tez graph.</span><br><span class="line">org.apache.tez.dag.api.SessionNotRunning: TezSession has already shutdown. No cluster diagnostics found.</span><br><span class="line">        at org.apache.tez.client.TezClient.waitTillReady(TezClient.java:1019) ~[tez-api-0.9.2.jar:0.9.2]</span><br><span class="line">        at org.apache.tez.client.TezClient.waitTillReady(TezClient.java:988) ~[tez-api-0.9.2.jar:0.9.2]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezSessionState.startSessionAndContainers(TezSessionState.java:396) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezSessionState.openInternal(TezSessionState.java:323) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezSessionPoolManager$TezSessionPoolSession.openInternal(TezSessionPoolManager.java:703) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezSessionState.open(TezSessionState.java:196) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezTask.updateSession(TezTask.java:303) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezTask.execute(TezTask.java:168) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.Task.executeTask(Task.java:199) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.TaskRunner.runSequential(TaskRunner.java:100) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.TaskRunner.run(TaskRunner.java:79) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">2022-01-07T13:31:29,241 ERROR [HiveServer2-Background-Pool: Thread-397923] ql.Driver: FAILED: Execution Error, return code 1 from org.apache.hadoop.hive.ql.exec.tez.TezTask</span><br><span class="line">2022-01-07T13:31:29,241  INFO [HiveServer2-Background-Pool: Thread-403158] hive.metastore: Closed a connection to metastore, current connections: 15</span><br><span class="line">2022-01-07T13:31:29,242  INFO [HiveServer2-Background-Pool: Thread-397923] hive.metastore: Closed a connection to metastore, current connections: 14</span><br><span class="line">2022-01-07T13:31:29,242  INFO [HiveServer2-Background-Pool: Thread-397923] ql.Driver: Completed executing command(queryId=hadoop_20220107131226_b26d6e21-7b1f-460c-b383-15a8541f57d4); Time taken: 1135.311 seconds</span><br><span class="line">2022-01-07T13:31:29,243  INFO [HiveServer2-Background-Pool: Thread-403158] hive.metastore: Opened a connection to metastore, current connections: 15</span><br><span class="line">2022-01-07T13:31:29,243 ERROR [HiveServer2-Background-Pool: Thread-397923] operation.Operation: Error running hive query: </span><br><span class="line">org.apache.hive.service.cli.HiveSQLException: Error while processing statement: FAILED: Execution Error, return code 1 from org.apache.hadoop.hive.ql.exec.tez.TezTask</span><br><span class="line">        at org.apache.hive.service.cli.operation.Operation.toSQLException(Operation.java:380) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hive.service.cli.operation.SQLOperation.runQuery(SQLOperation.java:257) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hive.service.cli.operation.SQLOperation.access$800(SQLOperation.java:91) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hive.service.cli.operation.SQLOperation$BackgroundWork$1.run(SQLOperation.java:348) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at java.security.AccessController.doPrivileged(Native Method) ~[?:1.8.0_151]</span><br><span class="line">        at javax.security.auth.Subject.doAs(Subject.java:422) ~[?:1.8.0_151]</span><br><span class="line">        at org.apache.hadoop.security.UserGroupInformation.doAs(UserGroupInformation.java:1734) ~[hadoop-common-2.7.2.jar:?]</span><br><span class="line">        at org.apache.hive.service.cli.operation.SQLOperation$BackgroundWork.run(SQLOperation.java:362) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511) ~[?:1.8.0_151]</span><br><span class="line">        at java.util.concurrent.FutureTask.run(FutureTask.java:266) ~[?:1.8.0_151]</span><br><span class="line">        at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149) [?:1.8.0_151]</span><br><span class="line">        at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624) [?:1.8.0_151]</span><br><span class="line">        at java.lang.Thread.run(Thread.java:748) [?:1.8.0_151]</span><br></pre></td></tr></table></figure></p>
-<p>由于报错信息中没有关键信息，甚至找不到application id，很难直接判断出问题根源。<br>但是怀疑，这种没法稳定复现的问题，大概率是触发了某个未知的瓶颈点引起的。</p>
-<h2><span id="排查">排查</span></h2><p>仔细翻看HiveServer2的日志，注意到以下日志信息。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220116111408.png" alt=""><br>而且一般在出现报错的时间点附近，也会出现这种长时间pause的日志，遂怀疑是因为HiveServer2长时间gc导致服务无响应。<br>对HiveServer2 gc参数进行调整，增加了以下参数，果然这个报错的出现频率大大降低。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">-XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:+UseCMSInitiatingOccupancyOnly -XX:CMSInitiatingOccupancyFraction=68 -XX:+CMSClassUnloadingEnabled -XX:+CMSParallelRemarkEnabled -XX:+UseCMSCompactAtFullCollection -XX:CMSFullGCsBeforeCompaction=3</span><br></pre></td></tr></table></figure></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">hive</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">tez</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">gc</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/01/16/hs2-gc/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-spark-small-file" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/01/16/spark-small-file/">Spark-sql生成小文件问题</a>
-    </h1>
-  
-
-        
-        <a href="/2022/01/16/spark-small-file/" class="archive-article-date">
-  	<time datetime="2022-01-16T01:49:11.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-01-16</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#问题">问题</a></li>
-<li><a href="#spark2x处理小文件问题的两种方式">Spark2.x处理小文件问题的两种方式</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="问题">问题</span></h2><p>大数据领域有一个经典的问题——小文件问题。<br>小文件过多不仅会对HDFS NameNode的内存造成压力，还会导致数据处理过程中因为任务数量不合理，导致资源浪费，影响效率。<br>在使用spark-sql处理数据时，也会遇到这个问题。</p>
-<h2><span id="spark2x处理小文件问题的两种方式">Spark2.x处理小文件问题的两种方式</span></h2><ul>
-<li>使用hint<br>通过在sql中指定COALESCE(n) hint，决定最终产生的文件数量<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ COALESCE(3) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION(3) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION(c) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION(3, c) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION_BY_RANGE(c) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION_BY_RANGE(3, c) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REBALANCE */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REBALANCE(c) */</span> * <span class="keyword">FROM</span> t</span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-<p><strong>这种方式使用代价太高，需要每个数据开发关注每个任务最终产生的文件个数。</strong><br><em>笔者遇到过使用REPARTITION(n)导致数据文件增大的情况，使用COALESCE(n)则不会，所以优先使用COALESCE(n)。参见<a href="https://stackoverflow.com/questions/54218006/why-does-the-repartition-method-increase-file-size-on-disk" target="_blank" rel="noopener">https://stackoverflow.com/questions/54218006/why-does-the-repartition-method-increase-file-size-on-disk</a></em></p>
-<ul>
-<li>开启aqe特性<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">set</span> spark.sql.adaptive.enabled=<span class="literal">true</span>;</span><br><span class="line"><span class="keyword">set</span> spark.sql.adaptive.shuffle.targetPostShuffleInputSize=<span class="number">512000000</span>;</span><br><span class="line"><span class="keyword">set</span> spark.sql.adaptive.maxNumPostShufflePartitions=<span class="number">800</span>;</span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-<p><strong>该机制是通过控制stage中每个分区shuffle read的数据量大小，进而控制stage分区数量，来间接影响最终产生文件的个数（而不是像hive那样直接指定结果文件大小），所以对小文件问题有缓解，但是无法做到根本解决。</strong></p>
-<blockquote>
-<p>不管是Spark2.x，还是Spark3.x，都没能从根本上解决小文件问题。因为没有像hive那样的机制，启动单独的job根据设置的文件大小合并小文件。</p>
-</blockquote>
-<ul>
-<li>distribute by<br>对于使用动态分区的任务，使用distribute by。<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">insert</span> overwrite <span class="keyword">table</span> dm.dm_grw_retain_abtest_sd <span class="keyword">partition</span> (<span class="keyword">year</span>, <span class="keyword">month</span>, <span class="keyword">day</span>, retain_days)</span><br><span class="line"><span class="keyword">select</span> ……</span><br><span class="line"><span class="keyword">distribute</span> <span class="keyword">by</span> retain_days <span class="comment">-- 最终每个子分区一个文件</span></span><br><span class="line"><span class="keyword">distribute</span> <span class="keyword">by</span> retain_days, <span class="keyword">cast</span>(<span class="keyword">rand</span>()*<span class="number">7</span> <span class="keyword">as</span> <span class="built_in">int</span>) <span class="comment">-- 最终每个子分区7个文件</span></span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">spark</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">小文件</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/01/16/spark-small-file/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/2/">&laquo; Prev</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><a class="extend next" rel="next" href="/page/4/">Next &raquo;</a>
@@ -1572,15 +1684,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">hive</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">pig</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hive</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1592,6 +1704,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
               </li>
              
@@ -1600,7 +1716,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+                <a href="javascript:void(0)" class="js-tag color3">大数据开发之路</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1620,6 +1736,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Python</a>
               </li>
              
@@ -1632,11 +1752,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1652,10 +1768,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hexo</a>
               </li>
              
@@ -1664,15 +1776,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">tez</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">gc</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1696,11 +1816,51 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
+                <a href="javascript:void(0)" class="js-tag color1">storm</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">olap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">presto</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">iptables</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1716,14 +1876,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
@@ -1733,6 +1885,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1760,47 +1920,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">storm</a>
+                <a href="javascript:void(0)" class="js-tag color5">数据仓库</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">olap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">presto</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">iptables</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
+                <a href="javascript:void(0)" class="js-tag color1">doris</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1825,14 +1953,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">doris</a>
               </li>
             
             <div class="clearfix"></div>
