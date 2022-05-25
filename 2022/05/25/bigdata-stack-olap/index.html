@@ -23,9 +23,10 @@
 <meta property="og:image" content="https://pic1.zhimg.com/80/v2-c242148fd3969c9900b80ccb7c436854_720w.jpg">
 <meta property="og:image" content="https://pic2.zhimg.com/80/v2-0b8c06bfaaea592074587695bcfe30d1_720w.jpg">
 <meta property="og:image" content="https://pic3.zhimg.com/80/v2-c2ab79b0e82fd973872be572745996a6_720w.jpg">
+<meta property="og:image" content="https://pic1.zhimg.com/80/v2-b0d0baf3e3b7569dac6e81867a85ca6c_720w.jpg">
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/1004194-20210313110426292-668919815.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/1004194-20210313114023420-1170729164.png">
-<meta property="og:updated_time" content="2022-05-25T02:06:58.100Z">
+<meta property="og:updated_time" content="2022-05-25T02:30:41.343Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="大数据开发之路-olap">
 <meta name="twitter:description" content="olap-基于数仓的多维实时分析系统 MPP 与 Hadoop是什么关系？ OLTP与OLAP的区别 概念介绍：OLAP和ROLAP,MOLAP,HOLAP 浅谈ROLAP、MOLAP和HOLAP区别 OLAP计算引擎怎么选？ 主流OLAP系统对比总结 常见开源OLAP技术架构对比 OLAP 技术选型 Apache Kylin、Apache Doris、Clickhouse对比 数仓OLAP技">
@@ -354,7 +355,7 @@
 <li>Clickhouse<br>ClickHouse从OLAP场景需求出发，定制开发了一套全新的高效列式存储引擎，并且实现了数据有序存储、主键索引、稀疏索引、数据Sharding、数据Partitioning、TTL、主备复制等丰富功能。以上功能共同为ClickHouse极速的分析性能奠定了基础。<br>ClickHouse部署架构简单，易用，不依赖Hadoop体系（HDFS+YARN）。它比较擅长的地方是对一个大数据量的单表进行聚合查询。Clickhouse用C++实现，底层实现具备向量化执行（Vectorized Execution）、减枝等优化能力，具备强劲的查询性能。目前在互联网企业均有广泛使用，比较适合内部BI报表型应用，可以提供低延迟（ms级别）的响应速度，也就是说单个查询非常快。但是Clickhouse也有它的局限性，在OLAP技术选型的时候，应该避免把它作为多表关联查询(JOIN)的引擎，也应该避免把它用在期望支撑高并发数据查询的场景，OLAP分析场景中，一般认为QPS达到1000+就算高并发，而不是像电商、抢红包等业务场景中，10W以上才算高并发，毕竟数据分析场景，数据海量，计算复杂，QPS能够达到1000已经非常不容易。例如Clickhouse，如果如数据量是TB级别，聚合计算稍复杂一点，单集群QPS一般达到100已经很困难了，所以它更适合企业内部BI报表应用，而不适合如数十万的广告主报表或者数百万的淘宝店主相关报表应用。Clickhouse的执行模型决定了它会尽全力来执行一个Query，而不是同时执行很多Query。</li>
 <li>Presto<br>Presto、Impala、GreenPlum均基于MPP架构，相比Elasticsearch、Druid、Kylin这样的简单Scatter-Gather模型，在支持的SQL计算上更加通用，更适合ad-hoc查询场景，然而这些通用系统往往比专用系统更难做性能优化，所以不太适合做对查询QPS(参考值QPS &gt; 1000)、延迟要求比较高(参考值search latency &lt; 500ms)的在线服务，更适合做公司内部的查询服务和加速Hive查询的服务。Presto还有一个优秀的特性是使用了ANSI标准SQL，并且支持超过30+的数据源Connector。这里我们给读者留下一个思考题：以Presto为代表的MPP模型与Hive为代表的MapReduce模型的性能差异比较大的原因是什么？</li>
 <li>Impala<br>Impala 是 Cloudera 在受到 Google 的 Dremel 启发下开发的实时交互SQL大数据查询工具，是CDH 平台首选的 PB 级大数据实时查询分析引擎。它拥有和Hadoop一样的可扩展性、它提供了类SQL（类Hsql）语法，在多用户场景下也能拥有较高的响应速度和吞吐量。它是由Java和C++实现的，Java提供的查询交互的接口和实现，C++实现了查询引擎部分，除此之外，Impala还能够共享Hive Metastore，甚至可以直接使用Hive的JDBC jar和beeline等直接对Impala进行查询、支持丰富的数据存储格式（Parquet、Avro等）。此外，Impala 没有再使用缓慢的 Hive+MapReduce 批处理，而是通过使用与商用并行关系数据库中类似的分布式查询引擎（由 Query Planner、Query Coordinator 和 Query Exec Engine 三部分组成），可以直接从 HDFS 或 HBase 中用 SELECT、JOIN 和统计函数查询数据，从而大大降低了延迟。Impala经常搭配存储引擎Kudu一起提供服务，这么做最大的优势是点查比较快，并且支持数据的Update和Delete。</li>
-<li>Doris<br>Doris是百度主导的，根据Google Mesa论文和Impala项目改写的一个大数据分析引擎，在百度、美团团、京东的广告分析等业务有广泛的应用。Doris的主要功能特性如下图所示：<br><img src="https://pic3.zhimg.com/80/v2-c2ab79b0e82fd973872be572745996a6_720w.jpg" alt=""></li>
+<li>Doris<br>Doris是百度主导的，根据Google Mesa论文和Impala项目改写的一个大数据分析引擎，在百度、美团团、京东的广告分析等业务有广泛的应用。Doris的主要功能特性如下图所示：<br><img src="https://pic3.zhimg.com/80/v2-c2ab79b0e82fd973872be572745996a6_720w.jpg" alt=""><br><img src="https://pic1.zhimg.com/80/v2-b0d0baf3e3b7569dac6e81867a85ca6c_720w.jpg" alt=""></li>
 <li>Kylin<br>Kylin自身就是一个MOLAP系统，多维立方体（MOLAP Cube）的设计使得用户能够在Kylin里为百亿以上数据集定义数据模型并构建立方体进行数据的预聚合。<br>适合Kylin的场景包括：<br>用户数据存在于Hadoop HDFS中，利用Hive将HDFS文件数据以关系数据方式存取，数据量巨大，在500G以上<br>每天有数G甚至数十G的数据增量导入<br>有10个以内较为固定的分析维度<br>简单来说，Kylin中数据立方的思想就是以空间换时间，通过定义一系列的纬度，对每个纬度的组合进行预先计算并存储。有N个纬度，就会有2的N次种组合。所以最好控制好纬度的数量，因为存储量会随着纬度的增加爆炸式的增长，产生灾难性后果。</li>
 </ul>
 </blockquote>

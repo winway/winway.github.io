@@ -21,6 +21,7 @@
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/640">
 <meta property="og:image" content="https://p1.meituan.net/travelcube/99dd755cb5a447dc1a547d782a997db1751042.png">
 <meta property="og:image" content="https://static001.infoq.cn/resource/image/e4/e5/e48d0487b689961d1562a36caeeaede5.png">
+<meta property="og:image" content="https://intranetproxy.alipay.com/skylark/lark/0/2020/png/225557/1589264651099-137127ec-1b87-4530-9b77-9fede11fa554.png#align=left&display=inline&height=449&margin=%5Bobject%20Object%5D&name=image.png&originHeight=449&originWidth=846&size=338371&status=done&style=none&width=846">
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/e4aa3cd2d6324d72b3bb756eb6700170.jpeg">
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/33e8e90a0dc54343b6851f4548a3a0a3.jpeg">
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/736748-20211122100707204-331992627.png">
@@ -37,8 +38,10 @@
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/7ac39d700ee97541157fa06f8a0ebdfa.webp">
 <meta property="og:image" content="https://static001.infoq.cn/resource/image/e4/e5/e48d0487b689961d1562a36caeeaede5.png">
 <meta property="og:image" content="https://static001.infoq.cn/resource/image/d3/70/d321545b9130c108b4bef5b5214b6070.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/c26781c7d09b48ac8816787c3dcd4ced.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/40fe6572a1c3424e83f36756e558641d.png">
 <meta property="og:image" content="http://blog.itpub.net/ueditor/php/upload/image/20220126/1643166172292464.png">
-<meta property="og:updated_time" content="2022-05-24T10:15:27.743Z">
+<meta property="og:updated_time" content="2022-05-25T03:36:03.175Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="大数据开发之路-流批一体">
 <meta name="twitter:description" content="流批一体-实时数仓架构的百家争鸣 对实时性的追求-一切的根源 流计算与批计算的比较 lambda-经典实时数仓架构 Lambda 架构 Lambda架构典型数据流程 Lambda 架构存在的问题 Lambda 架构核心痛点   流批一体的初衷 流批一体的重点和难点 数据处理 数据存储 阻力和动力   不同层面的流批一体场景 数据接入层的流批一体 计算引擎层的流批一体 存储层的流批一体 消息队列">
@@ -236,6 +239,7 @@
 <li><a href="#hologres的流批一体">Hologres的流批一体</a></li>
 <li><a href="#实时数据生产-实时分析引擎">实时数据生产 + 实时分析引擎</a></li>
 <li><a href="#lambdakappa">Lambda+Kappa</a></li>
+<li><a href="#flink-iceberg-近实时的数据湖分析系统">Flink + Iceberg 近实时的数据湖分析系统</a></li>
 <li><a href="#基于kappalambda混合架构的流批一体数仓">基于Kappa+Lambda混合架构的流批一体数仓</a></li>
 </ul>
 </li>
@@ -372,6 +376,7 @@
 <h2><span id="流批一体的初衷">流批一体的初衷</span></h2><blockquote>
 <p>流批一体是一种架构思想，这种思想说的是同一个业务，使用同一个sql逻辑，既可以满足流处理计算同时也可以满足批处理任务的计算。</p>
 </blockquote>
+<p><img src="https://intranetproxy.alipay.com/skylark/lark/0/2020/png/225557/1589264651099-137127ec-1b87-4530-9b77-9fede11fa554.png#align=left&amp;display=inline&amp;height=449&amp;margin=%5Bobject%20Object%5D&amp;name=image.png&amp;originHeight=449&amp;originWidth=846&amp;size=338371&amp;status=done&amp;style=none&amp;width=846" alt=""><br>以上就是绝大部分公司所使用的大数据架构，也有很多公司是根据业务场景选择了其中一部分架构，这样既有实时又有离线的大数据完整架构就搭建出来，看起来很完美，能实际解决问题，但是仔细想想，里面藏了很多坑，越往后做越举步维艰，那么问题在哪呢？<br>首先是基于离线存储的Hive，其次是提供点查询能力的HBase、Cassandra、然后是MPP架构号称能面向HTAP的Greenplum、以及最新兴起的用于做快速分析的Clickhouse等等都是基于解决方案而面世的存储产品。<br>但以上的每个存储产品都是一个数据的孤岛，比如为了解决点查询的问题，数据需要在HBase里面存储一份；为了解决列存的快速分析，数据需要在Druid或者Clickhouse里面存一份；为了解决离线计算又需要在Hive里面存储一份，这样带来的问题就是：<br>1）冗余存储<br>数据将会存储在多个系统中，增加冗余存粗。<br>2）高维护成本<br>每个系统的数据格式不一致，数据需要做转换，增加维护成本，尤其是当业务到达一定量级时，维护成本剧增。<br>3）高学习成本<br>多个系统之前需要完全打通，不同的产品有不同的开发方式，尤其是针对新人来说，需要投入更多的精力去学习多种系统，增加学习成本。<br>面对这样一个无比冗余无比复杂的系统，我们应该怎么去解决这些问题呢？我们可以对Lambda架构做一个简化。其实业务的本质就是将数据源做一个实时处理或者离线处理（批处理），从业务场景出发，我们希望不管是实时数据还是离线数据，都能统一存储在一个存储系统里面，而且这个存储还必须要满足各种各样的业务需求。这样听起来很玄乎，感觉这个产品需要支持各种各种的场景，非常复杂。但是如果我们能把架构做成这样，将会非常完美，这样就从本质上解决了流批统一的计算问题，一套SQL既能做流计算又能做批计算，再深挖其底层原理，还解决了存储问题，流数据和批数据都统一存储在同一个产品。</p>
 <p>让开发人员能够用同一套接口实现大数据的流计算和批计算。即开发一套代码，使用一款（也可能是多款，不过一般少见）计算引擎，通过选择不同数据源，既能处理实时流数据又能处理有界的批数据，达到以下目的：<br> 1.减少学习成本，避免多套开发流程<br> 2.降低架构复杂性，避免冗余链路和数据产出口径不一致<br> 3.减少资源消耗<br> 4.提升价值产出效率</p>
 <h2><span id="流批一体的重点和难点">流批一体的重点和难点</span></h2><h3><span id="数据处理">数据处理</span></h3><p>首先讲数据处理架构，Flink已经是实时计算行业事实上的标准。能够将业务开发实时化，只是Flink的一个起点，Flink最终的目的肯定是为了给用户提供彻底的实时离线一体化体验。其实很多用户不仅需要实时的数据统计，为了确认运营或产品的策略效果，用户同时还需要和历史（昨天，甚至是去年的同期）数据比较。而从用户的角度来看，原有的流、批独立方案存在一些痛点：</p>
 <ul>
@@ -495,6 +500,22 @@
 <li>同时写到一张 Holo 表，完成计算层表达的统一</li>
 <li>存储层流与批是分开存储，但可以实现流批存储透明化，查询逻辑完全一致。</li>
 </ul>
+<h3><span id="flink-iceberg-近实时的数据湖分析系统">Flink + Iceberg 近实时的数据湖分析系统</span></h3><blockquote>
+<p>接入/计算引擎/存储层流批一体</p>
+</blockquote>
+<p>Iceberg 既支持读写分离，又支持并发读、增量读、小文件合并，还可以支持秒级到分钟级的延迟，基于这些优势我们尝试采用 Iceberg 这些功能来构建基于 Flink 的实时全链路批流一体化的实时数仓架构。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/c26781c7d09b48ac8816787c3dcd4ced.png" alt=""><br>Iceberg 底层依赖的存储是像 HDFS 或 S3 这样的廉价存储，而且 Iceberg 是支持 parquet、orc、Avro 这样的列式存储。有列式存储的支持，就可以对 OLAP 分析进行基本的优化，在中间层直接进行计算。例如谓词下推最基本的 OLAP 优化策略，基于 Iceberg snapshot 的 Streaming reader 功能，可以把离线任务天级别到小时级别的延迟大大的降低，改造成一个近实时的数据湖分析系统。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/40fe6572a1c3424e83f36756e558641d.png" alt=""><br>在中间处理层，可以用 presto 进行一些简单的查询，因为 Iceberg 支持 Streaming read，所以在系统的中间层也可以直接接入 Flink，直接在中间层用 Flink 做一些批处理或者流式计算的任务，把中间结果做进一步计算后输出到下游。</p>
+<p>替换 Kafka 的优劣势<br>总的来说，Iceberg 替换 Kafka 的优势主要包括：</p>
+<ul>
+<li>实现存储层的流批统一</li>
+<li>中间层支持 OLAP 分析</li>
+<li>完美支持高效回溯</li>
+<li>存储成本降低</li>
+</ul>
+<p>当然，也存在一定的缺陷，如：</p>
+<ul>
+<li>数据延迟从实时变成近实时</li>
+<li>对接其他数据系统需要额外开发工作</li>
+</ul>
 <h3><span id="基于kappalambda混合架构的流批一体数仓">基于Kappa+Lambda混合架构的流批一体数仓</span></h3><blockquote>
 <p>接入/计算引擎层流批一体</p>
 </blockquote>
@@ -511,11 +532,13 @@
 <li><a href="https://mp.weixin.qq.com/s/waoNAf7bFKgkyHbCMIMy_Q" target="_blank" rel="noopener">大数据架构如何做到流批一体？</a></li>
 <li><a href="https://www.cnblogs.com/029zz010buct/p/15587077.html" target="_blank" rel="noopener">当我们谈论批流一体，我们在谈论什么？</a></li>
 <li><a href="https://www.infoq.cn/article/ykkzj6ijzdrzdlls83kg" target="_blank" rel="noopener">为什么阿里云要做流批一体？</a></li>
+<li><a href="https://developer.aliyun.com/article/760202" target="_blank" rel="noopener">数据仓库、数据湖、流批一体，终于有大神讲清楚了！</a></li>
 <li><a href="https://www.jianshu.com/p/ed8b2f2284c1" target="_blank" rel="noopener">探索流批一体结构下的实时数仓</a></li>
 <li><a href="https://jishuin.proginn.com/p/763bfbd62b49" target="_blank" rel="noopener">几种实时数仓架构设计思路</a></li>
 <li><a href="http://blog.itpub.net/69995740/viewspace-2854047/" target="_blank" rel="noopener">流批一体技术框架探索及在袋鼠云数栈中的实践</a></li>
 <li><a href="https://developer.aliyun.com/article/752406" target="_blank" rel="noopener">从Lambda架构到Kappa架构再到？浅谈未来数仓架构设计~</a></li>
 <li><a href="https://docherish.com/post/da-shu-ju-chang-yong-de-jia-gou-lambda-he-kappa/" target="_blank" rel="noopener">大数据常用的架构——Lambda和Kappa</a></li>
+<li><a href="https://developer.aliyun.com/article/781534" target="_blank" rel="noopener">Flink + Iceberg 全场景实时数仓的建设实践</a></li>
 </ul>
 
       

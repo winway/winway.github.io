@@ -344,7 +344,7 @@
 <li>Clickhouse<br>ClickHouse从OLAP场景需求出发，定制开发了一套全新的高效列式存储引擎，并且实现了数据有序存储、主键索引、稀疏索引、数据Sharding、数据Partitioning、TTL、主备复制等丰富功能。以上功能共同为ClickHouse极速的分析性能奠定了基础。<br>ClickHouse部署架构简单，易用，不依赖Hadoop体系（HDFS+YARN）。它比较擅长的地方是对一个大数据量的单表进行聚合查询。Clickhouse用C++实现，底层实现具备向量化执行（Vectorized Execution）、减枝等优化能力，具备强劲的查询性能。目前在互联网企业均有广泛使用，比较适合内部BI报表型应用，可以提供低延迟（ms级别）的响应速度，也就是说单个查询非常快。但是Clickhouse也有它的局限性，在OLAP技术选型的时候，应该避免把它作为多表关联查询(JOIN)的引擎，也应该避免把它用在期望支撑高并发数据查询的场景，OLAP分析场景中，一般认为QPS达到1000+就算高并发，而不是像电商、抢红包等业务场景中，10W以上才算高并发，毕竟数据分析场景，数据海量，计算复杂，QPS能够达到1000已经非常不容易。例如Clickhouse，如果如数据量是TB级别，聚合计算稍复杂一点，单集群QPS一般达到100已经很困难了，所以它更适合企业内部BI报表应用，而不适合如数十万的广告主报表或者数百万的淘宝店主相关报表应用。Clickhouse的执行模型决定了它会尽全力来执行一个Query，而不是同时执行很多Query。</li>
 <li>Presto<br>Presto、Impala、GreenPlum均基于MPP架构，相比Elasticsearch、Druid、Kylin这样的简单Scatter-Gather模型，在支持的SQL计算上更加通用，更适合ad-hoc查询场景，然而这些通用系统往往比专用系统更难做性能优化，所以不太适合做对查询QPS(参考值QPS &gt; 1000)、延迟要求比较高(参考值search latency &lt; 500ms)的在线服务，更适合做公司内部的查询服务和加速Hive查询的服务。Presto还有一个优秀的特性是使用了ANSI标准SQL，并且支持超过30+的数据源Connector。这里我们给读者留下一个思考题：以Presto为代表的MPP模型与Hive为代表的MapReduce模型的性能差异比较大的原因是什么？</li>
 <li>Impala<br>Impala 是 Cloudera 在受到 Google 的 Dremel 启发下开发的实时交互SQL大数据查询工具，是CDH 平台首选的 PB 级大数据实时查询分析引擎。它拥有和Hadoop一样的可扩展性、它提供了类SQL（类Hsql）语法，在多用户场景下也能拥有较高的响应速度和吞吐量。它是由Java和C++实现的，Java提供的查询交互的接口和实现，C++实现了查询引擎部分，除此之外，Impala还能够共享Hive Metastore，甚至可以直接使用Hive的JDBC jar和beeline等直接对Impala进行查询、支持丰富的数据存储格式（Parquet、Avro等）。此外，Impala 没有再使用缓慢的 Hive+MapReduce 批处理，而是通过使用与商用并行关系数据库中类似的分布式查询引擎（由 Query Planner、Query Coordinator 和 Query Exec Engine 三部分组成），可以直接从 HDFS 或 HBase 中用 SELECT、JOIN 和统计函数查询数据，从而大大降低了延迟。Impala经常搭配存储引擎Kudu一起提供服务，这么做最大的优势是点查比较快，并且支持数据的Update和Delete。</li>
-<li>Doris<br>Doris是百度主导的，根据Google Mesa论文和Impala项目改写的一个大数据分析引擎，在百度、美团团、京东的广告分析等业务有广泛的应用。Doris的主要功能特性如下图所示：<br><img src="https://pic3.zhimg.com/80/v2-c2ab79b0e82fd973872be572745996a6_720w.jpg" alt=""></li>
+<li>Doris<br>Doris是百度主导的，根据Google Mesa论文和Impala项目改写的一个大数据分析引擎，在百度、美团团、京东的广告分析等业务有广泛的应用。Doris的主要功能特性如下图所示：<br><img src="https://pic3.zhimg.com/80/v2-c2ab79b0e82fd973872be572745996a6_720w.jpg" alt=""><br><img src="https://pic1.zhimg.com/80/v2-b0d0baf3e3b7569dac6e81867a85ca6c_720w.jpg" alt=""></li>
 <li>Kylin<br>Kylin自身就是一个MOLAP系统，多维立方体（MOLAP Cube）的设计使得用户能够在Kylin里为百亿以上数据集定义数据模型并构建立方体进行数据的预聚合。<br>适合Kylin的场景包括：<br>用户数据存在于Hadoop HDFS中，利用Hive将HDFS文件数据以关系数据方式存取，数据量巨大，在500G以上<br>每天有数G甚至数十G的数据增量导入<br>有10个以内较为固定的分析维度<br>简单来说，Kylin中数据立方的思想就是以空间换时间，通过定义一系列的纬度，对每个纬度的组合进行预先计算并存储。有N个纬度，就会有2的N次种组合。所以最好控制好纬度的数量，因为存储量会随着纬度的增加爆炸式的增长，产生灾难性后果。</li>
 </ul>
 </blockquote>
@@ -554,6 +554,7 @@
 <li><a href="#hologres的流批一体">Hologres的流批一体</a></li>
 <li><a href="#实时数据生产-实时分析引擎">实时数据生产 + 实时分析引擎</a></li>
 <li><a href="#lambdakappa">Lambda+Kappa</a></li>
+<li><a href="#flink-iceberg-近实时的数据湖分析系统">Flink + Iceberg 近实时的数据湖分析系统</a></li>
 <li><a href="#基于kappalambda混合架构的流批一体数仓">基于Kappa+Lambda混合架构的流批一体数仓</a></li>
 </ul>
 </li>
@@ -690,6 +691,7 @@
 <h2><span id="流批一体的初衷">流批一体的初衷</span></h2><blockquote>
 <p>流批一体是一种架构思想，这种思想说的是同一个业务，使用同一个sql逻辑，既可以满足流处理计算同时也可以满足批处理任务的计算。</p>
 </blockquote>
+<p><img src="https://intranetproxy.alipay.com/skylark/lark/0/2020/png/225557/1589264651099-137127ec-1b87-4530-9b77-9fede11fa554.png#align=left&amp;display=inline&amp;height=449&amp;margin=%5Bobject%20Object%5D&amp;name=image.png&amp;originHeight=449&amp;originWidth=846&amp;size=338371&amp;status=done&amp;style=none&amp;width=846" alt=""><br>以上就是绝大部分公司所使用的大数据架构，也有很多公司是根据业务场景选择了其中一部分架构，这样既有实时又有离线的大数据完整架构就搭建出来，看起来很完美，能实际解决问题，但是仔细想想，里面藏了很多坑，越往后做越举步维艰，那么问题在哪呢？<br>首先是基于离线存储的Hive，其次是提供点查询能力的HBase、Cassandra、然后是MPP架构号称能面向HTAP的Greenplum、以及最新兴起的用于做快速分析的Clickhouse等等都是基于解决方案而面世的存储产品。<br>但以上的每个存储产品都是一个数据的孤岛，比如为了解决点查询的问题，数据需要在HBase里面存储一份；为了解决列存的快速分析，数据需要在Druid或者Clickhouse里面存一份；为了解决离线计算又需要在Hive里面存储一份，这样带来的问题就是：<br>1）冗余存储<br>数据将会存储在多个系统中，增加冗余存粗。<br>2）高维护成本<br>每个系统的数据格式不一致，数据需要做转换，增加维护成本，尤其是当业务到达一定量级时，维护成本剧增。<br>3）高学习成本<br>多个系统之前需要完全打通，不同的产品有不同的开发方式，尤其是针对新人来说，需要投入更多的精力去学习多种系统，增加学习成本。<br>面对这样一个无比冗余无比复杂的系统，我们应该怎么去解决这些问题呢？我们可以对Lambda架构做一个简化。其实业务的本质就是将数据源做一个实时处理或者离线处理（批处理），从业务场景出发，我们希望不管是实时数据还是离线数据，都能统一存储在一个存储系统里面，而且这个存储还必须要满足各种各样的业务需求。这样听起来很玄乎，感觉这个产品需要支持各种各种的场景，非常复杂。但是如果我们能把架构做成这样，将会非常完美，这样就从本质上解决了流批统一的计算问题，一套SQL既能做流计算又能做批计算，再深挖其底层原理，还解决了存储问题，流数据和批数据都统一存储在同一个产品。</p>
 <p>让开发人员能够用同一套接口实现大数据的流计算和批计算。即开发一套代码，使用一款（也可能是多款，不过一般少见）计算引擎，通过选择不同数据源，既能处理实时流数据又能处理有界的批数据，达到以下目的：<br> 1.减少学习成本，避免多套开发流程<br> 2.降低架构复杂性，避免冗余链路和数据产出口径不一致<br> 3.减少资源消耗<br> 4.提升价值产出效率</p>
 <h2><span id="流批一体的重点和难点">流批一体的重点和难点</span></h2><h3><span id="数据处理">数据处理</span></h3><p>首先讲数据处理架构，Flink已经是实时计算行业事实上的标准。能够将业务开发实时化，只是Flink的一个起点，Flink最终的目的肯定是为了给用户提供彻底的实时离线一体化体验。其实很多用户不仅需要实时的数据统计，为了确认运营或产品的策略效果，用户同时还需要和历史（昨天，甚至是去年的同期）数据比较。而从用户的角度来看，原有的流、批独立方案存在一些痛点：</p>
 <ul>
@@ -813,6 +815,22 @@
 <li>同时写到一张 Holo 表，完成计算层表达的统一</li>
 <li>存储层流与批是分开存储，但可以实现流批存储透明化，查询逻辑完全一致。</li>
 </ul>
+<h3><span id="flink-iceberg-近实时的数据湖分析系统">Flink + Iceberg 近实时的数据湖分析系统</span></h3><blockquote>
+<p>接入/计算引擎/存储层流批一体</p>
+</blockquote>
+<p>Iceberg 既支持读写分离，又支持并发读、增量读、小文件合并，还可以支持秒级到分钟级的延迟，基于这些优势我们尝试采用 Iceberg 这些功能来构建基于 Flink 的实时全链路批流一体化的实时数仓架构。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/c26781c7d09b48ac8816787c3dcd4ced.png" alt=""><br>Iceberg 底层依赖的存储是像 HDFS 或 S3 这样的廉价存储，而且 Iceberg 是支持 parquet、orc、Avro 这样的列式存储。有列式存储的支持，就可以对 OLAP 分析进行基本的优化，在中间层直接进行计算。例如谓词下推最基本的 OLAP 优化策略，基于 Iceberg snapshot 的 Streaming reader 功能，可以把离线任务天级别到小时级别的延迟大大的降低，改造成一个近实时的数据湖分析系统。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/40fe6572a1c3424e83f36756e558641d.png" alt=""><br>在中间处理层，可以用 presto 进行一些简单的查询，因为 Iceberg 支持 Streaming read，所以在系统的中间层也可以直接接入 Flink，直接在中间层用 Flink 做一些批处理或者流式计算的任务，把中间结果做进一步计算后输出到下游。</p>
+<p>替换 Kafka 的优劣势<br>总的来说，Iceberg 替换 Kafka 的优势主要包括：</p>
+<ul>
+<li>实现存储层的流批统一</li>
+<li>中间层支持 OLAP 分析</li>
+<li>完美支持高效回溯</li>
+<li>存储成本降低</li>
+</ul>
+<p>当然，也存在一定的缺陷，如：</p>
+<ul>
+<li>数据延迟从实时变成近实时</li>
+<li>对接其他数据系统需要额外开发工作</li>
+</ul>
 <h3><span id="基于kappalambda混合架构的流批一体数仓">基于Kappa+Lambda混合架构的流批一体数仓</span></h3><blockquote>
 <p>接入/计算引擎层流批一体</p>
 </blockquote>
@@ -829,11 +847,13 @@
 <li><a href="https://mp.weixin.qq.com/s/waoNAf7bFKgkyHbCMIMy_Q" target="_blank" rel="noopener">大数据架构如何做到流批一体？</a></li>
 <li><a href="https://www.cnblogs.com/029zz010buct/p/15587077.html" target="_blank" rel="noopener">当我们谈论批流一体，我们在谈论什么？</a></li>
 <li><a href="https://www.infoq.cn/article/ykkzj6ijzdrzdlls83kg" target="_blank" rel="noopener">为什么阿里云要做流批一体？</a></li>
+<li><a href="https://developer.aliyun.com/article/760202" target="_blank" rel="noopener">数据仓库、数据湖、流批一体，终于有大神讲清楚了！</a></li>
 <li><a href="https://www.jianshu.com/p/ed8b2f2284c1" target="_blank" rel="noopener">探索流批一体结构下的实时数仓</a></li>
 <li><a href="https://jishuin.proginn.com/p/763bfbd62b49" target="_blank" rel="noopener">几种实时数仓架构设计思路</a></li>
 <li><a href="http://blog.itpub.net/69995740/viewspace-2854047/" target="_blank" rel="noopener">流批一体技术框架探索及在袋鼠云数栈中的实践</a></li>
 <li><a href="https://developer.aliyun.com/article/752406" target="_blank" rel="noopener">从Lambda架构到Kappa架构再到？浅谈未来数仓架构设计~</a></li>
 <li><a href="https://docherish.com/post/da-shu-ju-chang-yong-de-jia-gou-lambda-he-kappa/" target="_blank" rel="noopener">大数据常用的架构——Lambda和Kappa</a></li>
+<li><a href="https://developer.aliyun.com/article/781534" target="_blank" rel="noopener">Flink + Iceberg 全场景实时数仓的建设实践</a></li>
 </ul>
 
       
@@ -1042,6 +1062,7 @@
 <li><a href="https://www.cnblogs.com/GO-NO-1/p/14332234.html" target="_blank" rel="noopener">数仓架构演进</a></li>
 <li><a href="https://www.51cto.com/article/707275.html" target="_blank" rel="noopener">实时数仓方案五花八门，实际落地如何选型和构建</a></li>
 <li><a href="https://tech.meituan.com/2021/08/26/data-warehouse-in-meituan-waimai.html" target="_blank" rel="noopener">美团外卖实时数仓建设实践</a></li>
+<li><a href="https://developer.aliyun.com/article/781534" target="_blank" rel="noopener">Flink + Iceberg 全场景实时数仓的建设实践</a></li>
 </ul>
 
       
