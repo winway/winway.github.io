@@ -155,6 +155,207 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-bigdata-stack-mongo" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/05/19/bigdata-stack-mongo/">大数据开发之路-mongodb</a>
+    </h1>
+  
+
+        
+        <a href="/2022/05/19/bigdata-stack-mongo/" class="archive-article-date">
+  	<time datetime="2022-05-19T09:18:13.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-19</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#mongodb-最接近mysql的nosql数据库">mongodb-最接近“mysql”的nosql数据库</a></li>
+<li><a href="#关键特性">关键特性</a></li>
+<li><a href="#数据模型">数据模型</a></li>
+<li><a href="#关键技术">关键技术</a><ul>
+<li><a href="#wiredtiger存储引擎">WiredTiger存储引擎</a></li>
+<li><a href="#事务支持">事务支持</a></li>
+<li><a href="#mongodb集群">MongoDB集群</a></li>
+</ul>
+</li>
+<li><a href="#应用场景">应用场景</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<blockquote>
+<p>导引</p>
+<ol>
+<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
+<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
+<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
+<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
+<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
+<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
+<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
+<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
+<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
+<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
+<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
+<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
+</ol>
+</blockquote>
+<h2><span id="mongodb-最接近mysql的nosql数据库">mongodb-最接近“mysql”的nosql数据库</span></h2><p>MongoDB是一个开源、高性能、无模式的文档数据库，当初的设计就是用于<strong>简化开发</strong>和<strong>方便扩展</strong>，是NoSQL数据库产品的一种，是最像关系型数据库（MySQL）的非关系型数据库。<br>它支持的数据结构非常松散，是一种类似于JSON的格式叫BSON，所以它既可以存比较复杂的数据类型，又相当的灵活。</p>
+<h2><span id="关键特性">关键特性</span></h2><ul>
+<li>面向文档存储，易于存储对象类型的数据<ul>
+<li>数据结构符合大部分程序语言，文件存储格式为BSON(一种JSON的扩展)</li>
+<li>可在文档内嵌入子文档（相当于传统数据库的嵌套表）</li>
+<li>动态增减文档或修改文档格式，模式自由</li>
+</ul>
+</li>
+<li>高性能<ul>
+<li>支持基于内存查询，减少磁盘 IO 交互</li>
+<li>支持使用嵌入数据，减少系统I/O负担，支持子文档查询</li>
+<li>使用高效的二进制数据存储，包括大型对象</li>
+</ul>
+</li>
+<li>多种查询类型支持，且支持数据聚合查询、文本检索、地址位置查询，支持复杂的 SQL 查询</li>
+<li>高可用、水平扩展，支持副本集与分片</li>
+<li>多种存储引擎：WiredTiger , In-Memory</li>
+</ul>
+<h2><span id="数据模型">数据模型</span></h2><p>和关系型数据库mysql很相似。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519172323.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519161438.png" alt=""></p>
+<h2><span id="关键技术">关键技术</span></h2><h3><span id="wiredtiger存储引擎">WiredTiger存储引擎</span></h3><ul>
+<li>WT的数据结构<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519172533.png" alt=""><br>WT的Cache采用Btree的方式组织，每个Btree节点为一个page。root page是btree的根节点，internal page是btree的中间索引节点，leaf page是存储数据的叶子节点；btree的数据以page为单位按需从磁盘加载或写入磁盘。</li>
+<li>为什么MongoDB使用了B树而不是B+树<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519172649.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519172712.png" alt=""><br>B+树只在叶子节点中储存数据，叶子节点之间有链表相连方便遍历和范围查询。B树在单个查询时性能优于B+树，在范围查询时需要遍历树，效率不如B+树直接遍历链表。<br>MySQL 作为关系型数据库，需要处理大量的范围查询和遍历，选用了B+树；而MongoDB 作为文档的数据库，更看重面向文档的简单查询，所以选择了查询单个文档性能较好的B树。</li>
+<li>WT的持久化<ul>
+<li>预写日志（WAL）： WT使用预写日志的机制，在数据更新时，先将数据更新写入到日志文件。日志的写入频率可以根据业务要求的可靠性等级配置，最严格的情况可以配置为集群中大部分节点都落盘后才将结果返回给客户端。</li>
+<li>检查点（checkpoint）： 在checkpoint操作开始时，WT提供指定时间点的数据库快照，并将快照中的所有数据以一致性方式写入到数据文件中。一旦checkpoint创建成功，WT保证数据文件和内存数据是一致的。当宕机重新启动时WT会先将数据恢复到最近的一次checkpoint的点，然后重放后续的操作日志来恢复数据。</li>
+</ul>
+</li>
+</ul>
+<h3><span id="事务支持">事务支持</span></h3><p>传统的观念认为NoSQL不支持或者只有部分支持事务，在MongoDB 4.0之前对事务的支持有限，但在MongoDB 4.0 引入了事务功能，支持多文档ACID特性。<br>事务实现原理：snapshot(事务快照) 、MVCC (多版本并发控制) 和redo log来实现事务。</p>
+<h3><span id="mongodb集群">MongoDB集群</span></h3><ul>
+<li><p>副本集<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519172947.png" alt=""></p>
+<ul>
+<li>Primary 主节点，一个副本集有且仅有一台服务器处于Primary状态，只有主节点才对外提供写服务。如果主节点挂掉，副本集将投票选出一个备节点成为新的主节点。</li>
+<li>Secondary 备用节点，副本集允许有多台Secondary，每个备用节点的数据与主节点的数据是完全同步的。备节点可以提供读服务。</li>
+<li>Arbiter 仲裁节点，该类节点可以不用单独存在，如果配置为仲裁节点，就主要负责在复本集中监控其他节点状态，投票选出主节点。如果没有仲裁节点，那么投票工作将由所有节点共同进行。</li>
+</ul>
+<p>官方推荐MongoDB副本节点在3~11个之间，奇数个副本节点。限制副本节点的数目是为了减少复制的成本，限制为奇数则是为了减少出现脑裂。</p>
+</li>
+<li><p>副本集的选举<br> 跟很多NoSQL数据库一样，MongoDB副本集采用的是Bully算法进行主节点选举。<br> 在以下场景副本集会开始进行选举：</p>
+<ul>
+<li>初始化副本集时；</li>
+<li>备份节点无法和主节点通讯时(可能主节点宕机或网络原因)；</li>
+<li>Primary 手动降级。</li>
+</ul>
+<p>选举的大致原理是获取每个服务器节点的最后操作时间戳（oplog），选择最后操作时间戳最新(保证数据最新)的服务器节点作为主节点。</p>
+</li>
+<li><p>分片<br> 当MongoDB存储海量的数据时，一台机器不足以提供可接受的读写吞吐量。这时，我们就可以通过在多台机器上分割数据，使得数据库系统能存储和处理更多的数据。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519173422.png" alt=""><br> 分片集群由Shard、Mongos和Config server 3个组件构成。</p>
+<ul>
+<li>mongos：数据库集群请求的入口，起到路由作用，它负责把对应的数据请求转发到对应的shard服务器上。生产环境中需要多个mongos。</li>
+<li>config server：保存集群和分片的元数据，mongos启动时会加载配置服务器上的配置信息，以后如果配置服务器信息变化会通知到所有的mongos更新自己的状态。生产环境需要多个配置服务器并定期备份。</li>
+<li>shard server：实际存储数据的分片。生产环境为了保证高可用，每个Shard都要求是副本集。</li>
+</ul>
+</li>
+</ul>
+<ul>
+<li>分片策略<br>  分片支持单个集合的数据分散在多个分片上，目前主要有范围分片和hash分片两种数据分片策略。<br>  范围分片适合满足在一定范围内的查找，缺点是可能会导致数据分布不均，有热点数据；hash分片分布均匀，但是不能高效进行范围查询。</li>
+</ul>
+<h2><span id="应用场景">应用场景</span></h2><ul>
+<li>应用不需要事务和复杂join支持</li>
+<li>新应用，需求会变，数据模型无法确认，想快速迭代开发</li>
+<li>应用需要2000-3000以上的读写QPS（更高也可以）</li>
+<li>应用需要TB甚至PB级别数据存储</li>
+<li>应用发展迅速，需要能快速水平扩展</li>
+<li>应用需要大量的地理位置查询、文本查询</li>
+<li>应用需要存储的数据不丢失</li>
+</ul>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://juejin.cn/post/7027814425658654728" target="_blank" rel="noopener">MongoDB介绍</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/84834695" target="_blank" rel="noopener">MongoDB 介绍与应用详解</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">mongodb</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2022/05/19/bigdata-stack-mongo/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-bigdata-stack-yarn" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -2180,194 +2381,6 @@ ReplicatedXXXMergeTree: 使得以上 MergeTree 家族拥有副本机制，保证
 
 
   
-    <article id="post-bigdata-stack-kudu" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/12/bigdata-stack-kudu/">大数据开发之路-kudu</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/12/bigdata-stack-kudu/" class="archive-article-date">
-  	<time datetime="2022-05-12T11:51:59.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-12</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#kudu-介于hdfs和hbase之间的锋卫摇摆人">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
-<li><a href="#特性">特性</a></li>
-<li><a href="#架构">架构</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引</p>
-<ol>
-<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
-<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
-<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
-<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
-<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
-</ol>
-</blockquote>
-<h2><span id="kudu-介于hdfs和hbase之间的锋卫摇摆人">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220512203202.png" alt=""></p>
-<blockquote>
-<p>他们比过往更高大的球员更灵活快速，另一方面也比其他较矮小的球员更具封阻防御力或投篮得分机会</p>
-</blockquote>
-<p>Apache KUDU是一个折中的产品，在HDFS和HBase这两个偏科生中平衡了随机读写和批量分析的性能，可以同时提供低延迟的随机读写和高效的数据分析能力。Kudu支持水平扩展，并且与Cloudera Impala和 Apache Spark等当前流行的大数据查询和分析工具结合紧密。</p>
-<p>在Kudu之前，大数据主要以两种方式存储：</p>
-<ul>
-<li>静态数据：以HDFS引擎作为存储引擎，适用于高吞吐量的离线大数据分析场景。这类存储的局限性是数据无法进行随机的读写</li>
-<li>动态数据：以HBase、 Cassandra作为存储引擎，适用于大数据随机读写场景。这类存储的局限性是批量读取吞吐量远不如HDFS，不适用于批量数据分析的场景</li>
-</ul>
-<p>从上面分析可知，两种数据在存储方式上完全不同，进而导致使用场景完全不同，但在真实的场景中，边界可能没有那么清晰，面对既需要随机读写，又需要批量分析的大数据场景，该如何选择呢？</p>
-<p>一种解决方案是：数据实时写入HBase，实时的数据更新也在HBase完成，为了应对OLAP需求，定时（通常是T+1或者T+H）将HBase数据写成静态的文件（如：Parquet）导入到OLAP引擎（如：HDFS）。</p>
-<p>这一架构能满足既需要随机读写，又可以支持OLAP分析的场景，但它有如下缺点：</p>
-<ul>
-<li>架构复杂。从架构上看，数据在HBase、消息队列、HDFS间流转，涉及环节太多，运维成本很高。并且每个环节需要保证高可用，都需要维护多个副本，存储空间也有一定的浪费。最后数据在多个系统上，对数据安全策略、监控等都提出了挑战。</li>
-<li>时效性低。数据从HBase导出成静态文件是周期性的，一般这个周期是一天（或一小时），在时效性上不是很高。</li>
-<li>难以应对后续的更新。真实场景中，总会有数据是延迟到达的。如果这些数据之前已经从HBase导出到HDFS，新到的变更数据就难以处理了，一个方案是把原有数据应用上新的变更后重写一遍，但这代价又很高。</li>
-</ul>
-<p><img src="https://pic1.zhimg.com/80/v2-72a7261c8f0274ed1b6fa4fa69fccea4_720w.png" alt=""></p>
-<p>为了解决上述架构的这些问题，Kudu应运而生。Kudu 的定位是提供”fast analytics on fast data”，也就是在快速更新的数据上进行快速的查询。它定位OLAP和少量的OLTP工作流，如果有大量的randomaccesses，官方建议还是使用HBase更为合适。</p>
-<p><img src="https://pica.zhimg.com/80/v2-cb40fde69d115ca26601668c8ce20251_720w.jpg?source=1940ef5c" alt=""></p>
-<h2><span id="特性">特性</span></h2><ul>
-<li>对数据扫描(scan)和随机访问(random access)同时具有高性能，简化用户复杂的混合架构</li>
-<li>高 CPU 效率，使用户购买的先进处理器的的花费得到 最大回报</li>
-<li>高 IO 性能，充分利用先进存储介质</li>
-<li>支持数据的原地更新，避免额外的数据处理、数据移动</li>
-<li>支持跨数据中心replica</li>
-<li>不依赖与HDFS存储；不依赖于zookeeper</li>
-<li>核心模块用的C++来实现，没有full gc的风险</li>
-</ul>
-<h2><span id="架构">架构</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220513092729.png" alt=""></p>
-<ul>
-<li>Table<br> 每个table都需要预先定义好schema。每个table的列数是确定的，每一列都需要有名字和类型，每个表中可以把其中一列或多列定义为主键（全局有序）。</li>
-<li>Catalog table<br> Catalog table保存了所有table的schema的版本以及table的状态（创建、运行、删除等）</li>
-<li>Tablet<br> 一个tablet是一张table连续的segment，tablet是Kudu表的水平分区，类似于google Bigtable的tablet，或者HBase的region。<br> 每个tablet存储着一定连续range的数据（key），且tablet两两间的range不会重叠。一张表的所有tablet包含了这张表的所有key空间<br> tablet冗余到多个tablet server服务器上，并且在任何给定的时间点，其中一个副本是leader tablet，其他的副本为follower tablet</li>
-<li>Partitioning<br> KUDU表会被横向切分存储在多个tablets中， KUDU提供了丰富灵活的数据分区策略：<ul>
-<li>Range Partitioning，按照字段值范围进行分区， HBase 就采用了这种方式</li>
-<li>Hash Partitioning，按照字段的 Hash 值进行分区， Cassandra 采用了这个方式</li>
-</ul>
-</li>
-<li>Master Server<br> Kudu的master节点负责整个集群的元数据管理和服务协调。它承担着以下功能：<ul>
-<li>作为catalog manager，master节点管理着集群中所有table和tablet的schema及一些其他的元数据。</li>
-<li>作为cluster coordinator，master节点追踪着所有server节点是否存活，并且当server节点挂掉后协调数据的重新分布。</li>
-<li>作为tablet directory，master跟踪每个tablet的位置。</li>
-</ul>
-</li>
-<li>Tablet Server<br> 负责数据存储，并提供数据读写服务。Tablet server的任务非常繁重, 其负责和数据相关的所有操作, 包括存储,访问,压缩,其还负责将数据复制到其它机器</li>
-<li>MemRowSet<br> 一个tablet仅有一个MemRowSet用来保存最新插入的数据，并且有一个后台线程会定期把内存中的数据flush到硬盘上。<br> MemRowSet 是一个支持并发，提供锁优化的 B-tree，主要基于 MassTree，也有一些不同：<ul>
-<li>因为 Kudu 使用的是 MVCC，所以任何的删除其实也是插入，所以这个 tree 没有删除操作。</li>
-<li>不支持任意的 in-place 数据变更操作，除非这次操作不会改变 value 的大小。</li>
-<li>将 Leaf link 起来，类似 B+-tree，这样对于 scan 会有明显的性能提升。</li>
-<li>并没有完全实现 trie of trees，是只是使用了一个单一 tree，因为 Kudu 并没有太多高频随机访问的场景。</li>
-</ul>
-</li>
-<li>DiskRowSet<br> 当MemRowSet被flush到硬盘上，就变成了DiskRowSet。当MemRowSet被flush到硬盘的时候，每32M就会形成一个新的DiskRowSet，这主要是为了保证每个DiskRowSet不会太大，便于后续的增量compaction操作。</li>
-<li>Compaction<br> 为了提高查询性能，Kudu会定期进行compaction操作，合并delta data与base data，对标记了删除的数据进行删除，并且会合并一些DiskRowSet。</li>
-</ul>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://juejin.cn/post/6977652320905478152" target="_blank" rel="noopener">一文快速搞懂Kudu到底是什么</a></li>
-<li><a href="https://www.jianshu.com/p/83290cd817ac" target="_blank" rel="noopener">一文读懂 Apache Kudu</a></li>
-<li><a href="https://pingcap.com/zh/blog/kudu" target="_blank" rel="noopener">Kudu - 一个融合低延迟写入和高性能分析的存储系统</a></li>
-<li><a href="https://www.zhihu.com/question/37858641" target="_blank" rel="noopener">如何评价kudu存储引擎？</a></li>
-<li><a href="https://cloud.tencent.com/developer/article/1758562" target="_blank" rel="noopener">Hbase、Kudu和ClickHouse全视角对比</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">kudu</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/12/bigdata-stack-kudu/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><a class="page-number" href="/page/4/">4</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><a class="extend next" rel="next" href="/page/3/">Next &raquo;</a>
@@ -2483,7 +2496,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
+                <a href="javascript:void(0)" class="js-tag color5">hive</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2491,7 +2504,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hive</a>
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2507,10 +2520,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">flume</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
@@ -2519,11 +2528,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
+                <a href="javascript:void(0)" class="js-tag color1">flume</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">github</a>
+                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2531,7 +2540,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
+                <a href="javascript:void(0)" class="js-tag color2">github</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2540,6 +2549,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">golang</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2599,10 +2612,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
               </li>
              
@@ -2611,7 +2620,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2619,11 +2628,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2636,6 +2645,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2675,7 +2688,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+                <a href="javascript:void(0)" class="js-tag color1">datax</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2683,7 +2696,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2692,10 +2709,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">kylin</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
               </li>
              
               <li class="article-tag-list-item">
