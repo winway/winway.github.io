@@ -155,6 +155,160 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-kerberos-ranger" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/04/02/kerberos-ranger/">大数据生态认证、权限控制机制概述</a>
+    </h1>
+  
+
+        
+        <a href="/2022/04/02/kerberos-ranger/" class="archive-article-date">
+  	<time datetime="2022-04-02T12:00:19.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-04-02</time>
+</a>
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#引言">引言</a></li>
+<li><a href="#认证方案比较">认证方案比较</a></li>
+<li><a href="#开启kerberos认证">开启kerberos认证</a></li>
+<li><a href="#权限控制方案比较">权限控制方案比较</a></li>
+<li><a href="#开启ranger权限控制">开启ranger权限控制</a></li>
+<li><a href="#思考">思考</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="引言">引言</span></h2><p>大数据生态组件众多，需要能够提供统一的认证、权限控制功能的系统。本文重点介绍：用于认证的kerberos和用于权限控制的ranger。<br>kerberos解决”who are you“的问题，ranger解决”what you can do“的问题，这两个组件可以配合使用，也可以单独使用。<br>kerberos和ranger的基本原理不再介绍，可以查阅文末参考资料。</p>
+<h2><span id="认证方案比较">认证方案比较</span></h2><ul>
+<li>ldap。ldap authentication is centralized authentication, meaning you have to login with every service, but if you change your password it changes everywhere.</li>
+<li>kerberos。Kerberos is single sign on (SSO), meaning you login once and get a token and don’t need to login to other services. Kerberos would likely use ldap as a backend.</li>
+<li>ldap和kerberos的区别还是比较明显，虽然hive、presto等也可以集成ldap，但是大数据生态普遍还是首选kerberos做认证。</li>
+</ul>
+<h2><span id="开启kerberos认证">开启kerberos认证</span></h2><ol>
+<li>部署kerberos，一般使用MIT版本</li>
+<li>生成、分发集群和用户的keytab文件</li>
+<li>集群改造，开启kerberos认证<ul>
+<li>修改DefaultContainer为LinuxContainer（控制container的运行用户是服务启动用户还是任务提交用户，需要在集群内添加所有用户账号）</li>
+<li>服务改造支持kerberos，涉及组件hdfs、yarn、hive、hbase等</li>
+</ul>
+</li>
+<li>客户端改造，增加认证环节<ul>
+<li>认证方式：keytab kinit（执行命令之前）；服务调用loginUserFromKeytab</li>
+</ul>
+</li>
+</ol>
+<h2><span id="权限控制方案比较">权限控制方案比较</span></h2><ul>
+<li>hdfs<ul>
+<li>ugo模型。不灵活，无法满足</li>
+<li>acl。灵活，命令行方式，可以对不同用户单独设置目录权限。缺点：namenode记录acl需要额外内存开销，如果将来acl量很大可能有问题</li>
+<li>ranger。灵活，web页面方式，针对用户、目录设置访问策略，用户源丰富（手工创建、unix、ldap）。缺点：hdfs需要增加ranger插件，需要部署维护ranger服务</li>
+<li>acl和ranger方式可以共存，不冲突</li>
+</ul>
+</li>
+<li>yarn<ul>
+<li>acl。灵活，xml配置方式，基本可以满足需求</li>
+<li>ranger。灵活，web页面方式，用户源丰富（手工创建、unix、ldap）。缺点：yarn服务需要增加ranger插件，需要部署维护ranger服务</li>
+<li>acl和ranger方式可以共存，不冲突</li>
+</ul>
+</li>
+<li>hive<ul>
+<li>基于存储的授权（Storage Based Authorization in the Metastore Server）。只能控制到表级别，通过控制底层数据文件的访问权限决定是否允许访问hive表（和hdfs权限控制统一起来了）。缺点：namenode记录acl需要额外内存开销，如果将来acl量很大可能有问题</li>
+<li>ranger。提供细粒度控制（字段级别）和高级特性（列屏蔽、行过滤），缺点：hiveserver需要增加ranger插件，需要部署维护ranger服务隐患，只能控制通过hiveserver2访问的，直接读文件控制不了，需要配合文件权限控制</li>
+</ul>
+</li>
+</ul>
+<h2><span id="开启ranger权限控制">开启ranger权限控制</span></h2><ol>
+<li>部署ranger</li>
+<li>配置用户Usersync方式，一般选择ldap方式，如果用户少的话，可以选择手工创建内部用户</li>
+<li>安装plugin</li>
+<li>配置访问策略</li>
+</ol>
+<h2><span id="思考">思考</span></h2><ul>
+<li>是不是只开启hdfs ranger就行了？<br>理论上是的。hivecli、hiveserver、spark-sql、sparkthriftserver、presto最终还是访问的hdfs文件。所以只在hdfs层面开启ranger就可以，简化了权限控制。前提是不需要控制到字段粒度。</li>
+<li>必须使用ldap吗？<br>面向用户粒度管理，维护代价较大，可以选择面向开发组粒度管理，这样就不需要依赖ldap，可以直接创建有限的内部用户<br>如果必须面向用户粒度管理也可以（比如审计需求），但是配置权限依然建议面向组粒度配置，因为面向人粒度配置ranger会导致ranger策略膨胀。ldap建议独立部署，不要复用公司的ldap，因为：1.并不是公司所有人都有访问大数据系统的需求；2.方便添加虚拟用户，如数据平台使用的用户</li>
+<li>ranger集成ldap提供认证功能吗？<br>ranger集成ldap只是为了实现：1.登录ranger admin；2.获取用户信息。用户在访问hdfs、hive等服务时并不需要提供ldap的用户名、密码，除非服务开启了ldap认证。目前只有hiveserver和presto支持ldap认证，所以要实现严格额认证机制还是需要借助kerberos</li>
+<li>如何从「没有权限控制模式」过渡到「开启权限控制模式」？<br>尝试：默认所有用户属于public组，可以先设置public组的「默认允许访问」的策略，待访问策略配置完善后，删除public组的「默认允许访问」的策略。中间可以参考ranger的审计日志，参考访问记录辅助完善访问策略。另外需要注意的是，如果开启ranger的话，会默认把hdfs的dfs.permissions设置成true，然后rwx这个东西就会生效</li>
+<li>ranger策略和数据中台权限的关系？<br>独立维护，在数据中台申请权限不意味着可以使用spark等程序访问底层文件</li>
+<li>认证问题<br>ldap认证只支持hs2、presto，spark、flink应该在作业平台层面控制用户名，客户端可以限制特定用户名，如果ldap无法满足，认证需求可以上kerberos</li>
+<li>hdfs和hive的ranger策略检查关系？<br>hs2层面允许用户A访问t1表，hdfs层面禁止用户A访问t1表对应的location，那么用户A无法访问t1表</li>
+</ul>
+<h2><span id="参考资料">参考资料</span></h2><p>Hadoop安全实践<br><a href="https://tech.meituan.com/2014/03/24/hadoop-security-practice.html" target="_blank" rel="noopener">https://tech.meituan.com/2014/03/24/hadoop-security-practice.html</a><br>Yarn ContainerExecutor 配置与使用<br><a href="https://smarthanwang.github.io/2019/10/12/yarn-container-executor/" target="_blank" rel="noopener">https://smarthanwang.github.io/2019/10/12/yarn-container-executor/</a><br>Kerberos基本原理、安装部署及用法<br><a href="https://www.cnblogs.com/swordfall/p/12009716.html" target="_blank" rel="noopener">https://www.cnblogs.com/swordfall/p/12009716.html</a><br>HDFS配置Kerberos认证<br><a href="https://developer.aliyun.com/article/25636" target="_blank" rel="noopener">https://developer.aliyun.com/article/25636</a><br>HDFS权限管理实践<br><a href="https://sq.sf.163.com/blog/article/178584865073586176" target="_blank" rel="noopener">https://sq.sf.163.com/blog/article/178584865073586176</a><br>hive-3. 权限<br><a href="https://juejin.cn/post/6948449817328615455" target="_blank" rel="noopener">https://juejin.cn/post/6948449817328615455</a><br>Storage Based Authorization in the Metastore Server<br><a href="https://cwiki.apache.org/confluence/display/Hive/Storage+Based+Authorization+in+the+Metastore+Server" target="_blank" rel="noopener">https://cwiki.apache.org/confluence/display/Hive/Storage+Based+Authorization+in+the+Metastore+Server</a><br>Zeppelin 集成 Ranger 实现用户权限管控<br><a href="https://toutiao.io/posts/yxrpfkd/preview" target="_blank" rel="noopener">https://toutiao.io/posts/yxrpfkd/preview</a><br>Apache Ranger：统一授权管理框架<br><a href="https://ieevee.com/tech/2016/05/12/ranger.html" target="_blank" rel="noopener">https://ieevee.com/tech/2016/05/12/ranger.html</a><br>Ranger权限管理<br><a href="https://www.jianshu.com/p/a858d2829cb8" target="_blank" rel="noopener">https://www.jianshu.com/p/a858d2829cb8</a><br>【Ranger】基于Ranger+ldap的权限策略方案<br><a href="https://blog.csdn.net/lsr40/article/details/116496415" target="_blank" rel="noopener">https://blog.csdn.net/lsr40/article/details/116496415</a><br>Ranger<br><a href="https://help.aliyun.com/document_detail/66402.html" target="_blank" rel="noopener">https://help.aliyun.com/document_detail/66402.html</a><br>Apache Ranger及Hive权限控制<br><a href="https://www.jianshu.com/p/d9941b8687b7" target="_blank" rel="noopener">https://www.jianshu.com/p/d9941b8687b7</a><br>Hadoop生态系统介绍-Kerberos<br><a href="https://winway.github.io/2017/01/07/big-data-kerberos/">https://winway.github.io/2017/01/07/big-data-kerberos/</a></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">kerberos</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">ranger</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2022/04/02/kerberos-ranger/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-sb-https" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
     
@@ -1130,154 +1284,6 @@
 
 
   
-    <article id="post-hdfscompress" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2020/06/06/hdfscompress/">HDFS文件压缩转储</a>
-    </h1>
-  
-
-        
-        <a href="/2020/06/06/hdfscompress/" class="archive-article-date">
-  	<time datetime="2020-06-06T09:00:01.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2020-06-06</time>
-</a>
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#需求">需求</a></li>
-<li><a href="#步骤">步骤</a><ul>
-<li><a href="#选取压缩类型">选取压缩类型</a></li>
-<li><a href="#转储">转储</a></li>
-</ul>
-</li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<h1><span id="需求">需求</span></h1><p>定期将HDFS文件压缩转储到阿里云OSS。</p>
-<h1><span id="步骤">步骤</span></h1><h2><span id="选取压缩类型">选取压缩类型</span></h2><p>Hadoop支持的主流压缩格式包括以下几种：</p>
-<table>
-<thead>
-<tr>
-<th>Codec</th>
-<th>File Extension</th>
-<th>Splittable?</th>
-<th>Degree of Compression</th>
-<th>Compression Speed</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Gzip</td>
-<td>.gz</td>
-<td>No</td>
-<td>Medium</td>
-<td>Medium</td>
-</tr>
-<tr>
-<td>Bzip2</td>
-<td>.bz2</td>
-<td>Yes</td>
-<td>High</td>
-<td>Slow</td>
-</tr>
-<tr>
-<td>Snappy</td>
-<td>.snappy</td>
-<td>No</td>
-<td>Medium</td>
-<td>Fast</td>
-</tr>
-<tr>
-<td>LZO</td>
-<td>.lzo</td>
-<td>No, unless indexed</td>
-<td>Medium</td>
-<td>Fast</td>
-</tr>
-</tbody>
-</table>
-<p>其中可分割的只有bzip2和lzo(indexed)。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">hadoop jar $HADOOP_HOME/share/hadoop/tools/lib/hadoop-streaming-2.7.2.jar \</span><br><span class="line">    -Dmapreduce.map.java.opts=&apos;-Xmx768m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.map.memory.mb=1024 \</span><br><span class="line">    -Dmapreduce.reduce.java.opts=&apos;-Xmx1536m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.reduce.memory.mb=2048 \</span><br><span class="line">    -Dmapreduce.job.reduce.slowstart.completedmaps=0.9 \</span><br><span class="line">    -Dmapred.reduce.tasks=$parallelN \</span><br><span class="line">    -Dmapred.output.compress=true \</span><br><span class="line">    -Dmapred.compress.map.output=true \</span><br><span class="line">    -Dmapred.output.compression.codec=org.apache.hadoop.io.compress.BZip2Codec \</span><br><span class="line">    -input $hdfspath \</span><br><span class="line">    -output $hdfszippath \</span><br><span class="line">    -mapper /bin/cat \</span><br><span class="line">    -reducer /bin/cat \</span><br><span class="line">    -inputformat org.apache.hadoop.mapred.TextInputFormat \</span><br><span class="line">    -outputformat org.apache.hadoop.mapred.TextOutputFormat</span><br></pre></td></tr></table></figure></p>
-<p>先是使用bizp2进行了测试，但是压缩速度实在是太慢了，于是决定使用lzo。<br>lzo为了达到可分割，需要在压缩之后建立索引。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">hadoop jar $HADOOP_HOME/share/hadoop/tools/lib/hadoop-streaming-2.7.2.jar \</span><br><span class="line">    -Dmapreduce.map.java.opts=&apos;-Xmx768m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.map.memory.mb=1024 \</span><br><span class="line">    -Dmapreduce.reduce.java.opts=&apos;-Xmx1536m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.reduce.memory.mb=2048 \</span><br><span class="line">    -Dmapreduce.job.reduce.slowstart.completedmaps=0.9 \</span><br><span class="line">    -Dmapred.reduce.tasks=$parallelN \</span><br><span class="line">    -Dmapred.output.compress=true \</span><br><span class="line">    -Dmapred.compress.map.output=true \</span><br><span class="line">    -Dmapred.output.compression.codec=com.hadoop.compression.lzo.LzopCodec \</span><br><span class="line">    -input $hdfspath \</span><br><span class="line">    -output $hdfszippath \</span><br><span class="line">    -mapper /bin/cat \</span><br><span class="line">    -reducer /bin/cat \</span><br><span class="line">    -inputformat org.apache.hadoop.mapred.TextInputFormat \</span><br><span class="line">    -outputformat org.apache.hadoop.mapred.TextOutputFormat</span><br><span class="line"></span><br><span class="line">hadoop jar $HADOOP_HOME/lib/hadoop-lzo-0.4.21-SNAPSHOT.jar com.hadoop.compression.lzo.DistributedLzoIndexer $hdfszippath</span><br></pre></td></tr></table></figure></p>
-<h2><span id="转储">转储</span></h2><p>压缩完毕后，将文件拷贝到oss。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hadoop distcp -Dmapreduce.task.timeout=1200000 -m $parallelN $&#123;hdfszippath&#125;/* $&#123;osspath&#125;/</span><br></pre></td></tr></table></figure></p>
-<p><em>distcp过程中遇到一个问题：如果单个文件过大，在往oss拷贝的时候有可能失败，所以需要通过设置压缩任务reduce个数，控制最终单个文件的大小。</em></p>
-<h1><span id="参考资料">参考资料</span></h1><ul>
-<li><a href="https://www.dummies.com/programming/big-data/hadoop/compressing-data-in-hadoop/" target="_blank" rel="noopener">https://www.dummies.com/programming/big-data/hadoop/compressing-data-in-hadoop/</a></li>
-<li><a href="https://data-flair.training/forums/topic/which-compression-is-used-in-hadoop-which-of-them-is-splittable/" target="_blank" rel="noopener">https://data-flair.training/forums/topic/which-compression-is-used-in-hadoop-which-of-them-is-splittable/</a></li>
-<li><a href="https://blog.csdn.net/fjssharpsword/article/details/74908251" target="_blank" rel="noopener">https://blog.csdn.net/fjssharpsword/article/details/74908251</a></li>
-<li><a href="https://www.jianshu.com/p/10fc6c511761" target="_blank" rel="noopener">https://www.jianshu.com/p/10fc6c511761</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">hdfs</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2020/06/06/hdfscompress/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/3/">&laquo; Prev</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span><a class="page-number" href="/page/5/">5</a><a class="page-number" href="/page/6/">6</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><a class="extend next" rel="next" href="/page/5/">Next &raquo;</a>
@@ -1377,11 +1383,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">shell</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">监控</a>
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1393,7 +1395,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hive</a>
+                <a href="javascript:void(0)" class="js-tag color1">shell</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">监控</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1401,7 +1407,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
+                <a href="javascript:void(0)" class="js-tag color5">hive</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1417,15 +1423,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">flume</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">flume</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1441,15 +1447,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Python</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">golang</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1501,6 +1507,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
               </li>
              
@@ -1517,10 +1527,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
               </li>
              
@@ -1533,15 +1539,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">手机号</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1585,7 +1591,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1593,7 +1599,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+                <a href="javascript:void(0)" class="js-tag color1">datax</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1609,11 +1615,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
+                <a href="javascript:void(0)" class="js-tag color2">presto</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">presto</a>
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
