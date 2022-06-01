@@ -8,13 +8,13 @@
   <link rel="dns-prefetch" href="https://winway.github.io">
   <title>大数据开发之路-doris | winway&#39;s blog</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta name="description" content="doris-OLAP分析数据库的国产之光 特性 MPP数据库比较 适用场景 关键技术 架构 数据分布 MySQL 兼容性 查询计划 数据模型 数据组织 前缀索引 Schema Change 向量化执行 物化视图-ROLLUP 两层区分与分级存储 Doris on Elasticsearch Kafka routine load ODBC External Table Of Doris   参考">
+  <meta name="description" content="doris-OLAP分析数据库的国产之光 特性 MPP数据库比较 适用场景 关键技术 架构 数据分布 MySQL 兼容性 查询计划 数据模型 数据组织 前缀索引 Schema Change 向量化执行 物化视图-ROLLUP 两层区分与分级存储 join Doris on Elasticsearch Kafka routine load ODBC External Table Of Doris">
 <meta name="keywords" content="olap,doris">
 <meta property="og:type" content="article">
 <meta property="og:title" content="大数据开发之路-doris">
 <meta property="og:url" content="https://winway.github.io/2022/05/18/bigdata-stack-doris/index.html">
 <meta property="og:site_name" content="winway&#39;s blog">
-<meta property="og:description" content="doris-OLAP分析数据库的国产之光 特性 MPP数据库比较 适用场景 关键技术 架构 数据分布 MySQL 兼容性 查询计划 数据模型 数据组织 前缀索引 Schema Change 向量化执行 物化视图-ROLLUP 两层区分与分级存储 Doris on Elasticsearch Kafka routine load ODBC External Table Of Doris   参考">
+<meta property="og:description" content="doris-OLAP分析数据库的国产之光 特性 MPP数据库比较 适用场景 关键技术 架构 数据分布 MySQL 兼容性 查询计划 数据模型 数据组织 前缀索引 Schema Change 向量化执行 物化视图-ROLLUP 两层区分与分级存储 join Doris on Elasticsearch Kafka routine load ODBC External Table Of Doris">
 <meta property="og:locale" content="default">
 <meta property="og:image" content="https://img-blog.csdnimg.cn/img_convert/c119b20f8e0f64995aa540dcf5ea83e5.png">
 <meta property="og:image" content="https://p5.toutiaoimg.com/origin/pgc-image/ef27352d1ffc48778045d20c4f82a756?from=pc">
@@ -33,13 +33,14 @@
 <meta property="og:image" content="https://static001.infoq.cn/resource/image/14/19/142be1d5e532c74e06aa98dfeceeaa19.png">
 <meta property="og:image" content="https://static001.infoq.cn/resource/image/af/34/af23adeaf32b581d25d94ba41b2fee34.png">
 <meta property="og:image" content="https://static001.infoq.cn/resource/image/e8/cb/e896716a5ac8a1a3a2e95ecded48c5cb.png">
+<meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210904_f71a05a2-0d2d-11ec-ac89-38f9d3cd240d.png">
 <meta property="og:image" content="https://static001.infoq.cn/resource/image/b6/3b/b6a5e9a5cf77da594b05c0ba391c8d3b.png">
 <meta property="og:image" content="https://static001.infoq.cn/resource/image/a9/c5/a9089cfb327093a5e5caf84d4fab02c5.png">
 <meta property="og:image" content="https://static001.infoq.cn/resource/image/b9/0e/b9a519bb569e14c39fe85650d31e930e.png">
-<meta property="og:updated_time" content="2022-05-25T08:09:45.503Z">
+<meta property="og:updated_time" content="2022-06-01T13:26:30.295Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="大数据开发之路-doris">
-<meta name="twitter:description" content="doris-OLAP分析数据库的国产之光 特性 MPP数据库比较 适用场景 关键技术 架构 数据分布 MySQL 兼容性 查询计划 数据模型 数据组织 前缀索引 Schema Change 向量化执行 物化视图-ROLLUP 两层区分与分级存储 Doris on Elasticsearch Kafka routine load ODBC External Table Of Doris   参考">
+<meta name="twitter:description" content="doris-OLAP分析数据库的国产之光 特性 MPP数据库比较 适用场景 关键技术 架构 数据分布 MySQL 兼容性 查询计划 数据模型 数据组织 前缀索引 Schema Change 向量化执行 物化视图-ROLLUP 两层区分与分级存储 join Doris on Elasticsearch Kafka routine load ODBC External Table Of Doris">
 <meta name="twitter:image" content="https://img-blog.csdnimg.cn/img_convert/c119b20f8e0f64995aa540dcf5ea83e5.png">
   
     <link rel="alternative" href="/atom.xml" title="winway&#39;s blog" type="application/atom+xml">
@@ -223,6 +224,7 @@
 <li><a href="#向量化执行">向量化执行</a></li>
 <li><a href="#物化视图-rollup">物化视图-ROLLUP</a></li>
 <li><a href="#两层区分与分级存储">两层区分与分级存储</a></li>
+<li><a href="#join">join</a></li>
 <li><a href="#doris-on-elasticsearch">Doris on Elasticsearch</a></li>
 <li><a href="#kafka-routine-load">Kafka routine load</a></li>
 <li><a href="#odbc-external-table-of-doris">ODBC External Table Of Doris</a></li>
@@ -399,6 +401,13 @@
 <li>第一层分区<br>第一层分区是一个逻辑分区，比较常见的是按时间分区，把历史的数据按天/月/年作一个分区，不同区间的数据会落在不同分区里面。这样如果你经常只看最新的数据，那历史的数据在查询的时候，就会自动过滤掉。这样减少了大量历史数据不必要的重复 BE/CE，节省了大量的 I/O 和 CPU 开销。<br>时间分区还有一个作用就是可以把冷热的数据区分开，方便新旧数据分离，使用不同的存储介质。</li>
 <li>第二层分区<br>第二层分区是一个物理分区，而这种分区的作用主要就是把数据打散到整个集群里面去。假如说有 20 台机器所构成的一个集群，然后要把 20 台机器的性能全部给用上，可以去指定第二层分区，根据哈希分区的方式把这个数据打散到整个集群里面，这样的话查询的时候就可以用上整个分布式集群的性能。<br>这里有一点点技巧，要根据用户的读写的密集程度做分区。如果是一个读很密集的一个场景，那样的话我们建议用户尽量选择一个区分度很大的列，也就是基数很大的列，我们就可以把这个数据均匀地打散到整个集群里面去，用户查询的时候就可以把整个集群的资源可以用上，相当于没有数据倾斜。如果是写很密集的情况下，就建议用户选择一个区分度少一点的列。</li>
 </ul>
+<h3><span id="join">join</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210904_f71a05a2-0d2d-11ec-ac89-38f9d3cd240d.png" alt=""></p>
+<ul>
+<li>BroadCast Join<br> 它要求把右表全量的数据都发送到左表上，即每一个参与 Join 的节点，它都拥有右表全量的数据，也就是 T(R)。<br> 它适用的场景是比较通用的，同时能够支持 Hash Join 和 Nest loop Join，它的网络开销 N * T(R)。</li>
+<li>Shuffle Join<br> 当进行 Hash Join 时候，可以通过 Join 列计算对应的 Hash 值，并进行 Hash 分桶。<br> 它的网络开销则是：T（R） + T（N），但它只能支持 Hash Join，因为它是根据 Join 的条件也去做计算分桶的。</li>
+<li>Bucket Shuffle Join<br> Doris 的表数据本身是通过 Hash 计算分桶的，所以就可以利用表本身的分桶列的性质来进行 Join 数据的 Shuffle。假如两张表需要做 Join，并且 Join 列是左表的分桶列，那么左表的数据其实可以不用去移动右表通过左表的数据分桶发送数据就可以完成 Join 的计算。<br> 它的网络开销则是：T（R）相当于只 Shuffle 右表的数据就可以了。</li>
+<li>Colocation<br> 它与Bucket Shuffle Join相似，相当于在数据导入的时候，根据预设的 Join 列的场景已经做好了数据的 Shuffle。那么实际查询的时候就可以直接进行 Join 计算而不需要考虑数据的 Shuffle 问题了。</li>
+</ul>
 <h3><span id="doris-on-elasticsearch">Doris on Elasticsearch</span></h3><p><img src="https://static001.infoq.cn/resource/image/b6/3b/b6a5e9a5cf77da594b05c0ba391c8d3b.png" alt=""><br>Doris 只是一个稀疏索引，对于大规模点查询来说，随机的 I/O 会比较严重，所以支持 Elasticsearch，用到它的倒排索引，去丰富整个 Doris 的生态。<br><img src="https://static001.infoq.cn/resource/image/a9/c5/a9089cfb327093a5e5caf84d4fab02c5.png" alt=""></p>
 <h3><span id="kafka-routine-load">Kafka routine load</span></h3><p><img src="https://static001.infoq.cn/resource/image/b9/0e/b9a519bb569e14c39fe85650d31e930e.png" alt=""><br>Doris 内嵌了一个例行机制，可以在 Doris 里建一个例行的任务，帮你去订阅 Kafka 的变更，帮你把数据灌到 Doris 里面去，不需要外层业务方自己去写外层脚本去追踪 Kafka 的变化。</p>
 <h3><span id="odbc-external-table-of-doris">ODBC External Table Of Doris</span></h3><p>ODBC External Table Of Doris 提供了Doris通过数据库访问的标准接口(ODBC)来访问外部表，外部表省去了繁琐的数据导入工作，让Doris可以具有了访问各式数据库的能力，并借助Doris本身的OLAP的能力来解决外部表的数据分析问题：</p>
@@ -414,6 +423,7 @@
 <li><a href="https://zhuanlan.zhihu.com/p/400642016" target="_blank" rel="noopener">Apache doris架构及组件介绍</a></li>
 <li><a href="https://uikid.com/12/01/doris%E4%B8%80%E6%96%87%E4%BA%86%E8%A7%A3/" target="_blank" rel="noopener">Doris一文了解</a></li>
 <li><a href="https://www.jianshu.com/p/702a44d512c6" target="_blank" rel="noopener">Apache doris 排序键及ShortKey Index</a></li>
+<li><a href="https://www.modb.pro/db/105847" target="_blank" rel="noopener">最佳实践｜Apache Doris Join 实现与调优实践</a></li>
 </ul>
 
       
