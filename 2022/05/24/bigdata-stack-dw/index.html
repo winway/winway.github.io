@@ -32,7 +32,7 @@
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_5ebb0dd4-1f79-11ec-ae4e-00163e068ecd.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_5570d3b2-1f79-11ec-ae4e-00163e068ecd.png">
 <meta property="og:image" content="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_5a4d255c-1f79-11ec-ae4e-00163e068ecd.png">
-<meta property="og:updated_time" content="2022-05-25T08:32:12.365Z">
+<meta property="og:updated_time" content="2022-05-30T09:52:33.254Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="大数据开发之路-离线数仓">
 <meta name="twitter:description" content="离线数仓-大数据系统的重量级应用 架构介绍 传统数仓架构 大数据数仓架构   建设思想 规范建设 流程规范 开发规范 编码规范 上线规范 下线规范 模型设计规范 分层规范 数据域划分规范 公共层模型设计规范   指标规范   元数据建设 治理体系建设 配套工具建设 指标管理工具 元数据管理系统 数据质量监控工具 生命周期管理工具 成本管理工具 知识库 数据服务   参考资料    导引  大数">
@@ -268,7 +268,7 @@
 </blockquote>
 <h2><span id="离线数仓-大数据系统的重量级应用">离线数仓-大数据系统的重量级应用</span></h2><p>数据仓库概念诞生于1990年，由Inmon提出。截至今天，离线数仓已是十分成熟的一种技术，有主流、现成的架构方案可以采用，市面上的离线数仓架构也基本上大同小异。<br>因此，本文不再过多介绍架构方面的知识，而是重点介绍离线数仓的建设，如规范制定/数据治理等，即如何养成一个好用的离线数仓。</p>
 <h2><span id="架构介绍">架构介绍</span></h2><h3><span id="传统数仓架构">传统数仓架构</span></h3><p><img src="https://s1.51cto.com/oss/202005/28/44a58c9280d11e50ff6cba64c8cfa483.jpeg" alt=""><br>这是比较传统的一种方式，结构或半结构化数据通过离线ETL定期加载到离线数仓，之后通过计算引擎取得结果，供前端使用。<br>这里的离线数仓+计算引擎，通常是使用大型商业数据库来承担，例如Oracle、DB2、Teradata等。</p>
-<h3><span id="大数据数仓架构">大数据数仓架构</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/532288-20210126201125249-1962605607.png" alt=""><br>随着数据规模的不断增大，传统数仓方式难以承载海量数据。随着大数据技术的普及，开始采用大数据技术来承载存储与计算任务。当然，也可以使用传统数据库集群或MPP架构数据库来完成。例如Hadoop+Hive/Spark、Oracle RAC、GreenPlum等。<br>离线数仓一般涉及到数据采集/存储/计算/查询/管理等环节的组件，可以参考《<a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/#%E4%B8%80-%E7%86%9F%E6%82%89%E5%A4%A7%E6%95%B0%E6%8D%AE%E7%9B%B8%E5%85%B3%E7%BB%84%E4%BB%B6%E7%9A%84%E5%8E%9F%E7%90%86-%E7%89%B9%E7%82%B9%E5%92%8C%E4%BD%BF%E7%94%A8%E5%9C%BA%E6%99%AF">大数据开发之路-概述</a>》</p>
+<h3><span id="大数据数仓架构">大数据数仓架构</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/532288-20210126201125249-1962605607.png" alt=""><br>随着数据规模的不断增大，传统数仓方式难以承载海量数据。随着大数据技术的普及，开始采用大数据技术来承载存储与计算任务。当然，也可以使用传统数据库集群或MPP架构数据库来完成。例如Hadoop+Hive/Spark、Oracle RAC、GreenPlum等。<br>离线数仓一般会涉及到数据采集/存储/计算/查询/管理等环节的众多组件，可以参考《<a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/#%E4%B8%80-%E7%86%9F%E6%82%89%E5%A4%A7%E6%95%B0%E6%8D%AE%E7%9B%B8%E5%85%B3%E7%BB%84%E4%BB%B6%E7%9A%84%E5%8E%9F%E7%90%86-%E7%89%B9%E7%82%B9%E5%92%8C%E4%BD%BF%E7%94%A8%E5%9C%BA%E6%99%AF">大数据开发之路-概述</a>》</p>
 <h2><span id="建设思想">建设思想</span></h2><p>要想建设一个好用的数仓，先要知道数仓一般会面临哪些问题，如数据组织混乱、数据冗余、找数困难、指标口径混乱、数据不一致、数据质量无保证、烟囱开发、性能差、无SLA等。<br>这些问题的产生主要是因为缺乏统一的流程规范和辅助工具支撑，导致随着时间的推移和人员的更替，问题越积越多，越来越难用和维护。<br>所以，我的建设思想可以总结为三步：</p>
 <ol>
 <li>规范建设。先制定各种规范，保证数仓的建设是有据可依的；</li>
@@ -341,9 +341,9 @@
 </li>
 </ul>
 <h4><span id="数据域划分规范">数据域划分规范</span></h4><ul>
-<li>划分好处：便于理解、交流，方便管理</li>
-<li>划分依据：业务过程。好的主题域划分，是相对稳定，尽可能地覆盖绝⼤多数的表。数仓开发人员按照数据域垂直拆分，专人专域。</li>
-<li>关键环节：词根池的生成和维护</li>
+<li>划分好处：便于理解、沟通、交流；便于组织；便于管理，数仓开发人员按照数据域垂直拆分，专人专域。</li>
+<li>划分依据：业务过程。好的主题域划分，是相对稳定，尽可能地覆盖绝⼤多数的表。</li>
+<li>关键环节：词根池的生成和维护，表名、指标名的关键部分由词根池中的词组成。</li>
 </ul>
 <h4><span id="公共层模型设计规范">公共层模型设计规范</span></h4><ul>
 <li>好处：统一、标准、共享、复用</li>
@@ -369,7 +369,7 @@
 </ul>
 </li>
 <li>模型命名规则：表的命名进⾏规范化统⼀，表的名称中最好能够携带表的主题域、业务过程、分层以及分区信息</li>
-<li>模型改造流程，参见《<a href="https://winway.github.io/2022/05/09/dwModeling/#%E5%BB%BA%E6%A8%A1%E5%AE%9E%E6%88%98%E4%BB%8E%E7%83%9F%E5%9B%B1%E5%88%B0%E5%85%B1%E4%BA%AB">数仓建模浅谈</a>》<ol>
+<li>历史模型改造流程，参见《<a href="https://winway.github.io/2022/05/09/dwModeling/#%E5%BB%BA%E6%A8%A1%E5%AE%9E%E6%88%98%E4%BB%8E%E7%83%9F%E5%9B%B1%E5%88%B0%E5%85%B1%E4%BA%AB">数仓建模浅谈</a>》<ol>
 <li>接管ODS层，控制源头</li>
 <li>划分主题域，构建总线矩阵</li>
 <li>构建一致性维度</li>
@@ -380,7 +380,7 @@
 </li>
 </ul>
 <h3><span id="指标规范">指标规范</span></h3><ul>
-<li>目标：保证全局口径定义、数据来源和计算逻辑一致性，建立指标字典；相同聚合粒度的指标，在数仓里尽量只计算加工一次，避免重复建设</li>
+<li>目标：建立指标字典，保证全局口径定义、数据来源和计算逻辑一致性；相同聚合粒度的指标，在数仓里尽量只计算加工一次，避免重复建设</li>
 <li>指标常见问题：<ol>
 <li>相同指标名称，口径不一致</li>
 <li>相同口径，指标名称不一致</li>
@@ -465,12 +465,11 @@
 <li>sla达标率/覆盖率</li>
 <li>无效计算/存储占比（访问热度）</li>
 <li>异常计算/存储占比（数据倾斜/时间超长/占资源超多/小文件/数据未压缩等）</li>
-<li>用户使用率</li>
 </ul>
-<p>有了评估体系，就可以对数仓整体和数据开发进行评分排名，对好的案例进行分享，坏的案例进行督促，使数仓逐渐向好的方向进化。<br>同时还可以对治理效果进行统计，如节省了多少资源/SLA提高了多少百分点，作为数仓治理的可量化产出成果。</p>
+<p>有了评估体系，就可以对数仓整体以及数据开发进行评分排名，对好的案例进行分享，坏的案例进行督促，使数仓逐渐向好的方向进化。<br>同时还可以对治理效果进行统计，如节省了多少资源/SLA提高了多少百分点，作为数仓治理的可量化产出成果。</p>
 <h2><span id="配套工具建设">配套工具建设</span></h2><p>最后，好用的配套工具不仅可以使我们建设数仓事半功倍，还可以帮助我们建设更好的数仓。</p>
-<h3><span id="指标管理工具">指标管理工具</span></h3><p>必须要有⼀个专⻔负责指标管理的⼈或者⼩组，经过评审的符合规范的指标口径通过专人录入指标管理系统，作为唯一官方口径出口。<br>指标管理系统中的指标，向下和物理的表或字段建立直接或间接关联；向上和使用该指标的平台、应用建立关联。</p>
-<h3><span id="元数据管理系统">元数据管理系统</span></h3><p>提供元数据的采集/存储/展示/获取工具、接口。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_7f95710c-1f79-11ec-ae4e-00163e068ecd.png" alt=""><br>元数据一般可划为三类：数据字典、数据⾎缘和数据特征。</p>
+<h3><span id="指标管理工具">指标管理工具</span></h3><p>必须要有⼀个专⻔负责指标管理的⼈或者⼩组，经过评审的符合规范的指标口径通过专人录入指标管理系统，作为唯一官方口径出口。<br>指标管理系统中的指标，向下可以和物理的表或字段建立直接或间接关联；向上可以和使用该指标的平台、应用建立关联。</p>
+<h3><span id="元数据管理系统">元数据管理系统</span></h3><p>提供元数据的采集/存储/展示/获取工具和接口。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_7f95710c-1f79-11ec-ae4e-00163e068ecd.png" alt=""><br>元数据一般可划为三类：数据字典、数据⾎缘和数据特征。</p>
 <ul>
 <li>数据字典描述的是数据的结构信息，如<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_7c6dcf2e-1f79-11ec-ae4e-00163e068ecd.png" alt=""></li>
 <li>数据⾎缘是指⼀个表是直接通过哪些表加⼯⽽来，描述上下游关系。<br>数据⾎缘⼀般会帮我们做影响分析和故障溯源 。 ⽐如说有⼀天，⽼板看到某个指标的数据违反常识，需要去排查这个指标计算是否正确， ⾸先需要找到这个指标所在的表，然后顺着这个表的上游表逐个去排查校验数据，才能找到异常数据的根源。<br>⾎缘采集，⼀般可以通过三种⽅式：<ol>
@@ -488,7 +487,7 @@
 <p>在数据加⼯任务中，对产出表按照业务规则，设计⼀些校验逻辑，确保数据的完整性、⼀致性和准确性，这是提升数据质量最⾏之有效的⽅法。</p>
 <p>对任务DAG中每个表增加稽核校验规则之后，当其中任何⼀个节点产出的数据出现异常时，我们能够第⼀时间发现，并⽴即修复，做到早发现、早修复。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_66c232a0-1f79-11ec-ae4e-00163e068ecd.png" alt=""></p>
 <p>数据质量也可以作为一个因素，加入到评估体系中。</p>
-<h3><span id="生命周期管理工具">生命周期管理工具</span></h3><p>可以根据表的生命周期配置进行数据清理或存储迁移（冷热数据机制）操作，也可以针对没有引用的表或低热度表进行提醒/处理。</p>
+<h3><span id="生命周期管理工具">生命周期管理工具</span></h3><p>可以根据表的生命周期配置进行数据清理或存储迁移（冷热数据机制，如阿里的oss可以选择普通/低频/归档等存储策略）操作，也可以针对没有引用的表或低热度表进行提醒/处理。</p>
 <p>⼀般原始数据和明细数据，会保留完整的历史数据。⽽在汇总层、集市层或者应⽤层，考虑到存储成本，数据建议按照⽣命周期来管理，通常保留⼏天的快照或者分区。如果存在⼤表没有设置⽣命周期，就会浪费存储资源。</p>
 <h3><span id="成本管理工具">成本管理工具</span></h3><p>量化不同业务的成本，发现数据应⽤价值很低，成本却很⾼的报表/应用。</p>
 <ul>
@@ -809,15 +808,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -829,7 +828,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
+                <a href="javascript:void(0)" class="js-tag color4">pig</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -837,19 +836,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">pig</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">canal</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">flume</a>
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -857,15 +844,27 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">canal</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
+                <a href="javascript:void(0)" class="js-tag color1">flume</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">yarn</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -905,6 +904,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">tez</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">gc</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hexo</a>
               </li>
              
@@ -913,11 +920,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">tez</a>
+                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">gc</a>
+                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -937,23 +952,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -961,7 +964,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -974,10 +977,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -997,7 +996,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">小文件</a>
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1005,7 +1004,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+                <a href="javascript:void(0)" class="js-tag color4">小文件</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1013,15 +1012,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1029,7 +1020,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1042,6 +1037,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">presto</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
               </li>
              
               <li class="article-tag-list-item">
