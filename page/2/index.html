@@ -1550,6 +1550,349 @@ ReplicatedXXXMergeTree: 使得以上 MergeTree 家族拥有副本机制，保证
 
 
   
+    <article id="post-bigdata-stack-ss" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+    
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/05/15/bigdata-stack-ss/">大数据开发之路-spark streaming</a>
+    </h1>
+  
+
+        
+        <a href="/2022/05/15/bigdata-stack-ss/" class="archive-article-date">
+  	<time datetime="2022-05-15T01:40:25.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-15</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#spark-streaming-分布式流式计算引擎">spark streaming-分布式流式计算引擎</a></li>
+<li><a href="#流式计算面临的问题">流式计算面临的问题</a></li>
+<li><a href="#spark-streaming的解决之道">spark streaming的解决之道</a><ul>
+<li><a href="#dstream">DStream</a></li>
+<li><a href="#computation-model">computation model</a></li>
+<li><a href="#consistency-semantics">Consistency Semantics</a></li>
+<li><a href="#system-architecture">System Architecture</a></li>
+</ul>
+</li>
+<li><a href="#spark-streaming的不足">spark streaming的不足</a></li>
+<li><a href="#structured-streaming">structured streaming</a><ul>
+<li><a href="#structured-streaming进化史">structured streaming进化史</a><ul>
+<li><a href="#从rdd到datasetdataframe">从RDD到Dataset/DataFrame</a></li>
+<li><a href="#从-structured-data-到-structured-streaming">从 Structured Data 到 Structured Streaming</a></li>
+</ul>
+</li>
+<li><a href="#structured-streaming特性">structured streaming特性</a></li>
+<li><a href="#structured-streaming-编程模型">Structured Streaming 编程模型</a><ul>
+<li><a href="#window">window</a></li>
+<li><a href="#watermark">watermark</a></li>
+</ul>
+</li>
+<li><a href="#streamexecution持续查询的运转引擎">StreamExecution：持续查询的运转引擎</a><ul>
+<li><a href="#1-streamexecution-的初始状态">1. StreamExecution 的初始状态</a></li>
+<li><a href="#2-streamexecution-的持续查询">2. StreamExecution 的持续查询</a></li>
+<li><a href="#3-streamexecution-的持续查询增量">3. StreamExecution 的持续查询（增量）</a></li>
+<li><a href="#4-故障恢复">4. 故障恢复</a></li>
+<li><a href="#5-sources-与-sinks">5. Sources 与 Sinks</a></li>
+</ul>
+</li>
+<li><a href="#一致性语义">一致性语义</a></li>
+<li><a href="#continuous-processing-mode">Continuous Processing Mode</a></li>
+</ul>
+</li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<blockquote>
+<p>导引</p>
+<ol>
+<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
+<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
+<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
+<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
+<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
+<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
+<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
+<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
+<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
+<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
+<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
+<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
+<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
+</ol>
+</blockquote>
+<h2><span id="spark-streaming-分布式流式计算引擎">spark streaming-分布式流式计算引擎</span></h2><p>流式计算主要分两种：continuous-based 和 micro-batch。<br>Spark Streaming是基于 micro-batch 模式的。Spark 在 2016 年推出了 Structured Streaming，也开始支持 continuous based 模式。</p>
+<h2><span id="流式计算面临的问题">流式计算面临的问题</span></h2><p>大规模分布式流式计算系统设计的两个主要问题是错误处理和 straggler （straggler 是分布式系统某一个成员/成分运行滞后于其他组成部分，比如某个 task 节点的运行时间要明显长于其他节点）处理。由于流式系统的实时性，错误之后如何快速恢复显得极其重要。</p>
+<p>不幸的是，现存的流式系统在这两个点的设计上都不够好，错误恢复的代价非常高（热备份或者恢复时间长），而且不处理 straggler。<br>比如 Storm 和 TimeStream 等（这个时候 flink 还没有大规模流行起来）都是基于 continuous operator 模式，由一个持续运行、有状态的节点负责接收和处理数据。在这种模式下的错误恢复主要有两个方式：一个是 replication，也就是每个 operator 节点有一个 replication 节点；另一个是上游在某个节点失败之后对新的节点提供 replay。在大规模集群模式下，这两种方式都不太可取：replication 会耗费一倍的资源；上游 replay 会耗费一定时间。而且这两种模式都没处理 straggler: 第一种模式会由于 straggler 的存在导致 replication 的过程变慢；第二种模式会将 straggler 当成失败节点，然后进行恢复，代价比较大。</p>
+<p>continuous operator 模式下会有多个持续运行的 operator，每个 operator 接收自己的数据然后并更新状态。尽管这种方式可以减小延迟，但是因为 operator 本身是有状态的，导致错误恢复起来特别麻烦，如前所述，要么通过 replication，要么通过 upstream backup 和 replay。而这两种方式的缺点也很明显：资源浪费；恢复时间长。</p>
+<ul>
+<li>replication 除了成本问题还有数据一致性的问题，如何保证两个节点收到的数据是一致，所以还需要引入分布式协议，比如 Flux 或者 Borealis’s DPC。</li>
+<li>upstream backup 模式下，当某个 operator 节点 fail 之后，upstream 将之前发送给失败 operator 节点的数据从某个 checkpoint 重新发送给新的替代节点，这样就会导致恢复时间比较长。operator 的状态也是要保存的，而且 checkpoint 要和 upstream 的 checkpoint 一致。</li>
+<li>straggler 不管在 replication 模式还是 upstream backup 模式都不能很好的处理。</li>
+</ul>
+<h2><span id="spark-streaming的解决之道">spark streaming的解决之道</span></h2><blockquote>
+<p>DStream (Spark Streaming 的流式处理模式，全称 discretized streams) 错误恢复更快，而且会处理 straggler。除此之外，还有其他优点包括：提供丰富的算子、高吞吐、可以线性扩展到 100 个节点的集群规模、亚秒级延迟和压秒级故障恢复。最后，DStream 还可以和批处理、交互式查询结合使用。</p>
+</blockquote>
+<h3><span id="dstream">DStream</span></h3><p>Spark Streaming 的模式是 discretized streams (D-Streams)，这种模式不存在一直运行的 operator，而是将每一个时间间隔的数据通过一系列无状态、确定性（deterministic）的批处理来处理。<br><img src="https://pica.zhimg.com/v2-1acdb841d036bec190db33dddcec8650_1440w.jpg?source=172ae18b" alt=""><br>比如对每一秒的数据通过 MapReduce 计算 count。类似的，也可以叠加计算多个批次的数据的 count。简而言之，DStream 模式下，一旦 input 给定，输出状态就是确定的；下面我们会详细说明为什么 DStream 的失败恢复模式要优于前面两种模式。</p>
+<p>DStream 的实现难点主要有两个：低延迟和快速错误恢复（包括 straggler）。</p>
+<ul>
+<li>传统的批处理系统，比如 Hadoop，一般运行的比较慢，主要是因为中间结果要进行持久化（注：这种也代表容错性比较好）。DStream 使用弹性分布式数据集（Resilient Distributed Datasets），也就是 RDD，来进行批处理（注：RDD 可以将数据保存到内存中，然后通过 RDD 之间的依赖关系快速计算）。这个过程一般是亚秒级的，对于大部分场景都是可以满足的。</li>
+<li>快速错误恢复主要是通过 DStream 的确定性来提供一种新的恢复机制：parallel recovery。当一个节点失败之后，我们通过集群的其他节点来一起快速重建出失败节点的 RDD 数据。这种恢复模式相比之前的 replication 和 upstream replay 都要快。这里 straggler 的处理因为我们可以获取到一个批处理 task 的运行时间，所以我们可以通过推测 task 的运行时间判断是不是 straggler。</li>
+</ul>
+<p>DStream 的实现系统是 Spark Streaming，基于 Spark 引擎。这个系统可以在 100 个节点的集群上每秒处理 6kw 条数据，并保证亚秒级的延迟，错误恢复也可以保证在亚秒级。</p>
+<p>最后值得一提的是，因为 Spark Streaming 使用的 RDD model 和批处理相同，所以用户可以将 Spark Streaming 和批处理、交互式查询结合起来。或者将历史 RDD 数据结合 Spark Streaming 一起来用（注：这里的一个场景是线下训练模型，然后通过 Spark Streaming 运用到实时数据上）。</p>
+<h3><span id="computation-model">computation model</span></h3><p>DStream 通过一系列小的批处理作业来代替 operator 从而达到快速错误恢复的目的。<br>DStream 将流处理分解成多个一定时间间隔的批处理。在每个时间间隔的数据会被存储成一系列的 RDD，然后通过一系列的算子，比如 map, reduce, group 等进行并行计算，最后将结果输出成新的 RDD 或者输出到系统外（比如 stdout, 文件系统，网络等）。<br><img src="https://qph.fs.quoracdn.net/main-qimg-1352c6be75e165ed5aceab513e3a98c8" alt=""><br><img src="https://img-blog.csdnimg.cn/bafdf605c3c4439a9a9ecf85e448edc8.png?x-oss-process=image/watermark,type_d3F5LXplbmhlaQ,shadow_50,text_Q1NETiBA55yf5aW95ZCD5ZWK,size_20,color_FFFFFF,t_70,g_se,x_16" alt=""></p>
+<p>一个计算网站 pv 的例子，伪代码如下<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">pageViews = readStream(<span class="string">"http://..."</span>, <span class="string">"1s"</span>)</span><br><span class="line">ones = pageViews.map(event =&gt; (event.url, <span class="number">1</span>))</span><br><span class="line">counts = ones.runningReduce((a, b) =&gt; a + b)</span><br></pre></td></tr></table></figure></p>
+<p>对应的数据流如下图<br><img src="https://pic2.zhimg.com/80/v2-c78ac05fd775feabec53c118a3ef2f15_720w.jpg" alt=""><br>执行过程简单描述如下：</p>
+<ul>
+<li>Spark Streaming 持续不断接收 http url 的 view 数据 pageViews</li>
+<li>将 pageViews 按 1s 间隔拆分成一系列的 RDD 数据（每个时间间隔也会包含多个 RDD 数据）</li>
+<li>对 2 中的数据进行 map, reduce 等处理。</li>
+</ul>
+<p>系统错误处理通过 DStream 和 RDD 的依赖关系来恢复。依赖关系的维度是 partition，也就是说每个 RDD 可能会分成多个 partition 然后分布在集群的不同机器上，这样当某个机器上的 RDD 数据丢失的时候就可以通过 RDD 的依赖关系从多个机器上来并行的恢复数据了。上图中的 DStream 就表示有 3 个 partition。除此之后，如果各个时间间隔没有时序关系，那么每个时间间隔的 RDD 数据也可并行恢复。这正是 DStream 快速错误恢复的关键所在。</p>
+<p>straggler 的处理：straggler 的判断非常简单，由于很多 task 都是很快结束，如果一个 task 明显比其他 task 长就可以认为是 straggler。straggler 可以进行迁移，也就是将 task 迁移到其他机器上。</p>
+<h3><span id="consistency-semantics">Consistency Semantics</span></h3><p>基于 continuous operator 的流处理系统当多个 operator 由于各自的负载不同可能导致某些 operator 滞后，这样整个系统的某个时间点的 snapshot 数据就是不准确的。针对这个问题，Borealis 对不同节点进行同步来避免这个问题；而 storm 直接忽略这个问题。<br>对于 DStream，由于时间被自然的离散化，而每个时间 interval 对应的 RDDs 都是容错不可变且计算确定性的，所以 DStream 是满足 exactly-once 语义的。</p>
+<h3><span id="system-architecture">System Architecture</span></h3><p><img src="https://pic4.zhimg.com/80/v2-6b70f5c7a9783b1d9dbb1f0bca16895b_720w.jpg" alt=""><br>Spark Streaming 主要包括三个部分：</p>
+<ul>
+<li>master: 负责记录 DStream 的依赖图（lineage graph）和 task 的调度。我们现在也叫 driver。</li>
+<li>worker: 负责接收数据，存储数据以及执行 task。我们现在也叫 executor。</li>
+<li>client library。</li>
+</ul>
+<p>Spark Streaming 的无状态的 task 可以运行在任意节点，相比于传统的流式系统的固定拓扑结构（注：不太确定目前还是不是都是这样），扩展起来会更加的容易。<br>Spark Streaming 的所有状态都存储在 RDD 中，同时 RDD 的 partition 可以存储到任意节点或者通过多个节点计算。task 计算会考虑数据局部性，比如处理 parition A 的 task 会优先分配到 partition A 所在的节点运行。</p>
+<h2><span id="spark-streaming的不足">spark streaming的不足</span></h2><ul>
+<li>使用 Processing Time 而不是 Event Time<br> 首先解释一下，Processing Time 是数据到达 Spark 被处理的时间，而 Event Time 是数据自带的属性，一般表示数据产生于数据源的时间。比如 IoT 中，传感器在 12:00:00 产生一条数据，然后在 12:00:05 数据传送到 Spark，那么 Event Time 就是 12:00:00，而 Processing Time 就是 12:00:05。我们知道 Spark Streaming 是基于 DStream 模型的 micro-batch 模式，简单来说就是将一个微小时间段，比如说 1s，的流数据当成批数据来处理。如果我们要统计某个时间段的一些数据统计，毫无疑问应该使用 Event Time，但是因为 Spark Streaming 的数据切割是基于 Processing Time，这样就导致使用 Event Time 特别的困难。</li>
+<li>Complex, low-level api<br> 这点比较好理解，DStream （Spark Streaming 的数据模型）提供的 API 类似 RDD 的 API 的，非常的 low level。当我们编写 Spark Streaming 程序的时候，本质上就是要去构造 RDD 的 DAG 执行图，然后通过 Spark Engine 运行。这样导致一个问题是，DAG 可能会因为开发者的水平参差不齐而导致执行效率上的天壤之别。这样导致开发者的体验非常不好，也是任何一个基础框架不想看到的（基础框架的口号一般都是：你们专注于自己的业务逻辑就好，其他的交给我）。这也是很多基础系统强调 Declarative 的一个原因。</li>
+<li>reason about end-to-end application<br> 这里的 end-to-end 指的是直接 input 到 output，比如 Kafka 接入 Spark Streaming 然后再导出到 HDFS 中。DStream 只能保证自己的一致性语义是 exactly-once 的，而 input 接入 Spark Streaming 和 Spark Straming 输出到外部存储的语义往往需要用户自己来保证。而这个语义保证写起来也是非常有挑战性，比如为了保证 output 的语义是 exactly-once 语义需要 output 的存储系统具有幂等的特性，或者支持事务性写入，这个对于开发者来说都不是一件容易的事情。</li>
+<li>批流代码不统一<br> 尽管批流本是两套系统，但是这两套系统统一起来确实很有必要，我们有时候确实需要将我们的流处理逻辑运行到批数据上面。关于这一点，最早在 2014 年 Google 提出 Dataflow 计算服务的时候就批判了 streaming/batch 这种叫法，而是提出了 unbounded/bounded data 的说法。DStream 尽管是对 RDD 的封装，但是我们要将 DStream 代码完全转换成 RDD 还是有一点工作量的，更何况现在 Spark 的批处理都用 DataSet/DataFrame API 了。</li>
+</ul>
+<h2><span id="structured-streaming">structured streaming</span></h2><h3><span id="structured-streaming进化史">structured streaming进化史</span></h3><h4><span id="从rdd到datasetdataframe">从RDD到Dataset/DataFrame</span></h4><p><img src="https://pic3.zhimg.com/80/v2-dec703270395b29644e8472b20aa52d6_720w.jpg" alt=""><br>Spark 1.x 时代里，以 SparkContext（及 RDD API）为基础，在 structured data 场景衍生出了 SQLContext, HiveContext，在 streaming 场景衍生出了 StreamingContext，很是琳琅满目。<br><img src="https://pic1.zhimg.com/80/v2-fce03a91c2fb974014dfa8805e305f90_720w.jpg" alt=""><br>Spark 2.x 则精简到只保留一个 SparkSession 作为主程序入口，以 Dataset/DataFrame 为主要的用户 API，同时满足 structured data, streaming data, machine learning, graph 等应用场景，大大减少使用者需要学习的内容，爽爽地又重新实现了一把当年的 “one stack to rule them all” 的理想。</p>
+<p>我们这里简单回顾下 Spark 2.x 的 Dataset/DataFrame 与 Spark 1.x 的 RDD 的不同：<br><img src="https://pic1.zhimg.com/80/v2-5e523dcaaacaba9a8fd253f790172880_720w.jpg" alt=""></p>
+<ul>
+<li>Spark 1.x 的 RDD 更多意义上是一个一维、只有行概念的数据集，比如 RDD[Person]，那么一行就是一个 Person，存在内存里也是把 Person 作为一个整体（序列化前的 java object，或序列化后的 bytes）。</li>
+<li>Spark 2.x 里，一个 Person 的 Dataset 或 DataFrame，是二维行+列的数据集，比如一行一个 Person，有 name:String, age:Int, height:Double 三列；在内存里的物理结构，也会显式区分列边界。</li>
+<li>Dataset/DataFrame 在 API 使用上有区别：Dataset 相比 DataFrame 而言是 type-safe 的，能够在编译时对 AnalysisExecption 报错（如下图示例）:<br><img src="https://pic1.zhimg.com/80/v2-4348ed53cfe1c68c2d1d4c5a4eaf922c_720w.jpg" alt=""></li>
+<li>Dataset/DataFrame 存储方式无区别：两者在内存中的存储方式是完全一样的、是按照二维行列（UnsafeRow）来存的。</li>
+</ul>
+<h4><span id="从-structured-data-到-structured-streaming">从 Structured Data 到 Structured Streaming</span></h4><p>使用 Dataset/DataFrame 的行列数据表格来表达 structured data，既容易理解，又具有广泛的适用性：</p>
+<ul>
+<li>Java 类 class Person { String name; int age; double height} 的多个对象可以方便地转化为 Dataset/DataFrame</li>
+<li>多条 json 对象比如 {name: “Alice”, age: 20, height: 1.68}, {name: “Bob”, age: 25, height: 1.76} 可以方便地转化为 Dataset/DataFrame</li>
+<li>或者 MySQL 表、行式存储文件、列式存储文件等等等都可以方便地转化为 Dataset/DataFrame</li>
+</ul>
+<p>Spark 2.0 更进一步，使用 Dataset/Dataframe 的行列数据表格来扩展表达 streaming data —— 所以便横空出世了 Structured Streaming。<br>与静态的 structured data 不同，动态的 streaming data 的行列数据表格是一直无限增长的（因为 streaming data 在源源不断地产生）！<br><img src="https://pic1.zhimg.com/80/v2-b79d3e9e05e78ba06dfe80ddaca7fc6c_720w.jpg" alt=""></p>
+<p>基于“无限增长的表格”的编程模型，我们来写一个 streaming 的 word count：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">val spark = SparkSession.builder().master(<span class="string">"..."</span>).getOrCreate()  <span class="comment">// 创建一个 SparkSession 程序入口</span></span><br><span class="line"></span><br><span class="line">val lines = spark.readStream.textFile(<span class="string">"some_dir"</span>)  <span class="comment">// 将 some_dir 里的内容创建为 Dataset/DataFrame；即 input table</span></span><br><span class="line">val words = lines.flatMap(_.split(<span class="string">" "</span>))</span><br><span class="line">val wordCounts = words.groupBy(<span class="string">"value"</span>).count()    <span class="comment">// 对 "value" 列做 count，得到多行二列的 Dataset/DataFrame；即 result table</span></span><br><span class="line"></span><br><span class="line">val query = wordCounts.writeStream                 <span class="comment">// 打算写出 wordCounts 这个 Dataset/DataFrame</span></span><br><span class="line">  .outputMode(<span class="string">"complete"</span>)                          <span class="comment">// 打算写出 wordCounts 的全量数据</span></span><br><span class="line">  .format(<span class="string">"console"</span>)                               <span class="comment">// 打算写出到控制台</span></span><br><span class="line">  .start()                                         <span class="comment">// 新起一个线程开始真正不停写出</span></span><br><span class="line"></span><br><span class="line">query.awaitTermination()                           <span class="comment">// 当前用户主线程挂住，等待新起来的写出线程结束</span></span><br></pre></td></tr></table></figure></p>
+<p><img src="https://pic4.zhimg.com/80/v2-a0582b3cd70506d94906e6caf322356b_720w.jpg" alt=""><br>这里需要说明几点：</p>
+<ul>
+<li>Structured Streaming 也是先纯定义、再触发执行的模式，即前面大部分代码是 纯定义 Dataset/DataFrame 的产生、变换和写出，后面位置再真正 start 一个新线程，去触发执行之前的定义</li>
+<li>在新的执行线程里我们需要 持续地 去发现新数据，进而 持续地 查询最新计算结果至写出，这个过程叫做 continous query（持续查询）</li>
+</ul>
+<h3><span id="structured-streaming特性">structured streaming特性</span></h3><p><img src="https://pic2.zhimg.com/80/v2-8467b7d62beb4c6353e9504b0b616e81_720w.jpg" alt=""><br>Structured Streaming 通过提供一套 high-level 的 declarative api 使得流式计算的编写相比 Spark Streaming 简单容易不少，同时通过提供 end-to-end 的 exactly-once 语义使用 Structured Streaming 可以和其他系统更好的集成。性能方面，通过复用 Spark SQL Engine 来保证高性能。</p>
+<ul>
+<li>Incremental query model: Structured Streaming 将会在新增的流式数据上不断执行增量查询，同时代码的写法和批处理 API （基于 Dataframe 和 Dataset API）完全一样，而且这些 API 非常的简单。</li>
+<li>API: Structured Streaming 代码编写完全复用 Spark SQL 的 batch API，也就是对一个或者多个 stream 或者 table 进行 query。query 的结果是 result table，可以以多种不同的模式（append, update, complete）输出到外部存储中。另外，Structured Streaming 还提供了一些 Streaming 处理特有的 API：Trigger, watermark, stateful operator。</li>
+<li>Support for end-to-end application: Structured Streaming 内置了很多 connector 来保证 input 数据源和 output sink 的 exactly-once 语义。而实现 exactly-once 语义的前提是：<ul>
+<li>Input 数据源必须是可以 replay 的，比如 Kafka，这样节点 crash 的时候就可以重新读取 input 数据。常见的数据源包括 Amazon Kinesis, Apache Kafka 和文件系统。</li>
+<li>Output sink 必须要支持写入是幂等的。这个很好理解，如果 output 不支持幂等写入，那么一致性语义就是 at-least-once 了。另外对于某些 sink, Structured Streaming 还提供了原子写入来保证 exactly-once 语义。</li>
+</ul>
+</li>
+<li>复用 Spark SQL 执行引擎：我们知道 Spark SQL 执行引擎做了非常多的优化工作，比如执行计划优化、codegen、内存管理等。这也是 Structured Streaming 取得高性能和高吞吐的一个原因。</li>
+<li>Execution: Structured Streaming 默认使用类似 Spark Streaming 的 micro-batch 模式，有很多好处，比如动态负载均衡、再扩展、错误恢复以及 straggler （straggler 指的是那些执行明显慢于其他 task 的 task）重试。除了 micro-batch 模式，Structured Streaming 还提供了基于传统的 long-running operator 的 continuous 处理模式。</li>
+<li>Operational Features: 利用 wal 和状态存储，开发者可以做到集中形式的 rollback 和错误恢复。</li>
+</ul>
+<h3><span id="structured-streaming-编程模型">Structured Streaming 编程模型</span></h3><p>可能是受到 Google Dataflow 的批流统一的思想的影响，Structured Streaming 将流式数据当成一个不断增长的 table，然后使用和批处理同一套 API，都是基于 DataSet/DataFrame 的。如下图所示，通过将流式数据理解成一张不断增长的表，从而就可以像操作批的静态数据一样来操作流数据了。<br><img src="https://pic4.zhimg.com/80/v2-64b6c2bc2092599a95a85e31cb6566f3_720w.jpg" alt=""></p>
+<p><img src="https://pic2.zhimg.com/80/v2-f880838ee66f9e512dfecdb59cef32f1_720w.jpg" alt=""><br>在这个模型中，主要存在下面几个组成部分：</p>
+<ul>
+<li>Input Unbounded Table: 流式数据的抽象表示</li>
+<li>Query: 对 input table 的增量式查询</li>
+<li>Result Table: Query 产生的结果表</li>
+<li>Output: Result Table 的输出</li>
+</ul>
+<p>下面举一个具体的例子，NetworkWordCount，代码如下:<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// Create DataFrame representing the stream of input lines from connection to localhost:9999</span></span><br><span class="line">val lines = spark.readStream</span><br><span class="line">  .format(<span class="string">"socket"</span>)</span><br><span class="line">  .option(<span class="string">"host"</span>, <span class="string">"localhost"</span>)</span><br><span class="line">  .option(<span class="string">"port"</span>, <span class="number">9999</span>)</span><br><span class="line">  .load()</span><br><span class="line"></span><br><span class="line"><span class="comment">// Split the lines into words</span></span><br><span class="line">val words = lines.as[String].flatMap(_.split(<span class="string">" "</span>))</span><br><span class="line"></span><br><span class="line"><span class="comment">// Generate running word count</span></span><br><span class="line">val wordCounts = words.groupBy(<span class="string">"value"</span>).count()</span><br><span class="line"></span><br><span class="line"><span class="comment">// Start running the query that prints the running counts to the console</span></span><br><span class="line">val query = wordCounts.writeStream</span><br><span class="line">    .outputMode(<span class="string">"complete"</span>)</span><br><span class="line">    .format(<span class="string">"console"</span>)</span><br><span class="line">    .start()</span><br></pre></td></tr></table></figure></p>
+<p>代码实际执行流程可以用下图来表示。<br><img src="https://pic2.zhimg.com/80/v2-9b2b6bab9683c91de847022e5c78c0e9_720w.jpg" alt=""><br>把流式数据当成一张不断增长的 table，也就是图中的 Unbounded table of all input。然后每秒 trigger 一次，在 trigger 的时候将 query 应用到 input table 中新增的数据上，有时候还需要和之前的静态数据一起组合成结果。query 产生的结果成为 Result Table，我们可以选择将 Result Table 输出到外部存储。输出模式有三种：</p>
+<ul>
+<li>Complete mode: Result Table 全量输出</li>
+<li>Append mode (default): 只有 Result Table 中新增的行才会被输出，所谓新增是指自上一次 trigger 的时候。因为只是输出新增的行，所以如果老数据有改动就不适合使用这种模式。</li>
+<li>Update mode: 只要更新的 Row 都会被输出，相当于 Append mode 的加强版。</li>
+</ul>
+<p>和 batch 模式相比，streaming 模式还提供了一些特有的算子操作，比如 window, watermark, statefaul oprator 等。</p>
+<h4><span id="window">window</span></h4><p>下图是一个基于 event-time 统计 window 内事件的例子。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> spark.implicits._</span><br><span class="line"></span><br><span class="line">val words = ... <span class="comment">// streaming DataFrame of schema &#123; timestamp: Timestamp, word: String &#125;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// Group the data by window and word and compute the count of each group</span></span><br><span class="line">val windowedCounts = words.groupBy(</span><br><span class="line">  window(<span class="string">"eventTime"</span>, <span class="string">"10 minutes"</span>, <span class="string">"5 minutes"</span>),</span><br><span class="line">  $<span class="string">"word"</span></span><br><span class="line">).count()</span><br></pre></td></tr></table></figure></p>
+<p>如下图所示，窗口大小为 10 分钟，每 5 分钟 trigger 一次。在 12:11 时候收到了一条 12:04 的数据，也就是 late data （什么叫 late data 呢？就是 Processing Time 比 Event Time 要晚），然后去更新其对应的 Result Table 的记录。<br><img src="https://pic1.zhimg.com/80/v2-15fa06f55f958fe3a048593634741450_720w.jpg" alt=""></p>
+<h4><span id="watermark">watermark</span></h4><p>watermark也是为了处理late data。很多情况下对于这种 late data 的时效数据并没有必要一直保留太久。比如说，数据晚了 10 分钟或者还有点用，但是晚了1个小时就没有用了。另外这样设计还有一个好处就是中间状态没有必要维护那么多。watermark 的形式化定义为 max(eventTime) - threshold，早于 watermark 的数据直接丢弃。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> spark.implicits._</span><br><span class="line"></span><br><span class="line">val words = ... <span class="comment">// streaming DataFrame of schema &#123; timestamp: Timestamp, word: String &#125;</span></span><br><span class="line"></span><br><span class="line"><span class="comment">// Group the data by window and word and compute the count of each group</span></span><br><span class="line">val windowedCounts = words</span><br><span class="line">    .withWatermark(<span class="string">"eventTime"</span>, <span class="string">"10 minutes"</span>)</span><br><span class="line">    .groupBy(</span><br><span class="line">        window(<span class="string">"eventTime"</span>, <span class="string">"10 minutes"</span>, <span class="string">"5 minutes"</span>),</span><br><span class="line">        $<span class="string">"word"</span>)</span><br><span class="line">    .count()</span><br></pre></td></tr></table></figure></p>
+<p>用下图表示更加形象。在 12:15 trigger 时 watermark 为 12:14 - 10m = 12:04，所以 late date (12:08, dog; 12:13, owl) 都被接收了。在 12:20 trigger 时 watermark 为 12:21 - 10m = 12:11，所以 late data (12:04, donkey) 都丢弃了。<br><img src="https://pic2.zhimg.com/80/v2-89c86d6e3729470061ac5130f7cc8401_720w.jpg" alt=""></p>
+<p>除此之后 Structured Streaming 还提供了用户可以自定义状态计算逻辑的算子：</p>
+<ul>
+<li>mapGroupsWithState</li>
+<li>flatMapGroupsWithState</li>
+</ul>
+<p>看名字大概也能看出来 mapGroupsWithState 是 one -&gt; one，flatMapGroupsWithState 是 one -&gt; multi。这两个算子的底层都是基于 Spark Streaming 的 updateStateByKey。</p>
+<h3><span id="streamexecution持续查询的运转引擎">StreamExecution：持续查询的运转引擎</span></h3><p>现在我们将目光聚焦到 continuous query 的驱动引擎（即整个 Structured Streaming 的驱动引擎） StreamExecution 上来。</p>
+<h4><span id="1-streamexecution-的初始状态">1. StreamExecution 的初始状态</span></h4><p>我们前文刚解析过，先定义好 Dataset/DataFrame 的产生、变换和写出，再启动 StreamExection 去持续查询。这些 Dataset/DataFrame 的产生、变换和写出的信息就对应保存在 StreamExecution 非常重要的 3 个成员变量中：</p>
+<ul>
+<li>sources: streaming data 的产生端（比如 kafka 等）</li>
+<li>logicalPlan: DataFrame/Dataset 的一系列变换（即计算逻辑）</li>
+<li>sink: 最终结果写出的接收端（比如 file system 等）</li>
+</ul>
+<p>StreamExection 另外的重要成员变量是：</p>
+<ul>
+<li>currentBatchId: 当前执行的 id</li>
+<li>batchCommitLog: 已经成功处理过的批次有哪些</li>
+<li>offsetLog, availableOffsets, committedOffsets: 当前执行需要处理的 source data 的 meta 信息</li>
+<li>offsetSeqMetadata: 当前执行的 watermark 信息（event time 相关）等</li>
+</ul>
+<p>我们将 Source, Sink, StreamExecution 及其重要成员变量标识在下图，接下来将逐个详细解析。<br><img src="https://pic1.zhimg.com/80/v2-6049a5aa52f36705ea738d10e8005074_720w.png" alt=""></p>
+<h4><span id="2-streamexecution-的持续查询">2. StreamExecution 的持续查询</span></h4><p><img src="https://pic4.zhimg.com/80/v2-9ff4b3f2a2516570348f2d3fe56b2007_720w.jpg" alt=""><br>一次执行的过程如上图；这里有 6 个关键步骤：</p>
+<ol>
+<li>StreamExecution 通过 Source.getOffset() 获取最新的 offsets，即最新的数据进度；</li>
+<li>StreamExecution 将 offsets 等写入到 offsetLog 里。这里的 offsetLog 是一个持久化的 WAL (Write-Ahead-Log)，是将来可用作故障恢复用。</li>
+<li><p>StreamExecution 构造本次执行的 LogicalPlan</p>
+<ul>
+<li>(3a) 将预先定义好的逻辑（即 StreamExecution 里的 logicalPlan 成员变量）制作一个副本出来</li>
+<li>(3b) 给定刚刚取到的 offsets，通过 Source.getBatch(offsets) 获取本执行新收到的数据的 Dataset/DataFrame 表示，并替换到 (3a) 中的副本里</li>
+</ul>
+<p>经过 (3a), (3b) 两步，构造完成的 LogicalPlan 就是针对本执行新收到的数据的 Dataset/DataFrame 变换（即整个处理逻辑）了</p>
+</li>
+<li>触发对本次执行的 LogicalPlan 的优化，得到 IncrementalExecution<ul>
+<li>逻辑计划的优化：通过 Catalyst 优化器完成</li>
+<li>物理计划的生成与选择：结果是可以直接用于执行的 RDD DAG</li>
+<li>逻辑计划、优化的逻辑计划、物理计划、及最后结果 RDD DAG，合并起来就是 IncrementalExecution</li>
+</ul>
+</li>
+<li>将表示计算结果的 Dataset/DataFrame (包含 IncrementalExecution) 交给 Sink，即调用 Sink.add(ds/df)</li>
+<li>计算完成后的 commit<ul>
+<li>(6a) 通过 Source.commit() 告知 Source 数据已经完整处理结束；Source 可按需完成数据的 garbage-collection</li>
+<li>(6b) 将本次执行的批次 id 写入到 batchCommitLog 里</li>
+</ul>
+</li>
+</ol>
+<h4><span id="3-streamexecution-的持续查询增量">3. StreamExecution 的持续查询（增量）</span></h4><p><img src="https://pic3.zhimg.com/80/v2-01690f885f7d1a6a1ea9d04d209e0a8a_720w.jpg" alt=""><br>Structured Streaming 在编程模型上暴露给用户的是，每次持续查询看做面对全量数据（而不仅仅是本次执行信收到的数据），所以每次执行的结果是针对全量数据进行计算的结果。<br>但是在实际执行过程中，由于全量数据会越攒越多，那么每次对全量数据进行计算的代价和消耗会越来越大。<br>Structured Streaming 的做法是：引入全局范围、高可用的 StateStore转全量为增量，即在每次执行时：</p>
+<ul>
+<li>先从 StateStore 里 restore 出上次执行后的状态</li>
+<li>然后加入本次执行的新数据，再进行计算</li>
+<li>如果有状态改变，将把改变的状态重新 save 到 StateStore 里</li>
+</ul>
+<p>为了在 Dataset/DataFrame 框架里完成对 StateStore 的 restore 和 save 操作，引入两个新的物理计划节点 —— StateStoreRestoreExec 和 StateStoreSaveExec<br>所以 Structured Streaming 在编程模型上暴露给用户的是，每次持续查询看做面对全量数据，但在具体实现上转换为增量的持续查询。</p>
+<h4><span id="4-故障恢复">4. 故障恢复</span></h4><p>通过前面小节的解析，我们知道存储 source offsets 的 offsetLog，和存储计算状态的 StateStore，是全局高可用的。仍然采用前面的示意图，offsetLog 和 StateStore 被特殊标识为紫色，代表高可用。<br><img src="https://pic3.zhimg.com/80/v2-01690f885f7d1a6a1ea9d04d209e0a8a_720w.jpg" alt=""><br>由于 exectutor 节点的故障可由 Spark 框架本身很好的 handle，不引起可用性问题，我们本节的故障恢复只讨论 driver 故障恢复。<br>如果在某个执行过程中发生 driver 故障，那么重新起来的 StreamExecution：</p>
+<ul>
+<li>读取 WAL offsetlog 恢复出最新的 offsets 等；相当于取代正常流程里的 (1)(2) 步</li>
+<li>读取 batchCommitLog 决定是否需要重做最近一个批次，如果需要，那么重做 (3a), (3b), (4), (5), (6a), (6b) 步<br> 这里第 (5) 步需要分两种情况讨论<ul>
+<li>(i) 如果上次执行在 (5) 结束前即失效，那么本次执行里 sink 应该完整写出计算结果</li>
+<li>(ii) 如果上次执行在 (5) 结束后才失效，那么本次执行里 sink 可以重新写出计算结果（覆盖上次结果），也可以跳过写出计算结果（因为上次执行已经完整写出过计算结果了）</li>
+</ul>
+</li>
+</ul>
+<p>这样即可保证每次执行的计算结果，在 sink 这个层面，是 不重不丢 的 —— 即使中间发生过 1 次或以上的失效和恢复。</p>
+<h4><span id="5-sources-与-sinks">5. Sources 与 Sinks</span></h4><p>可以看到，Structured Streaming 层面的 Source，需能根据 offsets 重放数据。所以：<br><img src="https://pic3.zhimg.com/80/v2-9f8c19112d1b48e011f5358e3b856146_720w.jpg" alt=""><br>也可以看到，Structured Streaming 层面的 Sink，需能幂等式写入数据。所以：<br><img src="https://pic3.zhimg.com/80/v2-190152b5e5957a22b89cd889e68f267a_720w.jpg" alt=""><br>所以在 Structured Streaming 里，我们总结下面的关系：<br><img src="https://pic2.zhimg.com/80/v2-b293e723d4ad2f423f0f038d4549f8a5_720w.jpg" alt=""><br>这里的 end-to-end 指的是，如果 source 选用类似 Kafka, HDFS 等，sink 选用类似 HDFS, MySQL 等，那么 Structured Streaming 将自动保证在 sink 里的计算结果是 exactly-once 的 —— Structured Streaming 终于把过去需要使用者去维护的 sink 去重逻辑接盘过去了！</p>
+<h3><span id="一致性语义">一致性语义</span></h3><p>对于 Structured Streaming 来说，因为有两种模式，所以我们分开讨论。</p>
+<ul>
+<li>micro-batch 模式可以提供 end-to-end 的 exactly-once 语义。原因是因为在 input 端和 output 端都做了很多工作来进行保证，比如 input 端 replayable + wal，output 端写入幂等。</li>
+<li>continuous mode 只能提供 at-least-once 语义。</li>
+</ul>
+<h3><span id="continuous-processing-mode">Continuous Processing Mode</span></h3><p>continuous mode 是传统的流处理模式，通过运行一个 long-running 的 operator 用来处理数据。之前 Spark 是基于 micro-batch 模式的，就被很多人诟病不是“真正的”流式处理。continuous mode 这种处理模式只要一有数据可用就会进行处理，如下图所示。epoch 是 input 中数据被发送给 operator 处理的最小单位，在处理过程中，epoch 的 offset 会被记录到 wal 中。另外 continuous 模式下的 snapshot 存储使用的一致性算法是 Chandy-Lamport 算法。<br><img src="https://pic1.zhimg.com/80/v2-dd8ea8962b30ef13dfb679d6a3a89350_720w.jpg" alt=""><br>这种模式相比与 micro-batch 模式缺点和优点都很明显。</p>
+<ul>
+<li>缺点是不容易做扩展</li>
+<li>优点是延迟更低</li>
+</ul>
+<p>关于为什么延迟更低，下面两幅图可以做到一目了然。<br><img src="https://pic3.zhimg.com/80/v2-1cc508f17fcb5dba3895d6d51bcc3636_720w.jpg" alt=""><br><img src="https://pic4.zhimg.com/80/v2-56d7da66f9d62cc38fcb8d5dc80267bb_720w.jpg" alt=""></p>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://zhuanlan.zhihu.com/p/47838090" target="_blank" rel="noopener">基于 micro-batch 模式的 Spark Streaming</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/51883927" target="_blank" rel="noopener">是时候放弃 Spark Streaming, 转向 Structured Streaming 了</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/60934258" target="_blank" rel="noopener">Structured Streaming 实现思路与实现概述</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/60934886" target="_blank" rel="noopener">Structured Streaming 之 Event Time 解析</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/60934987" target="_blank" rel="noopener">Structured Streaming 之 Watermark 解析</a></li>
+<li><a href="https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#operations-on-streaming-dataframesdatasets" target="_blank" rel="noopener">Structured Streaming Programming Guide</a></li>
+<li><a href="https://www.quora.com/What-is-the-difference-between-batch-Dstream-and-RDD-in-Spark-streaming" target="_blank" rel="noopener">What is the difference between batch, Dstream and RDD in Spark streaming?</a></li>
+<li><a href="https://blog.csdn.net/weixin_44077750/article/details/122354021" target="_blank" rel="noopener">spark中Dstream、RDD、DataFrame之间的转换</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">spark</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2022/05/15/bigdata-stack-ss/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-bigdata-stack-streamtune" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
@@ -2245,202 +2588,9 @@ ReplicatedXXXMergeTree: 使得以上 MergeTree 家族拥有副本机制，保证
 
 
   
-    <article id="post-bigdata-stack-kudu" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-    
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/12/bigdata-stack-kudu/">大数据开发之路-kudu</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/12/bigdata-stack-kudu/" class="archive-article-date">
-  	<time datetime="2022-05-12T11:51:59.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-12</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#kudu-介于hdfs和hbase之间的锋卫摇摆人">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
-<li><a href="#特性">特性</a></li>
-<li><a href="#架构">架构</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引</p>
-<ol>
-<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
-<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
-<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
-<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
-<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
-</ol>
-</blockquote>
-<h2><span id="kudu-介于hdfs和hbase之间的锋卫摇摆人">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220512203202.png" alt=""></p>
-<blockquote>
-<p>他们比过往更高大的球员更灵活快速，另一方面也比其他较矮小的球员更具封阻防御力或投篮得分机会</p>
-</blockquote>
-<p>Apache KUDU是一个折中的产品，在HDFS和HBase这两个偏科生中平衡了随机读写和批量分析的性能，可以同时提供低延迟的随机读写和高效的数据分析能力。Kudu支持水平扩展，并且与Cloudera Impala和 Apache Spark等当前流行的大数据查询和分析工具结合紧密。</p>
-<p>在Kudu之前，大数据主要以两种方式存储：</p>
-<ul>
-<li>静态数据：以HDFS引擎作为存储引擎，适用于高吞吐量的离线大数据分析场景。这类存储的局限性是数据无法进行随机的读写</li>
-<li>动态数据：以HBase、 Cassandra作为存储引擎，适用于大数据随机读写场景。这类存储的局限性是批量读取吞吐量远不如HDFS，不适用于批量数据分析的场景</li>
-</ul>
-<p>从上面分析可知，两种数据在存储方式上完全不同，进而导致使用场景完全不同，但在真实的场景中，边界可能没有那么清晰，面对既需要随机读写，又需要批量分析的大数据场景，该如何选择呢？</p>
-<p>一种解决方案是：数据实时写入HBase，实时的数据更新也在HBase完成，为了应对OLAP需求，定时（通常是T+1或者T+H）将HBase数据写成静态的文件（如：Parquet）导入到OLAP引擎（如：HDFS）。</p>
-<p>这一架构能满足既需要随机读写，又可以支持OLAP分析的场景，但它有如下缺点：</p>
-<ul>
-<li>架构复杂。从架构上看，数据在HBase、消息队列、HDFS间流转，涉及环节太多，运维成本很高。并且每个环节需要保证高可用，都需要维护多个副本，存储空间也有一定的浪费。最后数据在多个系统上，对数据安全策略、监控等都提出了挑战。</li>
-<li>时效性低。数据从HBase导出成静态文件是周期性的，一般这个周期是一天（或一小时），在时效性上不是很高。</li>
-<li>难以应对后续的更新。真实场景中，总会有数据是延迟到达的。如果这些数据之前已经从HBase导出到HDFS，新到的变更数据就难以处理了，一个方案是把原有数据应用上新的变更后重写一遍，但这代价又很高。</li>
-</ul>
-<p><img src="https://pic1.zhimg.com/80/v2-72a7261c8f0274ed1b6fa4fa69fccea4_720w.png" alt=""></p>
-<p>为了解决上述架构的这些问题，Kudu应运而生。Kudu 的定位是提供”fast analytics on fast data”，也就是在快速更新的数据上进行快速的查询。它定位OLAP和少量的OLTP工作流，如果有大量的randomaccesses，官方建议还是使用HBase更为合适。</p>
-<p><img src="https://pica.zhimg.com/80/v2-cb40fde69d115ca26601668c8ce20251_720w.jpg?source=1940ef5c" alt=""></p>
-<h2><span id="特性">特性</span></h2><ul>
-<li>对数据扫描(scan)和随机访问(random access)同时具有高性能，简化用户复杂的混合架构</li>
-<li>高 CPU 效率，使用户购买的先进处理器的的花费得到 最大回报</li>
-<li>高 IO 性能，充分利用先进存储介质</li>
-<li>支持数据的原地更新，避免额外的数据处理、数据移动</li>
-<li>支持跨数据中心replica</li>
-<li>不依赖与HDFS存储；不依赖于zookeeper</li>
-<li>核心模块用的C++来实现，没有full gc的风险</li>
-</ul>
-<h2><span id="架构">架构</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220513092729.png" alt=""></p>
-<ul>
-<li>Table<br> 每个table都需要预先定义好schema。每个table的列数是确定的，每一列都需要有名字和类型，每个表中可以把其中一列或多列定义为主键（全局有序）。</li>
-<li>Catalog table<br> Catalog table保存了所有table的schema的版本以及table的状态（创建、运行、删除等）</li>
-<li>Tablet<br> 一个tablet是一张table连续的segment，tablet是Kudu表的水平分区，类似于google Bigtable的tablet，或者HBase的region。<br> 每个tablet存储着一定连续range的数据（key），且tablet两两间的range不会重叠。一张表的所有tablet包含了这张表的所有key空间<br> tablet冗余到多个tablet server服务器上，并且在任何给定的时间点，其中一个副本是leader tablet，其他的副本为follower tablet</li>
-<li>Partitioning<br> KUDU表会被横向切分存储在多个tablets中， KUDU提供了丰富灵活的数据分区策略：<ul>
-<li>Range Partitioning，按照字段值范围进行分区， HBase 就采用了这种方式</li>
-<li>Hash Partitioning，按照字段的 Hash 值进行分区， Cassandra 采用了这个方式</li>
-</ul>
-</li>
-<li>Master Server<br> Kudu的master节点负责整个集群的元数据管理和服务协调。它承担着以下功能：<ul>
-<li>作为catalog manager，master节点管理着集群中所有table和tablet的schema及一些其他的元数据。</li>
-<li>作为cluster coordinator，master节点追踪着所有server节点是否存活，并且当server节点挂掉后协调数据的重新分布。</li>
-<li>作为tablet directory，master跟踪每个tablet的位置。</li>
-</ul>
-</li>
-<li>Tablet Server<br> 负责数据存储，并提供数据读写服务。Tablet server的任务非常繁重, 其负责和数据相关的所有操作, 包括存储,访问,压缩,其还负责将数据复制到其它机器</li>
-<li>MemRowSet<br> 一个tablet仅有一个MemRowSet用来保存最新插入的数据，并且有一个后台线程会定期把内存中的数据flush到硬盘上。<br> MemRowSet 是一个支持并发，提供锁优化的 B-tree，主要基于 MassTree，也有一些不同：<ul>
-<li>因为 Kudu 使用的是 MVCC，所以任何的删除其实也是插入，所以这个 tree 没有删除操作。</li>
-<li>不支持任意的 in-place 数据变更操作，除非这次操作不会改变 value 的大小。</li>
-<li>将 Leaf link 起来，类似 B+-tree，这样对于 scan 会有明显的性能提升。</li>
-<li>并没有完全实现 trie of trees，是只是使用了一个单一 tree，因为 Kudu 并没有太多高频随机访问的场景。</li>
-</ul>
-</li>
-<li>DiskRowSet<br> 当MemRowSet被flush到硬盘上，就变成了DiskRowSet。当MemRowSet被flush到硬盘的时候，每32M就会形成一个新的DiskRowSet，这主要是为了保证每个DiskRowSet不会太大，便于后续的增量compaction操作。</li>
-<li>Compaction<br> 为了提高查询性能，Kudu会定期进行compaction操作，合并delta data与base data，对标记了删除的数据进行删除，并且会合并一些DiskRowSet。</li>
-</ul>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://juejin.cn/post/6977652320905478152" target="_blank" rel="noopener">一文快速搞懂Kudu到底是什么</a></li>
-<li><a href="https://www.jianshu.com/p/83290cd817ac" target="_blank" rel="noopener">一文读懂 Apache Kudu</a></li>
-<li><a href="https://pingcap.com/zh/blog/kudu" target="_blank" rel="noopener">Kudu - 一个融合低延迟写入和高性能分析的存储系统</a></li>
-<li><a href="https://www.zhihu.com/question/37858641" target="_blank" rel="noopener">如何评价kudu存储引擎？</a></li>
-<li><a href="https://cloud.tencent.com/developer/article/1758562" target="_blank" rel="noopener">Hbase、Kudu和ClickHouse全视角对比</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">kudu</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/12/bigdata-stack-kudu/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
-      <a class="extend prev" rel="prev" href="/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><a class="page-number" href="/page/4/">4</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><a class="extend next" rel="next" href="/page/3/">Next &raquo;</a>
+      <a class="extend prev" rel="prev" href="/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><a class="page-number" href="/page/4/">4</a><span class="space">&hellip;</span><a class="page-number" href="/page/13/">13</a><a class="extend next" rel="next" href="/page/3/">Next &raquo;</a>
     </nav>
   
 
@@ -2558,14 +2708,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">C</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">shell</a>
               </li>
              
@@ -2578,6 +2720,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">C</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
@@ -2586,11 +2736,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
+                <a href="javascript:void(0)" class="js-tag color4">pig</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2622,11 +2772,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
+                <a href="javascript:void(0)" class="js-tag color2">Python</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2642,15 +2792,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">备份</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">influxdb</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">grafana</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">备份</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2670,27 +2820,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2702,11 +2836,27 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2734,31 +2884,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">springboot</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">keytool</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">小文件</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">storm</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2771,10 +2901,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">datax</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2826,15 +2952,27 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">saltstack</a>
+                <a href="javascript:void(0)" class="js-tag color1">springboot</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
+                <a href="javascript:void(0)" class="js-tag color3">keytool</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
+                <a href="javascript:void(0)" class="js-tag color1">spark</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">小文件</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2847,6 +2985,18 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">saltstack</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
              
               <li class="article-tag-list-item">
