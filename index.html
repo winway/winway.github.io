@@ -1104,1630 +1104,9 @@
 
 
   
-    <article id="post-bigdata-stack-realdw" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/24/bigdata-stack-realdw/">大数据开发之路-实时数仓</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/24/bigdata-stack-realdw/" class="archive-article-date">
-  	<time datetime="2022-05-24T00:23:07.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-24</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#实时数仓-实时性需求催生的数仓架构">实时数仓-实时性需求催生的数仓架构</a></li>
-<li><a href="#定位">定位</a></li>
-<li><a href="#建设思路">建设思路</a></li>
-<li><a href="#经典架构">经典架构</a><ul>
-<li><a href="#lambda">lambda</a></li>
-<li><a href="#kappa">kappa</a></li>
-<li><a href="#lambda-or-kappa">lambda or kappa</a></li>
-</ul>
-</li>
-<li><a href="#业界常见落地方案">业界常见落地方案</a><ul>
-<li><a href="#方案-1kappa-架构">方案 1：Kappa 架构</a></li>
-<li><a href="#方案-2基于标准分层-流计算">方案 ２：基于标准分层 + 流计算</a></li>
-<li><a href="#方案-3标准分层体现-流计算-批量计算">方案 3：标准分层体现 + 流计算 + 批量计算</a></li>
-<li><a href="#方案-4标准分层体系-流计算-数据湖">方案 4：标准分层体系 + 流计算 + 数据湖</a></li>
-<li><a href="#方案-5基于全场景mpp数据库实现">方案 5：基于全场景MPP数据库实现</a></li>
-<li><a href="#具体选型建议">具体选型建议</a></li>
-</ul>
-</li>
-<li><a href="#分层">分层</a><ul>
-<li><a href="#ods层">ODS层</a></li>
-<li><a href="#dwd层">DWD层</a></li>
-<li><a href="#dws层">DWS层</a></li>
-<li><a href="#总结">总结</a></li>
-</ul>
-</li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引</p>
-<ol>
-<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
-<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
-<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
-<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
-</ol>
-</blockquote>
-<h2><span id="实时数仓-实时性需求催生的数仓架构">实时数仓-实时性需求催生的数仓架构</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/1460000023879891" alt=""></p>
-<h2><span id="定位">定位</span></h2><p>其实在很多情况下，我们对于实时数仓的定位可能是没有那么准确的。我们都知道，传统数仓一个非常重要的功能是用于记录历史，而实时数仓恰恰相反，它更重视处理当前的状态。<br>因此，我们创建实时数仓的目的就在于解决传统数据仓库由于时效性低而解决不了的问题。传统数仓可以解决的问题，我们不解决；如果问题本身就不适合用数仓解决的话，我们也不去解决。这是我们建设实时数仓的一些基本原则。<br>那么哪些场景是我们要解决的呢？</p>
-<ul>
-<li>实时OLAP分析</li>
-<li>实时数据看板</li>
-<li>实时特性，用户画像的建立</li>
-<li>实时业务监控，比如说核心业务指标的监控预警等等。</li>
-</ul>
-<p>实时数仓作为数仓的一种，他也包含面向主题、有集成性、相对稳定等的数据仓库本身的特性。不过与传统数仓不同的是，它只保留上一次批处理到当前的数据（一般只保留3天）。这样的话，我们就有两天完整的数据，在批处理还没来得及处理完昨天的数据的间隙中，数仓仍然可以提供较好的服务。</p>
-<h2><span id="建设思路">建设思路</span></h2><ul>
-<li>计算框架选型：storm/flink等实时计算框架，强烈推荐flink，其『批流合一』的特性及活跃的开源社区，有逐渐替代spark的趋势。随着Flink越来越成熟，从技术性能上以及框架设计优势上已经超越了Storm，从趋势来讲就像Spark替代MR一样，Storm也会慢慢被Flink替代。<br><img src="https://p0.meituan.net/travelcube/15d2026e63ec7bdafa9c25b30eba39b6225524.png" alt=""></li>
-<li>数据存储选型：首要考虑查询效率，其次是插入、更新等问题，可选择apache druid，不过在数据更新上存在缺陷，选型时注意频繁更新的数据建议不要采用该方案。当然存储这块需要具体问题具体分析，不同场景下hbase、redis等都是可选项。</li>
-<li>实时数仓分层：为更好的统一管理数据，实时数仓可采用离线数仓的数据模型进行分层处理，可以分为实时明细层写入druid等查询效率高的存储方便下游使用;轻度汇总层对数据进行汇总分析后供下游使用。</li>
-<li>数据流转方案：实时数仓的数据来源可以为kafka消息队列，这样可以做到队列中的数据即可以写入数据湖用于批量分析，也可以实时处理，下游可以写入数据集市供业务使。</li>
-</ul>
-<h2><span id="经典架构">经典架构</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/532288-20210126201104745-720054501.png" alt=""><br>数仓架构演进，从一开始的离线数仓，到实时数仓的Lambda架构，再到流批一体的Kappa架构，最终发展到多引擎混用。</p>
-<h3><span id="lambda">lambda</span></h3><p><img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d3a07aa1d6504043898c494557c113a5~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/ff4b774a7a67b8a3796e6eb5b074a22c.jpeg" alt=""><br>lamdba架构是一个比较经典的架构，在以前实时场景并不是很多，大部分的业务都以离线为主，在附加了实时场景之后，由于他们之间的时效性不同，导致其技术生态也不一样。lambda架构相当于在离线数仓的基础上附加了一条实时生产链路，在应用层面进行一次整合。双链路生产，相互独立。<br>不过这种架构也存在着一些问题，比如说加工逻辑、开发运维等都要进行double操作，成本高，开发维护麻烦。同时资源同样也是两个资源链路。<br>因此产生了kappa架构。</p>
-<h3><span id="kappa">kappa</span></h3><p><img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/460f472ab81d4c3089eb4fcaa3e450a8~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/73bd44a447ff642af1ed171b4cd98c94.jpeg" alt=""><br>kappa架构移除了离线数仓的部分，全部采用实时生成。从架构设计来讲，比较简单，生产统一，一套逻辑同时生产离线和实时数据。<br>在kappa架构上，我们可以将APP应用数据存储到OLAP引擎中，由实时OLAP引擎承担聚合分析运算，这样可以减轻实时计算部分的计算压力。这种可以称为kappa架构的一个变体。<br><img src="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f733b85210ab452385ad75f394736d73~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?" alt=""></p>
-<h3><span id="lambda-or-kappa">lambda or kappa</span></h3><p>在真实的场景中，很多时候并不是完全规范的 Lambda 架构或 Kappa 架构，可以是两者的混合，比如大部分实时指标使用 Kappa 架构完成计算，少量关键指标(比如金额相关)使用 Lambda 架构用批处理重新计算，增加一次校对过程。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/a8f690fb4b5227110d1e82ab6341495b.jpeg" alt=""><br>Kappa 架构并不是中间结果完全不落地，现在很多大数据系统都需要支持机器学习(离线训练)，所以实时中间结果需要落地对应的存储引擎供机器学习使用，另外有时候还需要对明细数据查询，这种场景也需要把实时明细层写出到对应的引擎中。</p>
-<h2><span id="业界常见落地方案">业界常见落地方案</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/532742f78021e13aad78624d3e0d0463e5d5ef.jpg" alt=""></p>
-<h3><span id="方案-1kappa-架构">方案 1：Kappa 架构</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/862e6d472b8f306b0e8079047c97ab8ef663d5.png" alt=""><br>首先咱们看下Kappa架构，Kappa架构将多源数据（用户日志，系统日志，BinLog日志）实时地发送到Kafka。<br>然后通过Flink集群，按照不同的业务构建不同的流式计算任务，对数据进行数据分析和处理，并将计算结果输出到MySQL/ElasticSearch/HBase/Druid/KUDU等对应的数据源中，最终提供应用进行数据查询或者多维分析。<br>这种方案的好处有二，方案简单；数据实时。不过有两个缺点：<br>一个是用户每产生一个新的报表需求，都需要开发一个Flink流式计算任务，数据开发的人力成本和时间成本都较高。<br>第二个是对于每天需要接入近百亿的数据平台，如果要分析近一个月的数据，则需要的Flink集群规模要求很大，且需要将很多计算的中间数据存储在内存中以便多流Join。</p>
-<h3><span id="方案-2基于标准分层-流计算">方案 ２：基于标准分层 + 流计算</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/59768b537d6fa48b42e24966a22d6c2df476ba.png" alt=""><br>为了解决方案1中将所有数据放在一个层出现的开发维护成本高等问题，于是出现了基于标准分层+流计算的方案。<br>接下来咱们看下这种方案，在传统数仓的分层标准上构建实时数仓，将数据分为ODS、DWD、DWS、ADS层。首先将各种来源的数据接入ODS贴源数据层，再对ODS层的数据使用Flink的实时计算进行过滤、清洗、转化、关联等操作，形成针对不同业务主题的DWD数据明细层，并将数据发送到Kafka集群。<br>之后在DWD基础上，再使用Flink实时计算进行轻度的汇总操作，形成一定程度上方便查询的DWS轻度汇总层。最后再面向业务需求，在DWS层基础上进一步对数据进行组织进入ADS数据应用层，业务在数据应用层的基础上支持用户画像、用户报表等业务场景。<br>这种方案的优点是：各层数据职责清晰。缺点是多个Flink集群维护起来复杂，并且过多的数据驻留在Flink集群内也会增大集群的负载，不支持upsert操作，同时Schema维护麻烦。</p>
-<h3><span id="方案-3标准分层体现-流计算-批量计算">方案 3：标准分层体现 + 流计算 + 批量计算</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/a6a730865d79dcf9f777138055e8a6914c8b69.png" alt=""><br>为了解决方案2不支持upsert和schema维护复杂等问题。我们在方案2的基础上加入基于HDFS加Spark离线的方案。也就是离线数仓和实时数仓并行流转的方案。<br>这种方案带来的优点是：既支持实时的OLAP查询，也支持离线的大规模数据分析。但是带来了问题这样的几个问题。<br>数据质量管理复杂：需要构建一套兼容离线数据和实时数据血缘关系的数据管理体系，本身就是一个复杂的工程问题。离线数据和实时数据Schema统一困难。架构不支持upsert。</p>
-<h3><span id="方案-4标准分层体系-流计算-数据湖">方案 4：标准分层体系 + 流计算 + 数据湖</span></h3><p>随着技术的发展，为了解决数据质量管理和upsert问题。出现了流批一体架构，这种架构基于数据湖三剑客 Delta Lake  / Hudi / Iceberg 实现 + Spark 实现。<br>我们以Iceberg为例介绍下这种方案的架构，从下图可以看到这方案和前面的方案2很相似，只是在数据存储层将Kafka换为了Iceberg。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/720ad8f44540ce14fb7893d954b8ce6a3d4e15.png" alt=""><br>它有这样的几个特点，其中第2、3点，尤为重要，需要特别关注下，这也是这个方案和其他方案的重要差别。</p>
-<ol>
-<li>在编程上将流计算和批计算统一到同一个SQL引擎上，基于同一个Flink SQL既可以进行流计算，也可以进行批计算。</li>
-<li>将流计算和批计算的存储进行了统一，也就是统一到Iceberg/HDFS上，这样数据的血缘关系和数据质量体系的建立也变得简单了。</li>
-<li>由于存储层统一，数据的Schema也自然统一起来了，这样相对流批单独两条计算逻辑来说，处理逻辑和元数据管理的逻辑都得到了统一。</li>
-<li>数据中间的各层（ODS、DWD、DWS、ADS）数据，都支持OLAP的实时查询。</li>
-</ol>
-<p>那么为什么 Iceberg 能承担起实时数仓的方案呢，主要原因是它解决了长久以来流批统一时的这些难题：</p>
-<ul>
-<li>同时支持流式写入和增量拉取。</li>
-<li>解决小文件多的问题。数据湖实现了相关合并小文件的接口，Spark / Flink上层引擎可以周期性地调用接口进行小文件合并。</li>
-<li>支持批量以及流式的 Upsert(Delete) 功能。批量Upsert / Delete功能主要用于离线数据修正。流式upsert场景前面介绍了，主要是流处理场景下经过窗口时间聚合之后有延迟数据到来的话会有更新的需求。这类需求是需要一个可以支持更新的存储系统的，而离线数仓做更新的话需要全量数据覆盖，这也是离线数仓做不到实时的关键原因之一，数据湖是需要解决掉这个问题的。</li>
-<li>同时 Iceberg 还支持比较完整的OLAP生态。比如支持Hive / Spark / Presto / Impala 等 OLAP 查询引擎，提供高效的多维聚合查询性能。</li>
-</ul>
-<h3><span id="方案-5基于全场景mpp数据库实现">方案 5：基于全场景MPP数据库实现</span></h3><p>前面的四种方案，是基于数仓方案的优化。方案仍然属于比较复杂的，如果有一个数据库既能满足海量数据的存储，也能实现快速分析，那岂不是很方便。这时候便出现了以StartRocks和ClickHouse为代表的全场景MPP数据库。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/25236472790bcf54d51976db63ac82f8e0e7b6.png" alt=""><br>基于StartRocks或者ClickHouse构建实时数仓。来看下具体的实现方式：</p>
-<ol>
-<li>将数据源上的实时数据直接写入消费服务。</li>
-<li>对于数据源为离线文件的情况有两种处理方式，一种是将文件转为流式数据写入Kafka，另外一种情况是直接将文件通过SQL导入ClickHouse集群。</li>
-<li>ClickHouse接入Kafka消息并将数据写入对应的原始表，基于原始表可以构建物化视图、Project等实现数据聚合和统计分析。</li>
-<li>应用服务基于ClickHouse数据对外提供BI、统计报表、告警规则等服务。</li>
-</ol>
-<h3><span id="具体选型建议">具体选型建议</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/442092b566f94527a7d97160102b056927008a.png" alt=""></p>
-<h2><span id="分层">分层</span></h2><h3><span id="ods层">ODS层</span></h3><p>ODS层存储的是原始数据，在kafka中进行存储，我们不会对数据有任何的处理，保持原始粒度的数据。</p>
-<h3><span id="dwd层">DWD层</span></h3><p>DWD层它的建设其实和离线数仓中DW层的建设基本一致。主要是为了解决一些原始数据中存在的噪点、数据不完整和数据格式不一致的问题，形成规范、统一的数据源。<br>尽可能做到和离线数仓一样的入仓方式(入什么仓，如何入仓)。比如说我们可以建设基于配置的入仓规则，实时和离线用同一套规则入仓。<br>DWD层主要的工作包括数据解析、业务整合、脏数据的清洗和模型规范化。<br>这里我们重点讲一下模型规范化，实时数仓和离线数仓不同的是，实时数仓他是7*24小时不间断运行的。如果需要更改表字段的话，会付出比离线更多的代价。因为要保证数据上游和下游的数据可以解析到新的表结构。还有就是我们存储使用的是kafka，kafka不像其他的数据库。它不能做结构化存储，同时也没有办法管理元数据。因此，我们建议在开始构建数仓前就做好数据的模型规范化。避免后续付出更多的代价来做数据治理。<br>同时，我们还可以针对数据本身做一些处理，为了应对一些生产环境中的常见问题，我们可以在数据上额外补充一些信息。</p>
-<ul>
-<li>唯一键和主键<br> 在数仓中我们针对日志进行处理，比如说我们通过binlog来处理MYSQL中的数据，MYSQL中存储的是一些业务数据，比如说订单数据，每一行订单数据可能会有多次改变，这些变化又通过一条条的binlog日志来体现。那这个时候我们就可以通过唯一键和主键来标记每条数据。其中唯一键用来标记唯一一条数据，这个可以解决数据重复的问题；主键用来标记唯一一行数据，这个可以利用kafka的分区来解决是数据乱序的问题。</li>
-<li>版本号和批次<br> 因为在数仓中，下游数据的处理逻辑是依赖于上游表的schame的，我们在计算过程中可能会遇到需要重新计算的问题或者说数据的表结构发生了变化的情况。这个时候我们就可以通过数据的版本和批次去分别解决。这里的版本号指的的是数据表结构的版本号，我们可以通过不同的版本号来判断表结构变化的问题。而批次指的是数据重导时的批次变化，可以通过更改数据的批次来保证即使数据的消费位置发生变化后也可以得到正确的结果。</li>
-</ul>
-<h3><span id="dws层">DWS层</span></h3><p>DWS层即汇总层。这一层的建设也是和离线数仓的建设方法一致。<br>这一层主要是对共性指标的统一加工，同时根据主题进行多维度的汇总等操作。可以使用Flink中丰富的时间窗口实现。</p>
-<h3><span id="总结">总结</span></h3><p>实时计算订阅业务数据消息队列，然后通过数据清洗、多数据源 join、流式数据与离线维度信息等的组合，将一些相同粒度的业务系统、维表中的维度属性全部关联到一起，增加数据易用性和复用性，得到最终的实时明细数据。这部分数据有两个分支，一部分直接落地到 ADS，供实时明细查询使用，一部分再发送到消息队列中，供下层计算使用。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/b87df1015e6b63598aa7b765e5f9664c.jpeg" alt=""><br>以数据域+业务域的理念建设公共汇总层，与离线数仓不同的是，这里汇总层分为轻度汇总层和高度汇总层，并同时产出，轻度汇总层写入 ADS，用于前端产品复杂的 olap 查询场景，满足自助分析和产出报表的需求;高度汇总层写入 Hbase，用于前端比较简单的 kv 查询场景，提升查询性能，比如实时大屏等。</p>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://juejin.cn/post/7011063529700589599" target="_blank" rel="noopener">如何建设实时数仓</a></li>
-<li><a href="https://www.51cto.com/article/617634.html" target="_blank" rel="noopener">看完了这篇实时数仓建设，才发现以前的都白看了（内有美团案例）</a></li>
-<li><a href="https://www.cnblogs.com/GO-NO-1/p/14332234.html" target="_blank" rel="noopener">数仓架构演进</a></li>
-<li><a href="https://www.51cto.com/article/707275.html" target="_blank" rel="noopener">实时数仓方案五花八门，实际落地如何选型和构建</a></li>
-<li><a href="https://tech.meituan.com/2021/08/26/data-warehouse-in-meituan-waimai.html" target="_blank" rel="noopener">美团外卖实时数仓建设实践</a></li>
-<li><a href="https://developer.aliyun.com/article/781534" target="_blank" rel="noopener">Flink + Iceberg 全场景实时数仓的建设实践</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">实时数仓</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/24/bigdata-stack-realdw/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-bigdata-stack-dw" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/24/bigdata-stack-dw/">大数据开发之路-离线数仓</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/24/bigdata-stack-dw/" class="archive-article-date">
-  	<time datetime="2022-05-24T00:23:01.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-24</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#离线数仓-大数据系统的重量级应用">离线数仓-大数据系统的重量级应用</a></li>
-<li><a href="#架构介绍">架构介绍</a><ul>
-<li><a href="#传统数仓架构">传统数仓架构</a></li>
-<li><a href="#大数据数仓架构">大数据数仓架构</a></li>
-</ul>
-</li>
-<li><a href="#建设思想">建设思想</a></li>
-<li><a href="#规范建设">规范建设</a><ul>
-<li><a href="#流程规范">流程规范</a></li>
-<li><a href="#开发规范">开发规范</a></li>
-<li><a href="#编码规范">编码规范</a></li>
-<li><a href="#上线规范">上线规范</a></li>
-<li><a href="#下线规范">下线规范</a></li>
-<li><a href="#模型设计规范">模型设计规范</a><ul>
-<li><a href="#分层规范">分层规范</a></li>
-<li><a href="#数据域划分规范">数据域划分规范</a></li>
-<li><a href="#公共层模型设计规范">公共层模型设计规范</a></li>
-</ul>
-</li>
-<li><a href="#指标规范">指标规范</a></li>
-</ul>
-</li>
-<li><a href="#元数据建设">元数据建设</a></li>
-<li><a href="#治理体系建设">治理体系建设</a></li>
-<li><a href="#配套工具建设">配套工具建设</a><ul>
-<li><a href="#指标管理工具">指标管理工具</a></li>
-<li><a href="#元数据管理系统">元数据管理系统</a></li>
-<li><a href="#数据质量监控工具">数据质量监控工具</a></li>
-<li><a href="#生命周期管理工具">生命周期管理工具</a></li>
-<li><a href="#成本管理工具">成本管理工具</a></li>
-<li><a href="#知识库">知识库</a></li>
-<li><a href="#数据服务">数据服务</a></li>
-</ul>
-</li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引</p>
-<ol>
-<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
-<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
-<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
-<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
-</ol>
-</blockquote>
-<blockquote>
-<p>关联阅读<br><a href="https://winway.github.io/2022/05/09/dwModeling/">数仓建模浅谈</a></p>
-</blockquote>
-<h2><span id="离线数仓-大数据系统的重量级应用">离线数仓-大数据系统的重量级应用</span></h2><p>数据仓库概念诞生于1990年，由Inmon提出。截至今天，离线数仓已是十分成熟的一种技术，有主流、现成的架构方案可以采用，市面上的离线数仓架构也基本上大同小异。<br>因此，本文不再过多介绍架构方面的知识，而是重点介绍离线数仓的建设，如规范制定/数据治理等，即如何养成一个好用的离线数仓。</p>
-<h2><span id="架构介绍">架构介绍</span></h2><h3><span id="传统数仓架构">传统数仓架构</span></h3><p><img src="https://s1.51cto.com/oss/202005/28/44a58c9280d11e50ff6cba64c8cfa483.jpeg" alt=""><br>这是比较传统的一种方式，结构或半结构化数据通过离线ETL定期加载到离线数仓，之后通过计算引擎取得结果，供前端使用。<br>这里的离线数仓+计算引擎，通常是使用大型商业数据库来承担，例如Oracle、DB2、Teradata等。</p>
-<h3><span id="大数据数仓架构">大数据数仓架构</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/532288-20210126201125249-1962605607.png" alt=""><br>随着数据规模的不断增大，传统数仓方式难以承载海量数据。随着大数据技术的普及，开始采用大数据技术来承载存储与计算任务。当然，也可以使用传统数据库集群或MPP架构数据库来完成。例如Hadoop+Hive/Spark、Oracle RAC、GreenPlum等。<br>离线数仓一般会涉及到数据采集/存储/计算/查询/管理等环节的众多组件，可以参考《<a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/#%E4%B8%80-%E7%86%9F%E6%82%89%E5%A4%A7%E6%95%B0%E6%8D%AE%E7%9B%B8%E5%85%B3%E7%BB%84%E4%BB%B6%E7%9A%84%E5%8E%9F%E7%90%86-%E7%89%B9%E7%82%B9%E5%92%8C%E4%BD%BF%E7%94%A8%E5%9C%BA%E6%99%AF">大数据开发之路-概述</a>》</p>
-<h2><span id="建设思想">建设思想</span></h2><p>要想建设一个好用的数仓，先要知道数仓一般会面临哪些问题，如数据组织混乱、数据冗余、找数困难、指标口径混乱、数据不一致、数据质量无保证、烟囱开发、性能差、无SLA等。<br>这些问题的产生主要是因为缺乏统一的流程规范和辅助工具支撑，导致随着时间的推移和人员的更替，问题越积越多，越来越难用和维护。<br>所以，我的建设思想可以总结为三步：</p>
-<ol>
-<li>规范建设。先制定各种规范，保证数仓的建设是有据可依的；</li>
-<li>元数据建设。收集各种信息，了解数仓状态，驱动治理；</li>
-<li>治理体系建设。有了规范，了解了状态，就可以有的放矢，制定治理目标和方案，针对不好的地方进行改造。</li>
-</ol>
-<p>另外，数仓建设是一个循序渐进的过程，不可能一蹴而就。因为</p>
-<ul>
-<li>新业务源源不断，数仓的开发工作也就不能停止；</li>
-<li>旧业务可能会变化，涉及到模型的上线/下线/合并等，也需要长期维护。</li>
-</ul>
-<p>所以，对于数仓开发人员来说，这是一项长期的工作。</p>
-<h2><span id="规范建设">规范建设</span></h2><blockquote>
-<p>无规矩不成方圆，数仓规范包括但不限于下述内容，规范需要不断地补充完善。</p>
-</blockquote>
-<h3><span id="流程规范">流程规范</span></h3><p>形成业务方/产品、分析师、开发公认的一套流程，核心环节应包括：需求评审、数据来源、口径定义、验收</p>
-<h3><span id="开发规范">开发规范</span></h3><ul>
-<li>任务命名/注释</li>
-<li>表命名</li>
-<li>表分区格式</li>
-<li>表存储格式，默认orc</li>
-<li>表生命周期</li>
-<li>清洗约定，通用字段名统一、字段类型统一、null值处理、常见格式/单位统一</li>
-</ul>
-<h3><span id="编码规范">编码规范</span></h3><ul>
-<li>大小写统一</li>
-<li>表、字段注释</li>
-<li>显式参数注释</li>
-<li>统一风格，缩进、换行</li>
-<li>禁用select *</li>
-<li>join类型一致</li>
-</ul>
-<h3><span id="上线规范">上线规范</span></h3><ul>
-<li>交叉code review，重点是基本规范和模型的设计</li>
-<li>上线前测试，包括准确性测试（空值、量级、数据分布）、性能测试。这一步很重要却经常被人忽略。据统计，在数据质量事件中60%以上，是由于数据开发修改代码引发的。</li>
-<li>配置监控，包括失败监控、SLA监控</li>
-</ul>
-<h3><span id="下线规范">下线规范</span></h3><ul>
-<li>使用方检查，确认是否仍在使用（依赖于完善的血缘关系）</li>
-<li>下线通知</li>
-<li>任务下线</li>
-<li>代码归档</li>
-<li>表备份（rename）一定期限</li>
-</ul>
-<h3><span id="模型设计规范">模型设计规范</span></h3><h4><span id="分层规范">分层规范</span></h4><ul>
-<li>分层好处<br> <img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220509174443.png" alt=""><ul>
-<li>清晰数据结构：每一个数据分层都有它的作用域和职责，在使用表的时候能更方便地定位和理解</li>
-<li>减少重复开发：规范数据分层，开发一些通用的中间层数据，能够减少极大的重复计算</li>
-<li>统一数据口径：通过数据分层，提供统一的数据出口，统一对外输出的数据口径</li>
-<li>复杂问题简单化：将一个复杂的任务分解成多个步骤来完成，每一层解决特定的问题</li>
-</ul>
-</li>
-<li>分层考虑因素<ul>
-<li>数据粒度：明细、汇总（保留的维度较多）、高度汇总（保留的维度较少）</li>
-<li>通用程度：可复用数据、个性化数据</li>
-</ul>
-</li>
-<li>分层原则<ul>
-<li>从对应用的支持来讲，我们希望越靠上层次，越对应用友好</li>
-<li>从能力范围来讲，我们希望80%需求由20%的表来支持</li>
-<li>从数据聚合程度来讲，我们希望，越上层数据的聚合程度越高</li>
-</ul>
-</li>
-<li>常见分层<ul>
-<li>数据运营层：ODS（Operational Data Store）</li>
-<li>数据仓库层：DW（Data Warehouse）</li>
-<li>数据应用层：APP（Application）</li>
-<li>维表层：DIM（Dimension）<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220509174526.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220509174800.png" alt=""></li>
-</ul>
-</li>
-</ul>
-<h4><span id="数据域划分规范">数据域划分规范</span></h4><ul>
-<li>划分好处：便于理解、沟通、交流；便于组织；便于管理，数仓开发人员按照数据域垂直拆分，专人专域。</li>
-<li>划分依据：业务过程。好的主题域划分，是相对稳定，尽可能地覆盖绝⼤多数的表。</li>
-<li>关键环节：词根池的生成和维护，表名、指标名的关键部分由词根池中的词组成。</li>
-</ul>
-<h4><span id="公共层模型设计规范">公共层模型设计规范</span></h4><ul>
-<li>好处：统一、标准、共享、复用</li>
-<li>建设对象：dim、dwd、dws</li>
-<li>建设流程：公共层模型的扩充和变更需要评审、对外通知</li>
-<li>设计理念：维度建模<ul>
-<li>模型灵活性：通过封装属性，抽象出一致性维度，任何业务迭代在数据层面只涉及维度的调整，大大降低对核心模型的冲击和“烟囱式”的数据建设问题。避免需求变更和业务迭代对核心模型带来的冲击，让RD深陷无休止的需求迭代中。</li>
-<li>数据一致性：在业务上，划分严格的数据域和业务过程，在主题建设层面，将业务划分的数据域作为我们的主题，并基于业务过程进行维度建模，将业务逻辑下沉到主题层，将属于该业务过程的指标口径封装在对应业务过程下的衍生事实中。消除因模型冗余、跨层引用等问题带来的数据一致性问题。</li>
-</ul>
-</li>
-<li>设计原则：高内聚、低耦合；核心、扩展模型分开；公共处理逻辑下沉；成本、性能平衡；幂等；口径一致；命名规范</li>
-<li>dim设计规范：唯一主键；主键统一，如user_id；维度属性丰富；维表组合、拆分，考虑相关性、时效性、数据量</li>
-<li>dwd设计规范：业务过程明确；粒度明确、统一；单位统一；严禁反向依赖；时间分区；维度退化；数据域单一；常用度量冗余</li>
-<li>dms设计规范：划分主题域；粒度统一；单位统一；严禁反向依赖；避免模型穿透；不建议跨数据域；面向基础维度汇总（app面向高度汇总、个性化）；通用事务性指标、存量类指标（app面向业务自定义的复合型指标和非通用指标）</li>
-<li>模型优劣衡量标准：<br> <img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_6df0d78e-1f79-11ec-ae4e-00163e068ecd.png" alt=""><ul>
-<li>如何衡量完善度<ul>
-<li>DWD层完善度：衡量DWD层是否完善，最好看ODS层有多少表被DWS/ADS/DM层引⽤。因为DWD以上的层引⽤的越多，就说明越多的任务是基于原始数据进⾏深度聚合计算的，明细数据没有积累，⽆法被复⽤， 数据清洗、格式化、集成存在重复开发。<br>跨层引⽤率：ODS层直接被DWS/ADS/DM层引⽤的表，占所有ODS层表（仅统计活跃表）⽐例。跨层引⽤率越低越好，在数据中台模型设计规范中，要求不允许出现跨层引⽤，ODS层数据只能被DWD引⽤。</li>
-<li>DWS/ADS/DM层完善度：考核汇总数据的完善度，主要看汇总数据能直接满⾜多少查询需求（也就是⽤汇总层数据的查询⽐例衡量）。如果汇总数据⽆法满⾜需求，使⽤数据的⼈就必须使⽤明细数据，甚⾄是原始数据。<br>汇总数据查询⽐例：DWS/ADS/DM层的查询占所有查询的⽐例。<br>要明确的是，这个跟跨层引⽤率不同，汇总查询⽐例不可能做到100%，但值越⾼，说明上层的数据建设越完善，对于使⽤数据的⼈来说，查询速度和成本会减少，⽤起来会更爽。</li>
-</ul>
-</li>
-<li>如何衡量复⽤度<br>模型设计的核⼼是追求模型的复⽤和共享，⼀个⽐较差的模型设计，⾃下⽽上是⼀条线。⽽⼀个理想的模型设计，它应该是交织的发散型结构。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_6e173802-1f79-11ec-ae4e-00163e068ecd.png" alt=""><br>模型引⽤系数：⼀个模型被读取，直接产出下游模型的平均数量。⽤模型引⽤系数作为指标，衡量数据中台模型设计的复⽤度。引⽤系数越⾼，说明数仓的复⽤性越好。<br>⽐如⼀张DWD层表被5张DWS层表引⽤，这张DWD层表的引⽤系数就是5，如果把所有DWD层表（有下游表的）引⽤系数取平均值，则为DWD层表平均模型引⽤系数，⼀般低于2⽐较差，3以上相对⽐较好（经验值）。</li>
-<li>如何衡量规范度<br>⼀个规范的表命名应该包括主题域、分层、表是全量快照，还是增量等信息。<br>除此之外，如果在表A中⽤⼾ID的命名是UserID，在表B中⽤⼾ID命名是ID，就会对使⽤者造成困扰，这到底是不是⼀个东西。所以我们要求相同的字段在不同的模型中，它的命名必须是⼀致的。</li>
-</ul>
-</li>
-<li>模型命名规则：表的命名进⾏规范化统⼀，表的名称中最好能够携带表的主题域、业务过程、分层以及分区信息</li>
-<li>历史模型改造流程，参见《<a href="https://winway.github.io/2022/05/09/dwModeling/#%E5%BB%BA%E6%A8%A1%E5%AE%9E%E6%88%98%E4%BB%8E%E7%83%9F%E5%9B%B1%E5%88%B0%E5%85%B1%E4%BA%AB">数仓建模浅谈</a>》<ol>
-<li>接管ODS层，控制源头</li>
-<li>划分主题域，构建总线矩阵</li>
-<li>构建一致性维度</li>
-<li>事实表整合</li>
-<li>ETL开发</li>
-<li>应用迁移</li>
-</ol>
-</li>
-</ul>
-<h3><span id="指标规范">指标规范</span></h3><ul>
-<li>目标：建立指标字典，保证全局口径定义、数据来源和计算逻辑一致性；相同聚合粒度的指标，在数仓里尽量只计算加工一次，避免重复建设</li>
-<li>指标常见问题：<ol>
-<li>相同指标名称，口径不一致</li>
-<li>相同口径，指标名称不一致</li>
-<li>不同限定词，描述相同事实过程的两个指标，相同事实部分口径不一致</li>
-<li>指标口径描述不清楚</li>
-<li>指标口径描述错误</li>
-<li>指标命名难于理解</li>
-<li>指标数据来源和计算逻辑不清晰</li>
-</ol>
-</li>
-<li>核心思想：<ul>
-<li>⾯向主题域管理，指标中的主题域与数仓中的概念是⼀致的</li>
-<li>拆分原⼦指标和派⽣指标，统计周期、统计粒度、业务限定、原⼦指标，组成派⽣指标，所以原⼦指标可以定义为不能够按照上述规则进⼀步拆分的指标。</li>
-<li>指标命名规范，做到易懂/统一，重点要能体现主题/业务过程/维度限定/业务限定/时间周期</li>
-<li>分等级管理<ul>
-<li>⼀级指标：数据中台直接产出，核⼼指标（提供给公司⾼层看的）、原⼦指标以及跨部⻔的派⽣指标。要确保指标按时、保证质量产出；</li>
-<li>⼆级指标：基于中台提供的原⼦指标，业务部⻔创建的派⽣指标。允许业务⽅⾃⼰创建。</li>
-</ul>
-</li>
-</ul>
-</li>
-<li><p>指标分类</p>
-<ul>
-<li>原子指标<br>基于某一业务过程下的度量，是业务定义中不可再拆分的指标，具有明确的业务含义<br>例：活跃人数、支付金额、购买用户数</li>
-<li>衍生指标<br>对原子指标在业务统计范围中圈定，统计范围包括维度、各类日期和业务修饰词根<br>例：活跃男用户人数、7日支付金额</li>
-<li><p>复合指标<br>是由衍生指标或原子指标复合而成，分为三类：</p>
-<ul>
-<li>比率类：衡量业务过程的效果，如点击率、转化率、功能留存率、活跃留存率等；</li>
-<li>均分类：均值、中位数及其他各类分位数；</li>
-<li>占比类：部分占整体的比例，采用百分比的形式；</li>
-</ul>
-<p>例：活跃男用户人数占比、复购率</p>
-</li>
-</ul>
-</li>
-<li>构成指标词根分类：<ul>
-<li>基础指标词根：用于表示原子指标、衍生指标的对象度量，通用，如cnt ,user_cnt, amt, pv, uv</li>
-<li>维度限定词根：某个维度的修饰词，通用，如男、女</li>
-<li>业务修饰词根：用于描述和修饰实体对象、业务过程等，属于业务域</li>
-<li>日期修饰词根：用于描述和限定日期长度，通用</li>
-<li>复合比率词根：用于对复合指标的比率内容的描述，通用，如click_rate, rebuy_rate</li>
-<li>复合均分词根：用于对复合指标进行聚合限定，包括均值、分位数等，通用，如avg</li>
-<li>复合占比词根：用于对复合指标进行占比类的描述，通用，如ratio</li>
-</ul>
-</li>
-<li>指标命名规则：<ul>
-<li>对于原⼦指标，指标名称适合⽤“动作+度量”的命名⽅式（⽐如注册⽤⼾数、购买⽤⼾数），标识的命名⽤英⽂简写或者汉语拼⾳缩写⽐较好。</li>
-<li>对于派⽣指标，指标名称应该严格遵循“时间周期+统计粒度+修饰词+原⼦指标”的命名⽅式，标识命名要⽤“修饰词_原⼦指标_时间周期”的⽅式。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_7827a930-1f79-11ec-ae4e-00163e068ecd.png" alt=""></li>
-</ul>
-</li>
-</ul>
-<h2><span id="元数据建设">元数据建设</span></h2><p>采集维护元数据信息，用于驱动治理。具体采集哪些信息以及采集的手段都是多种多样的，可根据自身情况决定。</p>
-<p>采集信息包括：</p>
-<ul>
-<li>库/表信息</li>
-<li>分区信息</li>
-<li>血缘关系</li>
-<li>访问记录</li>
-<li>任务运行状态，成功/失败，消耗时间/资源</li>
-<li>占用存储</li>
-</ul>
-<p>采集方式：</p>
-<ul>
-<li>metastore元数据</li>
-<li>解析sql引用</li>
-<li>调度系统运行记录</li>
-<li>yarn web ui</li>
-</ul>
-<h2><span id="治理体系建设">治理体系建设</span></h2><blockquote>
-<p>做数据治理，需要奉⾏“效果可量化”的原则，否则这个治理做到什么程度，很难衡量。</p>
-</blockquote>
-<p>依据规范，对采集到的元数据进行加工，制定评估量化体系，产生可量化的指标，如归一化的具体分值，指导每个数仓开发进行数仓的规范化改造。</p>
-<p>参与量化的因素可包括：</p>
-<ul>
-<li>编码规范合规率</li>
-<li>注释完善率</li>
-<li>命名合规率</li>
-<li>跨层依赖率</li>
-<li>链路过长率</li>
-<li>模型引用率（烟囱开发）</li>
-<li>dqc通过率/覆盖率</li>
-<li>sla达标率/覆盖率</li>
-<li>无效计算/存储占比（访问热度）</li>
-<li>异常计算/存储占比（数据倾斜/时间超长/占资源超多/小文件/数据未压缩等）</li>
-</ul>
-<p>有了评估体系，就可以对数仓整体以及数据开发进行评分排名，对好的案例进行分享，坏的案例进行督促，使数仓逐渐向好的方向进化。<br>同时还可以对治理效果进行统计，如节省了多少资源/SLA提高了多少百分点，作为数仓治理的可量化产出成果。</p>
-<h2><span id="配套工具建设">配套工具建设</span></h2><p>最后，好用的配套工具不仅可以使我们建设数仓事半功倍，还可以帮助我们建设更好的数仓。</p>
-<h3><span id="指标管理工具">指标管理工具</span></h3><p>必须要有⼀个专⻔负责指标管理的⼈或者⼩组，经过评审的符合规范的指标口径通过专人录入指标管理系统，作为唯一官方口径出口。<br>指标管理系统中的指标，向下可以和物理的表或字段建立直接或间接关联；向上可以和使用该指标的平台、应用建立关联。</p>
-<h3><span id="元数据管理系统">元数据管理系统</span></h3><p>提供元数据的采集/存储/展示/获取工具和接口。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_7f95710c-1f79-11ec-ae4e-00163e068ecd.png" alt=""><br>元数据一般可划为三类：数据字典、数据⾎缘和数据特征。</p>
-<ul>
-<li>数据字典描述的是数据的结构信息，如<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_7c6dcf2e-1f79-11ec-ae4e-00163e068ecd.png" alt=""></li>
-<li>数据⾎缘是指⼀个表是直接通过哪些表加⼯⽽来，描述上下游关系。<br>数据⾎缘⼀般会帮我们做影响分析和故障溯源 。 ⽐如说有⼀天，⽼板看到某个指标的数据违反常识，需要去排查这个指标计算是否正确， ⾸先需要找到这个指标所在的表，然后顺着这个表的上游表逐个去排查校验数据，才能找到异常数据的根源。<br>⾎缘采集，⼀般可以通过三种⽅式：<ol>
-<li>通过静态解析SQL，获得输⼊表和输出表；</li>
-<li>通过实时抓取正在执⾏的SQL，解析执⾏计划，获取输⼊表和输出表；</li>
-<li>通过任务调度⽇志解析的⽅式，获取执⾏后的SQL输⼊表和输出表。</li>
-</ol>
-</li>
-<li>数据特征主要是指数据的属性信息，如<br> <img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_7ca811d4-1f79-11ec-ae4e-00163e068ecd.png" alt=""></li>
-</ul>
-<h3><span id="数据质量监控工具">数据质量监控工具</span></h3><blockquote>
-<p>“发现晚，排查慢，修复时间长”是令数据开发头疼的问题，做好数据质量监控，能最大限度解决“发现晚，排查慢”的问题。</p>
-</blockquote>
-<p>核心功能：数据异常点发现；SLA监控预警。</p>
-<p>在数据加⼯任务中，对产出表按照业务规则，设计⼀些校验逻辑，确保数据的完整性、⼀致性和准确性，这是提升数据质量最⾏之有效的⽅法。</p>
-<p>对任务DAG中每个表增加稽核校验规则之后，当其中任何⼀个节点产出的数据出现异常时，我们能够第⼀时间发现，并⽴即修复，做到早发现、早修复。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_66c232a0-1f79-11ec-ae4e-00163e068ecd.png" alt=""></p>
-<p>数据质量也可以作为一个因素，加入到评估体系中。</p>
-<h3><span id="生命周期管理工具">生命周期管理工具</span></h3><p>可以根据表的生命周期配置进行数据清理或存储迁移（冷热数据机制，如阿里的oss可以选择普通/低频/归档等存储策略）操作，也可以针对没有引用的表或低热度表进行提醒/处理。</p>
-<p>⼀般原始数据和明细数据，会保留完整的历史数据。⽽在汇总层、集市层或者应⽤层，考虑到存储成本，数据建议按照⽣命周期来管理，通常保留⼏天的快照或者分区。如果存在⼤表没有设置⽣命周期，就会浪费存储资源。</p>
-<h3><span id="成本管理工具">成本管理工具</span></h3><p>量化不同业务的成本，发现数据应⽤价值很低，成本却很⾼的报表/应用。</p>
-<ul>
-<li><p>数据成本如何计算？<br> <img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_5e493088-1f79-11ec-ae4e-00163e068ecd.png" alt=""><br> 要对上图中财务分析报表核算成本，这个报表上游链路中涉及到a，b，c，3个任务，A，B，C，D， E，F， 6张表，那么：这张报表的成本=3个任务加⼯消耗的计算资源成本+6张表消耗的存储资源的成本。<br> 另外，需要注意的是，如果⼀个表被多个下游应⽤复⽤，那这个表的存储资源成本以及产出任务消耗的成本，需要分摊给多个应⽤。</p>
-</li>
-<li><p>价值如何计算？<br> <img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_5ebb0dd4-1f79-11ec-ae4e-00163e068ecd.png" alt=""></p>
-<ul>
-<li>如果末端数据是⼀张应⽤层的表，它对接的是⼀个数据报表，那衡量这个数据的价值，主要是看报表的使⽤范围和使⽤频率。在计算使⽤范围时，通常⽤周活来评估，同时还要考虑不同管理级别的⼈权重，对于⽼板，他⼀个⼈的权重可以相当于1000个普通员⼯。之所以这样设计，是考虑到管理级别越⾼，做出的商业决策影响就越⼤，⾃然这个价值也就越⼤。使⽤频率⼀般使⽤单个⽤⼾每周查看报表的次数来衡量，次数越⾼，说明报表价值越⼤。</li>
-<li>如果末端数据对接的不是⼀个数据报表，⽽是⾯向特定场景的数据应⽤（⽐如供应链分析决策系统，它⾯向的⼈群主要是供应链部⻔）。衡量这类产品的价值，主要考虑⽬标⼈群的覆盖率和直接业务价值产出。什么是直接业务价值产出呢？在供应链决策系统中，就是通过系统⾃动⽣成的采购订单占所有采购订单的⽐例。</li>
-<li>除此之外，末端数据，可能还是⼀张集市层的表，它主要⽤于提供给分析师做探索式查询。这类表的价值主要看它被哪些分析师使⽤，使⽤频率如何。同样，在使⽤范围评估时，要对分析师按照级别进⾏加权。</li>
-</ul>
-</li>
-</ul>
-<h3><span id="知识库">知识库</span></h3><p>日常任务失败/超时等异常问题自动/手动录入知识库，由开发人员进行登记解释，用于知识记录/分享</p>
-<h3><span id="数据服务">数据服务</span></h3><p>统一对外数据提供接口，提高数据获取效率和复用率，并且方便数据权限管控和审计记录。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_5570d3b2-1f79-11ec-ae4e-00163e068ecd.png" alt=""></p>
-<p>服务接⼝⼀⽅⾯对应⽤开发屏蔽了底层数据存储，使⽤统⼀标准的API接⼝查询数据，提⾼了数据接⼊的速度。另⼀⽅⾯，对于数据开发，提⾼了数据应⽤的管理效率，建⽴了表到应⽤的链路关系，解决“上线容易，下线难”的窘境。</p>
-<p>数据服务核心功能：</p>
-<ul>
-<li>屏蔽异构数据源：数据服务必须要能够⽀撑类型丰富的查询引擎，满⾜不同场景下数据的查询需求，常⻅的 有MySQL、HBase、Greenplum、Redis、Elasticsearch等。</li>
-<li>数据⽹关：要实现包括权限、监控、流控、⽇志在内的⼀系列管控能⼒，哪个应⽤的哪个⻚⾯访问了哪个模型，要做到实时跟踪，如果有⼀些模型⻓时间没有被访问，应该予以下线。使⽤数据的每个应⽤都应该通过accesskey和secretkey实现⾝份认证和接⼝权限的管理。另外，访问⽇志可以⽅便在访问出现问题时，加快排查速度。</li>
-<li>逻辑模型：从⽤⼾的视⻆出发，屏蔽底层的模型设计的实现，⾯向⽤⼾提供逻辑模型。什么是逻辑模型呢？熟悉数据库的同学应该知道，数据库中有⼀个视图的概念，视图本⾝并没有真实的数据，⼀个视图可以关联⼀张或者多张表，每次在查询的时候，动态地将不同表的查询结果聚合成视图的查询结果。逻辑模型可以类⽐视图，它可以帮助应⽤开发者屏蔽底层的数据物理实现，实现相同粒度的数据构造⼀个逻辑模型，简化了数据接⼊/变更的复杂度。</li>
-<li>性能和稳定性：由于数据服务侵⼊到⽤⼾的访问链路，所以对服务的可⽤性和性能都有很⾼的要求，数据服务必须是⽆状态的，可以做到横向扩展。</li>
-</ul>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_5a4d255c-1f79-11ec-ae4e-00163e068ecd.png" alt=""></p>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://www.51cto.com/article/617634.html" target="_blank" rel="noopener">看完了这篇实时数仓建设，才发现以前的都白看了（内有美团案例）</a></li>
-<li><a href="https://www.cnblogs.com/GO-NO-1/p/14332234.html" target="_blank" rel="noopener">数仓架构演进</a></li>
-<li><a href="https://mp.weixin.qq.com/s/xkuqAQd7N7j7Blj2Y4xQ4g" target="_blank" rel="noopener">网易严选数仓任务治理实践</a></li>
-<li><a href="https://www.modb.pro/db/116930" target="_blank" rel="noopener">元数据中⼼的关键⽬标和技术实现⽅案</a></li>
-<li><a href="https://www.modb.pro/db/116928" target="_blank" rel="noopener">如何统⼀管理纷繁杂乱的数据指标？</a></li>
-<li><a href="https://www.modb.pro/db/116926" target="_blank" rel="noopener">数据模型⽆法复⽤，归根结底还是设计问题</a></li>
-<li><a href="https://www.modb.pro/db/116924" target="_blank" rel="noopener">今天的数据怎么又不对？！</a></li>
-<li><a href="https://www.modb.pro/db/116932" target="_blank" rel="noopener">数据中台到底怎么建设呢？</a></li>
-<li><a href="https://www.modb.pro/db/116923" target="_blank" rel="noopener">交付速度和质量问题解决了，⽼板说还得“省”</a></li>
-<li><a href="https://www.modb.pro/db/116921" target="_blank" rel="noopener">（⼀）数据服务到底解决了什么问题？</a></li>
-<li><a href="https://www.modb.pro/db/116922" target="_blank" rel="noopener">（二）数据服务难道就是对外提供个API吗？</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">离线数仓</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/24/bigdata-stack-dw/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-bigdata-stack-csfl" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/21/bigdata-stack-csfl/">大数据开发之路-存算分离</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/21/bigdata-stack-csfl/" class="archive-article-date">
-  	<time datetime="2022-05-21T01:53:42.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-21</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#存算分离-让大数据获得真正的弹性">存算分离-让大数据获得真正的弹性</a></li>
-<li><a href="#最早的存算分离">最早的存算分离</a></li>
-<li><a href="#存算耦合的时代">存算耦合的时代</a></li>
-<li><a href="#存算分离的契机">存算分离的契机</a><ul>
-<li><a href="#数据本地化的必要性">数据本地化的必要性</a></li>
-<li><a href="#存算耦合导致的问题">存算耦合导致的问题</a></li>
-</ul>
-</li>
-<li><a href="#存算分离的好处">存算分离的好处</a></li>
-<li><a href="#存算分离的应用场景">存算分离的应用场景</a><ul>
-<li><a href="#数据库">数据库</a></li>
-<li><a href="#消息队列">消息队列</a></li>
-<li><a href="#大数据">大数据</a></li>
-</ul>
-</li>
-<li><a href="#总结">总结</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引</p>
-<ol>
-<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
-<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
-<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
-<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
-</ol>
-</blockquote>
-<h2><span id="存算分离-让大数据获得真正的弹性">存算分离-让大数据获得真正的弹性</span></h2><p><img src="https://img-blog.csdn.net/20180110155913446" alt=""><br>计算是由CPU和内存组成的算力单元，存储是持久化数据的存放单元。<br>分布式环境下，计算和存储可以耦合在一起部署，也可以分开部署，时代不同，潮流不同。</p>
-<h2><span id="最早的存算分离">最早的存算分离</span></h2><p>二十年前，大规模存储一般使用的是专有硬件设备方案（NAS），通过特殊的高性能通讯硬件给其他应用提供访问接入。这种方案不太容易扩展，而且价格昂贵，无法满足互联网高速的超大规模数据存储需求。<br>可见存算分离并不是什么新的架构，早在20年前就存在，为什么直到今天才成为潮流？</p>
-<h2><span id="存算耦合的时代">存算耦合的时代</span></h2><p>让我们回到 2001 年，Google 的 GFS 开创了先河，第一次用普通的 x86 机器和普通硬盘搭建了大规模存储。当时的 HDD 的吞吐量大概在 50MB/s，通过接入多个硬盘的方式可以提高单机吞吐量到 1GB/s 。但<strong>当时的主流网络只有 100Mb，通过网络远程访问数据实在是太慢了</strong>。为了解决数据的快速访问，Google 创造性地提出来了计算和存储耦合的架构，在同一个集群中实现计算和存储功能，并<strong>将计算的代码移动到数据所在的地方，而不是将数据传输到计算节点</strong>，有效解决了分散在各个弱连接的存储节点间的海量数据访问的困难。后来者 Hadoop 等也是完全照搬了这个架构，<strong>数据本地化</strong>是其中一个非常重要的特性来保证整体的性能。还做了很多优化来进一步降低机器间、机柜间的网络带宽消耗。</p>
-<h2><span id="存算分离的契机">存算分离的契机</span></h2><h3><span id="数据本地化的必要性">数据本地化的必要性</span></h3><p>经过 10 年的发展，网络的性能发生了巨大的变化，从之前主流 100Mb 到 10Gb，增长了100倍，而同时期的 HDD 硬盘的性能基本没有太大变化，倒是单盘的容量增大了很多。由于各种社交网络应用对网络的带宽要求很高，加上核心交换机和 SDN 的强力支撑，不少公司实施了点对点的 10Gb 网络架构（任意两个机器之间都有 10Gb 带宽保障）。另外，各种高效的压缩算法和列存储格式也进一步减少了 IO 数据量，将<strong>大数据的瓶颈逐渐由 IO 变成了 CPU</strong>。在数据本地化优化得很好的大数据计算集群中，大量网络带宽是闲置的。<br>2013 年 Facebook 就做了一个这方面的研究，看在关闭 Hadoop 的数据本地化优化的情况下，对性能究竟有多少影响。实测表明，对计算任务的整体影响在 2%以内，对数据的本地读优化已经不那么重要了。</p>
-<h3><span id="存算耦合导致的问题">存算耦合导致的问题</span></h3><p>存储和计算耦合在一个集群中，带来了一些其它问题：</p>
-<ul>
-<li>在不同的应用或者发展时期，需要不同的存储空间和计算能力配比，使得机器的选型会比较复杂和纠结；</li>
-<li>当存储空间或计算资源不足时，只能同时对两者进行扩容，导致扩容的经济效率比较低（另一种扩容的资源被浪费了）；</li>
-<li>在云计算场景下，不能实现真正的弹性计算，因为计算集群中也有数据，关闭闲置的计算集群会丢失数据。</li>
-</ul>
-<h2><span id="存算分离的好处">存算分离的好处</span></h2><ul>
-<li>解耦计算和存储负载，系统负载均衡调度更加灵活<br> 在存储和计算耦合的架构中，我们很难在存储负载和计算负载之间达成比较好的平衡，原因在于这两种负载对计算机资源的诉求不同。</li>
-<li>系统的资源利用率提高了，节约成本。</li>
-<li>系统更加的健壮<br> 计算可以认为是无状态的，同时计算本身是比较复杂的，这也意味着存在bug的概率比较高，一般而言，存储的逻辑比较简单，因此出现问题的概率也比较小，因此这种架构下，如果计算层出现问题，可以很方便的进行故障恢复。</li>
-<li>系统的弹性比较好，尤其是计算层。<br> 在 AWS 等公有云上，基于网络的块存储逐步取代了单机的本地存储，使得公有云上的计算和存储耦合架构更加不合理（数据本地化并不是真实的，DataNode 内的本地读其实在物理层也是远程读）。针对公有云设计的大数据分析服务 Databricks 一开始就是采用了计算和存储分离的架构（直接使用 S3 作为存储），给产品带来了非常大的灵活性，按需创建和自动弹性伸缩的 Spark 集群是一大卖点（还能最大限度使用 Spot 节点来大大降低计算成本），非常受客户欢迎。</li>
-</ul>
-<h2><span id="存算分离的应用场景">存算分离的应用场景</span></h2><h3><span id="数据库">数据库</span></h3><p>以传统的主从结构的数据库系统为例，主库接收数据变更，从库读取binlog，通过重放binlog以实现数据复制。在这种架构下，当主库负载较大的时候，由于复制的是binlog，需要走完相关事务，所以主从复制就会变得很慢。当主库数据量比较大的时候，我们增加从库的速度也会变慢，同时数据库备份也会变慢，我们的扩容成本也随之增加。因此我们也逐渐开始接受走计算和存储分离的道路，让所有的节点都共享一个存储。也许我们对这样的场景习以为常，其实这就是典型的计算和存储分离设计，现在很多的数据库都在逐渐向“计算和存储分离”靠拢，包括现在的PolarDB、OceanBase ，TiDB等等。所以“计算和存储分离”应该是未来数据库的主要发展方向。</p>
-<h3><span id="消息队列">消息队列</span></h3><p>消息队列不论是Kafka还是RocketMQ其设计思想都是利用本地机器的磁盘来进行保存消息队列，这样其实是有一定的弊端的。首先容量有限，本地空间毕竟容量有限很容易造成消息堆积，会导致我们要追溯一些历史数据的时候就会导致无法查询，然后在扩容的时候只能扩容新节点，扩展成本也比较高。针对这些问题ApachePulsar出现了。<br>在Pulsar的架构中，数据计算和数据存储是单独的两个结构。数据计算也就是Broker，其作用和Kafka的Broker类似，用于负载均衡，处理consumer和producer等，如果业务上consumer和producer特别的多，我们可以单独扩展这一层。数据存储也就是Bookie，pulsar使用了Apache Bookkeeper存储系统，并没有过多的关心存储细节。这样做的好处就是，只需要关心计算层的细节和逻辑，存储部分采用成熟的方案和系统。<br>其实Kafka也在向这些方面靠拢，比如也在讨论是否支持分层存储，但是是否会实现存储节点的单独设置也不一定，但“计算和存储分离”的方向应该是消息队列未来发展的主要方向。</p>
-<h3><span id="大数据">大数据</span></h3><p>传统的大数据架构中，数据计算和存储的资源都是共用的，比如CDH的集群配置，每个节点既是YARN计算节点又是HDFS存储节点，其实这种设计也是源于Google的GFS。在Hadoop面世之初，网络带宽很低，为了减少大数据量的网络传输，Hadoop采用了尽量使用节点本地存储的设计，这就形成了计算和存储耦合的架构。<br>近年来CPU算力和网络速度增速远快于存储，数据中心有足够的带宽来传输数据，随着数据量的增长，多副本的设计和考虑也造成了成本的飙升，计算和存储绑定的设计实用性开始变差。随着Spark和Flink等框架逐渐代替MapReduce，批处理和流处理同时共存，也改变了旧有的业务模型，这些都需要新的大数据架构去适配。计算和存储分离的大数据架构开始进入视野。<br>现在很多新的大数据引擎都支持计算存储分离，可以通过外部存储引用的方式进行数据对接，而不是通过ETL加载到本地。Hadoop生态圈也开始拥抱计算与存储分离，Hadoop除了HDFS之外还支持S3，用户可以在私有云或者是公有云上运行Hadoop计算集群，连接共享存储和云存储。<br>这样做的好处也是显而易见的，首先是可以实现计算和存储资源的单独扩容，然后原本分散的数据实现集中存储，打造统一数据湖。更重要的一点，可以真正实现大数据混合云，数据存储保留在本地，机器学习等计算资源部署在公有云，既考虑了安全性，又实现了计算的敏捷。计算存储的分离，也可以方便实现软件版本的灵活管理，存储部分求稳，要保持软件版本的稳定，计算部分求快，可以通过数据沙盒和容器技术，实现不同算力模型的快速交付，各部分独立升级互不影响。这样我们就可以，构建以企业数据湖为核心的稳态数据资源服务，构建以数据计算为核心的敏态数据能力服务，在实现数据治理的基础上实现数据运营。<br><img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4aedb6b3aee543eaad249fb5b68fe757~tplv-k3u1fbpfcp-watermark.image" alt=""></p>
-<h2><span id="总结">总结</span></h2><p>因为网络的高速发展，以及大数据计算框架对 IO 的优化，使得数据本地化已经不再重要。存储计算分离架构可以让大数据集群充分利用资源，可弹性拓展，更灵活，更符合云计算的特性。基于网络的共享存储替代架构落后的 HDFS，为云上的大数据提供完全弹性的存储解决方案，让云上的大数据获得真正的弹性。存储和计算分离的架构才是未来。</p>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://juicefs.com/blog/cn/posts/why-disaggregated-compute-and-storage-is-future/" target="_blank" rel="noopener">为什么说存储和计算分离的架构才是未来？</a></li>
-<li><a href="https://www.huaweicloud.com/zhishi/edits-15756229.html" target="_blank" rel="noopener">存算分离架构有哪些好处？为什么说存算分离架构才是未来？</a></li>
-<li><a href="http://blog.itpub.net/31547898/viewspace-2857399/" target="_blank" rel="noopener">解构成为架构潮流的“存算分离”</a></li>
-<li><a href="https://aijishu.com/a/1060000000219143" target="_blank" rel="noopener">浅谈分布式数据库的计算和存储分离</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">存算分离</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/21/bigdata-stack-csfl/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-bigdata-stack-row-col" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/20/bigdata-stack-row-col/">大数据开发之路-行存和列存</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/20/bigdata-stack-row-col/" class="archive-article-date">
-  	<time datetime="2022-05-20T10:37:49.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-20</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#行存和列存-大数据存取的选择">行存和列存-大数据存取的选择</a></li>
-<li><a href="#定义">定义</a></li>
-<li><a href="#行存-vs-列存">行存 Vs 列存</a><ul>
-<li><a href="#写入">写入</a></li>
-<li><a href="#读取">读取</a></li>
-<li><a href="#解析">解析</a></li>
-<li><a href="#总结">总结</a></li>
-</ul>
-</li>
-<li><a href="#适用场景">适用场景</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引</p>
-<ol>
-<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
-<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
-<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
-<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
-</ol>
-</blockquote>
-<h2><span id="行存和列存-大数据存取的选择">行存和列存-大数据存取的选择</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520202519.png" alt=""><br>目前大数据存储有两种方案可供选择：行存储（Row-Based）和列存储（Column-Based）。</p>
-<h2><span id="定义">定义</span></h2><p>我们常用的关系型数据库mysql，oracle等都是基于行存储，以最常用的mysql数据库innodb引擎为例。多个连续的行记录，组成一个data page（大小16k），然后按照B+树的结构进行组织存储。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520202548.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520202618.png" alt=""></p>
-<p>列式存储(column-based)是相对于传统关系型数据库的行式存储(Row-basedstorage)来说的。简单来说两者的区别就是如何组织表：</p>
-<ul>
-<li>Row-based storage storesatable in a sequence of rows.</li>
-<li>Column-based storage storesatable in a sequence of columns.</li>
-</ul>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520202658.png" alt=""></p>
-<h2><span id="行存-vs-列存">行存 Vs 列存</span></h2><h3><span id="写入">写入</span></h3><ul>
-<li>行存储的写入是一次完成。如果这种写入建立在操作系统的文件系统上，可以保证写入过程的成功或者失败，数据的完整性因此可以确定。</li>
-<li>列存储由于需要把一行记录拆分成单列保存，写入次数明显比行存储多，再加上磁头需要在盘片上移动和定位花费的时间，实际时间消耗会更大。所以，行存储在写入上占有很大的优势。</li>
-<li>还有数据修改,这实际也是一次写入过程。不同的是，数据修改是对磁盘上的记录做删除标记。行存储是在指定位置写入一次，列存储是将磁盘定位到多个列上分别写入，这个过程仍是行存储的列数倍。所以，数据修改也是以行存储占优。</li>
-</ul>
-<h3><span id="读取">读取</span></h3><ul>
-<li>数据读取时，行存储通常将一行数据完全读出，如果只需要其中几列数据的情况，就会存在冗余列，出于缩短处理时间的考量，消除冗余列的过程通常是在内存中进行的。</li>
-<li>列存储每次读取的数据是集合的一段或者全部，如果读取多列时，就需要移动磁头，再次定位到下一列的位置继续读取。</li>
-</ul>
-<h3><span id="解析">解析</span></h3><ul>
-<li>由于列存储的每一列数据类型是同质的，不存在二义性问题。比如说某列数据类型为整型(int)，那么它的数据集合一定是整型数据。这种情况使数据解析变得十分容易。</li>
-<li>相比之下，行存储则要复杂得多，因为在一行记录中保存了多种类型的数据，数据解析需要在多种数据类型之间频繁转换，这个操作很消耗CPU，增加了解析的时间。所以，列存储的解析过程更有利于分析大数据。</li>
-<li>列存储由于每一列数据类型一致，更有利于压缩和检索。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520202826.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520202845.png" alt=""></li>
-</ul>
-<h3><span id="总结">总结</span></h3><table>
-<thead>
-<tr>
-<th>对比方面</th>
-<th>行存储</th>
-<th>列存储</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>存储方式</td>
-<td>按行存储</td>
-<td>按列存储，即每一列单独存放</td>
-</tr>
-<tr>
-<td>数据完整性</td>
-<td>提供数据完整性保证</td>
-<td>缺乏数据完整性保证</td>
-</tr>
-<tr>
-<td>写性能</td>
-<td>写入是一次完成，写入效率高</td>
-<td>把一行记录拆分成单列保存，写入次数明显比行存储多，写入效率低</td>
-</tr>
-<tr>
-<td>读性能</td>
-<td>读取少数几列时，需遍历其他无关列，IO开销较大；读取整行数据时，依次顺序读即可，性能高</td>
-<td>读取少数几列时，无需读取无关列，性能高；读取整行时，需分别读取所有列，并拼装成行，性能低</td>
-</tr>
-<tr>
-<td>索引</td>
-<td>没有索引的查询使用大量I/O。比如一般的数据库表都会建立索引，通过索引加快查询效率</td>
-<td>数据即索引</td>
-</tr>
-<tr>
-<td>数据压缩</td>
-<td>每行数据存储在一起，压缩比较低</td>
-<td>以列为单位存储数据，这使得类型相同的数据存放在一起，对压缩算法友好，压缩比较高</td>
-</tr>
-<tr>
-<td>典型代表</td>
-<td>Text File、 Sequence File等</td>
-<td>ORC、 Parquet、 Carbon Data等</td>
-</tr>
-<tr>
-<td>应用领域</td>
-<td>商业领域/互联网</td>
-<td>互联网</td>
-</tr>
-</tbody>
-</table>
-<ul>
-<li>如果首要考虑是数据的完整性和可靠性，那么行存储是不二选择，列存储只有在增加磁盘并改进软件设计后才能接近这样的目标。</li>
-<li>如果以保存数据为主，行存储的写入性能比列存储高很多。</li>
-<li>在需要频繁读取单列集合数据的应用中，列存储是最合适的。</li>
-<li>如果每次读取多列，两个方案可酌情选择：<ul>
-<li>采用行存储时，设计中应考虑减少或避免冗余列；</li>
-<li>若采用列存储方案，为保证读写入效率，每列数据尽可能分别保存到不同的磁盘上，多个线程并行读写各自的数据，这样避免了磁盘竞用的同时也提高了处理效率。</li>
-</ul>
-</li>
-<li>无论选择哪种方案，将同内容数据聚凑在一起都是必须的，这是减少磁头在磁盘上的移动，提高数据读取时间的有效办法。</li>
-</ul>
-<h2><span id="适用场景">适用场景</span></h2><ul>
-<li><p>行存储的写入是一次性完成，消耗的时间比列存储少，并且能够保证数据的完整性，缺点是数据读取过程中会产生冗余数据，如果只有少量数据，此影响可以忽略；数量大可能会影响到数据的处理效率。</p>
-<ul>
-<li>所以，行存对于 OLTP 比较友好，一行记录的所有列连续存储，一次IO可以实现整行读取或者写入，实现数据库的ACID特性就比较简单。但在读取的时候会将整行数据全读出来，在一些分析场景下压力会有点大。</li>
-</ul>
-</li>
-<li><p>列存储在写入效率、保证数据完整性上都不如行存储，它的优势是在读取过程，不会产生冗余数据，这对数据完整性要求不高的大数据处理领域，比如互联网，犹为重要。</p>
-<ul>
-<li>所以，列存则是对于 OLAP 非常友好，但在刷盘的时候压力可能会比较大，如果一个 table 有很多 column，写入性能可能会有点影响。</li>
-</ul>
-</li>
-</ul>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://www.infoq.cn/article/bigdata-store-choose" target="_blank" rel="noopener">大数据存取的选择：行存储还是列存储？</a></li>
-<li><a href="https://blog.csdn.net/Xingxinxinxin/article/details/80939277" target="_blank" rel="noopener">行存储 VS 列存储</a></li>
-<li><a href="https://juejin.cn/post/7001508701706125320" target="_blank" rel="noopener">列式存储和行式存储有什么区别？</a></li>
-<li><a href="https://www.jianshu.com/p/7ee1f9703a41" target="_blank" rel="noopener">行存储、列存储、行列混存</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/20/bigdata-stack-row-col/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-bigdata-stack-cap" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/20/bigdata-stack-cap/">大数据开发之路-cap原则</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/20/bigdata-stack-cap/" class="archive-article-date">
-  	<time datetime="2022-05-20T07:11:47.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-20</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#cap原则-分布式系统设计的指导思想">cap原则-分布式系统设计的指导思想</a></li>
-<li><a href="#什么是cap">什么是cap？</a><ul>
-<li><a href="#partition-tolerance-分区容忍性">Partition tolerance-分区容忍性</a></li>
-<li><a href="#consistency-一致性">Consistency-一致性</a></li>
-<li><a href="#availability-可用性">Availability-可用性</a></li>
-<li><a href="#consistency-和-availability-的矛盾">Consistency 和 Availability 的矛盾</a></li>
-</ul>
-</li>
-<li><a href="#提出-cap-是为了解决什么问题">提出 CAP 是为了解决什么问题？</a></li>
-<li><a href="#cap的权衡">CAP的权衡</a><ul>
-<li><a href="#ca-without-p">CA without P</a></li>
-<li><a href="#cp-without-a">CP without A</a></li>
-<li><a href="#ap-wihtout-c">AP wihtout C</a></li>
-<li><a href="#适合的才是最好的">适合的才是最好的</a></li>
-</ul>
-</li>
-<li><a href="#数据分片和数据副本的分布式系统是否都遵守-cap-定理">数据分片和数据副本的分布式系统是否都遵守 CAP 定理</a></li>
-<li><a href="#总结">总结</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引</p>
-<ol>
-<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
-<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
-<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
-<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
-</ol>
-</blockquote>
-<h2><span id="cap原则-分布式系统设计的指导思想">cap原则-分布式系统设计的指导思想</span></h2><p><img src="http://www.hollischuang.com/wp-content/uploads/2015/12/Teorema-CAP-2.png" alt=""><br>大数据系统几乎都是分布式的，CAP 定理是分布式系统的基本定理，是理解分布式系统的起点。</p>
-<h2><span id="什么是cap">什么是cap？</span></h2><p>分布式系统有三个指标：</p>
-<ul>
-<li>Consistency-一致性</li>
-<li>Availability-可用性</li>
-<li>Partition tolerance-分区容忍性</li>
-</ul>
-<p>它们的第一个字母分别是 C、A、P。这三个指标不可能同时做到。这个结论就叫做 CAP 定理。</p>
-<h3><span id="partition-tolerance-分区容忍性">Partition tolerance-分区容忍性</span></h3><blockquote>
-<p>the system continues to operate despite arbitrary message loss or failure of part of the system。</p>
-</blockquote>
-<p>大多数分布式系统都分布在多个子网络。每个子网络就叫做一个区（partition）。分区容错的意思是，区间通信可能失败。比如，一台服务器放在中国，另一台服务器放在美国，这就是两个区，它们之间可能无法通信。<br><img src="https://www.wangbase.com/blogimg/asset/201807/bg2018071601.png" alt=""><br>上图中，G1 和 G2 是两台跨区的服务器。G1 向 G2 发送一条消息，G2 可能无法收到。系统设计的时候，必须考虑到这种情况。<br>一般来说，分区容错无法避免，因此可以认为 CAP 的 P 总是成立。CAP 定理告诉我们，剩下的 C 和 A 无法同时做到。</p>
-<h3><span id="consistency-一致性">Consistency-一致性</span></h3><blockquote>
-<p>all nodes see the same data at the same time。</p>
-</blockquote>
-<p>举例来说，某条记录是 v0，用户向 G1 发起一个写操作，将其改为 v1。接下来，用户的读操作就会得到 v1。这就叫一致性。<br>问题是，用户有可能向 G2 发起读操作，由于 G2 的值没有发生变化，因此返回的是 v0。G1 和 G2 读操作的结果不一致，这就不满足一致性了。<br>为了让 G2 也能变为 v1，就要在 G1 写操作的时候，让 G1 向 G2 发送一条消息，要求 G2 也改成 v1。这样的话，用户向 G2 发起读操作，也能得到 v1。</p>
-<h3><span id="availability-可用性">Availability-可用性</span></h3><blockquote>
-<p>Reads and writes always succeed。</p>
-</blockquote>
-<p>用户可以选择向 G1 或 G2 发起读操作。不管是哪台服务器，只要收到请求，就必须告诉用户，到底是 v0 还是 v1，否则就不满足可用性。</p>
-<h3><span id="consistency-和-availability-的矛盾">Consistency 和 Availability 的矛盾</span></h3><p>一致性和可用性，为什么不可能同时成立？答案很简单，因为可能通信失败（即出现分区容错）。<br>如果保证 G2 的一致性，那么 G1 必须在写操作时，锁定 G2 的读操作和写操作。只有数据同步后，才能重新开放读写。锁定期间，G2 不能读写，没有可用性。<br>如果保证 G2 的可用性，那么势必不能锁定 G2，所以一致性不成立。<br>综上所述，G2 无法同时做到一致性和可用性。系统设计时只能选择一个目标。如果追求一致性，那么无法保证所有节点的可用性；如果追求所有节点的可用性，那就没法做到一致性。</p>
-<p>而根据一致性和可用性的选择不同，开源的分布式系统往往又被分为 CP 系统和 AP 系统。<br>当一套系统在发生分区故障后，客户端的任何请求都被卡死或者超时，但是，系统的每个节点总是会返回一致的数据，则这套系统就是 CP 系统，经典的比如 Zookeeper。<br>如果一套系统发生分区故障后，客户端依然可以访问系统，但是获取的数据有的是新的数据，有的还是老数据，那么这套系统就是 AP 系统，经典的比如 Eureka。</p>
-<h2><span id="提出-cap-是为了解决什么问题">提出 CAP 是为了解决什么问题？</span></h2><p>CAP准确描述和定义了分布式系统设计中的trade-off问题，用于指导分布式系统的设计，避免系统不同模块之间因设计理念不统一而导致混乱。</p>
-<h2><span id="cap的权衡">CAP的权衡</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155025.png" alt=""><br>通过CAP理论及前面的证明，我们知道无法同时满足一致性、可用性和分区容错性这三个特性，那要舍弃哪个呢？我们分三种情况来阐述一下。</p>
-<h3><span id="ca-without-p">CA without P</span></h3><p>这种情况在分布式系统中几乎是不存在的。首先在分布式环境下，网络分区是一个自然的事实。因为分区是必然的，所以如果舍弃P，意味着要舍弃分布式系统。那也就没有必要再讨论CAP理论了。这也是为什么在前面的CAP证明中，我们以系统满足P为前提论述了无法同时满足C和A。<br>比如我们熟知的关系型数据库，如MySql和Oracle就是保证了可用性和数据一致性，但是他并不是个分布式系统。一旦关系型数据库要考虑主备同步、集群部署等就必须要把P也考虑进来。<br>其实，在CAP理论中。C，A，P三者并不是平等的，CAP之父在《Spanner，真时，CAP理论》一文中写到：</p>
-<blockquote>
-<p>如果说Spanner真有什么特别之处，那就是谷歌的广域网。Google通过建立私有网络以及强大的网络工程能力来保证P，在多年运营改进的基础上，在生产环境中可以最大程度的减少分区发生，从而实现高可用性。</p>
-</blockquote>
-<p>从Google的经验中可以得到的结论是，无法通过降低CA来提升P。要想提升系统的分区容错性，需要通过提升基础设施的稳定性来保障。<br>所以，对于一个分布式系统来说。P是一个基本要求，CAP三者中，只能在CA两者之间做权衡，并且要想尽办法提升P。</p>
-<h3><span id="cp-without-a">CP without A</span></h3><p>如果一个分布式系统不要求强的可用性，即容许系统停机或者长时间无响应的话，就可以在CAP三者中保障CP而舍弃A。<br>一个保证了CP而舍弃了A的分布式系统，一旦发生网络故障或者消息丢失等情况，就要牺牲用户的体验，等待所有数据全部一致了之后再让用户访问系统。<br>设计成CP的系统其实也不少，其中最典型的就是很多分布式数据库，他们都是设计成CP的。在发生极端情况时，优先保证数据的强一致性，代价就是舍弃系统的可用性。如Redis、HBase等，还有分布式系统中常用的Zookeeper也是在CAP三者之中选择优先保证CP的。<br>无论是像Redis、HBase这种分布式存储系统，还是像Zookeeper这种分布式协调组件。数据的一致性是他们最最基本的要求。一个连数据一致性都保证不了的分布式存储要他有何用？<br>ZooKeeper是个CP（一致性+分区容错性）的，即任何时刻对ZooKeeper的访问请求能得到一致的数据结果，同时系统对网络分割具备容错性。但是它不能保证每次服务请求的可用性，也就是在极端环境下，ZooKeeper可能会丢弃一些请求，消费者程序需要重新请求才能获得结果。ZooKeeper是分布式协调服务，它的职责是保证数据在其管辖下的所有服务之间保持同步、一致。所以就不难理解为什么ZooKeeper被设计成CP而不是AP特性的了。</p>
-<h3><span id="ap-wihtout-c">AP wihtout C</span></h3><p>要高可用并允许分区，则需放弃一致性。一旦网络问题发生，节点之间可能会失去联系。为了保证高可用，需要在用户访问时可以马上得到返回，则每个节点只能用本地数据提供服务，而这样会导致全局数据的不一致性。<br>这种舍弃强一致性而保证系统的分区容错性和可用性的场景和案例非常多。前面我们介绍可用性的时候说到过，很多系统在可用性方面会做很多事情来保证系统的全年可用性可以达到N个9，所以，对于很多业务系统来说，比如淘宝的购物，12306的买票。都是在可用性和一致性之间舍弃了一致性而选择可用性。<br>你在12306买票的时候肯定遇到过这种场景，当你购买的时候提示你是有票的（但是可能实际已经没票了），你也正常的去输入验证码，下单了。但是过了一会系统提示你下单失败，余票不足。这其实就是先在可用性方面保证系统可以正常的服务，然后在数据的一致性方面做了些牺牲，会影响一些用户体验，但是也不至于造成用户流程的严重阻塞。（这个例子并不好，讨论cap的前提是发生了p，如果没有发生p，那么ca都应该满足。12306的这个做法显然是为了减小服务端压力而在产品层面做的一个折中处理。）<br>但是，我们说很多网站牺牲了一致性，选择了可用性，这其实也不准确的。就比如上面的买票的例子，其实舍弃的只是强一致性。退而求其次保证了最终一致性。也就是说，虽然下单的瞬间，关于车票的库存可能存在数据不一致的情况，但是过了一段时间，还是要保证最终一致性的。<br>对于多数大型互联网应用的场景，主机众多、部署分散，而且现在的集群规模越来越大，所以节点故障、网络故障是常态，而且要保证服务可用性达到N个9，即保证P和A，舍弃C（退而求其次保证最终一致性）。虽然某些地方会影响客户体验，但没达到造成用户流程的严重程度。</p>
-<h3><span id="适合的才是最好的">适合的才是最好的</span></h3><p>上面介绍了CAP中如何权衡及取舍的典型案例。孰优孰略，没有定论，只能根据场景定夺，适合的才是最好的。</p>
-<ul>
-<li>对于涉及到钱财这样不能有一丝让步的场景，C必须保证。网络发生故障宁可停止服务，这是保证CP，舍弃A。比如前几年支付宝光缆被挖断的事件，在网络出现故障的时候，支付宝就在可用性和数据一致性之间选择了数据一致性，用户感受到的是支付宝系统长时间宕机，但是其实背后是无数的工程师在恢复数据，保证数据的一致性。</li>
-<li>对于其他场景，比较普遍的做法是选择可用性和分区容错性，舍弃强一致性，退而求其次使用最终一致性来保证数据的安全。这其实是分布式领域的另外一个理论——BASE理论。</li>
-</ul>
-<h2><span id="数据分片和数据副本的分布式系统是否都遵守-cap-定理">数据分片和数据副本的分布式系统是否都遵守 CAP 定理</span></h2><p>比如，我们有个分布式系统，由三个节点 a、b、c 组成。其中节点 a 存放了 A 表的数据，b 存放了 B 表的数据，c 存放了 C 表的数据。<br>如果有一个业务，它的意图是想往 A 表插入一条新数据，在 B 表删除一条已有数据，在 C 表更新一条老数据，这个分布式系统该怎么处理这种业务？<br>技术上我们对这种一个意图想做多件事的情况往往会包装成一个事务。当我们包装成一个事务以后，我们可能会通过先在 a 节点执行，然后去 b 节点执行，最后去 c 节点执行，等到都成功了，才会返回成功。<br>但是，发生了分区以后怎么办？当在 a、b 节点都成功了，到 c 发现发生了通信故障？<br>此时，根据 CAP 定理，你有两个选择，要么就直接返回一个部分成功的结果给客户端，要么直接卡死等客户端超时或者返回失败给客户端。当返回部分成功的时候，这就是选择了可用性（A），当卡死或者返回失败给客户端的时候，就是选择了一致性（C）。<br>可是，我们将请求包装成了事务，而事务是要求要么都成功，要么都失败……为了遵守这种要求，对于分布式只有分片的情况，迫于客观条件，只能选择C。所以分片的分布式系统，往往都是 CP 的系统。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155113.png" alt=""></p>
-<p>而当分布式系统是多个节点，每个节点存储了完整的一套数据，别的节点只是完整数据的备份的时候，即使事务只在一台机器上成功，当发生分区故障的时候，我们也是可以有充分的余地选择是单机事务的回退 or 就此认为写成功的。就此认为写成功，则可以认为选择了可用性。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155216.png" alt=""><br>单机事务的回退，就可以对外表现为选择了一致性。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155141.png" alt=""></p>
-<h2><span id="总结">总结</span></h2><p>总结一下，通俗的讲，当分布式系统出现故障时（可能是一个节点宕机了，这种情况应该很常见，或者网络故障导致部分节点失联），</p>
-<ul>
-<li>如果系统依然可以提供服务，哪怕数据有可能不是最新的（因为故障很可能会导致不同节点间数据同步中断/滞后），这就是AP；</li>
-<li>如果系统不再提供服务，直到确保系统内部数据同步完成，这就是CP。<br>采用不同理念设计出的分布式系统，具有不同的特性，适用不同的场景。</li>
-</ul>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://www.ruanyifeng.com/blog/2018/07/cap.html" target="_blank" rel="noopener">CAP 定理的含义</a></li>
-<li><a href="https://cloud.tencent.com/developer/article/1860632" target="_blank" rel="noopener">一文看懂｜分布式系统之CAP理论</a></li>
-<li><a href="http://www.hollischuang.com/archives/666" target="_blank" rel="noopener">分布式系统的CAP理论</a></li>
-<li><a href="https://stackoverflow.com/questions/51374856/can-not-understand-why-hbase-not-a-in-cap" target="_blank" rel="noopener">Can not understand why Hbase not A in CAP</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">cap</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/20/bigdata-stack-cap/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-bigdata-stack-ranger" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/19/bigdata-stack-ranger/">大数据开发之路-ranger</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/19/bigdata-stack-ranger/" class="archive-article-date">
-  	<time datetime="2022-05-19T09:18:23.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-19</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#ranger-大数据生态体系的统一权限控制系统">ranger-大数据生态体系的统一权限控制系统</a></li>
-<li><a href="#架构">架构</a></li>
-<li><a href="#鉴权流程">鉴权流程</a></li>
-<li><a href="#特性">特性</a></li>
-<li><a href="#ranger-vs-sentry">ranger vs sentry</a></li>
-<li><a href="#最佳实践">最佳实践</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引</p>
-<ol>
-<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
-<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
-<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
-<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
-</ol>
-</blockquote>
-<blockquote>
-<p>关联阅读<br><a href="https://winway.github.io/2022/04/02/kerberos-ranger/">大数据生态认证、权限控制机制概述</a></p>
-</blockquote>
-<h2><span id="ranger-大数据生态体系的统一权限控制系统">ranger-大数据生态体系的统一权限控制系统</span></h2><p>Apache Ranger提供集中式的权限管理框架，可以对Hadoop生态中的HDFS、Hive和YARN等组件进行细粒度的权限访问控制，并且提供了Web UI方便管理员操作。</p>
-<h2><span id="架构">架构</span></h2><p><img src="https://help-static-aliyun-doc.aliyuncs.com/assets/img/zh-CN/5648917951/p80938.png" alt=""><br>Ranger主要由三个组件组成：</p>
-<ul>
-<li>Ranger Admin：您可以创建和更新安全访问策略，这些策略被存储在数据库中。各个组件的Plugin定期对这些策略进行轮询。</li>
-<li>Ranger Plugins：Plugin嵌入在各个集群组件的进程里，是一个轻量级的Java程序。例如，Ranger对Hive的组件，就被嵌入在Hiveserver2里。这些Plugin从Ranger Admin服务端拉取策略，并把它们存储在本地文件中。当接收到来自组件的用户请求时，对应组件的Plugin会拦截该请求，并根据安全策略对其进行评估。</li>
-<li>Ranger UserSync：Ranger提供了一个用户同步工具。您可以从Unix或者LDAP中拉取用户和用户组的信息。这些用户和用户组的信息被存储在Ranger Admin的数据库中，可以在定义策略时使用。</li>
-</ul>
-<h2><span id="鉴权流程">鉴权流程</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519175355.png" alt=""><br>Ranger鉴权本质上是通过读取安装plugin时生成的配置文件以及plugin自带的jar包，通过hook方式调用各个plugin服务达到权限管理。</p>
-<h2><span id="特性">特性</span></h2><ul>
-<li>支持大数据生态常见组件， 如hdfs/yarn/hiveserver2/presto/hbase等</li>
-<li>支持从ldap获取用户和组信息，用来配置策略</li>
-<li>支持hive数据脱敏/数据行过滤/字段粒度权限控制</li>
-<li>支持审计日志</li>
-</ul>
-<h2><span id="ranger-vs-sentry">ranger vs sentry</span></h2><ul>
-<li><a href="https://datafoam.com/2021/11/10/sentry-to-ranger-a-concise-guide/" target="_blank" rel="noopener">One such major change for CDH users is the replacement of Sentry with Ranger for authorization and access control. </a></li>
-<li><a href="https://www.wtlizzz.com/Apache-Sentry-vs-Ranger/" target="_blank" rel="noopener">Apache Sentry 对比 Ranger，选择Sentry还是Ranger</a><br><img src="https://www.wtlizzz.com/images/pasted-112.png" alt=""></li>
-<li>综合来看，<strong>ranger功能、特性更丰富，更易用，架构更合理</strong><br><img src="https://blog.cloudera.com/wp-content/uploads/2021/11/1-Sentry-Ranger-Feature-1-1024x733.png" alt=""><br><img src="https://blog.cloudera.com/wp-content/uploads/2021/11/3-Sentry-Implementation-434x467.png" alt=""></li>
-</ul>
-<h2><span id="最佳实践">最佳实践</span></h2><blockquote>
-<p><a href="https://blog.cloudera.com/best-practices-in-hdfs-authorization-with-apache-ranger/" target="_blank" rel="noopener">Best practices in HDFS authorization with Apache Ranger</a></p>
-</blockquote>
-<pre><code>Apache Ranger offers a federated authorization model for HDFS. Ranger plugin for HDFS checks for Ranger policies and if a policy exists, access is granted to user. If a policy doesn’t exist in Ranger, then Ranger would default to native permissions model in HDFS (POSIX or HDFS ACL). This federated model is applicable for HDFS and Yarn service in Ranger.
-The federated authorization model enables customers to safely implement Ranger in an existing cluster without affecting  jobs which rely on POSIX permissions. We recommend to enable  this option as the default model for all deployments.
-After Apache Ranger and Hadoop have been installed, we recommend administrators to implement the following steps:
-Change HDFS umask to 077
-Identify directory which can be managed by Ranger policies
-Identify directories which need to be managed by HDFS native permissions
-Enable Ranger policy to audit all records
-</code></pre><blockquote>
-<p><a href="https://pierrevillard.com/2018/08/14/discussion-around-ranger-policies-for-hdfs/" target="_blank" rel="noopener">Discussion around Ranger policies for HDFS</a></p>
-</blockquote>
-<pre><code>Now that you’re aware of that behavior, you probably want to look at this post with some best practices about Ranger and HDFS. The first thing I’d recommend is to change the default umask from 022 to 077 to ensure that, by default, a newly created file/directory can only be read by the owner unless a Ranger policy states otherwise.
-Then, you want to take care of some specific folders in HDFS such as the ones under /apps (folders used by Hive, HBase, Zeppelin, etc). The idea is to set chmod 000 on the folders so that HDFS ACLs do not apply and only Ranger policies are enforced. Let’s say you have /apps/hive/warehouse where all your Hive databases are stored. If you set chmod 000 on /apps/hive, then no one can go inside a subfolder of /apps/hive unless there is an “allow” policy in Ranger for that user.
-</code></pre><blockquote>
-<p><a href="http://www.24hgold.com/francais/article-compagnie-or-argent-best-practices-for-hive-authorization-using-apache-ranger-in-hdp-2-2.aspx?articleid=1363883" target="_blank" rel="noopener">Best Practices for Hive Authorization Using Apache Ranger in HDP 2.2</a></p>
-</blockquote>
-<pre><code>Scenario 1 - Data analysts accessing only Hiveserver2, with limited access to HDFS files
-    ensure the hive.server2.enable.doAs is set to &quot;false&quot;. What this means is that Hiveserver2 will run MR jobs in HDFS as &quot;hive&quot; user. Permissions in HDFS files related to Hive can be given only to &quot;hive&quot; users, and no analyst would be able to access HDFS files directly.
-Scenario 2 - Data analysts accessing both Hiveserver2, and HDFS files through Pig/MR jobs
-    ensure the hive.server2.enable.doAs is set to &quot;true&quot;. What this means is that Hiveserver2 will run MR jobs in HDFS as the original user.In Ranger, within HDFS, create permissions for files pertaining to hive tables
-Scenario 3 - Data analysts accessing Hive CLI
-    The best way to protect Hive CLI would be to enable permissions for HDFS files/folders mapped to the Hive database and tables. In order to secure metastore, it is also recommended to turn on storage-based authorization.
-</code></pre><h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://help.aliyun.com/document_detail/66410.html" target="_blank" rel="noopener">概述</a></li>
-<li><a href="https://datafoam.com/2021/11/10/sentry-to-ranger-a-concise-guide/" target="_blank" rel="noopener">One such major change for CDH users is the replacement of Sentry with Ranger for authorization and access control. </a></li>
-<li><a href="https://www.wtlizzz.com/Apache-Sentry-vs-Ranger/" target="_blank" rel="noopener">Apache Sentry 对比 Ranger，选择Sentry还是Ranger</a></li>
-<li><a href="https://blog.cloudera.com/best-practices-in-hdfs-authorization-with-apache-ranger/" target="_blank" rel="noopener">Best practices in HDFS authorization with Apache Ranger</a></li>
-<li><a href="http://www.24hgold.com/francais/article-compagnie-or-argent-best-practices-for-hive-authorization-using-apache-ranger-in-hdp-2-2.aspx?articleid=1363883" target="_blank" rel="noopener">Best Practices for Hive Authorization Using Apache Ranger in HDP 2.2</a></li>
-<li><a href="https://pierrevillard.com/2018/08/14/discussion-around-ranger-policies-for-hdfs/" target="_blank" rel="noopener">Discussion around Ranger policies for HDFS</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">ranger</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/19/bigdata-stack-ranger/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-bigdata-stack-mongo" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/19/bigdata-stack-mongo/">大数据开发之路-mongodb</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/19/bigdata-stack-mongo/" class="archive-article-date">
-  	<time datetime="2022-05-19T09:18:13.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-19</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#mongodb-最接近mysql的nosql数据库">mongodb-最接近“mysql”的nosql数据库</a></li>
-<li><a href="#关键特性">关键特性</a></li>
-<li><a href="#数据模型">数据模型</a></li>
-<li><a href="#关键技术">关键技术</a><ul>
-<li><a href="#wiredtiger存储引擎">WiredTiger存储引擎</a></li>
-<li><a href="#事务支持">事务支持</a></li>
-<li><a href="#mongodb集群">MongoDB集群</a></li>
-</ul>
-</li>
-<li><a href="#应用场景">应用场景</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引</p>
-<ol>
-<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
-<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
-<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
-<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
-</ol>
-</blockquote>
-<h2><span id="mongodb-最接近mysql的nosql数据库">mongodb-最接近“mysql”的nosql数据库</span></h2><p>MongoDB是一个开源、高性能、无模式的文档数据库，当初的设计就是用于<strong>简化开发</strong>和<strong>方便扩展</strong>，是NoSQL数据库产品的一种，是最像关系型数据库（MySQL）的非关系型数据库。<br>它支持的数据结构非常松散，是一种类似于JSON的格式叫BSON，所以它既可以存比较复杂的数据类型，又相当的灵活。</p>
-<h2><span id="关键特性">关键特性</span></h2><ul>
-<li>面向文档存储，易于存储对象类型的数据<ul>
-<li>数据结构符合大部分程序语言，文件存储格式为BSON(一种JSON的扩展)</li>
-<li>可在文档内嵌入子文档（相当于传统数据库的嵌套表）</li>
-<li>动态增减文档或修改文档格式，模式自由</li>
-</ul>
-</li>
-<li>高性能<ul>
-<li>支持基于内存查询，减少磁盘 IO 交互</li>
-<li>支持使用嵌入数据，减少系统I/O负担，支持子文档查询</li>
-<li>使用高效的二进制数据存储，包括大型对象</li>
-</ul>
-</li>
-<li>多种查询类型支持，且支持数据聚合查询、文本检索、地址位置查询，支持复杂的 SQL 查询</li>
-<li>高可用、水平扩展，支持副本集与分片</li>
-<li>多种存储引擎：WiredTiger , In-Memory</li>
-</ul>
-<h2><span id="数据模型">数据模型</span></h2><p>和关系型数据库mysql很相似。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519172323.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519161438.png" alt=""></p>
-<h2><span id="关键技术">关键技术</span></h2><h3><span id="wiredtiger存储引擎">WiredTiger存储引擎</span></h3><ul>
-<li>WT的数据结构<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519172533.png" alt=""><br>WT的Cache采用Btree的方式组织，每个Btree节点为一个page。root page是btree的根节点，internal page是btree的中间索引节点，leaf page是存储数据的叶子节点；btree的数据以page为单位按需从磁盘加载或写入磁盘。</li>
-<li>为什么MongoDB使用了B树而不是B+树<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519172649.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519172712.png" alt=""><br>B+树只在叶子节点中储存数据，叶子节点之间有链表相连方便遍历和范围查询。B树在单个查询时性能优于B+树，在范围查询时需要遍历树，效率不如B+树直接遍历链表。<br>MySQL 作为关系型数据库，需要处理大量的范围查询和遍历，选用了B+树；而MongoDB 作为文档的数据库，更看重面向文档的简单查询，所以选择了查询单个文档性能较好的B树。</li>
-<li>WT的持久化<ul>
-<li>预写日志（WAL）： WT使用预写日志的机制，在数据更新时，先将数据更新写入到日志文件。日志的写入频率可以根据业务要求的可靠性等级配置，最严格的情况可以配置为集群中大部分节点都落盘后才将结果返回给客户端。</li>
-<li>检查点（checkpoint）： 在checkpoint操作开始时，WT提供指定时间点的数据库快照，并将快照中的所有数据以一致性方式写入到数据文件中。一旦checkpoint创建成功，WT保证数据文件和内存数据是一致的。当宕机重新启动时WT会先将数据恢复到最近的一次checkpoint的点，然后重放后续的操作日志来恢复数据。</li>
-</ul>
-</li>
-</ul>
-<h3><span id="事务支持">事务支持</span></h3><p>传统的观念认为NoSQL不支持或者只有部分支持事务，在MongoDB 4.0之前对事务的支持有限，但在MongoDB 4.0 引入了事务功能，支持多文档ACID特性。<br>事务实现原理：snapshot(事务快照) 、MVCC (多版本并发控制) 和redo log来实现事务。</p>
-<h3><span id="mongodb集群">MongoDB集群</span></h3><ul>
-<li><p>副本集<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519172947.png" alt=""></p>
-<ul>
-<li>Primary 主节点，一个副本集有且仅有一台服务器处于Primary状态，只有主节点才对外提供写服务。如果主节点挂掉，副本集将投票选出一个备节点成为新的主节点。</li>
-<li>Secondary 备用节点，副本集允许有多台Secondary，每个备用节点的数据与主节点的数据是完全同步的。备节点可以提供读服务。</li>
-<li>Arbiter 仲裁节点，该类节点可以不用单独存在，如果配置为仲裁节点，就主要负责在复本集中监控其他节点状态，投票选出主节点。如果没有仲裁节点，那么投票工作将由所有节点共同进行。</li>
-</ul>
-<p>官方推荐MongoDB副本节点在3~11个之间，奇数个副本节点。限制副本节点的数目是为了减少复制的成本，限制为奇数则是为了减少出现脑裂。</p>
-</li>
-<li><p>副本集的选举<br> 跟很多NoSQL数据库一样，MongoDB副本集采用的是Bully算法进行主节点选举。<br> 在以下场景副本集会开始进行选举：</p>
-<ul>
-<li>初始化副本集时；</li>
-<li>备份节点无法和主节点通讯时(可能主节点宕机或网络原因)；</li>
-<li>Primary 手动降级。</li>
-</ul>
-<p>选举的大致原理是获取每个服务器节点的最后操作时间戳（oplog），选择最后操作时间戳最新(保证数据最新)的服务器节点作为主节点。</p>
-</li>
-<li><p>分片<br> 当MongoDB存储海量的数据时，一台机器不足以提供可接受的读写吞吐量。这时，我们就可以通过在多台机器上分割数据，使得数据库系统能存储和处理更多的数据。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519173422.png" alt=""><br> 分片集群由Shard、Mongos和Config server 3个组件构成。</p>
-<ul>
-<li>mongos：数据库集群请求的入口，起到路由作用，它负责把对应的数据请求转发到对应的shard服务器上。生产环境中需要多个mongos。</li>
-<li>config server：保存集群和分片的元数据，mongos启动时会加载配置服务器上的配置信息，以后如果配置服务器信息变化会通知到所有的mongos更新自己的状态。生产环境需要多个配置服务器并定期备份。</li>
-<li>shard server：实际存储数据的分片。生产环境为了保证高可用，每个Shard都要求是副本集。</li>
-</ul>
-</li>
-</ul>
-<ul>
-<li>分片策略<br>  分片支持单个集合的数据分散在多个分片上，目前主要有范围分片和hash分片两种数据分片策略。<br>  范围分片适合满足在一定范围内的查找，缺点是可能会导致数据分布不均，有热点数据；hash分片分布均匀，但是不能高效进行范围查询。</li>
-</ul>
-<h2><span id="应用场景">应用场景</span></h2><ul>
-<li>应用不需要事务和复杂join支持</li>
-<li>新应用，需求会变，数据模型无法确认，想快速迭代开发</li>
-<li>应用需要2000-3000以上的读写QPS（更高也可以）</li>
-<li>应用需要TB甚至PB级别数据存储</li>
-<li>应用发展迅速，需要能快速水平扩展</li>
-<li>应用需要大量的地理位置查询、文本查询</li>
-<li>应用需要存储的数据不丢失</li>
-</ul>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://juejin.cn/post/7027814425658654728" target="_blank" rel="noopener">MongoDB介绍</a></li>
-<li><a href="https://zhuanlan.zhihu.com/p/84834695" target="_blank" rel="noopener">MongoDB 介绍与应用详解</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">mongodb</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/19/bigdata-stack-mongo/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
-      <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/13/">13</a><a class="extend next" rel="next" href="/page/2/">Next &raquo;</a>
+      <span class="page-number current">1</span><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><span class="space">&hellip;</span><a class="page-number" href="/page/41/">41</a><a class="extend next" rel="next" href="/page/2/">Next &raquo;</a>
     </nav>
   
 
@@ -2849,11 +1228,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2881,10 +1260,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
@@ -2893,7 +1268,63 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">storm</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">olap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">presto</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2906,10 +1337,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">systemd</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2933,11 +1360,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">备份</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hexo</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">github pages</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2949,15 +1384,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">备份</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2973,27 +1400,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -3005,15 +1420,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">手机号</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -3041,43 +1456,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">storm</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">datax</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">olap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">presto</a>
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -3086,10 +1477,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -3109,23 +1496,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -3134,6 +1509,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">doris</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
               </li>
              
               <li class="article-tag-list-item">

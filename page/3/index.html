@@ -154,7 +154,7 @@
           <div id="js-content" class="content-ll">
             
   
-    <article id="post-bigdata-stack-kudu" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+    <article id="post-bigdata-stack-row-col" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
 
@@ -164,13 +164,13 @@
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/12/bigdata-stack-kudu/">大数据开发之路-kudu</a>
+      <a class="article-title" href="/2022/05/20/bigdata-stack-row-col/">大数据开发之路-行存和列存</a>
     </h1>
   
 
         
-        <a href="/2022/05/12/bigdata-stack-kudu/" class="archive-article-date">
-  	<time datetime="2022-05-12T11:51:59.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-12</time>
+        <a href="/2022/05/20/bigdata-stack-row-col/" class="archive-article-date">
+  	<time datetime="2022-05-20T10:37:49.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-20</time>
 </a>
 
 
@@ -181,9 +181,16 @@
       
         <!-- toc -->
 <ul>
-<li><a href="#kudu-介于hdfs和hbase之间的锋卫摇摆人">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
-<li><a href="#特性">特性</a></li>
-<li><a href="#架构">架构</a></li>
+<li><a href="#行存和列存-大数据存取的选择">行存和列存-大数据存取的选择</a></li>
+<li><a href="#定义">定义</a></li>
+<li><a href="#行存-vs-列存">行存 Vs 列存</a><ul>
+<li><a href="#写入">写入</a></li>
+<li><a href="#读取">读取</a></li>
+<li><a href="#解析">解析</a></li>
+<li><a href="#总结">总结</a></li>
+</ul>
+</li>
+<li><a href="#适用场景">适用场景</a></li>
 <li><a href="#参考资料">参考资料</a></li>
 </ul>
 <!-- tocstop -->
@@ -220,69 +227,107 @@
 <li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
 </ol>
 </blockquote>
-<h2><span id="kudu-介于hdfs和hbase之间的锋卫摇摆人">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220512203202.png" alt=""></p>
-<blockquote>
-<p>他们比过往更高大的球员更灵活快速，另一方面也比其他较矮小的球员更具封阻防御力或投篮得分机会</p>
-</blockquote>
-<p>Apache KUDU是一个折中的产品，在HDFS和HBase这两个偏科生中平衡了随机读写和批量分析的性能，可以同时提供低延迟的随机读写和高效的数据分析能力。Kudu支持水平扩展，并且与Cloudera Impala和 Apache Spark等当前流行的大数据查询和分析工具结合紧密。</p>
-<p>在Kudu之前，大数据主要以两种方式存储：</p>
+<h2><span id="行存和列存-大数据存取的选择">行存和列存-大数据存取的选择</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520202519.png" alt=""><br>目前大数据存储有两种方案可供选择：行存储（Row-Based）和列存储（Column-Based）。</p>
+<h2><span id="定义">定义</span></h2><p>我们常用的关系型数据库mysql，oracle等都是基于行存储，以最常用的mysql数据库innodb引擎为例。多个连续的行记录，组成一个data page（大小16k），然后按照B+树的结构进行组织存储。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520202548.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520202618.png" alt=""></p>
+<p>列式存储(column-based)是相对于传统关系型数据库的行式存储(Row-basedstorage)来说的。简单来说两者的区别就是如何组织表：</p>
 <ul>
-<li>静态数据：以HDFS引擎作为存储引擎，适用于高吞吐量的离线大数据分析场景。这类存储的局限性是数据无法进行随机的读写</li>
-<li>动态数据：以HBase、 Cassandra作为存储引擎，适用于大数据随机读写场景。这类存储的局限性是批量读取吞吐量远不如HDFS，不适用于批量数据分析的场景</li>
+<li>Row-based storage storesatable in a sequence of rows.</li>
+<li>Column-based storage storesatable in a sequence of columns.</li>
 </ul>
-<p>从上面分析可知，两种数据在存储方式上完全不同，进而导致使用场景完全不同，但在真实的场景中，边界可能没有那么清晰，面对既需要随机读写，又需要批量分析的大数据场景，该如何选择呢？</p>
-<p>一种解决方案是：数据实时写入HBase，实时的数据更新也在HBase完成，为了应对OLAP需求，定时（通常是T+1或者T+H）将HBase数据写成静态的文件（如：Parquet）导入到OLAP引擎（如：HDFS）。</p>
-<p>这一架构能满足既需要随机读写，又可以支持OLAP分析的场景，但它有如下缺点：</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520202658.png" alt=""></p>
+<h2><span id="行存-vs-列存">行存 Vs 列存</span></h2><h3><span id="写入">写入</span></h3><ul>
+<li>行存储的写入是一次完成。如果这种写入建立在操作系统的文件系统上，可以保证写入过程的成功或者失败，数据的完整性因此可以确定。</li>
+<li>列存储由于需要把一行记录拆分成单列保存，写入次数明显比行存储多，再加上磁头需要在盘片上移动和定位花费的时间，实际时间消耗会更大。所以，行存储在写入上占有很大的优势。</li>
+<li>还有数据修改,这实际也是一次写入过程。不同的是，数据修改是对磁盘上的记录做删除标记。行存储是在指定位置写入一次，列存储是将磁盘定位到多个列上分别写入，这个过程仍是行存储的列数倍。所以，数据修改也是以行存储占优。</li>
+</ul>
+<h3><span id="读取">读取</span></h3><ul>
+<li>数据读取时，行存储通常将一行数据完全读出，如果只需要其中几列数据的情况，就会存在冗余列，出于缩短处理时间的考量，消除冗余列的过程通常是在内存中进行的。</li>
+<li>列存储每次读取的数据是集合的一段或者全部，如果读取多列时，就需要移动磁头，再次定位到下一列的位置继续读取。</li>
+</ul>
+<h3><span id="解析">解析</span></h3><ul>
+<li>由于列存储的每一列数据类型是同质的，不存在二义性问题。比如说某列数据类型为整型(int)，那么它的数据集合一定是整型数据。这种情况使数据解析变得十分容易。</li>
+<li>相比之下，行存储则要复杂得多，因为在一行记录中保存了多种类型的数据，数据解析需要在多种数据类型之间频繁转换，这个操作很消耗CPU，增加了解析的时间。所以，列存储的解析过程更有利于分析大数据。</li>
+<li>列存储由于每一列数据类型一致，更有利于压缩和检索。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520202826.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520202845.png" alt=""></li>
+</ul>
+<h3><span id="总结">总结</span></h3><table>
+<thead>
+<tr>
+<th>对比方面</th>
+<th>行存储</th>
+<th>列存储</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>存储方式</td>
+<td>按行存储</td>
+<td>按列存储，即每一列单独存放</td>
+</tr>
+<tr>
+<td>数据完整性</td>
+<td>提供数据完整性保证</td>
+<td>缺乏数据完整性保证</td>
+</tr>
+<tr>
+<td>写性能</td>
+<td>写入是一次完成，写入效率高</td>
+<td>把一行记录拆分成单列保存，写入次数明显比行存储多，写入效率低</td>
+</tr>
+<tr>
+<td>读性能</td>
+<td>读取少数几列时，需遍历其他无关列，IO开销较大；读取整行数据时，依次顺序读即可，性能高</td>
+<td>读取少数几列时，无需读取无关列，性能高；读取整行时，需分别读取所有列，并拼装成行，性能低</td>
+</tr>
+<tr>
+<td>索引</td>
+<td>没有索引的查询使用大量I/O。比如一般的数据库表都会建立索引，通过索引加快查询效率</td>
+<td>数据即索引</td>
+</tr>
+<tr>
+<td>数据压缩</td>
+<td>每行数据存储在一起，压缩比较低</td>
+<td>以列为单位存储数据，这使得类型相同的数据存放在一起，对压缩算法友好，压缩比较高</td>
+</tr>
+<tr>
+<td>典型代表</td>
+<td>Text File、 Sequence File等</td>
+<td>ORC、 Parquet、 Carbon Data等</td>
+</tr>
+<tr>
+<td>应用领域</td>
+<td>商业领域/互联网</td>
+<td>互联网</td>
+</tr>
+</tbody>
+</table>
 <ul>
-<li>架构复杂。从架构上看，数据在HBase、消息队列、HDFS间流转，涉及环节太多，运维成本很高。并且每个环节需要保证高可用，都需要维护多个副本，存储空间也有一定的浪费。最后数据在多个系统上，对数据安全策略、监控等都提出了挑战。</li>
-<li>时效性低。数据从HBase导出成静态文件是周期性的，一般这个周期是一天（或一小时），在时效性上不是很高。</li>
-<li>难以应对后续的更新。真实场景中，总会有数据是延迟到达的。如果这些数据之前已经从HBase导出到HDFS，新到的变更数据就难以处理了，一个方案是把原有数据应用上新的变更后重写一遍，但这代价又很高。</li>
-</ul>
-<p><img src="https://pic1.zhimg.com/80/v2-72a7261c8f0274ed1b6fa4fa69fccea4_720w.png" alt=""></p>
-<p>为了解决上述架构的这些问题，Kudu应运而生。Kudu 的定位是提供”fast analytics on fast data”，也就是在快速更新的数据上进行快速的查询。它定位OLAP和少量的OLTP工作流，如果有大量的randomaccesses，官方建议还是使用HBase更为合适。</p>
-<p><img src="https://pica.zhimg.com/80/v2-cb40fde69d115ca26601668c8ce20251_720w.jpg?source=1940ef5c" alt=""></p>
-<h2><span id="特性">特性</span></h2><ul>
-<li>对数据扫描(scan)和随机访问(random access)同时具有高性能，简化用户复杂的混合架构</li>
-<li>高 CPU 效率，使用户购买的先进处理器的的花费得到 最大回报</li>
-<li>高 IO 性能，充分利用先进存储介质</li>
-<li>支持数据的原地更新，避免额外的数据处理、数据移动</li>
-<li>支持跨数据中心replica</li>
-<li>不依赖与HDFS存储；不依赖于zookeeper</li>
-<li>核心模块用的C++来实现，没有full gc的风险</li>
-</ul>
-<h2><span id="架构">架构</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220513092729.png" alt=""></p>
-<ul>
-<li>Table<br> 每个table都需要预先定义好schema。每个table的列数是确定的，每一列都需要有名字和类型，每个表中可以把其中一列或多列定义为主键（全局有序）。</li>
-<li>Catalog table<br> Catalog table保存了所有table的schema的版本以及table的状态（创建、运行、删除等）</li>
-<li>Tablet<br> 一个tablet是一张table连续的segment，tablet是Kudu表的水平分区，类似于google Bigtable的tablet，或者HBase的region。<br> 每个tablet存储着一定连续range的数据（key），且tablet两两间的range不会重叠。一张表的所有tablet包含了这张表的所有key空间<br> tablet冗余到多个tablet server服务器上，并且在任何给定的时间点，其中一个副本是leader tablet，其他的副本为follower tablet</li>
-<li>Partitioning<br> KUDU表会被横向切分存储在多个tablets中， KUDU提供了丰富灵活的数据分区策略：<ul>
-<li>Range Partitioning，按照字段值范围进行分区， HBase 就采用了这种方式</li>
-<li>Hash Partitioning，按照字段的 Hash 值进行分区， Cassandra 采用了这个方式</li>
+<li>如果首要考虑是数据的完整性和可靠性，那么行存储是不二选择，列存储只有在增加磁盘并改进软件设计后才能接近这样的目标。</li>
+<li>如果以保存数据为主，行存储的写入性能比列存储高很多。</li>
+<li>在需要频繁读取单列集合数据的应用中，列存储是最合适的。</li>
+<li>如果每次读取多列，两个方案可酌情选择：<ul>
+<li>采用行存储时，设计中应考虑减少或避免冗余列；</li>
+<li>若采用列存储方案，为保证读写入效率，每列数据尽可能分别保存到不同的磁盘上，多个线程并行读写各自的数据，这样避免了磁盘竞用的同时也提高了处理效率。</li>
 </ul>
 </li>
-<li>Master Server<br> Kudu的master节点负责整个集群的元数据管理和服务协调。它承担着以下功能：<ul>
-<li>作为catalog manager，master节点管理着集群中所有table和tablet的schema及一些其他的元数据。</li>
-<li>作为cluster coordinator，master节点追踪着所有server节点是否存活，并且当server节点挂掉后协调数据的重新分布。</li>
-<li>作为tablet directory，master跟踪每个tablet的位置。</li>
+<li>无论选择哪种方案，将同内容数据聚凑在一起都是必须的，这是减少磁头在磁盘上的移动，提高数据读取时间的有效办法。</li>
+</ul>
+<h2><span id="适用场景">适用场景</span></h2><ul>
+<li><p>行存储的写入是一次性完成，消耗的时间比列存储少，并且能够保证数据的完整性，缺点是数据读取过程中会产生冗余数据，如果只有少量数据，此影响可以忽略；数量大可能会影响到数据的处理效率。</p>
+<ul>
+<li>所以，行存对于 OLTP 比较友好，一行记录的所有列连续存储，一次IO可以实现整行读取或者写入，实现数据库的ACID特性就比较简单。但在读取的时候会将整行数据全读出来，在一些分析场景下压力会有点大。</li>
 </ul>
 </li>
-<li>Tablet Server<br> 负责数据存储，并提供数据读写服务。Tablet server的任务非常繁重, 其负责和数据相关的所有操作, 包括存储,访问,压缩,其还负责将数据复制到其它机器</li>
-<li>MemRowSet<br> 一个tablet仅有一个MemRowSet用来保存最新插入的数据，并且有一个后台线程会定期把内存中的数据flush到硬盘上。<br> MemRowSet 是一个支持并发，提供锁优化的 B-tree，主要基于 MassTree，也有一些不同：<ul>
-<li>因为 Kudu 使用的是 MVCC，所以任何的删除其实也是插入，所以这个 tree 没有删除操作。</li>
-<li>不支持任意的 in-place 数据变更操作，除非这次操作不会改变 value 的大小。</li>
-<li>将 Leaf link 起来，类似 B+-tree，这样对于 scan 会有明显的性能提升。</li>
-<li>并没有完全实现 trie of trees，是只是使用了一个单一 tree，因为 Kudu 并没有太多高频随机访问的场景。</li>
+<li><p>列存储在写入效率、保证数据完整性上都不如行存储，它的优势是在读取过程，不会产生冗余数据，这对数据完整性要求不高的大数据处理领域，比如互联网，犹为重要。</p>
+<ul>
+<li>所以，列存则是对于 OLAP 非常友好，但在刷盘的时候压力可能会比较大，如果一个 table 有很多 column，写入性能可能会有点影响。</li>
 </ul>
 </li>
-<li>DiskRowSet<br> 当MemRowSet被flush到硬盘上，就变成了DiskRowSet。当MemRowSet被flush到硬盘的时候，每32M就会形成一个新的DiskRowSet，这主要是为了保证每个DiskRowSet不会太大，便于后续的增量compaction操作。</li>
-<li>Compaction<br> 为了提高查询性能，Kudu会定期进行compaction操作，合并delta data与base data，对标记了删除的数据进行删除，并且会合并一些DiskRowSet。</li>
 </ul>
 <h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://juejin.cn/post/6977652320905478152" target="_blank" rel="noopener">一文快速搞懂Kudu到底是什么</a></li>
-<li><a href="https://www.jianshu.com/p/83290cd817ac" target="_blank" rel="noopener">一文读懂 Apache Kudu</a></li>
-<li><a href="https://pingcap.com/zh/blog/kudu" target="_blank" rel="noopener">Kudu - 一个融合低延迟写入和高性能分析的存储系统</a></li>
-<li><a href="https://www.zhihu.com/question/37858641" target="_blank" rel="noopener">如何评价kudu存储引擎？</a></li>
-<li><a href="https://cloud.tencent.com/developer/article/1758562" target="_blank" rel="noopener">Hbase、Kudu和ClickHouse全视角对比</a></li>
+<li><a href="https://www.infoq.cn/article/bigdata-store-choose" target="_blank" rel="noopener">大数据存取的选择：行存储还是列存储？</a></li>
+<li><a href="https://blog.csdn.net/Xingxinxinxin/article/details/80939277" target="_blank" rel="noopener">行存储 VS 列存储</a></li>
+<li><a href="https://juejin.cn/post/7001508701706125320" target="_blank" rel="noopener">列式存储和行式存储有什么区别？</a></li>
+<li><a href="https://www.jianshu.com/p/7ee1f9703a41" target="_blank" rel="noopener">行存储、列存储、行列混存</a></li>
 </ul>
 
       
@@ -292,17 +337,6 @@
     <div class="article-info article-info-index">
       
       
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">kudu</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
       
 	<div class="article-category tagcloud">
 		<i class="icon-book icon"></i>
@@ -318,7 +352,7 @@
 
       
         <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/12/bigdata-stack-kudu/">展开全文 >></a>
+          <a class="article-more-a" href="/2022/05/20/bigdata-stack-row-col/">展开全文 >></a>
         </p>
       
 
@@ -348,7 +382,7 @@
 
 
   
-    <article id="post-bigdata-stack-hbase" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+    <article id="post-bigdata-stack-cap" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
 
@@ -358,13 +392,13 @@
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/12/bigdata-stack-hbase/">大数据开发之路-hbase</a>
+      <a class="article-title" href="/2022/05/20/bigdata-stack-cap/">大数据开发之路-cap原则</a>
     </h1>
   
 
         
-        <a href="/2022/05/12/bigdata-stack-hbase/" class="archive-article-date">
-  	<time datetime="2022-05-12T11:43:26.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-12</time>
+        <a href="/2022/05/20/bigdata-stack-cap/" class="archive-article-date">
+  	<time datetime="2022-05-20T07:11:47.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-20</time>
 </a>
 
 
@@ -375,10 +409,24 @@
       
         <!-- toc -->
 <ul>
-<li><a href="#hbase-基于hdfs的支持实时随机读写的列式数据库">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
-<li><a href="#hadoop-ecosystem中的关系">Hadoop EcoSystem中的关系</a></li>
-<li><a href="#hbase系统架构">HBase系统架构</a></li>
-<li><a href="#hbase适用场景">HBase适用场景</a></li>
+<li><a href="#cap原则-分布式系统设计的指导思想">cap原则-分布式系统设计的指导思想</a></li>
+<li><a href="#什么是cap">什么是cap？</a><ul>
+<li><a href="#partition-tolerance-分区容忍性">Partition tolerance-分区容忍性</a></li>
+<li><a href="#consistency-一致性">Consistency-一致性</a></li>
+<li><a href="#availability-可用性">Availability-可用性</a></li>
+<li><a href="#consistency-和-availability-的矛盾">Consistency 和 Availability 的矛盾</a></li>
+</ul>
+</li>
+<li><a href="#提出-cap-是为了解决什么问题">提出 CAP 是为了解决什么问题？</a></li>
+<li><a href="#cap的权衡">CAP的权衡</a><ul>
+<li><a href="#ca-without-p">CA without P</a></li>
+<li><a href="#cp-without-a">CP without A</a></li>
+<li><a href="#ap-wihtout-c">AP wihtout C</a></li>
+<li><a href="#适合的才是最好的">适合的才是最好的</a></li>
+</ul>
+</li>
+<li><a href="#数据分片和数据副本的分布式系统是否都遵守-cap-定理">数据分片和数据副本的分布式系统是否都遵守 CAP 定理</a></li>
+<li><a href="#总结">总结</a></li>
 <li><a href="#参考资料">参考资料</a></li>
 </ul>
 <!-- tocstop -->
@@ -415,44 +463,54 @@
 <li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
 </ol>
 </blockquote>
-<h2><span id="hbase-基于hdfs的支持实时随机读写的列式数据库">hbase-基于hdfs的支持实时随机读写的列式数据库</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220425111741.png" alt=""></p>
-<blockquote>
-<p>Apache HBase™ is the Hadoop database, a distributed, scalable, big data store. Use Apache HBase™ when you need random, realtime read/write access to your Big Data.</p>
+<h2><span id="cap原则-分布式系统设计的指导思想">cap原则-分布式系统设计的指导思想</span></h2><p><img src="http://www.hollischuang.com/wp-content/uploads/2015/12/Teorema-CAP-2.png" alt=""><br>大数据系统几乎都是分布式的，CAP 定理是分布式系统的基本定理，是理解分布式系统的起点。</p>
+<h2><span id="什么是cap">什么是cap？</span></h2><p>分布式系统有三个指标：</p>
+<ul>
+<li>Consistency-一致性</li>
+<li>Availability-可用性</li>
+<li>Partition tolerance-分区容忍性</li>
+</ul>
+<p>它们的第一个字母分别是 C、A、P。这三个指标不可能同时做到。这个结论就叫做 CAP 定理。</p>
+<h3><span id="partition-tolerance-分区容忍性">Partition tolerance-分区容忍性</span></h3><blockquote>
+<p>the system continues to operate despite arbitrary message loss or failure of part of the system。</p>
 </blockquote>
-<p>HBase – Hadoop Database，是一个高可靠性、高性能、面向列、可伸缩的分布式存储系统，利用HBase技术可在廉价PC Server上搭建起大规模结构化存储集群。</p>
-<p>HBase是Google Bigtable的开源实现，类似Google Bigtable利用GFS作为其文件存储系统，HBase利用Hadoop HDFS作为其文件存储系统；Google运行MapReduce来处理Bigtable中的海量数据，HBase同样可以利用Hadoop MapReduce来处理HBase中的海量数据；Google Bigtable利用 Chubby作为协同服务，HBase利用Zookeeper作为对应。</p>
-<h2><span id="hadoop-ecosystem中的关系">Hadoop EcoSystem中的关系</span></h2><p>HBase位于结构化存储层，Hadoop HDFS为HBase提供了高可靠性的底层存储支持，Hadoop MapReduce为HBase提供了高性能的计算能力，Zookeeper为HBase提供了稳定服务和failover机制。</p>
-<p>此外，Pig和Hive还为HBase提供了高层语言支持，使得在HBase上进行数据统计处理变的非常简单。 Sqoop则为HBase提供了方便的RDBMS数据导入功能，使得传统数据库数据向HBase中迁移变的非常方便。</p>
-<h2><span id="hbase系统架构">HBase系统架构</span></h2><ul>
-<li>Client。HBase Client使用HBase的RPC机制与HMaster和HRegionServer进行通信，对于管理类操作，Client与HMaster进行RPC；对于数据读写类操作，Client与HRegionServer进行RPC</li>
-<li>Zookeeper。Zookeeper中除了存储了META表的地址和HMaster的地址，HRegionServer也会把自己以Ephemeral方式注册到Zookeeper中，使得HMaster可以随时感知到各个HRegionServer的健康状态。</li>
-<li>HMaster。HMaster没有单点问题，HBase中可以启动多个HMaster，通过Zookeeper的Master Election机制保证总有一个Master运行，HMaster在功能上主要负责Table和Region的管理工作：<ul>
-<li>管理用户对Table的增、删、改、查操作</li>
-<li>管理HRegionServer的负载均衡，调整Region分布</li>
-<li>在Region Split后，负责新Region的分配</li>
-<li>在HRegionServer停机后，负责失效HRegionServer 上的Regions迁移</li>
+<p>大多数分布式系统都分布在多个子网络。每个子网络就叫做一个区（partition）。分区容错的意思是，区间通信可能失败。比如，一台服务器放在中国，另一台服务器放在美国，这就是两个区，它们之间可能无法通信。<br><img src="https://www.wangbase.com/blogimg/asset/201807/bg2018071601.png" alt=""><br>上图中，G1 和 G2 是两台跨区的服务器。G1 向 G2 发送一条消息，G2 可能无法收到。系统设计的时候，必须考虑到这种情况。<br>一般来说，分区容错无法避免，因此可以认为 CAP 的 P 总是成立。CAP 定理告诉我们，剩下的 C 和 A 无法同时做到。</p>
+<h3><span id="consistency-一致性">Consistency-一致性</span></h3><blockquote>
+<p>all nodes see the same data at the same time。</p>
+</blockquote>
+<p>举例来说，某条记录是 v0，用户向 G1 发起一个写操作，将其改为 v1。接下来，用户的读操作就会得到 v1。这就叫一致性。<br>问题是，用户有可能向 G2 发起读操作，由于 G2 的值没有发生变化，因此返回的是 v0。G1 和 G2 读操作的结果不一致，这就不满足一致性了。<br>为了让 G2 也能变为 v1，就要在 G1 写操作的时候，让 G1 向 G2 发送一条消息，要求 G2 也改成 v1。这样的话，用户向 G2 发起读操作，也能得到 v1。</p>
+<h3><span id="availability-可用性">Availability-可用性</span></h3><blockquote>
+<p>Reads and writes always succeed。</p>
+</blockquote>
+<p>用户可以选择向 G1 或 G2 发起读操作。不管是哪台服务器，只要收到请求，就必须告诉用户，到底是 v0 还是 v1，否则就不满足可用性。</p>
+<h3><span id="consistency-和-availability-的矛盾">Consistency 和 Availability 的矛盾</span></h3><p>一致性和可用性，为什么不可能同时成立？答案很简单，因为可能通信失败（即出现分区容错）。<br>如果保证 G2 的一致性，那么 G1 必须在写操作时，锁定 G2 的读操作和写操作。只有数据同步后，才能重新开放读写。锁定期间，G2 不能读写，没有可用性。<br>如果保证 G2 的可用性，那么势必不能锁定 G2，所以一致性不成立。<br>综上所述，G2 无法同时做到一致性和可用性。系统设计时只能选择一个目标。如果追求一致性，那么无法保证所有节点的可用性；如果追求所有节点的可用性，那就没法做到一致性。</p>
+<p>而根据一致性和可用性的选择不同，开源的分布式系统往往又被分为 CP 系统和 AP 系统。<br>当一套系统在发生分区故障后，客户端的任何请求都被卡死或者超时，但是，系统的每个节点总是会返回一致的数据，则这套系统就是 CP 系统，经典的比如 Zookeeper。<br>如果一套系统发生分区故障后，客户端依然可以访问系统，但是获取的数据有的是新的数据，有的还是老数据，那么这套系统就是 AP 系统，经典的比如 Eureka。</p>
+<h2><span id="提出-cap-是为了解决什么问题">提出 CAP 是为了解决什么问题？</span></h2><p>CAP准确描述和定义了分布式系统设计中的trade-off问题，用于指导分布式系统的设计，避免系统不同模块之间因设计理念不统一而导致混乱。</p>
+<h2><span id="cap的权衡">CAP的权衡</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155025.png" alt=""><br>通过CAP理论及前面的证明，我们知道无法同时满足一致性、可用性和分区容错性这三个特性，那要舍弃哪个呢？我们分三种情况来阐述一下。</p>
+<h3><span id="ca-without-p">CA without P</span></h3><p>这种情况在分布式系统中几乎是不存在的。首先在分布式环境下，网络分区是一个自然的事实。因为分区是必然的，所以如果舍弃P，意味着要舍弃分布式系统。那也就没有必要再讨论CAP理论了。这也是为什么在前面的CAP证明中，我们以系统满足P为前提论述了无法同时满足C和A。<br>比如我们熟知的关系型数据库，如MySql和Oracle就是保证了可用性和数据一致性，但是他并不是个分布式系统。一旦关系型数据库要考虑主备同步、集群部署等就必须要把P也考虑进来。<br>其实，在CAP理论中。C，A，P三者并不是平等的，CAP之父在《Spanner，真时，CAP理论》一文中写到：</p>
+<blockquote>
+<p>如果说Spanner真有什么特别之处，那就是谷歌的广域网。Google通过建立私有网络以及强大的网络工程能力来保证P，在多年运营改进的基础上，在生产环境中可以最大程度的减少分区发生，从而实现高可用性。</p>
+</blockquote>
+<p>从Google的经验中可以得到的结论是，无法通过降低CA来提升P。要想提升系统的分区容错性，需要通过提升基础设施的稳定性来保障。<br>所以，对于一个分布式系统来说。P是一个基本要求，CAP三者中，只能在CA两者之间做权衡，并且要想尽办法提升P。</p>
+<h3><span id="cp-without-a">CP without A</span></h3><p>如果一个分布式系统不要求强的可用性，即容许系统停机或者长时间无响应的话，就可以在CAP三者中保障CP而舍弃A。<br>一个保证了CP而舍弃了A的分布式系统，一旦发生网络故障或者消息丢失等情况，就要牺牲用户的体验，等待所有数据全部一致了之后再让用户访问系统。<br>设计成CP的系统其实也不少，其中最典型的就是很多分布式数据库，他们都是设计成CP的。在发生极端情况时，优先保证数据的强一致性，代价就是舍弃系统的可用性。如Redis、HBase等，还有分布式系统中常用的Zookeeper也是在CAP三者之中选择优先保证CP的。<br>无论是像Redis、HBase这种分布式存储系统，还是像Zookeeper这种分布式协调组件。数据的一致性是他们最最基本的要求。一个连数据一致性都保证不了的分布式存储要他有何用？<br>ZooKeeper是个CP（一致性+分区容错性）的，即任何时刻对ZooKeeper的访问请求能得到一致的数据结果，同时系统对网络分割具备容错性。但是它不能保证每次服务请求的可用性，也就是在极端环境下，ZooKeeper可能会丢弃一些请求，消费者程序需要重新请求才能获得结果。ZooKeeper是分布式协调服务，它的职责是保证数据在其管辖下的所有服务之间保持同步、一致。所以就不难理解为什么ZooKeeper被设计成CP而不是AP特性的了。</p>
+<h3><span id="ap-wihtout-c">AP wihtout C</span></h3><p>要高可用并允许分区，则需放弃一致性。一旦网络问题发生，节点之间可能会失去联系。为了保证高可用，需要在用户访问时可以马上得到返回，则每个节点只能用本地数据提供服务，而这样会导致全局数据的不一致性。<br>这种舍弃强一致性而保证系统的分区容错性和可用性的场景和案例非常多。前面我们介绍可用性的时候说到过，很多系统在可用性方面会做很多事情来保证系统的全年可用性可以达到N个9，所以，对于很多业务系统来说，比如淘宝的购物，12306的买票。都是在可用性和一致性之间舍弃了一致性而选择可用性。<br>你在12306买票的时候肯定遇到过这种场景，当你购买的时候提示你是有票的（但是可能实际已经没票了），你也正常的去输入验证码，下单了。但是过了一会系统提示你下单失败，余票不足。这其实就是先在可用性方面保证系统可以正常的服务，然后在数据的一致性方面做了些牺牲，会影响一些用户体验，但是也不至于造成用户流程的严重阻塞。（这个例子并不好，讨论cap的前提是发生了p，如果没有发生p，那么ca都应该满足。12306的这个做法显然是为了减小服务端压力而在产品层面做的一个折中处理。）<br>但是，我们说很多网站牺牲了一致性，选择了可用性，这其实也不准确的。就比如上面的买票的例子，其实舍弃的只是强一致性。退而求其次保证了最终一致性。也就是说，虽然下单的瞬间，关于车票的库存可能存在数据不一致的情况，但是过了一段时间，还是要保证最终一致性的。<br>对于多数大型互联网应用的场景，主机众多、部署分散，而且现在的集群规模越来越大，所以节点故障、网络故障是常态，而且要保证服务可用性达到N个9，即保证P和A，舍弃C（退而求其次保证最终一致性）。虽然某些地方会影响客户体验，但没达到造成用户流程的严重程度。</p>
+<h3><span id="适合的才是最好的">适合的才是最好的</span></h3><p>上面介绍了CAP中如何权衡及取舍的典型案例。孰优孰略，没有定论，只能根据场景定夺，适合的才是最好的。</p>
+<ul>
+<li>对于涉及到钱财这样不能有一丝让步的场景，C必须保证。网络发生故障宁可停止服务，这是保证CP，舍弃A。比如前几年支付宝光缆被挖断的事件，在网络出现故障的时候，支付宝就在可用性和数据一致性之间选择了数据一致性，用户感受到的是支付宝系统长时间宕机，但是其实背后是无数的工程师在恢复数据，保证数据的一致性。</li>
+<li>对于其他场景，比较普遍的做法是选择可用性和分区容错性，舍弃强一致性，退而求其次使用最终一致性来保证数据的安全。这其实是分布式领域的另外一个理论——BASE理论。</li>
 </ul>
-</li>
-<li>HRegionServer。HRegionServer主要负责响应用户I/O请求，向HDFS文件系统中读写数据，是HBase中最核心的模块。HRegionServer内部管理了一系列HRegion对象，每个HRegion对应了Table中的一个Region，HRegion中由多个HStore组成。每个HStore对应了Table中的一个Column Family的存储，可以看出每个Column Family其实就是一个集中的存储单元，因此最好将具备共同IO特性的column放在一个Column Family中，这样最高效。</li>
-</ul>
-<h2><span id="hbase适用场景">HBase适用场景</span></h2><ul>
-<li>数据模式是动态的或者可变的，且支持半结构化和非结构化的数据。</li>
-<li>数据库中的很多列都包含了很多空字段，在 HBase 中的空字段不会像在关系型数据库中占用空间。</li>
-<li>不需要复杂查询条件来查询数据，如点查，对事务性和表关联没有强需求。</li>
-<li>需要很高的吞吐量，瞬间写入量很大。</li>
-<li>数据有很多版本需要维护，HBase 利用时间戳来区分不同版本的数据。</li>
-<li>具有高可扩展性，能动态地扩展整个存储系统。</li>
+<h2><span id="数据分片和数据副本的分布式系统是否都遵守-cap-定理">数据分片和数据副本的分布式系统是否都遵守 CAP 定理</span></h2><p>比如，我们有个分布式系统，由三个节点 a、b、c 组成。其中节点 a 存放了 A 表的数据，b 存放了 B 表的数据，c 存放了 C 表的数据。<br>如果有一个业务，它的意图是想往 A 表插入一条新数据，在 B 表删除一条已有数据，在 C 表更新一条老数据，这个分布式系统该怎么处理这种业务？<br>技术上我们对这种一个意图想做多件事的情况往往会包装成一个事务。当我们包装成一个事务以后，我们可能会通过先在 a 节点执行，然后去 b 节点执行，最后去 c 节点执行，等到都成功了，才会返回成功。<br>但是，发生了分区以后怎么办？当在 a、b 节点都成功了，到 c 发现发生了通信故障？<br>此时，根据 CAP 定理，你有两个选择，要么就直接返回一个部分成功的结果给客户端，要么直接卡死等客户端超时或者返回失败给客户端。当返回部分成功的时候，这就是选择了可用性（A），当卡死或者返回失败给客户端的时候，就是选择了一致性（C）。<br>可是，我们将请求包装成了事务，而事务是要求要么都成功，要么都失败……为了遵守这种要求，对于分布式只有分片的情况，迫于客观条件，只能选择C。所以分片的分布式系统，往往都是 CP 的系统。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155113.png" alt=""></p>
+<p>而当分布式系统是多个节点，每个节点存储了完整的一套数据，别的节点只是完整数据的备份的时候，即使事务只在一台机器上成功，当发生分区故障的时候，我们也是可以有充分的余地选择是单机事务的回退 or 就此认为写成功的。就此认为写成功，则可以认为选择了可用性。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155216.png" alt=""><br>单机事务的回退，就可以对外表现为选择了一致性。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155141.png" alt=""></p>
+<h2><span id="总结">总结</span></h2><p>总结一下，通俗的讲，当分布式系统出现故障时（可能是一个节点宕机了，这种情况应该很常见，或者网络故障导致部分节点失联），</p>
+<ul>
+<li>如果系统依然可以提供服务，哪怕数据有可能不是最新的（因为故障很可能会导致不同节点间数据同步中断/滞后），这就是AP；</li>
+<li>如果系统不再提供服务，直到确保系统内部数据同步完成，这就是CP。<br>采用不同理念设计出的分布式系统，具有不同的特性，适用不同的场景。</li>
 </ul>
 <h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://winway.github.io/2017/01/26/big-data-hbase/">Hadoop生态系统介绍-Hbase</a></li>
-<li><a href="https://www.daimajiaoliu.com/daima/56a0e7ed1bc8804" target="_blank" rel="noopener">一文读懂 HBase 主要特性与使用场景</a></li>
-<li><a href="https://juejin.cn/post/6844903699362349064" target="_blank" rel="noopener">HBase在滴滴出行的应用场景和最佳实践</a></li>
-<li><a href="https://cloud.tencent.com/developer/article/1042713" target="_blank" rel="noopener">基于HBase的大数据存储的应用场景分析</a></li>
-<li><a href="https://xie.infoq.cn/article/3f8918d3ef064b7b6b2382e1b" target="_blank" rel="noopener">大白话彻底搞懂 HBase Rowkey 设计和实现方式</a></li>
-<li><a href="https://juejin.cn/post/6844903873824423949" target="_blank" rel="noopener">一篇文章带你快速搞懂HBase RowKey设计</a></li>
+<li><a href="https://www.ruanyifeng.com/blog/2018/07/cap.html" target="_blank" rel="noopener">CAP 定理的含义</a></li>
+<li><a href="https://cloud.tencent.com/developer/article/1860632" target="_blank" rel="noopener">一文看懂｜分布式系统之CAP理论</a></li>
+<li><a href="http://www.hollischuang.com/archives/666" target="_blank" rel="noopener">分布式系统的CAP理论</a></li>
 <li><a href="https://stackoverflow.com/questions/51374856/can-not-understand-why-hbase-not-a-in-cap" target="_blank" rel="noopener">Can not understand why Hbase not A in CAP</a></li>
-<li><a href="https://www.jianshu.com/p/a95126b42dfc" target="_blank" rel="noopener">HBase的CAP分析参考</a></li>
-<li><a href="https://zhuanlan.zhihu.com/p/136355574" target="_blank" rel="noopener">HBase可用性分析与高可用实践</a></li>
 </ul>
 
       
@@ -467,7 +525,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">hbase</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">cap</a>
         		</li>
       		
 		</ul>
@@ -488,7 +546,7 @@
 
       
         <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/12/bigdata-stack-hbase/">展开全文 >></a>
+          <a class="article-more-a" href="/2022/05/20/bigdata-stack-cap/">展开全文 >></a>
         </p>
       
 
@@ -518,7 +576,7 @@
 
 
   
-    <article id="post-bigdata-stack-hdfs" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+    <article id="post-bigdata-stack-ranger" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
 
@@ -528,13 +586,13 @@
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/12/bigdata-stack-hdfs/">大数据开发之路-hdfs</a>
+      <a class="article-title" href="/2022/05/19/bigdata-stack-ranger/">大数据开发之路-ranger</a>
     </h1>
   
 
         
-        <a href="/2022/05/12/bigdata-stack-hdfs/" class="archive-article-date">
-  	<time datetime="2022-05-12T11:35:34.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-12</time>
+        <a href="/2022/05/19/bigdata-stack-ranger/" class="archive-article-date">
+  	<time datetime="2022-05-19T09:18:23.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-19</time>
 </a>
 
 
@@ -545,1145 +603,12 @@
       
         <!-- toc -->
 <ul>
-<li><a href="#hdfs-大数据生态系统的存储基石">hdfs-大数据生态系统的存储基石</a></li>
-<li><a href="#hdfs架构">HDFS架构</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引</p>
-<ol>
-<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
-<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
-<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
-<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
-</ol>
-</blockquote>
-<h2><span id="hdfs-大数据生态系统的存储基石">hdfs-大数据生态系统的存储基石</span></h2><p><img src="http://static.oschina.net/uploads/space/2015/0730/081518_Hno6_865233.jpg" alt=""></p>
-<blockquote>
-<p>A distributed Java-based file system for storing large volumes of data provides the scalable, fault-tolerant, cost-efficient storage for big data</p>
-</blockquote>
-<p>Hadoop Distributed File System (HDFS)是一个高度容错性的系统，适合部署在廉价的机器上，能提供高吞吐量的数据访问，非常适合大规模数据集上的应用。</p>
-<p>HDFS是Hadoop应用用到的一个最主要的分布式存储系统。</p>
-<p>HDFS采用master/slave架构。一个HDFS集群是由一个Namenode和一定数目的Datanode组成。Namenode是一个中心服务器，负责管理文件系统的名字空间(namespace)以及客户端对文件的访问。集群中的Datanode一般是一个节点一个，负责管理它所在节点上的存储。</p>
-<p>HDFS暴露了文件系统的名字空间，用户能够以文件的形式在上面存储数据。从内部看，一个文件其实被分成一个或多个数据块，这些块存储在一组Datanode上。Namenode执行文件系统的名字空间操作，比如打开、关闭、重命名文件或目录。它也负责确定数据块到具体Datanode节点的映射。Datanode负责处理文件系统客户端的读写请求。在Namenode的统一调度下进行数据块的创建、删除和复制。</p>
-<h2><span id="hdfs架构">HDFS架构</span></h2><p>HDFS集群由管理集群元数据的NameNode和存储数据的DataNode组成。文件和目录通过inode在NameNode上表示。Inode记录属性，如权限，修改和访问时间，命名空间和磁盘空间配额。</p>
-<p>文件内容被切分成块（通常为128兆字节），并且文件的每个块独立存储在多个DataNode的本地文件系统上。</p>
-<p>Namenode主动监视一个块的副本数。当由于DataNode故障或磁盘故障而导致块的副本丢失时，NameNode将创建该块的另一个副本。</p>
-<p>NameNode维护命名空间树和块到DataNode的映射，将整个命名空间映像保存在RAM中。</p>
-<p>NameNode不直接向DataNode发送请求。它通过回复DataNode周期发送的心跳来向DataNode发送指令。指令包括以下命令：</p>
-<ul>
-<li>将块复制到其他节点</li>
-<li>删除本地块副本</li>
-<li>重新注册并立即发送数据块报告</li>
-<li>关闭节点</li>
-</ul>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://winway.github.io/2017/01/11/big-data-hdfs/">Hadoop生态系统介绍-HDFS</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">hdfs</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/12/bigdata-stack-hdfs/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-bigdata-stack-canal" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/11/bigdata-stack-canal/">大数据开发之路-canal</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/11/bigdata-stack-canal/" class="archive-article-date">
-  	<time datetime="2022-05-11T12:06:39.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-11</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#canal-基于mysql-binlog的增量同步工具">canal-基于MySQL binlog的增量同步工具</a></li>
-<li><a href="#canal可以做什么">canal可以做什么</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引</p>
-<ol>
-<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
-<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
-<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
-<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
-</ol>
-</blockquote>
-<h2><span id="canal-基于mysql-binlog的增量同步工具">canal-基于MySQL binlog的增量同步工具</span></h2><p><img src="https://imgconvert.csdnimg.cn/aHR0cHM6Ly9zdGF0aWMubG92ZWJpbGliaWxpLmNvbS9waWMvY2FuYWxfc3l0LnBuZw?x-oss-process=image/format,png" alt=""></p>
-<p>canal归根结底也是解决数据同步的问题，但不像sqoop和datax，canal解决的是数据实时同步的问题。准确的说是，如何将实时变化的mysql中的数据实时同步到Kafka/Redis/Memcached/Hbase/Solr/Elasticsearch等存储或应用中。</p>
-<p>canal的工作原理就是把自己伪装成MySQL slave，模拟MySQL slave的交互协议向MySQL Mater发送 dump协议，MySQL master收到canal发送过来的dump请求，开始推送binary log给canal，然后canal解析binary log，再发送到存储目的地，比如MySQL，Kafka，Elastic Search等等。</p>
-<h2><span id="canal可以做什么">canal可以做什么</span></h2><p>基于binary log增量订阅和消费，canal可以做：</p>
-<ul>
-<li>数据库镜像</li>
-<li>数据库实时备份</li>
-<li>索引构建和实时维护</li>
-<li>业务cache(缓存)刷新</li>
-<li>带业务逻辑的增量数据处理</li>
-</ul>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://developer.aliyun.com/article/770496" target="_blank" rel="noopener">超详细的canal入门看这篇就够了</a></li>
-<li><a href="https://www.cnblogs.com/binghe001/p/13445117.html" target="_blank" rel="noopener">【Canal】数据同步的终极解决方案，阿里巴巴开源的Canal框架当之无愧！！</a></li>
-<li><a href="https://github.com/alibaba/canal/issues/1623" target="_blank" rel="noopener">canal.serverMode 同时支持tcp和kafka么？</a></li>
-<li><a href="https://github.com/alibaba/canal/wiki" target="_blank" rel="noopener">canal wiki</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">canal</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/11/bigdata-stack-canal/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-bigdata-stack-datax" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/11/bigdata-stack-datax/">大数据开发之路-datax</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/11/bigdata-stack-datax/" class="archive-article-date">
-  	<time datetime="2022-05-11T11:51:53.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-11</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#datax-多种异构数据源间的高效数据同步工具">datax-多种异构数据源间的高效数据同步工具</a></li>
-<li><a href="#datax核心组件">datax核心组件</a></li>
-<li><a href="#datax优点">datax优点</a></li>
-<li><a href="#datax不足">datax不足</a></li>
-<li><a href="#sqoopdatax如何选择">sqoop/datax如何选择</a></li>
-<li><a href="#示例">示例</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引</p>
-<ol>
-<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
-<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
-<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
-<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
-</ol>
-</blockquote>
-<h2><span id="datax-多种异构数据源间的高效数据同步工具">datax-多种异构数据源间的高效数据同步工具</span></h2><p><img src="https://upload-images.jianshu.io/upload_images/25044609-c7230d68a895bb59.png?imageMogr2/auto-orient/strip|imageView2/2/w/1037/format/webp" alt=""></p>
-<p>同样作为数据同步工具，datax不仅支持rdbms和hadoop之间的数据同步，还支持任意两种异构数据源（主流的RDBMS数据库、NOSQL、大数据系统）间的数据同步。<br>datax没有使用mr，而是采用单机多线程的方式同步数据。<br><img src="https://upload-images.jianshu.io/upload_images/25044609-496a992e5502b24d.png?imageMogr2/auto-orient/strip|imageView2/2/w/829/format/webp" alt=""></p>
-<h2><span id="datax核心组件">datax核心组件</span></h2><ul>
-<li>Reader：数据采集模块，负责采集数据源的数据，将数据发送给 Framework；</li>
-<li>Writer： 数据写入模块，负责不断向 Framework 取数据，并将数据写入到目的端；</li>
-<li>Framework：用于连接 reader 和 writer，作为两者的数据传输通道，并处理缓冲，流控，并发，数据转换等核心技术问题。</li>
-</ul>
-<h2><span id="datax优点">datax优点</span></h2><ul>
-<li>支持的数据源更丰富</li>
-<li>支持分库分表场景</li>
-<li>支持写orc格式文件</li>
-<li>有数据转换功能</li>
-<li>可以控制速度（避免读爆源库）</li>
-</ul>
-<h2><span id="datax不足">datax不足</span></h2><ul>
-<li>写hive没有sqoop友好，不会自动创建hive表，目标路径必须存在</li>
-<li>由于采用的是单机多线程模式，扩展性没有sqoop好</li>
-<li>配置文件略繁琐，没有sqoop命令简洁</li>
-</ul>
-<h2><span id="sqoopdatax如何选择">sqoop/datax如何选择</span></h2><p>对于rdbms到hive/hdfs的需求，分库分表场景、源库压力敏感、日志量偏小的情况选datax，否则选sqoop</p>
-<h2><span id="示例">示例</span></h2><figure class="highlight"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">CREATE</span> <span class="keyword">EXTERNAL</span> <span class="keyword">TABLE</span> <span class="string">`tmp.log_schema`</span>(</span><br><span class="line">  <span class="string">`id`</span> <span class="built_in">BIGINT</span>, </span><br><span class="line">  <span class="string">`log_hdfs_path`</span> <span class="keyword">STRING</span>, </span><br><span class="line">  <span class="string">`log_demo`</span> <span class="keyword">STRING</span></span><br><span class="line">)</span><br><span class="line">PARTITIONED <span class="keyword">BY</span> (<span class="string">`day`</span> <span class="keyword">STRING</span>)</span><br><span class="line"><span class="keyword">STORED</span> <span class="keyword">AS</span> ORC</span><br><span class="line">TBLPROPERTIES (<span class="string">'orc.compress'</span>=<span class="string">'SNAPPY'</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> tmp.log_schema <span class="keyword">ADD</span> <span class="keyword">IF</span> <span class="keyword">NOT</span> <span class="keyword">EXISTS</span> <span class="keyword">PARTITION</span> (<span class="keyword">day</span>=<span class="string">'2022-04-12'</span>) LOCATION <span class="string">'hdfs://emr-cluster/tmp/log_schema/day=2022-04-12'</span>;</span><br><span class="line"></span><br><span class="line">&#123;</span><br><span class="line">    "job": &#123;</span><br><span class="line">        "content": [</span><br><span class="line">            &#123;</span><br><span class="line">                "reader": &#123;</span><br><span class="line">                    "name": "mysqlreader", </span><br><span class="line">                    "parameter": &#123;</span><br><span class="line">                        "username": "bob", </span><br><span class="line">                        "password": "123456", </span><br><span class="line">                        "connection": [</span><br><span class="line">                            &#123;</span><br><span class="line">                                "jdbcUrl": ["jdbc:mysql://x.x.x.x:3306/test?tinyInt1isBit=false"], </span><br><span class="line">                                "table": ["log_schema"]</span><br><span class="line">                            &#125;</span><br><span class="line">                        ], </span><br><span class="line">                        "column": ["id", "log_hdfs_path", "log_demo"], </span><br><span class="line">                        "where": "id&gt;10"</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;, </span><br><span class="line">                "writer": &#123;</span><br><span class="line">                    "name": "hdfswriter", </span><br><span class="line">                    "parameter": &#123;</span><br><span class="line">                        "column": [&#123;"name":"id", "type":"bigint"&#125;,</span><br><span class="line">                                   &#123;"name":"log_hdfs_path", "type":"string"&#125;,</span><br><span class="line">                                   &#123;"name":"log_demo", "type":"string"&#125;], </span><br><span class="line">                        "compress":"SNAPPY",</span><br><span class="line">                        "defaultFS": "hdfs://emr-cluster", </span><br><span class="line">                        "fieldDelimiter": "\t", </span><br><span class="line">                        "fileName": "log_schema", </span><br><span class="line">                        "fileType": "orc", </span><br><span class="line">                        "path": "/tmp/log_schema/day=2022-04-12", </span><br><span class="line">                        "writeMode": "nonConflict",</span><br><span class="line">                        "hadoopConfig":&#123;</span><br><span class="line">                            "dfs.nameservices": "emr-cluster",</span><br><span class="line">                            "dfs.ha.namenodes.emr-cluster": "nn1,nn2",</span><br><span class="line">                            "dfs.namenode.rpc-address.emr-cluster.nn1": "emr-header-1:8020",</span><br><span class="line">                            "dfs.namenode.rpc-address.emr-cluster.nn2": "emr-header-2:8020",</span><br><span class="line">                            "dfs.client.failover.proxy.provider.emr-cluster": "org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider"</span><br><span class="line">                        &#125;</span><br><span class="line">                    &#125;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line">        ], </span><br><span class="line">        "setting": &#123;</span><br><span class="line">            "speed": &#123;</span><br><span class="line">                "channel": "1"</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://www.jianshu.com/p/56f25c699ec1" target="_blank" rel="noopener">DataX 快速入门</a></li>
-<li><a href="https://blog.csdn.net/weixin_42487460/article/details/113753186" target="_blank" rel="noopener">DataX入门———用法及一些简单的案例介绍</a></li>
-<li><a href="https://zhuanlan.zhihu.com/p/81817787" target="_blank" rel="noopener">DataX介绍以及优缺点分析</a></li>
-<li><a href="https://github.com/alibaba/DataX/blob/master/introduction.md" target="_blank" rel="noopener">阿里云开源离线同步工具DataX3.0介绍</a></li>
-<li><a href="https://segmentfault.com/a/1190000022951666" target="_blank" rel="noopener">DataX HIVE分区同步</a></li>
-<li><a href="https://blog.csdn.net/qq_46893497/article/details/110110808" target="_blank" rel="noopener">datax–分库分表mysql同步数据到hive中</a></li>
-<li><a href="https://blog.csdn.net/u013289115/article/details/106277937" target="_blank" rel="noopener">异构数据源导redis不用找了!DataX二次开发插件rediswriter已上菜</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">datax</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/11/bigdata-stack-datax/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-bigdata-stack-sqoop" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/11/bigdata-stack-sqoop/">大数据开发之路-sqoop</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/11/bigdata-stack-sqoop/" class="archive-article-date">
-  	<time datetime="2022-05-11T11:44:13.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-11</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#sqoop-rdbms和hadoop之间的数据同步工具">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
-<li><a href="#不足">不足</a></li>
-<li><a href="#示例">示例</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引</p>
-<ol>
-<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
-<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
-<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
-<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
-</ol>
-</blockquote>
-<h2><span id="sqoop-rdbms和hadoop之间的数据同步工具">sqoop-rdbms和hadoop之间的数据同步工具</span></h2><p><img src="https://images2018.cnblogs.com/blog/1228818/201804/1228818-20180412130640231-449939615.png" alt=""><br>sqoop本质就是数据导入、导出工具，导入、导出方式就是把sqoop的命令转换成mr程序。<br>sqoop分为sqoop1和sqoop2两个版本，二者不兼容，差异较大，一般使用sqoop1。</p>
-<h2><span id="不足">不足</span></h2><ul>
-<li>1.不支持分库分表场景</li>
-<li>2.<a href="https://stackoverflow.com/questions/29978522/sqoop-import-as-orc-file" target="_blank" rel="noopener">不支持写orc格式的文件</a></li>
-</ul>
-<h2><span id="示例">示例</span></h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">sqoop import \</span><br><span class="line">-Dmapreduce.job.queuename=imp \</span><br><span class="line">-Dmapreduce.job.name="testsqoop" \</span><br><span class="line">--connect "jdbc:mysql://127.0.0.1:3306/test?tinyInt1isBit=false" --username "bob"  --password "123456" \</span><br><span class="line">--table "log_schema" \</span><br><span class="line">--columns "id,log_hdfs_path,log_demo" \</span><br><span class="line">--where "id&gt;10" \</span><br><span class="line">--hive-import \</span><br><span class="line">--hive-overwrite \</span><br><span class="line">--hive-table "tmp.log_schema" \</span><br><span class="line">--hive-partition-key dt \</span><br><span class="line">--hive-partition-value 2022-04-11 \</span><br><span class="line">--hive-delims-replacement " " \</span><br><span class="line">--null-string '\\N' \</span><br><span class="line">--null-non-string '\\N' \</span><br><span class="line">--target-dir "hdfs://emr-cluster/user/sqoop_import_tmp/log_schema/" \</span><br><span class="line">--delete-target-dir \</span><br><span class="line">--direct \</span><br><span class="line">-m 1</span><br></pre></td></tr></table></figure>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://www.cnblogs.com/qingyunzong/p/8807252.html" target="_blank" rel="noopener">Sqoop学习之路 （一）</a></li>
-<li><a href="https://www.jianshu.com/p/ec9003d8918c" target="_blank" rel="noopener">真正了解sqoop的一切</a></li>
-<li><a href="https://blog.51cto.com/u_14582976/2829476" target="_blank" rel="noopener">Sqoop看这篇文章就够了</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">sqoop</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/11/bigdata-stack-sqoop/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-tezVsSparksql" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/10/tezVsSparksql/">tez vs spark-sql对比</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/10/tezVsSparksql/" class="archive-article-date">
-  	<time datetime="2022-05-10T11:56:38.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-10</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#背景">背景</a></li>
-<li><a href="#性能比较">性能比较</a></li>
-<li><a href="#特性比较">特性比较</a></li>
-<li><a href="#总结">总结</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="背景">背景</span></h2><p>tez占用内存比较猛，经常一两个任务占满整个集群，尝试了spark-sql，发现一些任务使用spark-sql表现优异。</p>
-<h2><span id="性能比较">性能比较</span></h2><p>比较tez和spark的性能是一件困难的事。<br>网上完全找不到两者的性能对比，只有各自与mapreduce的对比，且spark和tez都号称比mapreduce快100倍。侧面反映了，没有令人信服的直接对比tez和spark性能的测试。<br>tez和spark的对比，网上只能找到模糊的表述：数据规模小时，spark优于tez，数据规模大时，tez优于spark。具体到数据规模大小的定义众说纷纭，显然和集群的规模有关系。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220510195948.png" alt=""></p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220510195958.png" alt=""></p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220510200007.png" alt=""></p>
-<p>从我们自己的任务表现来看：</p>
-<ul>
-<li>从单个任务的对比来看，不同的任务表现各异，不存在tez普遍优于spark-sql或者相反的情况</li>
-<li>从批量任务的对比来看，spark-sql耗时没有明显优势，资源消耗有明显降低。可能的原因：spark-sql能够方便的在指定的资源上下限区间内，动态的申请、释放资源，tez存在过度占用资源问题</li>
-</ul>
-<h2><span id="特性比较">特性比较</span></h2><p><a href="https://winway.github.io/2022/01/16/spark-small-file/">spark-sql存在小文件问题</a>以及<a href="https://winway.github.io/2022/01/16/sparksql-cluster/">spark-sql命令行占用内存较多问题</a>，需要特殊处理，易用性逊色于tez。<br>spark（3.0）的自适应机制，能够动态合并小分区、拆分大分区、决定join策略，尽量保证每个task处理的数据量适中，是比较强大的cbo特性。<br><a href="https://developer.aliyun.com/article/642598" target="_blank" rel="noopener">https://developer.aliyun.com/article/642598</a><br><a href="https://blog.csdn.net/zyzzxycj/article/details/106469572" target="_blank" rel="noopener">https://blog.csdn.net/zyzzxycj/article/details/106469572</a></p>
-<h2><span id="总结">总结</span></h2><p>综上所述，tez和spark-sql都没有完全压倒对方的优势。<br>不过，对于中小规模的任务，spark-sql对资源的消耗更低。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">tez</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">spark-sql</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/10/tezVsSparksql/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-dwModeling" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/09/dwModeling/">数仓建模浅谈</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/09/dwModeling/" class="archive-article-date">
-  	<time datetime="2022-05-09T08:44:54.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-09</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#常用建模方法">常用建模方法</a><ul>
-<li><a href="#什么是数据模型">什么是数据模型？</a></li>
-<li><a href="#常用建模方法-1">常用建模方法</a></li>
-<li><a href="#什么是范式">什么是范式？</a><ul>
-<li><a href="#不满足任何范式">不满足任何范式</a></li>
-<li><a href="#第一范式">第一范式</a></li>
-<li><a href="#第二范式">第二范式</a></li>
-<li><a href="#第三范式">第三范式</a></li>
-</ul>
-</li>
-<li><a href="#维度建模">维度建模</a><ul>
-<li><a href="#星型模型-vs-雪花模型">星型模型 Vs. 雪花模型</a></li>
-<li><a href="#维度退化">维度退化</a></li>
-</ul>
-</li>
-<li><a href="#为什么数据仓库设计不用过多关注范式">为什么数据仓库设计不用过多关注范式？</a></li>
-</ul>
-</li>
-<li><a href="#常见分层">常见分层</a><ul>
-<li><a href="#为什么要设计数据分层">为什么要设计数据分层？</a></li>
-<li><a href="#常见分层-1">常见分层</a></li>
-</ul>
-</li>
-<li><a href="#主题划分">主题划分</a></li>
-<li><a href="#建模实战从烟囱到共享">建模实战：从“烟囱”到“共享”</a><ul>
-<li><a href="#第一接管ods层控制源头">第一，接管ODS层，控制源头。</a></li>
-<li><a href="#第二划分主题域构建总线矩阵">第二，划分主题域，构建总线矩阵。</a></li>
-<li><a href="#第三构建一致性维度">第三，构建⼀致性维度。</a></li>
-<li><a href="#第四事实表整合">第四，事实表整合。</a></li>
-<li><a href="#第五模型开发">第五，模型开发。</a></li>
-<li><a href="#第六应用迁移">第六，应⽤迁移。</a></li>
-</ul>
-</li>
-<li><a href="#总结">总结</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="常用建模方法">常用建模方法</span></h2><h3><span id="什么是数据模型">什么是数据模型？</span></h3><blockquote>
-<p>数据模型是抽象描述现实世界的一种工具和方法，是通过抽象的实体及实体之间联系的形式，来表示现实世界中事务的相互关系的一种映射。</p>
-<p>数据仓库模型是数据模型中针对数据仓库应用系统的一种特定的数据模型。</p>
-</blockquote>
-<h3><span id="常用建模方法">常用建模方法</span></h3><ul>
-<li>范式建模</li>
-<li>维度建模</li>
-</ul>
-<h3><span id="什么是范式">什么是范式？</span></h3><blockquote>
-<p>设计关系数据库时，遵从不同的规范要求，设计出合理的关系型数据库，这些不同的规范要求被称为不同的范式。<br>各种范式呈递进关系，越高的范式数据库冗余越小。<br>第一范式（1NF）<br>第二范式（2NF）<br>第三范式（3NF）</p>
-</blockquote>
-<h4><span id="不满足任何范式">不满足任何范式</span></h4><p>满足条件：</p>
-<ul>
-<li>无重复数据</li>
-</ul>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220509170630.png" alt=""></p>
-<h4><span id="第一范式">第一范式</span></h4><p>满足条件：</p>
-<ul>
-<li>属性不可分</li>
-</ul>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220509170724.png" alt=""></p>
-<h4><span id="第二范式">第二范式</span></h4><p>满足条件：</p>
-<ul>
-<li>属性不可分</li>
-<li>属性完全依赖于主键</li>
-</ul>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220509171035.png" alt=""></p>
-<h4><span id="第三范式">第三范式</span></h4><p>满足条件：</p>
-<ul>
-<li>属性不可分</li>
-<li>属性完全依赖于主键</li>
-<li>属性只直接依赖主键</li>
-</ul>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220509171454.png" alt=""></p>
-<h3><span id="维度建模">维度建模</span></h3><blockquote>
-<p>事实表（fact）：我们可以简单地将事实理解为现实中发生的一次操作型事件。比如浏览记录表，我们每浏览一个帖子，就会在浏览记录表中增加一条记录。</p>
-<p>维度表（dimension）：我们可以简单地理解维度表包含了事实表中指定属性的相关详细信息。比如用户维度表和帖子维度表。</p>
-</blockquote>
-<h4><span id="星型模型-vs-雪花模型">星型模型 Vs. 雪花模型</span></h4><blockquote>
-<p>维度表是否都和事实表直接相连</p>
-</blockquote>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220509174008.png" alt=""></p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220509174031.png" alt=""></p>
-<h4><span id="维度退化">维度退化</span></h4><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220509174122.png" alt=""></p>
-<h3><span id="为什么数据仓库设计不用过多关注范式">为什么数据仓库设计不用过多关注范式？</span></h3><ul>
-<li><p>范式建模特点</p>
-<ul>
-<li>主要解决了数据冗余的问题。OLTP，增、删、改频繁，冗余会带来大问题。</li>
-</ul>
-</li>
-<li><p>维度建模特点</p>
-<ul>
-<li>OLAP，插入、查询，冗余无所谓，查询方便更重要</li>
-</ul>
-</li>
-</ul>
-<p>范式主要优化的是增删改的问题，比如数据冗余、更新异常、删除异常等。而数据仓库更关注的是使用是否方便，查询效率是否高，一般第一或者第二范式就够用。</p>
-<h2><span id="常见分层">常见分层</span></h2><h3><span id="为什么要设计数据分层">为什么要设计数据分层？</span></h3><ul>
-<li>清晰数据结构：每一个数据分层都有它的作用域和职责，在使用表的时候能更方便地定位和理解</li>
-<li>减少重复开发：规范数据分层，开发一些通用的中间层数据，能够减少极大的重复计算</li>
-<li>统一数据口径：通过数据分层，提供统一的数据出口，统一对外输出的数据口径</li>
-<li>复杂问题简单化：将一个复杂的任务分解成多个步骤来完成，每一层解决特定的问题</li>
-</ul>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220509174443.png" alt=""></p>
-<h3><span id="常见分层">常见分层</span></h3><ul>
-<li>数据运营层：ODS（Operational Data Store）</li>
-<li>数据仓库层：DW（Data Warehouse）</li>
-<li>数据应用层：APP（Application）</li>
-<li>维表层：DIM（Dimension）</li>
-</ul>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220509174526.png" alt=""></p>
-<blockquote>
-<p>从对应用的支持来讲，我们希望越靠上层次，越对应用友好<br>从能力范围来讲，我们希望80%需求由20%的表来支持<br>从数据聚合程度来讲，我们希望，越上层数据的聚合程度越高</p>
-</blockquote>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220509174800.png" alt=""></p>
-<h2><span id="主题划分">主题划分</span></h2><p>主题主要是根据业务进行的划分，通过表名中的主题词识别数据相关的业务。在添加新表时首先明确该数据是属于哪个业务的，即决定主题词。<br>主题划分有利于数据的组织清晰和便于日常沟通。</p>
-<h2><span id="建模实战从烟囱到共享">建模实战：从“烟囱”到“共享”</span></h2><h3><span id="第一接管ods层控制源头">第一，接管ODS层，控制源头。</span></h3><p>ODS是业务数据进⼊数据中台的第⼀站，是所有数据加⼯的源头，控制住源头，才能从根本上防⽌⼀个重复的数据体系的出现。<br>数据中台团队必须明确职责，全⾯接管ODS层数据，从业务系统的源数据库权限⼊⼿，确保数据从业务系统产⽣后进⼊数据仓库时，只能在数据中台保持⼀份。这个可以跟业务系统数据库管理者达成⼀致，只有中台团队的账号才能同步数据。<br>ODS层表的数据必须和数据源的表结构、表记录数⼀致，⾼度⽆损，对于ODS层表的命名采⽤ODS_业务系统数据库名_业务系统数据库表名⽅式，⽐如ods_warehous_stock，warehous是业务系统数据库名，stock是该库下⾯的表名。</p>
-<h3><span id="第二划分主题域构建总线矩阵">第二，划分主题域，构建总线矩阵。</span></h3><p>主题域是业务过程的抽象集合。可能这么讲，稍微有点⼉抽象，但其实业务过程就是企业经营过程中⼀个个不可拆分的⾏为事件，⽐如仓储管理⾥⾯有⼊库、出库、发货、签收，都是业务过程，抽象出来的主题域就是仓储域。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220523113041.png" alt=""><br>主题域划分要尽量涵盖所有业务需求，保持相对稳定性，还具备⼀定的扩展性（新加⼊⼀个主题域，不影响已经划分的主题域的表）。<br>主题域划分好以后，就要开始构建总线矩阵，明确每个主题域下的业务过程有哪些分析维度，举个例⼦：<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220523113114.png" alt=""></p>
-<h3><span id="第三构建一致性维度">第三，构建⼀致性维度。</span></h3><p>售后团队的投诉⼯单数量有针对地区的分析维度，⽽配送团队的配送延迟也有针对地区的分析维度，你想分析因为配送延迟导致的投诉增加，但是两个地区的分析维度包含内容不⼀致，最终会导致⼀些地区没办法分析。所以我们构建全局⼀致性的维表，确保维表只存⼀份。<br>维度统⼀的最⼤的难题在于维度属性（如果维度是商品，那么商品类别、商品品牌、商品尺⼨等商品的属性，我们称为维度属性）的整合。是不是所有维度属性都要整合到⼀个⼤的维表中，也不⻅得，我给你⼏个 建议。</p>
-<ol>
-<li>公共维度属性与特有维度属性拆成两个维表。在⾃营平台中，通常也会有⼀些第三⽅的商家⼊驻，但是数量很少。⼤部分商品其实都没有店铺的属性，这种情况，就不建议将店铺和商品的其他维度属性，⽐如商品类别、品牌设计成⼀个维表。</li>
-<li>产出时间相差较⼤的维度属性拆分单独的维表，⽐如有些维度属性产出时间在凌晨2点，有些维度属性产出时间在凌晨6点，那2点和6点的就可以拆成两个维表，确保核⼼维表尽早产出。</li>
-<li>出于维表稳定性产出的考虑，你可以将更新频繁的和变化缓慢的进⾏拆分，访问频繁的和访问较少的维表 进⾏拆分。<br>对于维表的规范化命名，建议⽤“dim_主题域_描述_分表规则”⽅式。分表可以这样理解：⼀个表存储⼏千亿⾏记录实在是太⼤了，所以需要把⼀个表切割成很多⼩的分区，每天或者每周，随着任务被调度，会⽣成⼀个分区。常⻅的分区规则（用时查询）。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220523113138.png" alt=""></li>
-</ol>
-<h3><span id="第四事实表整合">第四，事实表整合。</span></h3><p>事实表整合遵循的最基本的⼀个原则是，统计粒度必须保持⼀致，不同统计粒度的数据不能出现在同⼀个事实表中。来看⼀个例⼦：<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_6efb5212-1f79-11ec-ae4e-00163e068ecd.png" alt=""><br>在数据中台构建前，供应链部⻔、仓储部⻔和市场部⻔都有⼀些重复的事实表，我们需要将这些重复的内容进⾏去除，按照交易域和仓储域，主题域的⽅式进⾏整合。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_6f2b0b24-1f79-11ec-ae4e-00163e068ecd.png" alt=""><br>对于仓储部⻔和供应链部⻔都有的库存明细表，因为仓储部⻔的统计粒度是商品加仓库，⽽供应链部⻔的只有商品，所以原则上两个表是不能合并，⽽是应该独⽴存在。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_6f3ec8d0-1f79-11ec-ae4e-00163e068ecd.png" alt=""><br>对于市场部⻔和供应链部⻔的两张下单明细表，因为统计粒度都是订单级别，都归属于交易域下的下单业务过程，所以可以合并为⼀张事实表。<br>除此之外，还应该考虑将不全的数据补⻬。对于ODS层直接被引⽤产出DWS/ADS/DM层的任务，通过⾎缘，找到任务清单，逐个进⾏拆解。没有ODS对应的DWD的，应该⽣成DWD表，对于已经存在的，应该迁移任务，使⽤DWD层表。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_6f575170-1f79-11ec-ae4e-00163e068ecd.png" alt=""><br>DWD/DWS/ADS/DM的命名规则适合采⽤“[层次][主题][⼦主题][内容描述][分表规则]”的命名⽅式。</p>
-<h3><span id="第五模型开发">第五，模型开发。</span></h3><p>模型设计完成后，就进⼊模型开发阶段，需要注意的点：</p>
-<ol>
-<li>所有任务都必须严格配置任务依赖，如果没有配置任务依赖，会导致前⼀个任务没有正常产出数据的情况下，后⼀个任务被调度起来，基于错误的数据空跑，浪费资源，同时增加了排查故障的复杂度；</li>
-<li>任务中创建的临时表，在任务结束前应该删除，如果不删除，会发现有⼤量的临时表存在，占⽤空间；</li>
-<li>任务名称最好跟表名⼀致，⽅便查找和关联；</li>
-<li>⽣命周期的管理，对于ODS和DWD，⼀般尽可能保留所有历史数据，对于DWS/ADS/DM需要设置⽣命周期，7〜30天不等；</li>
-<li>DWD层表宜采⽤压缩的⽅式存储，可⽤lzo压缩。</li>
-</ol>
-<h3><span id="第六应用迁移">第六，应⽤迁移。</span></h3><p>最后⼀步就是应⽤的迁移，这个过程的核⼼是要注意数据的⽐对，确保数据的完全⼀致，然后进⾏应⽤迁移，删除⽼的数据表。</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220524092120.png" alt=""></p>
-<h2><span id="总结">总结</span></h2><p>分层/分主题的目标是为了更好的组织数据，近而使数据更方便查找和复用。</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220509174904.png" alt=""></p>
-<p>Linus说： “烂程序员关心的是代码。好程序员关心的是数据结构和它们之间的关系。”</p>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://www.modb.pro/db/116926" target="_blank" rel="noopener">数据模型⽆法复⽤，归根结底还是设计问题</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">数仓</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/09/dwModeling/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-data-algo" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/06/data-algo/">《数据结构与算法之美》学习笔记</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/06/data-algo/" class="archive-article-date">
-  	<time datetime="2022-05-06T03:19:28.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-06</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#平均时间复杂度">（平均）时间复杂度</a></li>
-<li><a href="#空间复杂度">空间复杂度</a></li>
-<li><a href="#数组">数组</a></li>
-<li><a href="#链表">链表</a></li>
-<li><a href="#栈">栈</a></li>
-<li><a href="#队列">队列</a></li>
-<li><a href="#散列表">散列表</a></li>
-<li><a href="#跳表">跳表</a></li>
-<li><a href="#二叉树">二叉树</a><ul>
-<li><a href="#二叉查找树">二叉查找树</a></li>
-<li><a href="#平衡二叉查找树">平衡二叉查找树</a></li>
-</ul>
-</li>
-<li><a href="#堆">堆</a></li>
-<li><a href="#图">图</a></li>
-<li><a href="#trie-树">Trie 树</a></li>
-<li><a href="#递归">递归</a></li>
-<li><a href="#排序">排序</a><ul>
-<li><a href="#冒泡排序-时on2空o1稳定">冒泡排序 时O(n2)，空O(1)，稳定</a></li>
-<li><a href="#插入排序-时on2空o1稳定">插入排序 时O(n2)，空O(1)，稳定</a></li>
-<li><a href="#选择排序-时on2空o1不稳定">选择排序 时O(n2)，空O(1)，不稳定</a></li>
-<li><a href="#归并排序-时onlogn空on稳定">归并排序 时O(nlogn)，空O(n)，稳定</a></li>
-<li><a href="#快速排序-时onlogn空o1不稳定">快速排序 时O(nlogn)，空O(1)，不稳定</a></li>
-<li><a href="#桶排序-时on">桶排序 时O(n)</a></li>
-<li><a href="#计数排序-时onk">计数排序 时O(n+k)</a></li>
-<li><a href="#基数排序-时odn">基数排序 时O(dn)</a></li>
-<li><a href="#glibc-中的-qsort-函数">Glibc 中的 qsort() 函数</a></li>
-</ul>
-</li>
-<li><a href="#二分查找">二分查找</a></li>
-<li><a href="#哈希算法">哈希算法</a></li>
-<li><a href="#动态规划">动态规划</a></li>
-<li><a href="#字符串匹配算法">字符串匹配算法</a></li>
-</ul>
-<!-- tocstop -->
-<p>重温课程《<a href="https://time.geekbang.org/column/intro/100017301?tab=catalog" target="_blank" rel="noopener">数据结构与算法之美</a>》，日常不用确实生疏。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220528114918.png" alt=""></p>
-<h2><span id="平均时间复杂度">（平均）时间复杂度</span></h2><p>目的：屏蔽测试环境和测试用例的干扰，抽象表示代码的执行效率。同样的硬件和输入数据，执行n^2次肯定比执行n次慢<br>描述算法的执行时间与数据规模之间的增长关系，由于常量部分在任何环境都会执行且不变，故忽略。<br>常见时间复杂度：O(1) O(logn) O(n) O(nlogn) O(n2)</p>
-<h2><span id="空间复杂度">空间复杂度</span></h2><p>描述算法的存储空间与数据规模之间的增长关系。<br>我们说空间复杂度的时候，是指除了原本的数据存储空间外，算法运行还需要额外的存储空间。<br>常见空间复杂度：O(1) O(n) O(n2)</p>
-<h2><span id="数组">数组</span></h2><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">a[k]_address = base_address + k * type_size  <span class="comment">// 下标从0开始</span></span><br><span class="line">a[k]_address = base_address + (k<span class="number">-1</span>)*type_size <span class="comment">// 下标从1开始，多了一次减法指令</span></span><br></pre></td></tr></table></figure>
-<p>根据下标随机访问的时间复杂度为 O(1)<br>对于业务开发，直接使用容器就足够了，省时省力。毕竟损耗一丢丢性能，完全不会影响到系统整体的性能。但如果你是做一些非常底层的开发，比如开发网络框架，性能的优化需要做到极致，这个时候数组就会优于容器，成为首选。</p>
-<h2><span id="链表">链表</span></h2><p>删除某个结点 q 需要知道其前驱结点，单链表并不支持直接获取前驱结点，而双向链表支持<br>通过维护一个运行于所有条目的双向链表，LinkedHashMap保证了元素迭代的顺序。该迭代顺序可以是插入顺序或者是访问顺序。<br>数组简单易用，在实现上使用的是连续的内存空间，可以借助 CPU 的缓存机制，预读数组中的数据<br>链表本身没有大小的限制，天然地支持动态扩容<br>因为链表中的每个结点都需要消耗额外的存储空间去存储一份指向下一个结点的指针，所以内存消耗会翻倍。而且，对链表进行频繁的插入、删除操作，还会导致频繁的内存申请和释放，容易造成内存碎片<br>单链表+哈希表实现lru<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 单链表中间节点</span></span><br><span class="line"> def middleNode(self, head: ListNode) -&gt; ListNode:</span><br><span class="line">        fast = slow = head</span><br><span class="line">        <span class="keyword">while</span> fast <span class="keyword">and</span> fast.next:</span><br><span class="line">            fast = fast.next.next</span><br><span class="line">            slow =slow.next</span><br><span class="line">        <span class="keyword">return</span> slow</span><br><span class="line"></span><br><span class="line"><span class="comment">// 单链表反转</span></span><br><span class="line"><span class="keyword">public</span> ListNode reverseList(ListNode head) &#123;</span><br><span class="line">    ListNode prev = null;</span><br><span class="line">    ListNode curr = head;</span><br><span class="line">    <span class="keyword">while</span> (curr != null) &#123;</span><br><span class="line">        ListNode nextTemp = curr.next;</span><br><span class="line">        curr.next = prev;</span><br><span class="line">        prev = curr;</span><br><span class="line">        curr = nextTemp;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> prev;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<h2><span id="栈">栈</span></h2><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 入栈操作</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> boolean <span class="title">push</span><span class="params">(String item)</span> </span>&#123;</span><br><span class="line">  <span class="comment">// 数组空间不够了，直接返回false，入栈失败。</span></span><br><span class="line">  <span class="keyword">if</span> (count == n) <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">  <span class="comment">// 将item放到下标为count的位置，并且count加一</span></span><br><span class="line">  items[count] = item;</span><br><span class="line">  ++count;</span><br><span class="line">  <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 出栈操作</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> String <span class="title">pop</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  <span class="comment">// 栈为空，则直接返回null</span></span><br><span class="line">  <span class="keyword">if</span> (count == <span class="number">0</span>) <span class="keyword">return</span> null;</span><br><span class="line">  <span class="comment">// 返回下标为count-1的数组元素，并且栈中元素个数count减一</span></span><br><span class="line">  String tmp = items[count<span class="number">-1</span>];</span><br><span class="line">  --count;</span><br><span class="line">  <span class="keyword">return</span> tmp;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>算数表达式求解：如果比运算符栈顶元素的优先级高，就将当前运算符压入栈；如果比运算符栈顶元素的优先级低或者相同，从运算符栈中取栈顶运算符，从操作数栈的栈顶取 2 个操作数，然后进行计算，再把计算完的结果压入操作数栈，继续比较。</p>
-<h2><span id="队列">队列</span></h2><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 入队</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> boolean <span class="title">enqueue</span><span class="params">(String item)</span> </span>&#123;</span><br><span class="line">  <span class="comment">// 如果tail == n 表示队列已经满了</span></span><br><span class="line">  <span class="keyword">if</span> (tail == n) <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">  items[tail] = item;</span><br><span class="line">  ++tail;</span><br><span class="line">  <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 出队</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> String <span class="title">dequeue</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  <span class="comment">// 如果head == tail 表示队列为空</span></span><br><span class="line">  <span class="keyword">if</span> (head == tail) <span class="keyword">return</span> null;</span><br><span class="line">  <span class="comment">// 为了让其他语言的同学看的更加明确，把--操作放到单独一行来写了</span></span><br><span class="line">  String ret = items[head];</span><br><span class="line">  ++head;</span><br><span class="line">  <span class="keyword">return</span> ret;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 循环队列入队</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> boolean <span class="title">enqueue</span><span class="params">(String item)</span> </span>&#123;</span><br><span class="line">  <span class="comment">// 队列满了</span></span><br><span class="line">  <span class="keyword">if</span> ((tail + <span class="number">1</span>) % n == head) <span class="keyword">return</span> <span class="literal">false</span>;</span><br><span class="line">  items[tail] = item;</span><br><span class="line">  tail = (tail + <span class="number">1</span>) % n;</span><br><span class="line">  <span class="keyword">return</span> <span class="literal">true</span>;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 循环队列出队</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> String <span class="title">dequeue</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  <span class="comment">// 如果head == tail 表示队列为空</span></span><br><span class="line">  <span class="keyword">if</span> (head == tail) <span class="keyword">return</span> null;</span><br><span class="line">  String ret = items[head];</span><br><span class="line">  head = (head + <span class="number">1</span>) % n;</span><br><span class="line">  <span class="keyword">return</span> ret;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h2><span id="散列表">散列表</span></h2><p>查找时间复杂度O(1)<br>散列冲突：开放寻址法（线性探测、二次探测、双重散列），链表法<br>当数据量比较小、装载因子小的时候，适合采用开放寻址法。这也是 Java 中的ThreadLocalMap使用开放寻址法解决散列冲突的原因。<br>基于链表的散列冲突处理方法比较适合存储大对象、大数据量的散列表，而且，比起开放寻址法，它更加灵活，支持更多的优化策略，比如用红黑树代替链表。<br>散列表的装载因子=填入表中的元素个数/散列表的长度<br>散列表碰撞攻击<br>动态扩容：将扩容操作穿插在插入操作的过程中，分批完成<br>Java 中的 HashMap：初始大小是 16，最大装载因子默认是 0.75，每次扩容都会扩容为原来的两倍大小，采用链表法来解决冲突，当链表长度太长（默认超过 8）时，链表就转换为红黑树<br>散列表+链表：LRU缓存算法、redis有序集合、Java LinkedHashMap<br>散列表这种数据结构虽然支持非常高效的数据插入、删除、查找操作，但是散列表中的数据都是通过散列函数打乱之后无规律存储的。也就说，它无法支持按照某种顺序快速地遍历数据。如果希望按照顺序遍历散列表中的数据，那我们需要将散列表中的数据拷贝到数组中，然后排序，再遍历。因为散列表是动态数据结构，不停地有数据的插入、删除，所以每当我们希望按顺序遍历散列表中的数据的时候，都需要先排序，那效率势必会很低。为了解决这个问题，我们将散列表和链表（或者跳表）结合在一起使用。</p>
-<h2><span id="跳表">跳表</span></h2><p>跳表使用空间换时间的设计思路，通过构建多级索引来提高查询的效率，实现了基于链表的“二分查找”。跳表是一种动态数据结构，支持快速地插入、删除、查找操作。<br>时间复杂度O(logn)，空间复杂度O(n)<br>插入时，我们通过一个随机函数，来决定将这个结点插入到哪几级索引中</p>
-<h2><span id="二叉树">二叉树</span></h2><p>高度、深度、层<br>满二叉树、完全二叉树<br>链式存储法、顺序存储法（节点i、左孩子2i、右孩子2i+1、父节点i/2，适合存完全二叉树）</p>
-<p>遍历时间复杂度O(n)</p>
-<p>前序遍历的递推公式：<br>preOrder(r) = print r-&gt;preOrder(r-&gt;left)-&gt;preOrder(r-&gt;right)</p>
-<p>中序遍历的递推公式：<br>inOrder(r) = inOrder(r-&gt;left)-&gt;print r-&gt;inOrder(r-&gt;right)</p>
-<p>后序遍历的递推公式：<br>postOrder(r) = postOrder(r-&gt;left)-&gt;postOrder(r-&gt;right)-&gt;print r<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">preOrder</span><span class="params">(Node* root)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (root == null) <span class="keyword">return</span>;</span><br><span class="line">  print root <span class="comment">// 此处为伪代码，表示打印root节点</span></span><br><span class="line">  preOrder(root-&gt;left);</span><br><span class="line">  preOrder(root-&gt;right);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">inOrder</span><span class="params">(Node* root)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (root == null) <span class="keyword">return</span>;</span><br><span class="line">  inOrder(root-&gt;left);</span><br><span class="line">  print root <span class="comment">// 此处为伪代码，表示打印root节点</span></span><br><span class="line">  inOrder(root-&gt;right);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">void</span> <span class="title">postOrder</span><span class="params">(Node* root)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (root == null) <span class="keyword">return</span>;</span><br><span class="line">  postOrder(root-&gt;left);</span><br><span class="line">  postOrder(root-&gt;right);</span><br><span class="line">  print root <span class="comment">// 此处为伪代码，表示打印root节点</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<h3><span id="二叉查找树">二叉查找树</span></h3><p>中序遍历二叉查找树，可以输出有序的数据序列，时间复杂度是 O(n)<br>查找时间复杂度，O(n) ~ O(logn)<br>极端情况下，二叉树会退化为链表，时间复杂度会退化到 O(n)。要解决这个复杂度退化的问题，需要一种平衡二叉查找树。<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br></pre></td><td class="code"><pre><span class="line">  <span class="function"><span class="keyword">public</span> Node <span class="title">find</span><span class="params">(<span class="keyword">int</span> data)</span> </span>&#123;</span><br><span class="line">    Node p = tree;</span><br><span class="line">    <span class="keyword">while</span> (p != null) &#123;</span><br><span class="line">      <span class="keyword">if</span> (data &lt; p.data) p = p.left;</span><br><span class="line">      <span class="keyword">else</span> <span class="keyword">if</span> (data &gt; p.data) p = p.right;</span><br><span class="line">      <span class="keyword">else</span> <span class="keyword">return</span> p;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> null;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">insert</span><span class="params">(<span class="keyword">int</span> data)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (tree == null) &#123;</span><br><span class="line">    tree = <span class="keyword">new</span> Node(data);</span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  Node p = tree;</span><br><span class="line">  <span class="keyword">while</span> (p != null) &#123;</span><br><span class="line">    <span class="keyword">if</span> (data &gt; p.data) &#123;</span><br><span class="line">      <span class="keyword">if</span> (p.right == null) &#123;</span><br><span class="line">        p.right = <span class="keyword">new</span> Node(data);</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">      &#125;</span><br><span class="line">      p = p.right;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123; <span class="comment">// data &lt; p.data</span></span><br><span class="line">      <span class="keyword">if</span> (p.left == null) &#123;</span><br><span class="line">        p.left = <span class="keyword">new</span> Node(data);</span><br><span class="line">        <span class="keyword">return</span>;</span><br><span class="line">      &#125;</span><br><span class="line">      p = p.left;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">delete</span><span class="params">(<span class="keyword">int</span> data)</span> </span>&#123;</span><br><span class="line">  Node p = tree; <span class="comment">// p指向要删除的节点，初始化指向根节点</span></span><br><span class="line">  Node pp = null; <span class="comment">// pp记录的是p的父节点</span></span><br><span class="line">  <span class="keyword">while</span> (p != null &amp;&amp; p.data != data) &#123;</span><br><span class="line">    pp = p;</span><br><span class="line">    <span class="keyword">if</span> (data &gt; p.data) p = p.right;</span><br><span class="line">    <span class="keyword">else</span> p = p.left;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">if</span> (p == null) <span class="keyword">return</span>; <span class="comment">// 没有找到</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">// 要删除的节点有两个子节点</span></span><br><span class="line">  <span class="keyword">if</span> (p.left != null &amp;&amp; p.right != null) &#123; <span class="comment">// 查找右子树中最小节点</span></span><br><span class="line">    Node minP = p.right;</span><br><span class="line">    Node minPP = p; <span class="comment">// minPP表示minP的父节点</span></span><br><span class="line">    <span class="keyword">while</span> (minP.left != null) &#123;</span><br><span class="line">      minPP = minP;</span><br><span class="line">      minP = minP.left;</span><br><span class="line">    &#125;</span><br><span class="line">    p.data = minP.data; <span class="comment">// 将minP的数据替换到p中</span></span><br><span class="line">    p = minP; <span class="comment">// 下面就变成了删除minP了</span></span><br><span class="line">    pp = minPP;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 删除节点是叶子节点或者仅有一个子节点</span></span><br><span class="line">  Node child; <span class="comment">// p的子节点</span></span><br><span class="line">  <span class="keyword">if</span> (p.left != null) child = p.left;</span><br><span class="line">  <span class="keyword">else</span> <span class="keyword">if</span> (p.right != null) child = p.right;</span><br><span class="line">  <span class="keyword">else</span> child = null;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">if</span> (pp == null) tree = child; <span class="comment">// 删除的是根节点</span></span><br><span class="line">  <span class="keyword">else</span> <span class="keyword">if</span> (pp.left == p) pp.left = child;</span><br><span class="line">  <span class="keyword">else</span> pp.right = child;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<h3><span id="平衡二叉查找树">平衡二叉查找树</span></h3><p>狭义：任何节点的左右子树高度相差不超过1<br>广义：只要树的高度不比 log2n 大很多，仍然可以说，这是一个合格的平衡二叉查找树</p>
-<p>红黑树是一种平衡二叉查找树。它是为了解决普通二叉查找树在数据更新的过程中，复杂度退化的问题而产生的。红黑树的高度近似 log2n，所以它是近似平衡，插入、删除、查找操作的时间复杂度都是 O(logn)。</p>
-<ul>
-<li>根节点是黑色的；</li>
-<li>每个叶子节点都是黑色的空节点（NIL），也就是说，叶子节点不存储数据；</li>
-<li>任何相邻的节点都不能同时为红色，也就是说，红色节点是被黑色节点隔开的；</li>
-<li>每个节点，从该节点到达其可达叶子节点的所有路径，都包含相同数目的黑色节点；</li>
-</ul>
-<p>动态演示：<a href="https://www.cs.usfca.edu/~galles/visualization/Algorithms.html" target="_blank" rel="noopener">https://www.cs.usfca.edu/~galles/visualization/Algorithms.html</a><br>红黑树的高度近似 2log2n。<br>AVL-平衡二叉树为了维持这种高度的平衡，就要付出更多的代价。每次插入、删除都要做调整，就比较复杂、耗时。所以，对于有频繁的插入、删除操作的数据集合，使用 AVL 树的代价就有点高了。红黑树只是做到了近似平衡，并不是严格的平衡，所以在维护平衡的成本上，要比 AVL 树要低。</p>
-<h2><span id="堆">堆</span></h2><p>堆是一个完全二叉树<br>堆中每一个节点的值都必须大于等于（或小于等于）其子树中每个节点的值。<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 往堆中插入一个元素，时O(logn)</span></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Heap</span> &#123;</span></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">int</span>[] a; <span class="comment">// 数组，从下标1开始存储数据</span></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">int</span> n;  <span class="comment">// 堆可以存储的最大数据个数</span></span><br><span class="line">  <span class="keyword">private</span> <span class="keyword">int</span> count; <span class="comment">// 堆中已经存储的数据个数</span></span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="title">Heap</span><span class="params">(<span class="keyword">int</span> capacity)</span> </span>&#123;</span><br><span class="line">    a = <span class="keyword">new</span> <span class="keyword">int</span>[capacity + <span class="number">1</span>];</span><br><span class="line">    n = capacity;</span><br><span class="line">    count = <span class="number">0</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">insert</span><span class="params">(<span class="keyword">int</span> data)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">if</span> (count &gt;= n) <span class="keyword">return</span>; <span class="comment">// 堆满了</span></span><br><span class="line">    ++count;</span><br><span class="line">    a[count] = data;</span><br><span class="line">    <span class="keyword">int</span> i = count;</span><br><span class="line">    <span class="keyword">while</span> (i/<span class="number">2</span> &gt; <span class="number">0</span> &amp;&amp; a[i] &gt; a[i/<span class="number">2</span>]) &#123; <span class="comment">// 自下往上堆化</span></span><br><span class="line">      swap(a, i, i/<span class="number">2</span>); <span class="comment">// swap()函数作用：交换下标为i和i/2的两个元素</span></span><br><span class="line">      i = i/<span class="number">2</span>;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"> &#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 删除堆顶元素，时O(logn)</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">removeMax</span><span class="params">()</span> </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (count == <span class="number">0</span>) <span class="keyword">return</span> <span class="number">-1</span>; <span class="comment">// 堆中没有数据</span></span><br><span class="line">  a[<span class="number">1</span>] = a[count];</span><br><span class="line">  --count;</span><br><span class="line">  heapify(a, count, <span class="number">1</span>);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">heapify</span><span class="params">(<span class="keyword">int</span>[] a, <span class="keyword">int</span> n, <span class="keyword">int</span> i)</span> </span>&#123; <span class="comment">// 自上往下堆化</span></span><br><span class="line">  <span class="keyword">while</span> (<span class="literal">true</span>) &#123;</span><br><span class="line">    <span class="keyword">int</span> maxPos = i;</span><br><span class="line">    <span class="keyword">if</span> (i*<span class="number">2</span> &lt;= n &amp;&amp; a[i] &lt; a[i*<span class="number">2</span>]) maxPos = i*<span class="number">2</span>;</span><br><span class="line">    <span class="keyword">if</span> (i*<span class="number">2</span>+<span class="number">1</span> &lt;= n &amp;&amp; a[maxPos] &lt; a[i*<span class="number">2</span>+<span class="number">1</span>]) maxPos = i*<span class="number">2</span>+<span class="number">1</span>;</span><br><span class="line">    <span class="keyword">if</span> (maxPos == i) <span class="keyword">break</span>;</span><br><span class="line">    swap(a, i, maxPos);</span><br><span class="line">    i = maxPos;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 建堆，时O(n)</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">buildHeap</span><span class="params">(<span class="keyword">int</span>[] a, <span class="keyword">int</span> n)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">for</span> (<span class="keyword">int</span> i = n/<span class="number">2</span>; i &gt;= <span class="number">1</span>; --i) &#123; <span class="comment">// 最后一个节点的父节点是最后一个有孩子的节点，n/2</span></span><br><span class="line">    heapify(a, n, i);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment">// 排序，时nlog(n)，空o(1)，不稳定</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">sort</span><span class="params">(<span class="keyword">int</span>[] a, <span class="keyword">int</span> n)</span> </span>&#123;</span><br><span class="line">  buildHeap(a, n);</span><br><span class="line">  <span class="keyword">int</span> k = n;</span><br><span class="line">  <span class="keyword">while</span> (k &gt; <span class="number">1</span>) &#123;</span><br><span class="line">    swap(a, <span class="number">1</span>, k);</span><br><span class="line">    --k;</span><br><span class="line">    heapify(a, k, <span class="number">1</span>);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>堆的应用</p>
-<ul>
-<li>优先级队列<ul>
-<li>合并有序小文件</li>
-<li>高性能定时器</li>
-</ul>
-</li>
-<li>利用堆求 Top K<br> 维护一个大小为 K 的小顶堆，顺序遍历数组，从数组中取出数据与堆顶元素比较。如果比堆顶元素大，我们就把堆顶元素删除，并且将这个元素插入到堆中；如果比堆顶元素小，则不做处理，继续遍历数组。这样等数组中的数据都遍历完之后，堆中的数据就是前 K 大数据了。</li>
-<li>利用堆求中位数<br>   维护两个堆，一个大顶堆，一个小顶堆。大顶堆中存储前半部分数据，小顶堆中存储后半部分数据，且小顶堆中的数据都大于大顶堆中的数据。如果 n 是偶数，大顶堆就存储 n/2 个数据，小顶堆中就存储 n/2 个数据。如果 n 是奇数，大顶堆就存储 n/2+1 个数据，小顶堆中就存储 n/2 个数据。<br>   如果新加入的数据小于等于大顶堆的堆顶元素，我们就将这个新数据插入到大顶堆；否则，我们就将这个新数据插入到小顶堆。<br>   从一个堆中不停地将堆顶元素移动到另一个堆，来让两个堆中的数据满足上面的约定。</li>
-<li>一个包含 10 亿个搜索关键词的日志文件，如何快速获取到 Top 10 最热门的搜索关键词<br> 创建 10 个空文件 00，01，02，……，09。我们遍历这 10 亿个关键词，并且通过某个哈希算法对其求哈希值，然后哈希值同 10 取模，得到的结果就是这个搜索关键词应该被分到的文件编号。<br> 对这 10 亿个关键词分片之后，每个文件都只有 1 亿的关键词，去除掉重复的，可能就只有 1000 万个，每个关键词平均 50 个字节，所以总的大小就是 500MB。1GB 的内存完全可以放得下。<br> 我们针对每个包含 1 亿条搜索关键词的文件，利用散列表和堆，分别求出 Top 10<br> 然后把这个 10 个 Top 10 放在一块，然后取这 100 个关键词中，出现次数最多的 10 个关键词</li>
-</ul>
-<h2><span id="图">图</span></h2><p>顶点、边、度、有向图、无向图、入度、出度、带权图<br>邻接矩阵、邻接表、逆邻接表<br>广度优先搜索（BFS），时O(E)，空O(V)<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">bfs</span><span class="params">(<span class="keyword">int</span> s, <span class="keyword">int</span> t)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (s == t) <span class="keyword">return</span>;</span><br><span class="line">  boolean[] visited = <span class="keyword">new</span> boolean[v];</span><br><span class="line">  visited[s]=<span class="literal">true</span>;</span><br><span class="line">  Queue&lt;Integer&gt; <span class="built_in">queue</span> = <span class="keyword">new</span> LinkedList&lt;&gt;();</span><br><span class="line">  <span class="built_in">queue</span>.add(s);</span><br><span class="line">  <span class="keyword">int</span>[] prev = <span class="keyword">new</span> <span class="keyword">int</span>[v];</span><br><span class="line">  <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; v; ++i) &#123;</span><br><span class="line">    prev[i] = <span class="number">-1</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">while</span> (<span class="built_in">queue</span>.size() != <span class="number">0</span>) &#123;</span><br><span class="line">    <span class="keyword">int</span> w = <span class="built_in">queue</span>.poll();</span><br><span class="line">   <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; adj[w].size(); ++i) &#123;</span><br><span class="line">      <span class="keyword">int</span> q = adj[w].get(i);</span><br><span class="line">      <span class="keyword">if</span> (!visited[q]) &#123;</span><br><span class="line">        prev[q] = w;</span><br><span class="line">        <span class="keyword">if</span> (q == t) &#123;</span><br><span class="line">          print(prev, s, t);</span><br><span class="line">          <span class="keyword">return</span>;</span><br><span class="line">        &#125;</span><br><span class="line">        visited[q] = <span class="literal">true</span>;</span><br><span class="line">        <span class="built_in">queue</span>.add(q);</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">print</span><span class="params">(<span class="keyword">int</span>[] prev, <span class="keyword">int</span> s, <span class="keyword">int</span> t)</span> </span>&#123; <span class="comment">// 递归打印s-&gt;t的路径</span></span><br><span class="line">  <span class="keyword">if</span> (prev[t] != <span class="number">-1</span> &amp;&amp; t != s) &#123;</span><br><span class="line">    print(prev, s, prev[t]);</span><br><span class="line">  &#125;</span><br><span class="line">  System.out.print(t + <span class="string">" "</span>);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>深度优先搜索（DFS），时O(E)，空O(V)<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">boolean found = <span class="literal">false</span>; <span class="comment">// 全局变量或者类成员变量</span></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">dfs</span><span class="params">(<span class="keyword">int</span> s, <span class="keyword">int</span> t)</span> </span>&#123;</span><br><span class="line">  found = <span class="literal">false</span>;</span><br><span class="line">  boolean[] visited = <span class="keyword">new</span> boolean[v];</span><br><span class="line">  <span class="keyword">int</span>[] prev = <span class="keyword">new</span> <span class="keyword">int</span>[v];</span><br><span class="line">  <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; v; ++i) &#123;</span><br><span class="line">    prev[i] = <span class="number">-1</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  recurDfs(s, t, visited, prev);</span><br><span class="line">  print(prev, s, t);</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">void</span> <span class="title">recurDfs</span><span class="params">(<span class="keyword">int</span> w, <span class="keyword">int</span> t, boolean[] visited, <span class="keyword">int</span>[] prev)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (found == <span class="literal">true</span>) <span class="keyword">return</span>;</span><br><span class="line">  visited[w] = <span class="literal">true</span>;</span><br><span class="line">  <span class="keyword">if</span> (w == t) &#123;</span><br><span class="line">    found = <span class="literal">true</span>;</span><br><span class="line">    <span class="keyword">return</span>;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; adj[w].size(); ++i) &#123;</span><br><span class="line">    <span class="keyword">int</span> q = adj[w].get(i);</span><br><span class="line">    <span class="keyword">if</span> (!visited[q]) &#123;</span><br><span class="line">      prev[q] = w;</span><br><span class="line">      recurDfs(q, t, visited, prev);</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<h2><span id="trie-树">Trie 树</span></h2><p>利用字符串之间的公共前缀，将重复的前缀合并在一起，比较适合的是查找前缀匹配的字符串。查找字符串的时间复杂度是 O(k)。<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">Trie</span> &#123;</span></span><br><span class="line">  <span class="keyword">private</span> TrieNode root = <span class="keyword">new</span> TrieNode(<span class="string">'/'</span>); <span class="comment">// 存储无意义字符</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">// 往Trie树中插入一个字符串</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> <span class="keyword">void</span> <span class="title">insert</span><span class="params">(<span class="keyword">char</span>[] text)</span> </span>&#123;</span><br><span class="line">    TrieNode p = root;</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; text.length; ++i) &#123;</span><br><span class="line">      <span class="keyword">int</span> index = text[i] - <span class="string">'a'</span>;</span><br><span class="line">      <span class="keyword">if</span> (p.children[index] == null) &#123;</span><br><span class="line">        TrieNode newNode = <span class="keyword">new</span> TrieNode(text[i]);</span><br><span class="line">        p.children[index] = newNode;</span><br><span class="line">      &#125;</span><br><span class="line">      p = p.children[index];</span><br><span class="line">    &#125;</span><br><span class="line">    p.isEndingChar = <span class="literal">true</span>;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// 在Trie树中查找一个字符串</span></span><br><span class="line">  <span class="function"><span class="keyword">public</span> boolean <span class="title">find</span><span class="params">(<span class="keyword">char</span>[] pattern)</span> </span>&#123;</span><br><span class="line">    TrieNode p = root;</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; pattern.length; ++i) &#123;</span><br><span class="line">      <span class="keyword">int</span> index = pattern[i] - <span class="string">'a'</span>;</span><br><span class="line">      <span class="keyword">if</span> (p.children[index] == null) &#123;</span><br><span class="line">        <span class="keyword">return</span> <span class="literal">false</span>; <span class="comment">// 不存在pattern</span></span><br><span class="line">      &#125;</span><br><span class="line">      p = p.children[index];</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (p.isEndingChar == <span class="literal">false</span>) <span class="keyword">return</span> <span class="literal">false</span>; <span class="comment">// 不能完全匹配，只是前缀</span></span><br><span class="line">    <span class="keyword">else</span> <span class="keyword">return</span> <span class="literal">true</span>; <span class="comment">// 找到pattern</span></span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">TrieNode</span> &#123;</span></span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">char</span> data;</span><br><span class="line">    <span class="keyword">public</span> TrieNode[] children = <span class="keyword">new</span> TrieNode[<span class="number">26</span>];</span><br><span class="line">    <span class="keyword">public</span> boolean isEndingChar = <span class="literal">false</span>;</span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="title">TrieNode</span><span class="params">(<span class="keyword">char</span> data)</span> </span>&#123;</span><br><span class="line">      <span class="keyword">this</span>.data = data;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<h2><span id="递归">递归</span></h2><blockquote>
-<p>周末你带着女朋友去电影院看电影，女朋友问你，咱们现在坐在第几排啊？电影院里面太黑了，看不清，没法数，现在你怎么办？别忘了你是程序员，这个可难不倒你，递归就开始排上用场了。于是你就问前面一排的人他是第几排，你想只要在他的数字上加一，就知道自己在哪一排了。但是，前面的人也看不清啊，所以他也问他前面的人。就这样一排一排往前问，直到问到第一排的人，说我在第一排，然后再这样一排一排再把数字传回来。直到你前面的人告诉你他在哪一排，于是你就知道答案了。</p>
-</blockquote>
-<p>写递归代码的关键就是找到如何将大问题分解为小问题的规律，并且基于此写出递推公式，然后再推敲终止条件，最后将递推公式和终止条件翻译成代码。</p>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">f(n)=f(n<span class="number">-1</span>)+<span class="number">1</span> 其中，f(<span class="number">1</span>)=<span class="number">1</span></span><br><span class="line"><span class="keyword">int</span> f(<span class="keyword">int</span> n) &#123;</span><br><span class="line">  <span class="keyword">if</span> (n == <span class="number">1</span>) <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">  <span class="keyword">return</span> f(n<span class="number">-1</span>) + <span class="number">1</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>为了避免重复计算，我们可以通过一个数据结构（比如散列表）来保存已经求解过的 f(k)。当递归调用到 f(k) 时，先看下是否已经求解过了。如果是，则直接从散列表中取值返回，不需要重复计算，这样就能避免刚讲的问题了。<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">f</span><span class="params">(<span class="keyword">int</span> n)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (n == <span class="number">1</span>) <span class="keyword">return</span> <span class="number">1</span>;</span><br><span class="line">  <span class="keyword">if</span> (n == <span class="number">2</span>) <span class="keyword">return</span> <span class="number">2</span>;</span><br><span class="line"></span><br><span class="line">  <span class="comment">// hasSolvedList可以理解成一个Map，key是n，value是f(n)</span></span><br><span class="line">  <span class="keyword">if</span> (hasSolvedList.containsKey(n)) &#123;</span><br><span class="line">    <span class="keyword">return</span> hasSolvedList.get(n);</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">int</span> ret = f(n<span class="number">-1</span>) + f(n<span class="number">-2</span>);</span><br><span class="line">  hasSolvedList.put(n, ret);</span><br><span class="line">  <span class="keyword">return</span> ret;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>递归有利有弊，利是递归代码的表达力很强，写起来非常简洁；而弊就是空间复杂度高、有堆栈溢出的风险、存在重复计算、过多的函数调用会耗时较多等问题。</p>
-<h2><span id="排序">排序</span></h2><p>动画：<a href="https://visualgo.net/en" target="_blank" rel="noopener">https://visualgo.net/en</a></p>
-<p>评价标准：</p>
-<ul>
-<li>排序算法的执行效率</li>
-<li>排序算法的内存消耗</li>
-<li>排序算法的稳定性</li>
-</ul>
-<h3><span id="冒泡排序-时on2空o1稳定">冒泡排序 时O(n2)，空O(1)，稳定</span></h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 冒泡排序，a表示数组，n表示数组大小</span></span><br><span class="line"> <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; n; ++i) &#123;</span><br><span class="line">    <span class="comment">// 提前退出冒泡循环的标志位</span></span><br><span class="line">    boolean flag = <span class="literal">false</span>;</span><br><span class="line">    <span class="keyword">for</span> (<span class="keyword">int</span> j = <span class="number">0</span>; j &lt; n - i - <span class="number">1</span>; ++j) &#123;</span><br><span class="line">      <span class="keyword">if</span> (a[j] &gt; a[j+<span class="number">1</span>]) &#123; <span class="comment">// 交换</span></span><br><span class="line">        <span class="keyword">int</span> tmp = a[j];</span><br><span class="line">        a[j] = a[j+<span class="number">1</span>];</span><br><span class="line">        a[j+<span class="number">1</span>] = tmp;</span><br><span class="line">        flag = <span class="literal">true</span>;  <span class="comment">// 表示有数据交换</span></span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (!flag) <span class="keyword">break</span>;  <span class="comment">// 没有数据交换，提前退出</span></span><br><span class="line">  &#125;</span><br></pre></td></tr></table></figure>
-<h3><span id="插入排序-时on2空o1稳定">插入排序 时O(n2)，空O(1)，稳定</span></h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">1</span>; i &lt; n; ++i) &#123;</span><br><span class="line">  <span class="keyword">int</span> value = a[i];</span><br><span class="line">  <span class="keyword">int</span> j = i - <span class="number">1</span>;</span><br><span class="line">  <span class="comment">// 查找插入的位置</span></span><br><span class="line">  <span class="keyword">for</span> (; j &gt;= <span class="number">0</span>; --j) &#123;</span><br><span class="line">    <span class="keyword">if</span> (a[j] &gt; value) &#123;</span><br><span class="line">      a[j+<span class="number">1</span>] = a[j];  <span class="comment">// 数据移动</span></span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      <span class="keyword">break</span>;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  a[j+<span class="number">1</span>] = value; <span class="comment">// 插入数据</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h3><span id="选择排序-时on2空o1不稳定">选择排序 时O(n2)，空O(1)，不稳定</span></h3><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; n; ++i) &#123;</span><br><span class="line">  <span class="comment">// 查找min</span></span><br><span class="line">  <span class="keyword">int</span> min_index=i;</span><br><span class="line">  <span class="keyword">int</span> min_value=a[i];</span><br><span class="line">  <span class="keyword">for</span> (j = i; j &lt;n; j++) &#123;</span><br><span class="line">    <span class="keyword">if</span> (a[j] &lt; min_value) &#123;</span><br><span class="line">      min_index = j;</span><br><span class="line">      min_value = a[j];</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  a[min_index] = a[i];</span><br><span class="line">  a[i] = min_value;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h3><span id="归并排序-时onlogn空on稳定">归并排序 时O(nlogn)，空O(n)，稳定</span></h3><p>递推公式：<br>merge_sort(p…r) = merge(merge_sort(p…q), merge_sort(q+1…r))<br>终止条件：<br>p &gt;= r 不用再继续分解<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">merge_sort_c(A, p, r) &#123;</span><br><span class="line">  <span class="comment">// 递归终止条件</span></span><br><span class="line">  <span class="keyword">if</span> p &gt;= r  then <span class="keyword">return</span></span><br><span class="line"></span><br><span class="line">  <span class="comment">// 取p到r之间的中间位置q</span></span><br><span class="line">  q = (p+r) / <span class="number">2</span></span><br><span class="line">  <span class="comment">// 分治递归</span></span><br><span class="line">  merge_sort_c(A, p, q)</span><br><span class="line">  merge_sort_c(A, q+<span class="number">1</span>, r)</span><br><span class="line">  <span class="comment">// 将A[p...q]和A[q+1...r]合并为A[p...r]</span></span><br><span class="line">  merge(A[p...r], A[p...q], A[q+<span class="number">1.</span>..r])</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>时间复杂度推导<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">T(<span class="number">1</span>) = C；   n=<span class="number">1</span>时，只需要常量级的执行时间，所以表示为C。</span><br><span class="line">T(n) = <span class="number">2</span>*T(n/<span class="number">2</span>) + n； n&gt;<span class="number">1</span></span><br><span class="line">T(n) = <span class="number">2</span>*T(n/<span class="number">2</span>) + n</span><br><span class="line">     = <span class="number">2</span>*(<span class="number">2</span>*T(n/<span class="number">4</span>) + n/<span class="number">2</span>) + n = <span class="number">4</span>*T(n/<span class="number">4</span>) + <span class="number">2</span>*n</span><br><span class="line">     = <span class="number">4</span>*(<span class="number">2</span>*T(n/<span class="number">8</span>) + n/<span class="number">4</span>) + <span class="number">2</span>*n = <span class="number">8</span>*T(n/<span class="number">8</span>) + <span class="number">3</span>*n</span><br><span class="line">     = <span class="number">8</span>*(<span class="number">2</span>*T(n/<span class="number">16</span>) + n/<span class="number">8</span>) + <span class="number">3</span>*n = <span class="number">16</span>*T(n/<span class="number">16</span>) + <span class="number">4</span>*n</span><br><span class="line">     ......</span><br><span class="line">     = <span class="number">2</span>^k * T(n/<span class="number">2</span>^k) + k * n</span><br><span class="line">     ......</span><br></pre></td></tr></table></figure></p>
-<h3><span id="快速排序-时onlogn空o1不稳定">快速排序 时O(nlogn)，空O(1)，不稳定</span></h3><p>递推公式：<br>quick_sort(p…r) = quick_sort(p…q-1) + quick_sort(q+1… r)<br>终止条件：<br>p &gt;= r<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 快速排序递归函数，p,r为下标</span></span><br><span class="line">quick_sort_c(A, p, r) &#123;</span><br><span class="line">  <span class="keyword">if</span> p &gt;= r then <span class="keyword">return</span></span><br><span class="line"></span><br><span class="line">  q = partition(A, p, r) <span class="comment">// 获取分区点</span></span><br><span class="line">  quick_sort_c(A, p, q<span class="number">-1</span>)</span><br><span class="line">  quick_sort_c(A, q+<span class="number">1</span>, r)</span><br><span class="line">&#125;</span><br><span class="line">partition(A, p, r) &#123;</span><br><span class="line">  pivot := A[r]</span><br><span class="line">  i := p</span><br><span class="line">  <span class="keyword">for</span> j := p to r<span class="number">-1</span> <span class="keyword">do</span> &#123;</span><br><span class="line">    <span class="keyword">if</span> A[j] &lt; pivot &#123;</span><br><span class="line">      swap A[i] with A[j]</span><br><span class="line">      i := i+<span class="number">1</span></span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  swap A[i] with A[r]</span><br><span class="line">  <span class="keyword">return</span> i</span><br></pre></td></tr></table></figure></p>
-<p>pivot选取方法：三数取中法、随机法</p>
-<h3><span id="桶排序-时on">桶排序 时O(n)</span></h3><p>划分成m个桶，每个桶里面快排<br>O(m<em>(n/m)</em>log(n/m))=O(nlog(n/m))，当桶的个数 m 接近数据个数 n 时，log(n/m) 就是一个非常小的常量，这个时候桶排序的时间复杂度接近 O(n)。<br>在极端情况下，如果数据都被划分到一个桶里，那就退化为 O(nlogn) 的排序算法了。</p>
-<h3><span id="计数排序-时onk">计数排序 时O(n+k)</span></h3><p>每种值计数，生成累计计数数组C，C[k]表示值&lt;=k的元素数量</p>
-<h3><span id="基数排序-时odn">基数排序 时O(dn)</span></h3><p>每一位单独排序，k次桶排序或计数排序</p>
-<h3><span id="glibc-中的-qsort-函数">Glibc 中的 qsort() 函数</span></h3><p>qsort() 会优先使用归并排序来排序输入数据，要排序的数据量比较大的时候，qsort() 会改为用快速排序算法来排序。qsort() 选择分区点的方法就是“三数取中法”。当要排序的区间中，元素的个数小于等于 4 时，qsort() 就退化为插入排序</p>
-<h2><span id="二分查找">二分查找</span></h2><p>时间复杂度是 O(logn)<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">bsearch</span><span class="params">(<span class="keyword">int</span>[] a, <span class="keyword">int</span> n, <span class="keyword">int</span> value)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">int</span> low = <span class="number">0</span>;</span><br><span class="line">  <span class="keyword">int</span> high = n - <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">while</span> (low &lt;= high) &#123;</span><br><span class="line">    <span class="keyword">int</span> mid = low+((high-low)&gt;&gt;<span class="number">1</span>);</span><br><span class="line">    <span class="keyword">if</span> (a[mid] == value) &#123;</span><br><span class="line">      <span class="keyword">return</span> mid;</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (a[mid] &lt; value) &#123;</span><br><span class="line">      low = mid + <span class="number">1</span>;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      high = mid - <span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 二分查找的递归实现</span></span><br><span class="line"><span class="function"><span class="keyword">private</span> <span class="keyword">int</span> <span class="title">bsearchInternally</span><span class="params">(<span class="keyword">int</span>[] a, <span class="keyword">int</span> low, <span class="keyword">int</span> high, <span class="keyword">int</span> value)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">if</span> (low &gt; high) <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line"></span><br><span class="line">  <span class="keyword">int</span> mid =  low + ((high - low) &gt;&gt; <span class="number">1</span>);</span><br><span class="line">  <span class="keyword">if</span> (a[mid] == value) &#123;</span><br><span class="line">    <span class="keyword">return</span> mid;</span><br><span class="line">  &#125; <span class="keyword">else</span> <span class="keyword">if</span> (a[mid] &lt; value) &#123;</span><br><span class="line">    <span class="keyword">return</span> bsearchInternally(a, mid+<span class="number">1</span>, high, value);</span><br><span class="line">  &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">    <span class="keyword">return</span> bsearchInternally(a, low, mid<span class="number">-1</span>, value);</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 查找第一个值等于给定值的元素</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">bsearch</span><span class="params">(<span class="keyword">int</span>[] a, <span class="keyword">int</span> n, <span class="keyword">int</span> value)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">int</span> low = <span class="number">0</span>;</span><br><span class="line">  <span class="keyword">int</span> high = n - <span class="number">1</span>;</span><br><span class="line">  <span class="keyword">while</span> (low &lt;= high) &#123;</span><br><span class="line">    <span class="keyword">int</span> mid =  low + ((high - low) &gt;&gt; <span class="number">1</span>);</span><br><span class="line">    <span class="keyword">if</span> (a[mid] &gt; value) &#123;</span><br><span class="line">      high = mid - <span class="number">1</span>;</span><br><span class="line">    &#125; <span class="keyword">else</span> <span class="keyword">if</span> (a[mid] &lt; value) &#123;</span><br><span class="line">      low = mid + <span class="number">1</span>;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      <span class="keyword">if</span> ((mid == <span class="number">0</span>) || (a[mid - <span class="number">1</span>] != value)) <span class="keyword">return</span> mid;</span><br><span class="line">      <span class="keyword">else</span> high = mid - <span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">&#125;</span><br><span class="line"><span class="comment">// 查找第一个大于等于给定值的元素</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">bsearch</span><span class="params">(<span class="keyword">int</span>[] a, <span class="keyword">int</span> n, <span class="keyword">int</span> value)</span> </span>&#123;</span><br><span class="line">  <span class="keyword">int</span> low = <span class="number">0</span>;</span><br><span class="line">  <span class="keyword">int</span> high = n - <span class="number">1</span>;</span><br><span class="line">  <span class="keyword">while</span> (low &lt;= high) &#123;</span><br><span class="line">    <span class="keyword">int</span> mid =  low + ((high - low) &gt;&gt; <span class="number">1</span>);</span><br><span class="line">    <span class="keyword">if</span> (a[mid] &gt;= value) &#123;</span><br><span class="line">      <span class="keyword">if</span> ((mid == <span class="number">0</span>) || (a[mid - <span class="number">1</span>] &lt; value)) <span class="keyword">return</span> mid;</span><br><span class="line">      <span class="keyword">else</span> high = mid - <span class="number">1</span>;</span><br><span class="line">    &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">      low = mid + <span class="number">1</span>;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>当我们要查询某个 IP 归属地时，我们可以先通过二分查找，找到最后一个起始 IP 小于等于这个 IP 的 IP 区间，然后，检查这个 IP 是否在这个 IP 区间内，如果在，我们就取出对应的归属地显示；如果不在，就返回未查找到。<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 循环数组二分</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> <span class="keyword">int</span> <span class="title">solution</span><span class="params">(<span class="keyword">int</span>[] nums, <span class="keyword">int</span> target)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">int</span> s = <span class="number">0</span>;</span><br><span class="line">    <span class="keyword">int</span> e = nums.length - <span class="number">1</span>;</span><br><span class="line">    <span class="keyword">while</span> (s &lt;= e)&#123;</span><br><span class="line">        <span class="keyword">int</span> mid = s + (e-s)/<span class="number">2</span>;</span><br><span class="line">        <span class="keyword">if</span> (nums[mid] == target) <span class="keyword">return</span> mid;</span><br><span class="line">        <span class="keyword">if</span> (nums[mid] &lt; nums[e]) &#123;</span><br><span class="line">            <span class="keyword">if</span> (target &lt; nums[mid] || target &gt; nums[e]) &#123;</span><br><span class="line">                e = mid - <span class="number">1</span>;</span><br><span class="line">            &#125; <span class="keyword">else</span> s = mid + <span class="number">1</span>;</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">            <span class="keyword">if</span> (target &lt; nums[s] || target &gt; nums[mid]) &#123;</span><br><span class="line">                s = mid + <span class="number">1</span>;</span><br><span class="line">            &#125; <span class="keyword">else</span> e = mid - <span class="number">1</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> <span class="number">-1</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<h2><span id="哈希算法">哈希算法</span></h2><p>应用场景：安全加密、唯一标识、数据校验、散列函数、负载均衡、数据分片、分布式存储</p>
-<h2><span id="动态规划">动态规划</span></h2><p>贪心：一条路走到黑，就一次机会，只能哪边看着顺眼走哪边<br>回溯：一条路走到黑，无数次重来的机会，还怕我走不出来 (Snapshot View)<br>动态规划：拥有上帝视角，手握无数平行宇宙的历史存档， 同时发展出无数个未来 (Versioned Archive View)<br>我理解的动态规划，就是从全遍历的递归树为出发点，广度优先遍历，在遍历完每一层之后对每层结果进行合并（结果相同的）或舍弃（已经超出限制条件的），确保下一层遍历的数量不会超过限定条件数完W，通过这个操作达到大大减少不必要遍历的目的。<br>在空间复杂度优化上，通过在计算中只保留最优结果的目的重复利用内存空间。</p>
-<h2><span id="字符串匹配算法">字符串匹配算法</span></h2><p>BF 算法，时间复杂度O(n*m)<br>RK 算法，时间复杂度O(n)</p>
-<ol>
-<li>计算子串哈希值（可以通过设计特殊的哈希算法，只需要扫描一遍主串就能计算出所有子串的哈希值了，所以这部分的时间复杂度是 O(n)</li>
-<li>模式串哈希值与子串哈希值之间的比较</li>
-</ol>
-<p>KMP 算法<br>当模式串和主串某个字符不匹配的时候，能够跳过一些肯定不会匹配的情况，将模式串往后多滑动几位。<br>重点：next数组的构造，有两种情况，</p>
-<ul>
-<li>（1）如果b[i-1]的最长前缀下一个字符与b[i]相等，则next[i]=next[i-1]+1.</li>
-<li>（2）如果不相等，则我们假设找到b[i-1]的最长前缀里有b[0,y]与后缀的子串b[z,i-1]相等，然后只要b[y+1]与b[i]相等，那么b[0,y+1]就是最长匹配前缀。这个y可以不断的通过迭代缩小就可以找到</li>
-</ul>
-<figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// b表示模式串，m表示模式串的长度</span></span><br><span class="line"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">int</span>[] getNexts(<span class="keyword">char</span>[] b, <span class="keyword">int</span> m) &#123;</span><br><span class="line">  <span class="keyword">int</span>[] next = <span class="keyword">new</span> <span class="keyword">int</span>[m];</span><br><span class="line">  next[<span class="number">0</span>] = <span class="number">-1</span>;</span><br><span class="line">  <span class="keyword">int</span> k = <span class="number">-1</span>;</span><br><span class="line">  <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">1</span>; i &lt; m; ++i) &#123;</span><br><span class="line">    <span class="keyword">while</span> (k != <span class="number">-1</span> &amp;&amp; b[k + <span class="number">1</span>] != b[i]) &#123;</span><br><span class="line">      k = next[k];</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">if</span> (b[k + <span class="number">1</span>] == b[i]) &#123;</span><br><span class="line">      ++k;</span><br><span class="line">    &#125;</span><br><span class="line">    next[i] = k;</span><br><span class="line">  &#125;</span><br><span class="line">  <span class="keyword">return</span> next;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/数据结构与算法/" class="article-tag-list-link color3">数据结构与算法</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/06/data-algo/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-bigdata-stack-flume" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/03/bigdata-stack-flume/">大数据开发之路-flume</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/03/bigdata-stack-flume/" class="archive-article-date">
-  	<time datetime="2022-05-03T03:38:08.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-03</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#flume-高度定制化的日志采集传输系统">flume-高度定制化的日志采集传输系统</a></li>
-<li><a href="#配置实例">配置实例</a></li>
+<li><a href="#ranger-大数据生态体系的统一权限控制系统">ranger-大数据生态体系的统一权限控制系统</a></li>
+<li><a href="#架构">架构</a></li>
+<li><a href="#鉴权流程">鉴权流程</a></li>
+<li><a href="#特性">特性</a></li>
+<li><a href="#ranger-vs-sentry">ranger vs sentry</a></li>
+<li><a href="#最佳实践">最佳实践</a></li>
 <li><a href="#参考资料">参考资料</a></li>
 </ul>
 <!-- tocstop -->
@@ -1721,12 +646,58 @@
 </ol>
 </blockquote>
 <blockquote>
-<p>关联阅读<br><a href="https://winway.github.io/2019/09/13/flumeAction/">Flume实战总结</a></p>
+<p>关联阅读<br><a href="https://winway.github.io/2022/04/02/kerberos-ranger/">大数据生态认证、权限控制机制概述</a></p>
 </blockquote>
-<h2><span id="flume-高度定制化的日志采集传输系统">flume-高度定制化的日志采集传输系统</span></h2><p><img src="https://flume.apache.org/_images/DevGuide_image00.png" alt=""><br>flume是一个分布式、可靠、高可用的海量日志采集、聚合、传输系统，支持在日志系统中定制各类数据发送方（source），用于收集数据；同时，Flume提供对数据进行简单处理的能力（拦截器、过滤器），并写到各种数据接收方(sink，比如文本、HDFS、Hbase等)的能力 。<br>flume由核心组件source、channel、sink组成。flume的数据流由事件(Event)贯穿始终。事件是Flume的基本数据单位，它携带日志数据(字节数组形式)并且携带有头信息，这些Event由Source生成，当Source捕获事件后会进行特定的格式化，然后Source会把事件推入(单个或多个)Channel中。你可以把Channel看作是一个缓冲区，它将保存事件直到Sink处理完该事件。Sink负责持久化日志或者把事件推向另一个Source。</p>
-<h2><span id="配置实例">配置实例</span></h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"># configure for consume log from kafka to hdfs</span><br><span class="line">agent.sources = kafkasource</span><br><span class="line">agent.channels = channel</span><br><span class="line">agent.sinks = hdfssink</span><br><span class="line"></span><br><span class="line"># configure for sources</span><br><span class="line">agent.sources.kafkasource.type = org.apache.flume.source.kafka.KafkaSource</span><br><span class="line">agent.sources.kafkasource.kafka.bootstrap.servers = 12.16.3.4:9092</span><br><span class="line">agent.sources.kafkasource.kafka.topics.regex = t1|t2</span><br><span class="line">agent.sources.kafkasource.kafka.consumer.group.id = flumeKafkaSourceTest</span><br><span class="line">agent.sources.kafkasource.kafka.consumer.max.partition.fetch.bytes = 3145728</span><br><span class="line">agent.sources.kafkasource.kafka.consumer.partition.assignment.strategy = org.apache.kafka.clients.consumer.RoundRobinAssignor</span><br><span class="line">agent.sources.kafkasource.channels = channel</span><br><span class="line"></span><br><span class="line"># configure for channels</span><br><span class="line">agent.channels.channel.type = memory</span><br><span class="line">agent.channels.channel.capacity = 100000</span><br><span class="line">agent.channels.channel.transactionCapacity = 10000</span><br><span class="line">agent.channels.channel.byteCapacity = 0</span><br><span class="line">agent.channels.channel.byteCapacityBufferPercentage = 15</span><br><span class="line">agent.channels.channel.keep-alive = 15</span><br><span class="line"></span><br><span class="line"># configure for sinks</span><br><span class="line">agent.sinks.hdfssink.type = hdfs</span><br><span class="line">agent.sinks.hdfssink.hdfs.path = /flumelog/%&#123;topic&#125;/%Y-%m-%d</span><br><span class="line">agent.sinks.hdfssink.hdfs.filePrefix = %[IP]_1</span><br><span class="line">agent.sinks.hdfssink.hdfs.inUsePrefix = .</span><br><span class="line">agent.sinks.hdfssink.hdfs.batchSize= 6500</span><br><span class="line">agent.sinks.hdfssink.hdfs.callTimeout = 180000</span><br><span class="line">agent.sinks.hdfssink.hdfs.idleTimeout = 3600</span><br><span class="line">agent.sinks.hdfssink.hdfs.rollSize = 536870912</span><br><span class="line">agent.sinks.hdfssink.hdfs.rollInterval= 1500</span><br><span class="line">agent.sinks.hdfssink.hdfs.rollCount= 0</span><br><span class="line">agent.sinks.hdfssink.hdfs.fileType= DataStream</span><br><span class="line">agent.sinks.hdfssink.hdfs.writeFormat= Text</span><br><span class="line">agent.sinks.hdfssink.channel = channel</span><br></pre></td></tr></table></figure>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://www.cnblogs.com/qingyunzong/p/8994494.html" target="_blank" rel="noopener">Flume学习之路 （一）Flume的基础介绍</a></li>
+<h2><span id="ranger-大数据生态体系的统一权限控制系统">ranger-大数据生态体系的统一权限控制系统</span></h2><p>Apache Ranger提供集中式的权限管理框架，可以对Hadoop生态中的HDFS、Hive和YARN等组件进行细粒度的权限访问控制，并且提供了Web UI方便管理员操作。</p>
+<h2><span id="架构">架构</span></h2><p><img src="https://help-static-aliyun-doc.aliyuncs.com/assets/img/zh-CN/5648917951/p80938.png" alt=""><br>Ranger主要由三个组件组成：</p>
+<ul>
+<li>Ranger Admin：您可以创建和更新安全访问策略，这些策略被存储在数据库中。各个组件的Plugin定期对这些策略进行轮询。</li>
+<li>Ranger Plugins：Plugin嵌入在各个集群组件的进程里，是一个轻量级的Java程序。例如，Ranger对Hive的组件，就被嵌入在Hiveserver2里。这些Plugin从Ranger Admin服务端拉取策略，并把它们存储在本地文件中。当接收到来自组件的用户请求时，对应组件的Plugin会拦截该请求，并根据安全策略对其进行评估。</li>
+<li>Ranger UserSync：Ranger提供了一个用户同步工具。您可以从Unix或者LDAP中拉取用户和用户组的信息。这些用户和用户组的信息被存储在Ranger Admin的数据库中，可以在定义策略时使用。</li>
+</ul>
+<h2><span id="鉴权流程">鉴权流程</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519175355.png" alt=""><br>Ranger鉴权本质上是通过读取安装plugin时生成的配置文件以及plugin自带的jar包，通过hook方式调用各个plugin服务达到权限管理。</p>
+<h2><span id="特性">特性</span></h2><ul>
+<li>支持大数据生态常见组件， 如hdfs/yarn/hiveserver2/presto/hbase等</li>
+<li>支持从ldap获取用户和组信息，用来配置策略</li>
+<li>支持hive数据脱敏/数据行过滤/字段粒度权限控制</li>
+<li>支持审计日志</li>
+</ul>
+<h2><span id="ranger-vs-sentry">ranger vs sentry</span></h2><ul>
+<li><a href="https://datafoam.com/2021/11/10/sentry-to-ranger-a-concise-guide/" target="_blank" rel="noopener">One such major change for CDH users is the replacement of Sentry with Ranger for authorization and access control. </a></li>
+<li><a href="https://www.wtlizzz.com/Apache-Sentry-vs-Ranger/" target="_blank" rel="noopener">Apache Sentry 对比 Ranger，选择Sentry还是Ranger</a><br><img src="https://www.wtlizzz.com/images/pasted-112.png" alt=""></li>
+<li>综合来看，<strong>ranger功能、特性更丰富，更易用，架构更合理</strong><br><img src="https://blog.cloudera.com/wp-content/uploads/2021/11/1-Sentry-Ranger-Feature-1-1024x733.png" alt=""><br><img src="https://blog.cloudera.com/wp-content/uploads/2021/11/3-Sentry-Implementation-434x467.png" alt=""></li>
+</ul>
+<h2><span id="最佳实践">最佳实践</span></h2><blockquote>
+<p><a href="https://blog.cloudera.com/best-practices-in-hdfs-authorization-with-apache-ranger/" target="_blank" rel="noopener">Best practices in HDFS authorization with Apache Ranger</a></p>
+</blockquote>
+<pre><code>Apache Ranger offers a federated authorization model for HDFS. Ranger plugin for HDFS checks for Ranger policies and if a policy exists, access is granted to user. If a policy doesn’t exist in Ranger, then Ranger would default to native permissions model in HDFS (POSIX or HDFS ACL). This federated model is applicable for HDFS and Yarn service in Ranger.
+The federated authorization model enables customers to safely implement Ranger in an existing cluster without affecting  jobs which rely on POSIX permissions. We recommend to enable  this option as the default model for all deployments.
+After Apache Ranger and Hadoop have been installed, we recommend administrators to implement the following steps:
+Change HDFS umask to 077
+Identify directory which can be managed by Ranger policies
+Identify directories which need to be managed by HDFS native permissions
+Enable Ranger policy to audit all records
+</code></pre><blockquote>
+<p><a href="https://pierrevillard.com/2018/08/14/discussion-around-ranger-policies-for-hdfs/" target="_blank" rel="noopener">Discussion around Ranger policies for HDFS</a></p>
+</blockquote>
+<pre><code>Now that you’re aware of that behavior, you probably want to look at this post with some best practices about Ranger and HDFS. The first thing I’d recommend is to change the default umask from 022 to 077 to ensure that, by default, a newly created file/directory can only be read by the owner unless a Ranger policy states otherwise.
+Then, you want to take care of some specific folders in HDFS such as the ones under /apps (folders used by Hive, HBase, Zeppelin, etc). The idea is to set chmod 000 on the folders so that HDFS ACLs do not apply and only Ranger policies are enforced. Let’s say you have /apps/hive/warehouse where all your Hive databases are stored. If you set chmod 000 on /apps/hive, then no one can go inside a subfolder of /apps/hive unless there is an “allow” policy in Ranger for that user.
+</code></pre><blockquote>
+<p><a href="http://www.24hgold.com/francais/article-compagnie-or-argent-best-practices-for-hive-authorization-using-apache-ranger-in-hdp-2-2.aspx?articleid=1363883" target="_blank" rel="noopener">Best Practices for Hive Authorization Using Apache Ranger in HDP 2.2</a></p>
+</blockquote>
+<pre><code>Scenario 1 - Data analysts accessing only Hiveserver2, with limited access to HDFS files
+    ensure the hive.server2.enable.doAs is set to &quot;false&quot;. What this means is that Hiveserver2 will run MR jobs in HDFS as &quot;hive&quot; user. Permissions in HDFS files related to Hive can be given only to &quot;hive&quot; users, and no analyst would be able to access HDFS files directly.
+Scenario 2 - Data analysts accessing both Hiveserver2, and HDFS files through Pig/MR jobs
+    ensure the hive.server2.enable.doAs is set to &quot;true&quot;. What this means is that Hiveserver2 will run MR jobs in HDFS as the original user.In Ranger, within HDFS, create permissions for files pertaining to hive tables
+Scenario 3 - Data analysts accessing Hive CLI
+    The best way to protect Hive CLI would be to enable permissions for HDFS files/folders mapped to the Hive database and tables. In order to secure metastore, it is also recommended to turn on storage-based authorization.
+</code></pre><h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://help.aliyun.com/document_detail/66410.html" target="_blank" rel="noopener">概述</a></li>
+<li><a href="https://datafoam.com/2021/11/10/sentry-to-ranger-a-concise-guide/" target="_blank" rel="noopener">One such major change for CDH users is the replacement of Sentry with Ranger for authorization and access control. </a></li>
+<li><a href="https://www.wtlizzz.com/Apache-Sentry-vs-Ranger/" target="_blank" rel="noopener">Apache Sentry 对比 Ranger，选择Sentry还是Ranger</a></li>
+<li><a href="https://blog.cloudera.com/best-practices-in-hdfs-authorization-with-apache-ranger/" target="_blank" rel="noopener">Best practices in HDFS authorization with Apache Ranger</a></li>
+<li><a href="http://www.24hgold.com/francais/article-compagnie-or-argent-best-practices-for-hive-authorization-using-apache-ranger-in-hdp-2-2.aspx?articleid=1363883" target="_blank" rel="noopener">Best Practices for Hive Authorization Using Apache Ranger in HDP 2.2</a></li>
+<li><a href="https://pierrevillard.com/2018/08/14/discussion-around-ranger-policies-for-hdfs/" target="_blank" rel="noopener">Discussion around Ranger policies for HDFS</a></li>
 </ul>
 
       
@@ -1741,7 +712,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">flume</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">ranger</a>
         		</li>
       		
 		</ul>
@@ -1762,7 +733,7 @@
 
       
         <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/03/bigdata-stack-flume/">展开全文 >></a>
+          <a class="article-more-a" href="/2022/05/19/bigdata-stack-ranger/">展开全文 >></a>
         </p>
       
 
@@ -1794,7 +765,7 @@
   
   
     <nav id="page-nav">
-      <a class="extend prev" rel="prev" href="/page/2/">&laquo; Prev</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/13/">13</a><a class="extend next" rel="next" href="/page/4/">Next &raquo;</a>
+      <a class="extend prev" rel="prev" href="/page/2/">&laquo; Prev</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><span class="page-number current">3</span><a class="page-number" href="/page/4/">4</a><a class="page-number" href="/page/5/">5</a><span class="space">&hellip;</span><a class="page-number" href="/page/41/">41</a><a class="extend next" rel="next" href="/page/4/">Next &raquo;</a>
     </nav>
   
 
@@ -1916,11 +887,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1948,10 +919,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
@@ -1960,7 +927,63 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">storm</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">olap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">presto</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1973,10 +996,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">systemd</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2000,11 +1019,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">备份</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hexo</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">github pages</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2016,15 +1043,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">备份</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2040,27 +1059,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2072,15 +1079,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">手机号</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2108,43 +1115,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">storm</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">datax</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">olap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">presto</a>
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2153,10 +1136,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2176,23 +1155,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -2201,6 +1168,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">doris</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
               </li>
              
               <li class="article-tag-list-item">

@@ -154,7 +154,7 @@
           <div id="js-content" class="content-ll">
             
   
-    <article id="post-c-debug-macro" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+    <article id="post-spark-metrics" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
 
@@ -164,13 +164,13 @@
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2013/07/09/c-debug-macro/">一个方便打印C程序调试信息的宏</a>
+      <a class="article-title" href="/2022/01/16/spark-metrics/">Spark任务性能监控</a>
     </h1>
   
 
         
-        <a href="/2013/07/09/c-debug-macro/" class="archive-article-date">
-  	<time datetime="2013-07-09T12:24:25.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-07-09</time>
+        <a href="/2022/01/16/spark-metrics/" class="archive-article-date">
+  	<time datetime="2022-01-16T03:40:46.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-01-16</time>
 </a>
 
 
@@ -180,11 +180,30 @@
     <div class="article-entry" itemprop="articleBody">
       
         <!-- toc -->
+<ul>
+<li><a href="#概述">概述</a></li>
+<li><a href="#核心步骤">核心步骤</a></li>
+</ul>
 <!-- tocstop -->
-<p>为了方便调试C程序，写了个打印信息的宏，能够打印错误信息，以及错误发生的文件名、行号。<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">ifndef</span> _DEBUG_H_</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> _DEBUG_H_</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;malloc.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> ERRBUFLEN 1024</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> DEBUG_ON</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> ERR_PRINT(str) \</span></span><br><span class="line">    <span class="keyword">do</span> \</span><br><span class="line">    &#123; \</span><br><span class="line">        <span class="keyword">char</span> errbuf[ERRBUFLEN] = &#123;<span class="string">'\0'</span>&#125;; \</span><br><span class="line">        <span class="built_in">snprintf</span>(errbuf, ERRBUFLEN, <span class="string">"[file: %s line: %d] %s"</span>, \</span><br><span class="line">                                    __FILE__, __LINE__, str); \</span><br><span class="line">        <span class="built_in">fprintf</span>(<span class="built_in">stderr</span>, <span class="string">"\033[31m"</span>); \</span><br><span class="line">        perror(errbuf); \</span><br><span class="line">        <span class="built_in">fprintf</span>(<span class="built_in">stderr</span>, <span class="string">"\033[0m"</span>); \</span><br><span class="line">    &#125; <span class="keyword">while</span> (<span class="number">0</span>)</span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> INFO_PRINT(str) \</span></span><br><span class="line">    <span class="keyword">do</span> \</span><br><span class="line">    &#123; \</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"\033[31m"</span>); \</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"[file: %s line: %d] %s\n"</span>, __FILE__, __LINE__, str); \</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"\033[0m"</span>); \</span><br><span class="line">    &#125; <span class="keyword">while</span>(<span class="number">0</span>)</span><br><span class="line"><span class="meta">#<span class="meta-keyword">else</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> ERR_PRINT(str)</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> INFO_PRINT(str)</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br></pre></td></tr></table></figure></p>
-<p>测试程序：<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">"debug.h"</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">int</span></span><br><span class="line">main()</span><br><span class="line">&#123;</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"test\n"</span>);</span><br><span class="line"></span><br><span class="line">        FILE *fp = <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line">        fp = fopen(<span class="string">"./none.txt"</span>, <span class="string">"r"</span>);</span><br><span class="line">        <span class="keyword">if</span> (fp == <span class="literal">NULL</span>)</span><br><span class="line">        &#123;</span><br><span class="line">                ERR_PRINT(<span class="string">"fopen error"</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">int</span> i = <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (i &lt; <span class="number">2</span>)</span><br><span class="line">        &#123;</span><br><span class="line">                INFO_PRINT(<span class="string">"i &lt; 2"</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">[winway@s211 err_print]$ gcc test.c</span><br><span class="line">[winway@s211 err_print]$ ./a.out</span><br><span class="line">test</span><br><span class="line">[winway@s211 err_print]$ gcc test.c -DDEBUG_ON</span><br><span class="line">[winway@s211 err_print]$ ./a.out</span><br><span class="line">test</span><br><span class="line">[file: test.c line: 13] fopen error: No such file or directory</span><br><span class="line">[file: test.c line: 20] i &lt; 2</span><br></pre></td></tr></table></figure>
-<p>欢迎使用。</p>
+<h2><span id="概述">概述</span></h2><ul>
+<li>通过spark metrics系统将spark应用的metrics信息吐出来，比如上报到graphite_exporter</li>
+<li>使用prometheus从graphite_exporter抓取metrics数据</li>
+<li>使用grafana配置监控图表</li>
+</ul>
+<h2><span id="核心步骤">核心步骤</span></h2><ul>
+<li>部署graphite_exporter<br>参考：<a href="https://www.cnblogs.com/caoweixiong/p/12736772.html" target="_blank" rel="noopener">https://www.cnblogs.com/caoweixiong/p/12736772.html</a></li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> ./graphite_exporter --help</span><br><span class="line">usage: graphite_exporter [&lt;flags&gt;]</span><br><span class="line"></span><br><span class="line">Flags:</span><br><span class="line">  -h, --help                     Show context-sensitive help (also try --help-long and --help-man).</span><br><span class="line">      --web.listen-address=":9108"  </span><br><span class="line">                                 Address on which to expose metrics.</span><br><span class="line">      --web.telemetry-path="/metrics"  </span><br><span class="line">                                 Path under which to expose Prometheus metrics.</span><br><span class="line">      --graphite.listen-address=":9109"  </span><br><span class="line">                                 TCP and UDP address on which to accept samples.</span><br><span class="line">      --graphite.mapping-config=""  </span><br><span class="line">                                 Metric mapping configuration file name.</span><br><span class="line">      --graphite.sample-expiry=5m  </span><br><span class="line">                                 How long a sample is valid for.</span><br><span class="line">      --graphite.mapping-strict-match  </span><br><span class="line">                                 Only store metrics that match the mapping configuration.</span><br><span class="line">      --graphite.cache-size=1000  </span><br><span class="line">                                 Maximum size of your metric mapping cache. Relies on least recently used replacement policy if max size is reached.</span><br><span class="line">      --graphite.cache-type=lru  Metric mapping cache type. Valid options are "lru" and "random"</span><br><span class="line">      --debug.dump-fsm=""        The path to dump internal FSM generated for glob matching as Dot file.</span><br><span class="line">      --check-config             Check configuration and exit.</span><br><span class="line">      --web.config=""            [EXPERIMENTAL] Path to config yaml file that can enable TLS or authentication.</span><br><span class="line">      --log.level=info           Only log messages with the given severity or above. One of: [debug, info, warn, error]</span><br><span class="line">      --log.format=logfmt        Output format of log messages. One of: [logfmt, json]</span><br><span class="line">      --version                  Show application version.</span><br></pre></td></tr></table></figure>
+<ul>
+<li>开启spark应用的metrics上报<br>创建spark metrcis配置文件hdfs://emr-cluster/tmp/spark_app_metrics.properties<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"># Enable JvmSource for instance master, worker, driver and executor</span><br><span class="line">master.source.jvm.class=org.apache.spark.metrics.source.JvmSource</span><br><span class="line">worker.source.jvm.class=org.apache.spark.metrics.source.JvmSource</span><br><span class="line">driver.source.jvm.class=org.apache.spark.metrics.source.JvmSource</span><br><span class="line">executor.source.jvm.class=org.apache.spark.metrics.source.JvmSource</span><br><span class="line"># Sink to graphite</span><br><span class="line">*.sink.graphite.class=org.apache.spark.metrics.sink.GraphiteSink</span><br><span class="line">*.sink.graphite.protocol=tcp</span><br><span class="line">*.sink.graphite.host=172.16.32.1</span><br><span class="line">*.sink.graphite.port=9109</span><br><span class="line">*.sink.graphite.period=10</span><br><span class="line">*.sink.graphite.unit=seconds</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<p>spark作业增加以下参数，并重启<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">--files hdfs://emr-cluster/tmp/spark_app_metrics.properties</span><br><span class="line">--conf spark.metrics.conf=spark_app_metrics.properties</span><br></pre></td></tr></table></figure></p>
+<p>正常情况下，已经可以在<a href="http://172.16.32.1:9108/metrics" target="_blank" rel="noopener">http://172.16.32.1:9108/metrics</a>，看到metrics信息了<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;PS-MarkSweep&quot;,qty=&quot;count&quot;&#125; 3</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;PS-MarkSweep&quot;,qty=&quot;time&quot;&#125; 241</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;PS-Scavenge&quot;,qty=&quot;count&quot;&#125; 1657</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;PS-Scavenge&quot;,qty=&quot;time&quot;&#125; 6368</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;direct&quot;,qty=&quot;capacity&quot;&#125; 1.172494e+06</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;direct&quot;,qty=&quot;count&quot;&#125; 26</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;direct&quot;,qty=&quot;used&quot;&#125; 1.172495e+06</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;heap&quot;,qty=&quot;committed&quot;&#125; 4.58227712e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;heap&quot;,qty=&quot;init&quot;&#125; 1.073741824e+09</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;heap&quot;,qty=&quot;max&quot;&#125; 9.54728448e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;heap&quot;,qty=&quot;usage&quot;&#125; 0.33</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;heap&quot;,qty=&quot;used&quot;&#125; 3.12703864e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;mapped&quot;,qty=&quot;capacity&quot;&#125; 0</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;mapped&quot;,qty=&quot;count&quot;&#125; 0</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;mapped&quot;,qty=&quot;used&quot;&#125; 0</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;non-heap&quot;,qty=&quot;committed&quot;&#125; 1.28335872e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;non-heap&quot;,qty=&quot;init&quot;&#125; 2.555904e+06</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;non-heap&quot;,qty=&quot;max&quot;&#125; -1</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;non-heap&quot;,qty=&quot;usage&quot;&#125; -1.09084536e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;non-heap&quot;,qty=&quot;used&quot;&#125; 1.09084536e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;total&quot;,qty=&quot;committed&quot;&#125; 5.86563584e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;total&quot;,qty=&quot;init&quot;&#125; 1.076297728e+09</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;total&quot;,qty=&quot;max&quot;&#125; 9.54728447e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;total&quot;,qty=&quot;used&quot;&#125; 4.2184968e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;PS-MarkSweep&quot;,qty=&quot;count&quot;&#125; 48</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;PS-MarkSweep&quot;,qty=&quot;time&quot;&#125; 6688</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;PS-Scavenge&quot;,qty=&quot;count&quot;&#125; 7674</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;PS-Scavenge&quot;,qty=&quot;time&quot;&#125; 58417</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;direct&quot;,qty=&quot;capacity&quot;&#125; 738287</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;direct&quot;,qty=&quot;count&quot;&#125; 37</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;direct&quot;,qty=&quot;used&quot;&#125; 738288</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;heap&quot;,qty=&quot;committed&quot;&#125; 8.10549248e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;heap&quot;,qty=&quot;init&quot;&#125; 1.073741824e+09</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;heap&quot;,qty=&quot;max&quot;&#125; 9.54728448e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;heap&quot;,qty=&quot;usage&quot;&#125; 0.2</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;heap&quot;,qty=&quot;used&quot;&#125; 1.91051496e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;mapped&quot;,qty=&quot;capacity&quot;&#125; 0</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;mapped&quot;,qty=&quot;count&quot;&#125; 0</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;mapped&quot;,qty=&quot;used&quot;&#125; 0</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;non-heap&quot;,qty=&quot;committed&quot;&#125; 1.44859136e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;non-heap&quot;,qty=&quot;init&quot;&#125; 2.555904e+06</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;non-heap&quot;,qty=&quot;max&quot;&#125; -1</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;non-heap&quot;,qty=&quot;usage&quot;&#125; -1.4242188e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;non-heap&quot;,qty=&quot;used&quot;&#125; 1.4242188e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;total&quot;,qty=&quot;committed&quot;&#125; 9.55408384e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;total&quot;,qty=&quot;init&quot;&#125; 1.076297728e+09</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;total&quot;,qty=&quot;max&quot;&#125; 9.54728447e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;total&quot;,qty=&quot;used&quot;&#125; 3.33473376e+08</span><br></pre></td></tr></table></figure></p>
+<p><strong>注意：1.–files多个文件用逗号分隔；2.如果任务是使用的client模式，driver的监控数据无法上报</strong></p>
+<ul>
+<li>配置prometheus和grafana<br>参考了以下几篇文章，大同小异。<br><a href="https://www.cnblogs.com/caoweixiong/p/12736772.html" target="_blank" rel="noopener">https://www.cnblogs.com/caoweixiong/p/12736772.html</a><br><a href="https://www.cnblogs.com/createweb/p/11430595.html" target="_blank" rel="noopener">https://www.cnblogs.com/createweb/p/11430595.html</a><br><a href="http://rokroskar.github.io/monitoring-spark-on-hadoop-with-prometheus-and-grafana.html" target="_blank" rel="noopener">http://rokroskar.github.io/monitoring-spark-on-hadoop-with-prometheus-and-grafana.html</a><br><a href="https://www.jianshu.com/p/274380bb0974" target="_blank" rel="noopener">https://www.jianshu.com/p/274380bb0974</a><br><a href="https://xie.infoq.cn/article/8185db2a25a88c9917b706754" target="_blank" rel="noopener">https://xie.infoq.cn/article/8185db2a25a88c9917b706754</a></li>
+</ul>
 
       
 
@@ -197,350 +216,12 @@
 		<i class="icon-price-tags icon"></i>
 		<ul class="article-tag-list">
 			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">C</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/07/09/c-debug-macro/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-a-LAN-arp-attacker" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/07/09/a-LAN-arp-attacker/">局域网ARP欺骗程序</a>
-    </h1>
-  
-
-        
-        <a href="/2013/07/09/a-LAN-arp-attacker/" class="archive-article-date">
-  	<time datetime="2013-07-09T10:29:46.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-07-09</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p><a href="https://github.com/winway/a-LAN-arp-attacker" target="_blank" rel="noopener">https://github.com/winway/a-LAN-arp-attacker</a></p>
-<!-- toc -->
-<ul>
-<li><a href="#1-工作原理">1. 工作原理</a></li>
-<li><a href="#2-使用方法">2. 使用方法</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="1-工作原理">1. 工作原理</span></h2><ol>
-<li>构造ARP请求包（广播）给目的主机，并分析返回的ARP应答包，获取目的主机的MAC地址。</li>
-<li>构造ARP应答包（单播）给目的主机，其中携带虚假的IP - MAC映射关系。</li>
-<li>目的主机的ARP缓存中多了一条错误的IP - MAC映射关系。</li>
-</ol>
-<h2><span id="2-使用方法">2. 使用方法</span></h2><ol>
-<li>make，生成arp_attacker</li>
-<li>./arp_attacker [dst ip] 针对单一主机进行攻击</li>
-<li>./arp_attacker 发送广播，影响局域网所有主机</li>
-</ol>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">C</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">ARP欺骗</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/07/09/a-LAN-arp-attacker/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-a-simple-Linux-app-monitor-framework-1" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/07/01/a-simple-Linux-app-monitor-framework-1/">一个简易的服务器监控框架(1)</a>
-    </h1>
-  
-
-        
-        <a href="/2013/07/01/a-simple-Linux-app-monitor-framework-1/" class="archive-article-date">
-  	<time datetime="2013-07-01T13:14:09.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-07-01</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>花了两天时间写了个监控服务器各项指标的框架，主要功能包括：根据设置产生各指标项的数据报表，并可以根据阈值的设定产生警告信息。<br><a href="https://github.com/winway/a-simple-monitor-framework/tree/v1.0" target="_blank" rel="noopener">https://github.com/winway/a-simple-monitor-framework/tree/v1.0</a></p>
-<!-- toc -->
-<ul>
-<li><a href="#1-简介">1. 简介</a></li>
-<li><a href="#2-配置">2. 配置</a></li>
-<li><a href="#3-数据存储">3. 数据存储</a></li>
-<li><a href="#4-展示">4. 展示</a></li>
-<li><a href="#5-使用">5. 使用</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="1-简介">1. 简介</span></h2><p>主要功能包括：根据设置产生各指标项的数据报表，并可以根据阈值的设定产生警告信息。程序包括以下文件和文件夹：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">$ ls -l</span><br><span class="line">总计 88</span><br><span class="line">-rwxrw-r-- 1 winway winway 277 06-27 19:30 analyse.sh</span><br><span class="line">-rwxrw-r-- 1 winway winway 122 06-29 10:18 config.sh</span><br><span class="line">drwxrwxr-x 5 winway winway 4096 07-01 20:08 data</span><br><span class="line">drwxrwxr-x 2 winway winway 4096 07-01 20:08 display</span><br><span class="line">-rwxrw-r-- 1 winway winway 148 06-28 09:39 display.sh</span><br><span class="line">drwxrwxr-x 5 winway winway 4096 07-01 20:07 etc</span><br><span class="line">-rwxrw-r-- 1 winway winway 471 06-28 09:33 format.sh</span><br><span class="line">-rwxrw-r-- 1 winway winway 253 06-27 19:28 monitor.sh</span><br><span class="line">-rw-rw-r-- 1 winway winway 3036 06-29 15:19 raw2html.py</span><br><span class="line">-rw-rw-r-- 1 winway winway 2107 06-29 13:44 raw_analyse.py</span><br><span class="line">-rwxrw-r-- 1 winway winway 849 06-29 10:24 snatch.sh</span><br></pre></td></tr></table></figure></p>
-<ul>
-<li>monitor.sh<br>主程序，会依次调用snatch.sh、analyse.sh、format.sh、display.sh</li>
-<li>snatch.sh<br>数据采集，基于mussh（不了解的可以参考下这里）实现，周期性抓取各服务器上感兴趣的数据项，存储到data文件夹中</li>
-<li>analyse.sh<br>数据分析，根据etc文件夹中的阈值配置文件，产生需要告警的条目，主要工作由raw_analyse.py完成</li>
-<li>format.sh<br>数据格式化，将原始的纯文本数据格式化为html格式，主要工作由raw2html.py完成</li>
-<li>display.sh<br>数据展示，更新display文件夹下的软连接，指向最新的html文件</li>
-<li>config.sh<br>一些变量的定义</li>
-</ul>
-<h2><span id="2-配置">2. 配置</span></h2><p>配置文件结构如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">etc/</span><br><span class="line">|-- lst.d</span><br><span class="line">| `-- database.lst</span><br><span class="line">|-- monitor.conf</span><br><span class="line">|-- sh.d</span><br><span class="line">| `-- database.sh</span><br><span class="line">`-- thv.d</span><br><span class="line">`-- database.thv</span><br></pre></td></tr></table></figure></p>
-<p>其中monitor.conf是主配置文件<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> cat monitor.conf</span><br><span class="line"><span class="meta">#</span> 类型 IP列表文件 检查脚本文件 阈值文件</span><br><span class="line">database database.lst database.sh database.thv</span><br></pre></td></tr></table></figure></p>
-<p>类型是指服务器的角色，如数据库服务器，web服务器等；IP列表文件是对应这一角色的服务器的ip集合，格式为<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 归属地 用户@IP</span><br><span class="line">哈尔滨 root@x.x.x.x</span><br><span class="line">哈尔滨 root@x.x.x.x</span><br></pre></td></tr></table></figure></p>
-<p>这里“<a href="mailto:root@x.x.x.x" target="_blank" rel="noopener">root@x.x.x.x</a>”的格式是为了mussh执行起来方便而这么写的。<br>检查脚本文件是获取这个服务器数据应该执行的脚本。在目标机器上执行这个脚本，就可以获得我们关心的各项数据，这个脚本根据需要而定制，且输出信息的格式有要求。demo:<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> cat sh.d/database.sh</span><br><span class="line"><span class="meta">#</span>! /bin/bash</span><br><span class="line"><span class="meta">#</span></span><br><span class="line">echo -n "&lt;hostname&gt;"</span><br><span class="line">hostname</span><br><span class="line">echo -n '&lt;time&gt;'</span><br><span class="line">date '+%Y-%m-%d %H:%M:%S'</span><br><span class="line">echo -n '&lt;uptime&gt;'</span><br><span class="line">uptime | sed -r 's/.*up\s*([^,]*).*/\1/'</span><br><span class="line">echo -n '&lt;interface&gt;'</span><br><span class="line">/sbin/ifconfig | sed -nr '/^\S/&#123;N;s/\s+.*inet addr:(\S+).*/ \1/;H&#125;;$&#123;x;s/^\s*//g;s/\n/+/g;p&#125;'</span><br><span class="line">echo -n '&lt;process_number&gt;'</span><br><span class="line">ps -e | wc -l</span><br><span class="line">echo -n '&lt;disk_usage&gt;'</span><br><span class="line">df -h | awk -F'[ %]+' '$NF == "/"&#123;print $(NF-1)&#125;'</span><br></pre></td></tr></table></figure></p>
-<p>由于mussh具有远程执行本地脚本的能力，所以我们不需要把这个脚本拷贝到远程主机上。<br>阈值文件用来判断某项数据是否超标。比如如下示例，进程数超过180，我们认为要告警；磁盘使用率超过80%，也需要告警。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> cat etc/thv.d/database.thv</span><br><span class="line"><span class="meta">#</span>###########################################</span><br><span class="line"><span class="meta">#</span> 注意!!! #</span><br><span class="line"><span class="meta">#</span> 指标要与检查脚本里的名字一致 #</span><br><span class="line"><span class="meta">#</span>###########################################</span><br><span class="line"><span class="meta">#</span> 指标 最小值 最大值</span><br><span class="line">process_number 180 300</span><br><span class="line">disk_usage 0 80</span><br></pre></td></tr></table></figure></p>
-<p>这里需要注意的是检查脚本中出现的数据项的名字要和这里保持一致，这样程序才能找到关联。<br>所以，如果你想加入对一批相同类型的机器的监控，你需要：</p>
-<ol>
-<li>编辑一个IP列表文件，将他们的IP地址按合法的格式编辑</li>
-<li>根据自己关心的数据项，定制一个检查脚本，脚本的输出信息格式如示例脚本所示</li>
-<li>给你所关心数据项设置告警阈值</li>
-<li>在monitor.conf里添加一条配置</li>
-</ol>
-<h2><span id="3-数据存储">3. 数据存储</span></h2><p>所有数据存储在data文件夹中<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">data/</span><br><span class="line">|-- all_html</span><br><span class="line">| `-- 20130701</span><br><span class="line">| `-- 2008</span><br><span class="line">| `-- database_all.html</span><br><span class="line">|-- newest.txt</span><br><span class="line">|-- raw</span><br><span class="line">| `-- 20130701</span><br><span class="line">| `-- 2008</span><br><span class="line">| |-- database_all.raw</span><br><span class="line">| `-- database_warn.raw</span><br><span class="line">`-- warn_html</span><br><span class="line">`-- 20130701</span><br><span class="line">`-- 2008</span><br><span class="line">`-- database_warn.html</span><br></pre></td></tr></table></figure></p>
-<p>raw文件夹用于存储原始的数据<br>all_html用于存储包含所有数据项的html文件<br>warn_html用于存储只包含警告数据项的html文件<br>newest.txt用于记录最新的数据所在的文件夹<br>执行完snatch.sh，会在相应的日期时间目录下生成<em>_all.raw文件<br>执行完analyse.sh，会在相应的日期时间目录下生成</em>_warn.raw文件<br>执行完format.sh，会在相应的日期时间目录下生成<em>_all.html和</em>_warn.html文件</p>
-<h2><span id="4-展示">4. 展示</span></h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">display</span><br><span class="line">|-- new_warning -&gt; ../data/warn_html/20130701/2008</span><br><span class="line">|-- overall -&gt; ../data/all_html/</span><br><span class="line">`-- warning -&gt; ../data/warn_html/</span><br></pre></td></tr></table></figure>
-<p>display文件夹包含三个软连接<br>new_warning指向最新的警告数据<br>overall指向all_html文件夹<br>warning指向warn_html文件夹<br>在display目录下执行<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">nohup python -m SimpleHTTPServer 80 &amp;&gt;/dev/null &amp;</span><br></pre></td></tr></table></figure></p>
-<p>就可以在浏览器中查看这些数据了。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/monitor_v1_list.png" alt="monitor_v1_list"><br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/monito_v1_demo.bmp" alt="monitor_v1_demo"></p>
-<h2><span id="5-使用">5. 使用</span></h2><p>运行环境需要需要安装mussh和python的PyH模块。根据需要编辑crontab文件，如<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">*/30 8-16 * * * cd ~winway/monitor &amp;&amp; ./monitor.sh</span><br><span class="line">0 0-7,17-23 * * * cd ~winway/monitor &amp;&amp; ./monitor.sh</span><br></pre></td></tr></table></figure></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">shell</a>
-        		</li>
-      		 
         		<li class="article-tag-list-item">
         			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">监控</a>
         		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/07/01/a-simple-Linux-app-monitor-framework-1/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-python-multiprocessing-demo" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/06/24/python-multiprocessing-demo/">一个基于multiprocessing的并发模型</a>
-    </h1>
-  
-
-        
-        <a href="/2013/06/24/python-multiprocessing-demo/" class="archive-article-date">
-  	<time datetime="2013-06-24T08:23:44.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-06-24</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<!-- tocstop -->
-<p>需求：</p>
-<ol>
-<li>周期性对一批机器执行某操作；</li>
-<li>该操作执行所需时间不固定，有波动；</li>
-<li>每次操作机器数量较多，需用多进程实现，但又不宜针对每个机器单独开启进程，否则进程太多；</li>
-</ol>
-<p>由于每个周期的操作时间不固定，难免出现两个周期重叠在一起，所以每个周期的操作尽量保持独立，这样不会彼此影响。基于以上考虑，程序的大体思路是：<em>主进程周期性fork一个子进程，子进程使用multiprocessing创建多进程执行具体操作</em>。代码如下：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#! /usr/bin/env python</span></span><br><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">import</span> sys</span><br><span class="line"><span class="keyword">import</span> time</span><br><span class="line"><span class="keyword">import</span> random</span><br><span class="line"><span class="keyword">import</span> multiprocessing</span><br><span class="line"></span><br><span class="line"><span class="comment"># 目标机器集合，少则几百，多则上千</span></span><br><span class="line">hosts = [ <span class="string">'192.168.1.1'</span>,</span><br><span class="line">          <span class="string">'192.168.1.2'</span>,</span><br><span class="line">          <span class="string">'192.168.1.3'</span>,</span><br><span class="line">          <span class="string">'192.168.1.4'</span>,</span><br><span class="line">          <span class="string">'192.168.1.5'</span>,</span><br><span class="line">          <span class="string">'192.168.1.6'</span>,</span><br><span class="line">          <span class="string">'192.168.1.7'</span>,</span><br><span class="line">          <span class="string">'192.168.1.8'</span>,</span><br><span class="line">          <span class="string">'192.168.1.9'</span>,</span><br><span class="line">          <span class="string">'192.168.1.10'</span>,</span><br><span class="line">         ]</span><br><span class="line"></span><br><span class="line"><span class="comment"># 针对每个机器的具体操作，这里没有进行任何处理</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">handle</span><span class="params">(host)</span>:</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'Handling %s'</span> % host</span><br><span class="line">    time.sleep(random.randint(<span class="number">10</span>, <span class="number">15</span>))</span><br><span class="line">    <span class="keyword">return</span> host</span><br><span class="line"></span><br><span class="line"><span class="comment"># 循环从task_queue取一个待处理的机器进行处理，并将结果放入done_queue，直到遇到'STOP'</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">grandchild</span><span class="params">(task_queue, done_queue)</span>:</span></span><br><span class="line">    <span class="keyword">for</span> item <span class="keyword">in</span> iter(task_queue.get, <span class="string">'STOP'</span>):</span><br><span class="line">        result = handle(item)</span><br><span class="line">        done_queue.put(result)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 每个周期的操作在这个单独的子进程中进行</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">child</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'Hi! This is child %d, my father is %d'</span> %\</span><br><span class="line">                        (os.getpid(), os.getppid())</span><br><span class="line"></span><br><span class="line">    task_queue = multiprocessing.Queue()</span><br><span class="line">    done_queue = multiprocessing.Queue()</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 将待处理的机器放入task_queue</span></span><br><span class="line">    <span class="keyword">for</span> host <span class="keyword">in</span> hosts:</span><br><span class="line">        <span class="keyword">print</span> <span class="string">'put %s in task_queue'</span> % host</span><br><span class="line">        task_queue.put(host)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 创建固定数量进程，并发处理</span></span><br><span class="line">    PN = <span class="number">6</span></span><br><span class="line">    processes = []</span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> range(PN):</span><br><span class="line">        process = multiprocessing.Process(target=grandchild, args=(task_queue, done_queue))</span><br><span class="line">        process.start()</span><br><span class="line">        processes.append(process)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 打印done_queue中的结果，这里可以针对结果在进行处理，如存数据库</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'Unordered results:'</span></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> range(len(hosts)):</span><br><span class="line">        <span class="keyword">print</span> <span class="string">'get %s from done_queue'</span> % done_queue.get()</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 结束处理进程</span></span><br><span class="line">    <span class="keyword">for</span> i <span class="keyword">in</span> range(PN):</span><br><span class="line">        task_queue.put(<span class="string">'STOP'</span>)</span><br><span class="line">        <span class="keyword">print</span> <span class="string">'Stopping process #%d'</span> % i</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 避免处理进程成为僵尸</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'joining.....'</span></span><br><span class="line">    <span class="keyword">for</span> process <span class="keyword">in</span> processes:</span><br><span class="line">        process.join()</span><br><span class="line">    </span><br><span class="line">    sys.exit()</span><br><span class="line"></span><br><span class="line">children = []</span><br><span class="line"></span><br><span class="line"><span class="comment"># 清理僵尸进程</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">clear_defunct</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="keyword">for</span> child <span class="keyword">in</span> children:</span><br><span class="line">        pid, status = os.waitpid(child, os.WNOHANG)</span><br><span class="line">        <span class="keyword">if</span> pid:</span><br><span class="line">            children.remove(pid)</span><br><span class="line">            <span class="keyword">print</span> <span class="string">'clear defunct'</span>, pid</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line">    <span class="comment"># 周期性创建子进程</span></span><br><span class="line">    <span class="keyword">while</span> <span class="keyword">True</span>:</span><br><span class="line">        pid = os.fork()</span><br><span class="line">        <span class="keyword">if</span> pid &lt; <span class="number">0</span>:</span><br><span class="line">            <span class="keyword">print</span> <span class="string">'fork error'</span></span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">if</span> pid == <span class="number">0</span>:</span><br><span class="line">                child()</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                children.append(pid)</span><br><span class="line">                <span class="keyword">print</span> <span class="string">'Hi! This is parent %d'</span> % os.getpid()</span><br><span class="line"></span><br><span class="line">        clear_defunct()</span><br><span class="line"></span><br><span class="line">        time.sleep(<span class="number">30</span>)</span><br></pre></td></tr></table></figure></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">python</a>
-        		</li>
       		 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">multiprocessing</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">spark</a>
         		</li>
       		
 		</ul>
@@ -552,7 +233,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
         		</li>
       		
 		</ul>
@@ -561,7 +242,7 @@
 
       
         <p class="article-more-link">
-          <a class="article-more-a" href="/2013/06/24/python-multiprocessing-demo/">展开全文 >></a>
+          <a class="article-more-a" href="/2022/01/16/spark-metrics/">展开全文 >></a>
         </p>
       
 
@@ -591,7 +272,7 @@
 
 
   
-    <article id="post-mussh-pdsh-pssh-usage" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+    <article id="post-sparksql-cluster" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
 
@@ -601,233 +282,13 @@
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2013/06/24/mussh-pdsh-pssh-usage/">mussh、pdsh、pssh的简单使用</a>
+      <a class="article-title" href="/2022/01/16/sparksql-cluster/">Spark-sql支持cluster模式</a>
     </h1>
   
 
         
-        <a href="/2013/06/24/mussh-pdsh-pssh-usage/" class="archive-article-date">
-  	<time datetime="2013-06-24T03:16:06.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-06-24</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>在<a href="https://winway.github.io/2013/05/11/server-batch-manage-tool-introduction/">服务器批量管理工具</a>一文中，提到了几款服务器批量管理工具，本文就其中的mussh、pdsh、pssh简单介绍其使用方法。</p>
-<!-- toc -->
-<ul>
-<li><a href="#1-mussh">1. mussh</a></li>
-<li><a href="#2-pdsh">2. pdsh</a></li>
-<li><a href="#3-pssh">3. pssh</a></li>
-<li><a href="#4-总结">4. 总结</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="1-mussh">1. mussh</span></h2><p>mussh的安装过程不再赘述，要使用mussh要先做好主机间的信任（方法自己查询）。mussh的使用较简单，要查询mussh的使用方法，可以<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mussh --help</span><br></pre></td></tr></table></figure></p>
-<p>常用的方法如下：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">mussh -m -u -b -t 6 -h user@x.x.x.x.. -c cmd</span><br><span class="line">mussh -m -u -b -t 6 -h user@x.x.x.x.. -C scriptfile</span><br><span class="line">mussh -m -u -b -t 6 -H hostlist -c cmd</span><br><span class="line">mussh -m -u -b -t 6 -H hostlist -C scriptfile</span><br></pre></td></tr></table></figure></p>
-<p>其中hostlist的格式为：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">user@x.x.x.x</span><br><span class="line">user@x.x.x.x</span><br><span class="line">user@x.x.x.x</span><br><span class="line">..</span><br></pre></td></tr></table></figure></p>
-<p>常见命令行参数意义：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">-m [n] Run concurrently on 'n' hosts at a time (asynchronous).</span><br><span class="line">Use '0' (zero) for infinite. (default if -m)</span><br><span class="line">-b Print each hosts' output in a block without mingling</span><br><span class="line">with other hosts' output.</span><br><span class="line">-B Allow hosts' output to mingle. (default)</span><br><span class="line">-u Unique. Eliminate duplicate hosts. (default)</span><br><span class="line">-U Do NOT make host list unique.</span><br><span class="line">-t &lt;secs&gt; Timeout setting for each session.</span><br><span class="line">(requires openssh 3.8 or newer)</span><br></pre></td></tr></table></figure></p>
-<h2><span id="2-pdsh">2. pdsh</span></h2><p>pdsh的安装过程不再赘述，要使用pdsh有两个前提：</p>
-<ol>
-<li>做好主机间的信任（方法自己查询）</li>
-<li>管理机和目标机均安装pdsh（不然无法使用pdcp和rpdcp）</li>
-</ol>
-<p>可以通过<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">man pdsh 或 pdsh -h</span><br><span class="line">man pdcp 或 pdcp -h</span><br><span class="line">man rpdcp 或 rpdcp -h</span><br></pre></td></tr></table></figure></p>
-<p>来查询使用方法。常用的方法如下:<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">pdsh -R ssh -l root -w x.x.x.x cmd</span><br><span class="line">pdsh -R ssh -l root -w hostname cmd</span><br><span class="line">pdsh -R ssh -l root -w ^hostlist cmd</span><br></pre></td></tr></table></figure></p>
-<p>其中hostlist的格式为：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">x.x.x.x</span><br><span class="line">hostname</span><br><span class="line">..</span><br></pre></td></tr></table></figure></p>
-<p><strong>若不加cmd，则进入交互模式，我觉得这个是pdsh的亮点。</strong></p>
-<h2><span id="3-pssh">3. pssh</span></h2><p>pssh的安装不再赘述，要使用pssh要先做好主机间的信任（方法自己查询）。<br>pssh安装完成，会出现一下五个命令：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">pssh parallel-ssh 在多个主机上并行地运行命令。</span><br><span class="line">pscp parallel-scp 把文件并行地复制到多个主机上。</span><br><span class="line">prsync parallel-rsync 通过 rsync 协议把文件高效地并行复制到多个主机上。</span><br><span class="line">pslurp parallel-slurp 把文件并行地从多个远程主机复制到中心主机上。</span><br><span class="line">pnuke parallel-nuke 并行地在多个远程主机上杀死进程。</span><br></pre></td></tr></table></figure></p>
-<p>要查各个命令的使用方法，可以不加任何参数运行该命令，这样就会出现各选项的意义。如：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">[winway@winway test]$ pssh</span><br><span class="line">Usage: pssh [OPTIONS] -h hosts.txt prog [arg0] ..</span><br><span class="line">-h --hosts hosts file (each line "host[:port] [user]")</span><br><span class="line">-l --user username (OPTIONAL)</span><br><span class="line">-p --par max number of parallel threads (OPTIONAL)</span><br><span class="line">-o --outdir output directory for stdout files (OPTIONAL)</span><br><span class="line">-e --errdir output directory for stderr files (OPTIONAL)</span><br><span class="line">-t --timeout timeout (secs) (-1 = no timeout) per host (OPTIONAL)</span><br><span class="line">-O --options SSH options (OPTIONAL)</span><br><span class="line">-v --verbose turn on warning and diagnostic messages (OPTIONAL)</span><br><span class="line">-P --print print output as we get it (OPTIONAL)</span><br><span class="line">-i --inline inline aggregated output for each server (OPTIONAL)</span><br><span class="line">Example: pssh -h nodes.txt -l irb2 -o /tmp/foo uptime</span><br></pre></td></tr></table></figure></p>
-<p>常用的方法如下：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">pssh -h hostlist -i cmd</span><br><span class="line">pscp -h hostlist src dest</span><br><span class="line">pslurp -h hostlist -L . dest src</span><br></pre></td></tr></table></figure></p>
-<h2><span id="4-总结">4. 总结</span></h2><p>综上所述，mussh、pdsh、pssh各有优缺点，我的选择是：<br>批量在远程主机上执行比较固定的操作时，用mussh，特别是它支持本机脚本远程执行；<br>批量在远程主机上执行不确定的操作时，用pdsh，因为它支持交互模式；<br>批量在远程主机上上传、下载文件时用pssh的pscp或prsync、pslurp；<br>个人愚见，欢迎指正。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">批量管理</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/06/24/mussh-pdsh-pssh-usage/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-python-parse-ini-json-xml-configuration" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/06/03/python-parse-ini-json-xml-configuration/">Python解析ini、json、xml格式配置文件</a>
-    </h1>
-  
-
-        
-        <a href="/2013/06/03/python-parse-ini-json-xml-configuration/" class="archive-article-date">
-  	<time datetime="2013-06-03T12:18:06.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-06-03</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>最近借做项目的机会，了解了几个常用的配置文件类型，包括ini、json、xml。<br>我所需要的配置文件大概是这样，包括属性id、port等，以及若干个ip、pwd对，以下尝试了ini、json、xml三种配置文件。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">id = 6</span><br><span class="line">port = 22</span><br><span class="line">ip = 1.1.1.1</span><br><span class="line">pwd = 123456</span><br><span class="line">ip = 1.1.1.2</span><br><span class="line">pwd = 123456</span><br><span class="line">ip = 2.2.2.1</span><br><span class="line">pwd = 123456</span><br></pre></td></tr></table></figure></p>
-<!-- toc -->
-<ul>
-<li><a href="#1-使用ini格式">1. 使用ini格式</a></li>
-<li><a href="#2-使用json格式">2. 使用json格式</a></li>
-<li><a href="#3-使用xml格式">3. 使用xml格式</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="1-使用ini格式">1. 使用ini格式</span></h2><figure class="highlight ini"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">[common]</span></span><br><span class="line"><span class="attr">id</span> = <span class="string">'5'</span></span><br><span class="line"><span class="attr">port</span> = <span class="number">22</span></span><br><span class="line"><span class="section">[node]</span></span><br><span class="line"><span class="attr">ip</span> = <span class="number">1.1</span>.<span class="number">1.1</span></span><br><span class="line"><span class="attr">pwd</span> = <span class="number">123456</span></span><br><span class="line"><span class="section">[node]</span></span><br><span class="line"><span class="attr">ip</span> = <span class="number">1.1</span>.<span class="number">1.2</span></span><br><span class="line"><span class="attr">pwd</span> = <span class="number">123456</span></span><br><span class="line"><span class="section">[node]</span></span><br><span class="line"><span class="attr">ip</span> = <span class="number">2.2</span>.<span class="number">2.1</span></span><br><span class="line"><span class="attr">pwd</span> = <span class="number">123456</span></span><br></pre></td></tr></table></figure>
-<p>配置文件格式简洁明了，但是很遗憾，这不是合法的ini格式，python的ConfigParser无法正确处理。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">In [<span class="number">12</span>]: <span class="keyword">import</span> ConfigParser</span><br><span class="line">In [<span class="number">13</span>]: cf = ConfigParser.ConfigParser()</span><br><span class="line">In [<span class="number">14</span>]: cf.read(<span class="string">'config.ini'</span>)</span><br><span class="line">Out[<span class="number">14</span>]: [<span class="string">'config.ini'</span>]</span><br><span class="line">In [<span class="number">15</span>]: cf.sections()</span><br><span class="line">Out[<span class="number">15</span>]: [<span class="string">'common'</span>, <span class="string">'node'</span>]</span><br><span class="line">In [<span class="number">16</span>]: cf.options(<span class="string">'node'</span>)</span><br><span class="line">Out[<span class="number">16</span>]: [<span class="string">'ip'</span>, <span class="string">'pwd'</span>]</span><br><span class="line">In [<span class="number">17</span>]: cf.get(<span class="string">'node'</span>, <span class="string">'ip'</span>)</span><br><span class="line">Out[<span class="number">17</span>]: <span class="string">'2.2.2.1'</span></span><br></pre></td></tr></table></figure></p>
-<h2><span id="2-使用json格式">2. 使用json格式</span></h2><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[</span><br><span class="line">  &#123;<span class="attr">"id"</span> : <span class="string">"5"</span>&#125;,</span><br><span class="line">  &#123;<span class="attr">"port"</span> : <span class="number">22</span>&#125;,</span><br><span class="line">  &#123;<span class="attr">"node"</span> : [</span><br><span class="line">    &#123;<span class="attr">"ip"</span> : <span class="string">"1.1.1.1"</span>, <span class="attr">"pwd"</span> : <span class="string">"123456"</span>&#125;,</span><br><span class="line">    &#123;<span class="attr">"ip"</span> : <span class="string">"1.1.1.2"</span>, <span class="attr">"pwd"</span> : <span class="string">"123456"</span>&#125;,</span><br><span class="line">    &#123;<span class="attr">"ip"</span> : <span class="string">"2.2.2.1"</span>, <span class="attr">"pwd"</span> : <span class="string">"123456"</span>&#125;</span><br><span class="line">	]</span><br><span class="line">  &#125;</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
-<p>这不就是标准的python变量吗？<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">In [<span class="number">20</span>]: <span class="keyword">import</span> json</span><br><span class="line">In [<span class="number">21</span>]: v = json.load(file(<span class="string">'config.json'</span>))</span><br><span class="line">In [<span class="number">22</span>]: v</span><br><span class="line">Out[<span class="number">22</span>]:</span><br><span class="line">[&#123;<span class="string">u'id'</span>: <span class="string">u'5'</span>&#125;,</span><br><span class="line">&#123;<span class="string">u'port'</span>: <span class="number">22</span>&#125;,</span><br><span class="line">&#123;<span class="string">u'node'</span>: [&#123;<span class="string">u'ip'</span>: <span class="string">u'1.1.1.1'</span>, <span class="string">u'pwd'</span>: <span class="string">u'123456'</span>&#125;,</span><br><span class="line">&#123;<span class="string">u'ip'</span>: <span class="string">u'1.1.1.2'</span>, <span class="string">u'pwd'</span>: <span class="string">u'123456'</span>&#125;,</span><br><span class="line">&#123;<span class="string">u'ip'</span>: <span class="string">u'2.2.2.1'</span>, <span class="string">u'pwd'</span>: <span class="string">u'123456'</span>&#125;]&#125;]</span><br></pre></td></tr></table></figure></p>
-<p>这个虽然能满足需求，但是感觉读取的时候不够灵活。比如我想直接获取id的值吗，前提是我必须知道配置文件各项的准确顺序。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">In [<span class="number">31</span>]: v[<span class="number">0</span>][<span class="string">'id'</span>]</span><br><span class="line">Out[<span class="number">31</span>]: <span class="string">u'5'</span></span><br></pre></td></tr></table></figure></p>
-<h2><span id="3-使用xml格式">3. 使用xml格式</span></h2><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="php"><span class="meta">&lt;?</span>xml version=<span class="string">"1.0"</span> encoding=<span class="string">"utf-8"</span><span class="meta">?&gt;</span></span></span><br><span class="line"><span class="tag">&lt;<span class="name">config</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">id</span>&gt;</span>5<span class="tag">&lt;/<span class="name">id</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">port</span>&gt;</span>22<span class="tag">&lt;/<span class="name">port</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">node</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">ip</span>&gt;</span>1.1.1.1<span class="tag">&lt;/<span class="name">ip</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">pwd</span>&gt;</span>123456<span class="tag">&lt;/<span class="name">pwd</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">node</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">node</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">ip</span>&gt;</span>1.1.1.2<span class="tag">&lt;/<span class="name">ip</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">pwd</span>&gt;</span>123456<span class="tag">&lt;/<span class="name">pwd</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">node</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">node</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">ip</span>&gt;</span>2.2.2.1<span class="tag">&lt;/<span class="name">ip</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">pwd</span>&gt;</span>123456<span class="tag">&lt;/<span class="name">pwd</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">node</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">config</span>&gt;</span></span><br></pre></td></tr></table></figure>
-<p>可以满足需求，但是比起前两种稍显臃肿。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line">$ cat config.py</span><br><span class="line"><span class="comment">#! /usr/bin/env python</span></span><br><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> xml.etree.ElementTree <span class="keyword">as</span> ET</span><br><span class="line"></span><br><span class="line">id = <span class="keyword">None</span></span><br><span class="line">port = <span class="keyword">None</span></span><br><span class="line">ipset = []</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">load_config</span><span class="params">(file)</span>:</span></span><br><span class="line">    root = ET.parse(file).getroot()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">global</span> id, port</span><br><span class="line">    id = root.find(<span class="string">'id'</span>).text</span><br><span class="line">    port = root.find(<span class="string">'port'</span>).text</span><br><span class="line"></span><br><span class="line">    nodes = root.findall(<span class="string">'node'</span>)</span><br><span class="line">    <span class="keyword">for</span> node <span class="keyword">in</span> nodes:</span><br><span class="line">        d = &#123;&#125;</span><br><span class="line">        d[<span class="string">'ip'</span>] = node.find(<span class="string">'ip'</span>).text</span><br><span class="line">        d[<span class="string">'pwd'</span>] = node.find(<span class="string">'pwd'</span>).text</span><br><span class="line">        ipset.append(d)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line">    <span class="keyword">print</span> id</span><br><span class="line">    <span class="keyword">print</span> port</span><br><span class="line">    <span class="keyword">print</span> ipset</span><br><span class="line">    load_config(<span class="string">'config.xml'</span>)</span><br><span class="line">    <span class="keyword">print</span> id</span><br><span class="line">    <span class="keyword">print</span> port</span><br><span class="line">    <span class="keyword">print</span> ipset</span><br><span class="line"></span><br><span class="line">$ ./config.py</span><br><span class="line"><span class="keyword">None</span></span><br><span class="line"><span class="keyword">None</span></span><br><span class="line">[]</span><br><span class="line"><span class="number">5</span></span><br><span class="line"><span class="number">22</span></span><br><span class="line">[&#123;<span class="string">'ip'</span>: <span class="string">'1.1.1.1'</span>, <span class="string">'pwd'</span>: <span class="string">'123456'</span>&#125;, &#123;<span class="string">'ip'</span>: <span class="string">'1.1.1.2'</span>, <span class="string">'pwd'</span>: <span class="string">'123456'</span>&#125;, &#123;<span class="string">'ip'</span>: <span class="string">'2.2.2.1'</span>, <span class="string">'pwd'</span>: <span class="string">'123456'</span>&#125;]</span><br></pre></td></tr></table></figure></p>
-<p>以上是本人自己理解，不知是否有误，如果针对这个问题还有更好的选择，还望大家多多指教！！</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">python</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/06/03/python-parse-ini-json-xml-configuration/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-python-telnetlib-operate-network-device" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/05/22/python-telnetlib-operate-network-device/">使用telnetlib与网络设备交互</a>
-    </h1>
-  
-
-        
-        <a href="/2013/05/22/python-telnetlib-operate-network-device/" class="archive-article-date">
-  	<time datetime="2013-05-22T08:00:43.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-05-22</time>
+        <a href="/2022/01/16/sparksql-cluster/" class="archive-article-date">
+  	<time datetime="2022-01-16T03:29:16.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-01-16</time>
 </a>
 
 
@@ -837,116 +298,17 @@
     <div class="article-entry" itemprop="articleBody">
       
         <!-- toc -->
+<ul>
+<li><a href="#问题">问题</a></li>
+<li><a href="#解决">解决</a></li>
+</ul>
 <!-- tocstop -->
-<p>需求：自动登录到交换机或路由器，抓取acl规则命中统计信息。</p>
-<p>Python可以使用telnetlib来方便的完成与网络设备的telnet交互，先看个简单的demo。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> sys</span><br><span class="line"><span class="keyword">import</span> telnetlib</span><br><span class="line"></span><br><span class="line">HOST = <span class="string">"localhost"</span></span><br><span class="line">user = raw_input(<span class="string">"Enter your remote account: "</span>)</span><br><span class="line">password = raw_input(<span class="string">"Enter your password: "</span>)</span><br><span class="line"></span><br><span class="line">tn = telnetlib.Telnet(HOST)</span><br><span class="line"></span><br><span class="line">tn.read_until(<span class="string">"login: "</span>)</span><br><span class="line">tn.write(user + <span class="string">"n"</span>)</span><br><span class="line"><span class="keyword">if</span> password:</span><br><span class="line">    tn.read_until(<span class="string">"Password: "</span>)</span><br><span class="line">    tn.write(password + <span class="string">"n"</span>)</span><br><span class="line"></span><br><span class="line">tn.write(<span class="string">"lsn"</span>)</span><br><span class="line">tn.write(<span class="string">"exitn"</span>)</span><br><span class="line"></span><br><span class="line"><span class="keyword">print</span> tn.read_all()</span><br></pre></td></tr></table></figure></p>
-<p>这样就可以获取远程设备上的信息了，很简单。不过这里可能有个问题，就是当输出信息比较多时，如：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span>show security acl-group hits global</span><br><span class="line">Rule Interface Hits Total Percentage</span><br><span class="line">-------------------------------------------------------------------------</span><br><span class="line">1 pos192_6/12 0 838241480577 0.00%</span><br><span class="line">pos192_6/11 155468324 604476632172 0.03%</span><br><span class="line">pos192_6/10 0 829312701821 0.00%</span><br><span class="line">pos192_6/9 145907985 559951471369 0.03%</span><br><span class="line">pos192_5/12 270735061 566305900680 0.05%</span><br><span class="line">pos192_5/11 0 835172285111 0.00%</span><br><span class="line">pos192_5/10 129708863 422783963455 0.03%</span><br><span class="line">pos192_5/9 0 808295923141 0.00%</span><br><span class="line">pos192_4/12 0 813428777843 0.00%</span><br><span class="line">pos192_4/11 93424461 458341514305 0.02%</span><br><span class="line">pos192_4/10 0 0 0.00%</span><br><span class="line">pos192_4/9 0 0 0.00%</span><br><span class="line">pos192_3/10 0 698106360004 0.00%</span><br><span class="line">pos192_3/9 32986094 361399485011 0.01%</span><br><span class="line">pos192_2/9 0 716388812751 0.00%</span><br><span class="line">pos192_1/10 0 821077292172 0.00%</span><br><span class="line">pos192_1/9 1065993977 1235032965369 0.09%</span><br><span class="line">pos192_2/10 713658786 1560654454583 0.05%</span><br><span class="line">2 pos192_6/12 0 838241480577 0.00%</span><br><span class="line">pos192_6/10 0 829312701821 0.00%</span><br><span class="line">--More—</span><br></pre></td></tr></table></figure></p>
-<p>这种情况下，输出信息是不完整的，所以需要模拟敲空格的过程。但是我应该模拟敲多少次空格呢？？？先看代码。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> sys</span><br><span class="line"><span class="keyword">import</span> time</span><br><span class="line"><span class="keyword">import</span> telnetlib</span><br><span class="line"></span><br><span class="line">user = sys.argv[<span class="number">1</span>]</span><br><span class="line">passwd = sys.argv[<span class="number">2</span>]</span><br><span class="line">ip = sys.argv[<span class="number">3</span>]</span><br><span class="line">cmd = sys.argv[<span class="number">4</span>]</span><br><span class="line"></span><br><span class="line">tn = telnetlib.Telnet(ip)</span><br><span class="line">tn.read_until(<span class="string">'Username:'</span>)</span><br><span class="line">tn.write(user + <span class="string">"n"</span>)</span><br><span class="line">tn.read_until(<span class="string">'Password:'</span>)</span><br><span class="line">tn.write(passwd + <span class="string">"n"</span>)</span><br><span class="line">tn.read_until(<span class="string">'&gt;'</span>)</span><br><span class="line">tn.write(<span class="string">"enn"</span>)</span><br><span class="line">tn.read_until(<span class="string">"Password:"</span>)</span><br><span class="line">tn.write(passwd + <span class="string">"n"</span>)</span><br><span class="line">tn.read_until(<span class="string">'#'</span>)</span><br><span class="line"></span><br><span class="line">tn.write(cmd + <span class="string">"n"</span>)</span><br><span class="line"><span class="keyword">while</span> <span class="keyword">True</span>:</span><br><span class="line">    ret = tn.read_until(<span class="string">'#'</span>, <span class="number">1</span>)</span><br><span class="line">    <span class="keyword">print</span> ret</span><br><span class="line">    <span class="keyword">if</span> <span class="string">'#'</span> <span class="keyword">in</span> ret:</span><br><span class="line">        <span class="keyword">break</span></span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> range(<span class="number">10</span>):</span><br><span class="line">            tn.write(<span class="string">' '</span>)</span><br><span class="line">            time.sleep(<span class="number">0.1</span>)</span><br><span class="line"></span><br><span class="line">tn.close()</span><br></pre></td></tr></table></figure></p>
-<p>我这里的处理方法是使用read_until方法，每次判断返回的信息是否包含命令行提示符“#”，如果不包含，说明信息还没输出完整，“敲一个空格”；如果包含，则说明信息已经输出完整。read_until是阻塞式的，所以这里加了个超时值。经测试，在输出比较多时，一次输入10个空格可以提高效率。</p>
-<p>另外一个问题是，返回的信息里是含有more以及^H、^M这些额外的字符的，可以借助col和grep命令等自行处理一下，所以最终的使用方法是：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span>python telnet.py winway 123456 192.168.101.37 'show security acl-group hits global' | col -b</span><br></pre></td></tr></table></figure></p>
-<p>这样我们就获得了所需要的信息了，接下来就是针对信息进行文本处理了。如果针对这个需求，哪位有更elegant的解决方法，还望不吝赐教^_^</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">python</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">telent</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/05/22/python-telnetlib-operate-network-device/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-fork-and-shell-inherit-environment-variable" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/05/14/fork-and-shell-inherit-environment-variable/">关于fork以及子shell继承环境变量的疑问</a>
-    </h1>
-  
-
-        
-        <a href="/2013/05/14/fork-and-shell-inherit-environment-variable/" class="archive-article-date">
-  	<time datetime="2013-05-14T04:00:41.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-05-14</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<!-- tocstop -->
-<p>在shell里，有这样的说法</p>
+<h2><span id="问题">问题</span></h2><p>使用Spark-sql执行sql不支持cluster模式，导致driver只能启动在提交机器，进而占用提交机大量内存。</p>
 <blockquote>
-<p>在我目前这个shell的情况下，去启用另一个新的shell，新的那个shell 就是子程序啦！在一般的状态下，父程序的自定义变量是无法在子程序内使用的。但是透过export将变量变成环境变量后，就能够在子程序底下应用了</p>
+<p>Exception in thread “main” org.apache.spark.SparkException: Cluster deploy mode is not applicable to Spark SQL shell.</p>
 </blockquote>
-<p>但是在C里，父进程调用fork()创建子进程，子进程成为父进程的副本，复制父进程的所有进程内存到其内存地址空间中。父、子进程的“数据段”，“堆栈段”和“代码段”完全相同，即子进程中的每一个字节都和父进程一样。fork之后，从 fork 处开始父子进程并行执行，公有变量的值也在 fork 处被复制（当时的值），只不过父子进程分别使用各自的复本（而非共享）。</p>
-<p>我对上面的两段话就有点不理解啦，觉得有点矛盾，应该子shell自动继承父shell的变量啊。直到今天意识到忽略了一点。在开启子shell的时候，是fork+exec的模式，系统调用exec是以新的进程去代替原来的进程，原进程的代码段，数据段，堆栈段被新的进程所代替，所以父进程的变量是不会再存在于子进程了。而且exec可以接受一个指向环境字符串指针数组的指针，意思是把新的环境变量指定到新的进程中去，若不提供该指针则将原来的环境变量（即父进程的）默认为新进程的环境变量。</p>
-<p>这样，子shell只能继承父shell的环境变量，并且子shell对环境变量的修改不会影响到父shell就可以理解了。不知道以上的理解是否合理，还望高手指教！</p>
+<h2><span id="解决">解决</span></h2><p>开发一个spark程序，功能是读取sql内容，并逐个执行。使用spark-submit提交执行时设置为cluster模式。代码如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> cn.winway.data;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> org.apache.spark.SparkConf;</span><br><span class="line"><span class="keyword">import</span> org.apache.spark.sql.SparkSession;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.util.ArrayList;</span><br><span class="line"><span class="keyword">import</span> java.util.HashMap;</span><br><span class="line"><span class="keyword">import</span> java.util.List;</span><br><span class="line"><span class="keyword">import</span> java.util.Map;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * * <span class="doctag">@Project</span>: spark_sql_executor</span></span><br><span class="line"><span class="comment"> * * <span class="doctag">@ClassName</span>: SparkSqlExecutor</span></span><br><span class="line"><span class="comment"> * * <span class="doctag">@Description</span>: spark-submit执行sql，使用cluster模式</span></span><br><span class="line"><span class="comment"> * * 参考资料</span></span><br><span class="line"><span class="comment"> * * https://blog.csdn.net/qq_16038125/article/details/86682466</span></span><br><span class="line"><span class="comment"> * * https://www.zhihu.com/question/454650801/answer/1836054040</span></span><br><span class="line"><span class="comment"> * * https://blog.csdn.net/zhiwenshow/article/details/107105339</span></span><br><span class="line"><span class="comment"> * * https://blog.csdn.net/qq_42567973/article/details/119568448</span></span><br><span class="line"><span class="comment"> * * <span class="doctag">@Author</span>: winway1988@163.com</span></span><br><span class="line"><span class="comment"> * * <span class="doctag">@Create</span>: 2022-01-11 16:58</span></span><br><span class="line"><span class="comment"> **/</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SparkSqlExecutor</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> HashMap&lt;String, String&gt; argsMap = <span class="keyword">new</span> HashMap&lt;&gt;();</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> String fileContent;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 参数解析</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">parseArgs</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        String argType = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (String arg : args) &#123;</span><br><span class="line">            System.out.println(<span class="string">"====&gt;&gt; arg: "</span> + arg);</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (<span class="string">"--hivevar"</span>.equals(arg) || <span class="string">"--hiveconf"</span>.equals(arg)) &#123;</span><br><span class="line">                argType = <span class="string">"ARG"</span>;</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (<span class="string">"-f"</span>.equals(arg)) &#123;</span><br><span class="line">                argType = <span class="string">"FILE"</span>;</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (<span class="string">"ARG"</span>.equals(argType)) &#123;</span><br><span class="line">                String[] argSplit = arg.split(<span class="string">"="</span>, <span class="number">2</span>);</span><br><span class="line">                argsMap.put(argSplit[<span class="number">0</span>], argSplit[<span class="number">1</span>]);</span><br><span class="line"></span><br><span class="line">                argType = <span class="keyword">null</span>;</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (<span class="string">"FILE"</span>.equals(argType)) &#123;</span><br><span class="line">                fileContent = arg;</span><br><span class="line"></span><br><span class="line">                argType = <span class="keyword">null</span>;</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> Exception(<span class="string">"Error args: "</span> + arg);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 删除注释</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">static</span> String <span class="title">deleteComment</span><span class="params">(String sqlFileContent)</span> </span>&#123;</span><br><span class="line">        StringBuilder sb = <span class="keyword">new</span> StringBuilder();</span><br><span class="line"></span><br><span class="line">        String[] sqlFileContentLine = sqlFileContent.split(<span class="string">"\n"</span>);</span><br><span class="line">        <span class="keyword">for</span> (String line : sqlFileContentLine) &#123;</span><br><span class="line">            sb.append(line.replaceAll(<span class="string">"^[ \t]*--.*$"</span>, <span class="string">""</span>).replaceAll(<span class="string">"--[^'\"]*$"</span>, <span class="string">""</span>));</span><br><span class="line">            sb.append(<span class="string">"\n"</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> sb.toString();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 替换变量</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">static</span> String <span class="title">substituteVar</span><span class="params">(String sqlFileContent)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">for</span> (Map.Entry&lt;String, String&gt; e : argsMap.entrySet()) &#123;</span><br><span class="line">            String varName = e.getKey();</span><br><span class="line">            String varValue = e.getValue();</span><br><span class="line"></span><br><span class="line">            sqlFileContent = sqlFileContent.replace(<span class="string">"$&#123;hivevar:"</span> + varName + <span class="string">"&#125;"</span>, varValue);</span><br><span class="line">            sqlFileContent = sqlFileContent.replace(<span class="string">"$&#123;hiveconf:"</span> + varName + <span class="string">"&#125;"</span>, varValue);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> sqlFileContent;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 根据指定分隔符分割sql，忽略在引号里面的分隔符</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> List&lt;String&gt; <span class="title">splitSql</span><span class="params">(String str, <span class="keyword">char</span> delimiter)</span> </span>&#123;</span><br><span class="line">        List&lt;String&gt; tokensList = <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br><span class="line">        <span class="keyword">boolean</span> inQuotes = <span class="keyword">false</span>;</span><br><span class="line">        <span class="keyword">boolean</span> inSingleQuotes = <span class="keyword">false</span>;</span><br><span class="line"></span><br><span class="line">        StringBuilder b = <span class="keyword">new</span> StringBuilder();</span><br><span class="line">        <span class="keyword">char</span>[] chars = str.toCharArray();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">int</span> idx = <span class="number">0</span>;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">char</span> c : chars) &#123; <span class="comment">// 逐个字符遍历</span></span><br><span class="line">            <span class="keyword">char</span> flag = <span class="number">0</span>;</span><br><span class="line">            <span class="keyword">if</span> (idx &gt; <span class="number">0</span>) &#123;</span><br><span class="line">                flag = chars[idx - <span class="number">1</span>]; <span class="comment">// 前一个字符</span></span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">if</span> (c == delimiter) &#123; <span class="comment">// 遇到分隔符</span></span><br><span class="line">                <span class="keyword">if</span> (inQuotes) &#123;</span><br><span class="line">                    b.append(c);</span><br><span class="line">                &#125; <span class="keyword">else</span> <span class="keyword">if</span> (inSingleQuotes) &#123;</span><br><span class="line">                    b.append(c);</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    tokensList.add(b.toString());</span><br><span class="line">                    b = <span class="keyword">new</span> StringBuilder();</span><br><span class="line">                &#125;</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (c == <span class="string">'\"'</span> &amp;&amp; <span class="string">'\\'</span> != flag &amp;&amp; !inSingleQuotes) &#123; <span class="comment">// 遇到双引号</span></span><br><span class="line">                inQuotes = !inQuotes;</span><br><span class="line">                b.append(c);</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (c == <span class="string">'\''</span> &amp;&amp; <span class="string">'\\'</span> != flag &amp;&amp; !inQuotes) &#123; <span class="comment">// 遇到单引号</span></span><br><span class="line">                inSingleQuotes = !inSingleQuotes;</span><br><span class="line">                b.append(c);</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                b.append(c);</span><br><span class="line">            &#125;</span><br><span class="line">            idx++;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        tokensList.add(b.toString());</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> tokensList;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        SparkConf sparkConf = <span class="keyword">new</span> SparkConf();</span><br><span class="line"></span><br><span class="line">        sparkConf.set(<span class="string">"spark.serializer"</span>, <span class="string">"org.apache.spark.serializer.KryoSerializer"</span>)</span><br><span class="line">                .set(<span class="string">"spark.sql.codegen"</span>, <span class="string">"true"</span>)</span><br><span class="line">                .set(<span class="string">"spark.rdd.compress"</span>, <span class="string">"true"</span>)</span><br><span class="line">                .set(<span class="string">"spark.sql.catalogImplementation"</span>, <span class="string">"hive"</span>)</span><br><span class="line">                .set(<span class="string">"hive.support.concurrency"</span>, <span class="string">"true"</span>);</span><br><span class="line"></span><br><span class="line">        SparkSession ss = SparkSession.builder()</span><br><span class="line">                .config(sparkConf)</span><br><span class="line">                .enableHiveSupport()</span><br><span class="line">                .getOrCreate();</span><br><span class="line"></span><br><span class="line">        parseArgs(args);</span><br><span class="line"></span><br><span class="line">        System.out.println(<span class="string">"====&gt;&gt; argsMap: "</span>);</span><br><span class="line">        System.out.println(argsMap);</span><br><span class="line">        System.out.println(<span class="string">"====&gt;&gt; fileContent: "</span>);</span><br><span class="line">        System.out.println(fileContent);</span><br><span class="line"></span><br><span class="line">        String sqlFileContent = deleteComment(fileContent);</span><br><span class="line"></span><br><span class="line">        System.out.println(<span class="string">"====&gt;&gt; sqlFileContent: "</span>);</span><br><span class="line">        System.out.println(sqlFileContent);</span><br><span class="line"></span><br><span class="line">        sqlFileContent = substituteVar(sqlFileContent);</span><br><span class="line"></span><br><span class="line">        System.out.println(<span class="string">"====&gt;&gt; sqlFileContent: "</span>);</span><br><span class="line">        System.out.println(sqlFileContent);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (String sql : splitSql(sqlFileContent, <span class="string">';'</span>)) &#123;</span><br><span class="line">            System.out.println(<span class="string">"====&gt;&gt; sql: "</span>);</span><br><span class="line">            System.out.println(sql.trim().length());</span><br><span class="line">            System.out.println(sql.trim());</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (sql.trim().length() &gt; <span class="number">0</span>) &#123;</span><br><span class="line">                ss.sql(sql.trim());</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        ss.stop();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>提交命令：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">spark-submit \</span><br><span class="line">    --class cn.winway.data.SparkSqlExecutor \</span><br><span class="line">    --master yarn \</span><br><span class="line">    --deploy-mode cluster \</span><br><span class="line">    --name "SparkSqlExecutor" \</span><br><span class="line">    --driver-cores 1  \</span><br><span class="line">    --driver-memory 1G \</span><br><span class="line">    --executor-cores 2  \</span><br><span class="line">    --executor-memory 2G \</span><br><span class="line">    --conf spark.executor.memoryOverhead=1G \</span><br><span class="line">    --conf spark.dynamicAllocation.enabled=true \</span><br><span class="line">    --conf spark.shuffle.service.enabled=true \</span><br><span class="line">    --conf spark.dynamicAllocation.minExecutors=10 \</span><br><span class="line">    --conf spark.dynamicAllocation.maxExecutors=400 \</span><br><span class="line">    --conf spark.dynamicAllocation.initialExecutors=10 \</span><br><span class="line">    --conf spark.sql.shuffle.partitions=500 \</span><br><span class="line">    --conf spark.sql.files.maxPartitionBytes=268435456 \</span><br><span class="line">    --conf spark.default.parallelism=500 \</span><br><span class="line">    --conf spark.sql.broadcastTimeout=900 \</span><br><span class="line">    --conf spark.ui.showConsoleProgress=true \</span><br><span class="line">    --conf spark.sql.hive.caseSensitiveInferenceMode=NEVER_INFER \</span><br><span class="line">    --conf spark.sql.adaptive.enabled=false \</span><br><span class="line">    --conf spark.debug.maxToStringFields=100 \</span><br><span class="line">    --conf spark.port.maxRetries=300 \</span><br><span class="line">    spark_sql_executor-1.0-SNAPSHOT.jar \</span><br><span class="line">    --hivevar etl_time="2022-01-11 11:11:11" \</span><br><span class="line">    --hivevar etl_date=2022-01-11 \</span><br><span class="line">    --hivevar rpt_date="2022-01-11" \</span><br><span class="line">    --hivevar year=2022 \</span><br><span class="line">    --hivevar month=2022-01 \</span><br><span class="line">    --hivevar hour="2022-01-11 11" \</span><br><span class="line">    -f "$(cat test.hql)"</span><br></pre></td></tr></table></figure></p>
 
       
 
@@ -960,7 +322,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">shell</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">spark</a>
         		</li>
       		
 		</ul>
@@ -972,7 +334,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
         		</li>
       		
 		</ul>
@@ -981,7 +343,7 @@
 
       
         <p class="article-more-link">
-          <a class="article-more-a" href="/2013/05/14/fork-and-shell-inherit-environment-variable/">展开全文 >></a>
+          <a class="article-more-a" href="/2022/01/16/sparksql-cluster/">展开全文 >></a>
         </p>
       
 
@@ -1011,7 +373,7 @@
 
 
   
-    <article id="post-etc-shells-file-usage" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+    <article id="post-hs2-gc" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
 
@@ -1021,13 +383,13 @@
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2013/05/14/etc-shells-file-usage/">/etc/shells文件用途</a>
+      <a class="article-title" href="/2022/01/16/hs2-gc/">HiveServer2 gc问题引发的幽灵问题</a>
     </h1>
   
 
         
-        <a href="/2013/05/14/etc-shells-file-usage/" class="archive-article-date">
-  	<time datetime="2013-05-14T00:50:15.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-05-14</time>
+        <a href="/2022/01/16/hs2-gc/" class="archive-article-date">
+  	<time datetime="2022-01-16T02:24:09.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-01-16</time>
 </a>
 
 
@@ -1036,110 +398,16 @@
     
     <div class="article-entry" itemprop="articleBody">
       
-        <p>一直对/etc/shells这个文件的作用不是太清楚，最近抽时间查了查，总结如下。</p>
-<!-- toc -->
-<!-- tocstop -->
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> man shells</span><br><span class="line">SHELLS(5) Linux Programmer’s Manual SHELLS(5)</span><br><span class="line">NAME</span><br><span class="line">shells - pathnames of valid login shells</span><br><span class="line">DESCRIPTION</span><br><span class="line">/etc/shells is a text file which contains the full pathnames of valid login shells.</span><br><span class="line">This file is consulted by chsh(1) and available to be queried by other programs.</span><br><span class="line">Be aware that there are programs which consult this file to find out if a user is a</span><br><span class="line">normal user. E.g.: ftp daemons traditionally disallow access to users with shells</span><br><span class="line">not included in this file.</span><br><span class="line">EXAMPLE</span><br><span class="line">/etc/shells may contain the following paths:</span><br><span class="line">/bin/sh</span><br><span class="line">/bin/csh</span><br><span class="line">FILES</span><br><span class="line">/etc/shells</span><br><span class="line">SEE ALSO</span><br><span class="line">chsh(1), getusershell(3)</span><br><span class="line">1993-11-21 SHELLS(5)</span><br></pre></td></tr></table></figure>
-<p>/etc/shells是一个有效登陆shell的列表，在调用chsh改变登陆shell时，会查询这个文件。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">[root@winway ~]# cat /etc/shells</span><br><span class="line">/bin/sh</span><br><span class="line">/bin/bash</span><br><span class="line">/sbin/nologin</span><br><span class="line">/bin/tcsh</span><br><span class="line">/bin/csh</span><br><span class="line">/bin/ksh</span><br></pre></td></tr></table></figure></p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">[winway@winway ~]$ chsh</span><br><span class="line">Changing shell for winway.</span><br><span class="line">口令：</span><br><span class="line">New shell [/bin/bash]: /bin/date</span><br><span class="line">chsh: "/bin/date" is not listed in /etc/shells.</span><br><span class="line">chsh: use -l option to see list</span><br></pre></td></tr></table></figure>
-<p>由于/bin/date/不在/etc/shells里，所以普通用户调用chsh失败。root调用会出现warning。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">[root@winway ~]# echo '/bin/date' &gt;&gt;/etc/shells</span><br><span class="line"></span><br><span class="line">[winway@winway ~]$ chsh -l</span><br><span class="line">/bin/sh</span><br><span class="line">/bin/bash</span><br><span class="line">/sbin/nologin</span><br><span class="line">/bin/tcsh</span><br><span class="line">/bin/csh</span><br><span class="line">/bin/ksh</span><br><span class="line">/bin/date</span><br><span class="line">[winway@winway ~]$ chsh</span><br><span class="line">Changing shell for winway.</span><br><span class="line">口令：</span><br><span class="line">New shell [/bin/bash]: /bin/date</span><br><span class="line">Shell changed.</span><br><span class="line">[winway@winway ~]$ grep 'winway' /etc/passwd</span><br><span class="line">winway:x:500:500:ww,isrc,no,no:/home/winway:/bin/date</span><br></pre></td></tr></table></figure>
-<p>另外一些程序会根据这个文件来判断一个用户是否是有效用户，例如FTP服务会阻止那些shell不在/etc/shells里的用户登陆。详见<a href="http://bbs.chinaunix.net/thread-1200421-1-1.html" target="_blank" rel="noopener">http://bbs.chinaunix.net/thread-1200421-1-1.html</a></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/05/14/etc-shells-file-usage/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-server-batch-manage-tool-introduction" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/05/11/server-batch-manage-tool-introduction/">服务器批量管理工具</a>
-    </h1>
-  
-
-        
-        <a href="/2013/05/11/server-batch-manage-tool-introduction/" class="archive-article-date">
-  	<time datetime="2013-05-11T06:33:35.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-05-11</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>记录几个现成的批量管理工具，留做备用。</p>
-<!-- toc -->
+        <!-- toc -->
 <ul>
-<li><a href="#1-dsh-dancers-shell-distributed-shell">1. dsh - dancer’s shell / distributed shell</a></li>
-<li><a href="#2-pssh-parallel-ssh">2. pssh - Parallel ssh</a></li>
-<li><a href="#3-pdsh">3. pdsh</a></li>
-<li><a href="#4clusterssh">4.ClusterSSH</a></li>
-<li><a href="#5-mussh">5. mussh</a></li>
-<li><a href="#6-saltstack">6. SaltStack</a></li>
+<li><a href="#问题">问题</a></li>
+<li><a href="#排查">排查</a></li>
 </ul>
 <!-- tocstop -->
-<h2><span id="1-dsh-dancers-shell-distributed-shell">1. dsh - dancer’s shell / distributed shell</span></h2><p>dsh是专为在远程系统上运行shell命令设计的，可以简化对大量计算机的操作。尽管很方便，但是dsh有一个重大的缺陷：它无法复制文件。如果希望把数据部署到多台计算机上，就必须编写一个新脚本，利用发行版的基础设施（比如 rsync），或者考虑使用更健壮的工具（比如 Parallel SSH (pssh)）。<br><a href="http://xukaizijian.blog.163.com/blog/static/17043311920110319301199/" target="_blank" rel="noopener">http://xukaizijian.blog.163.com/blog/static/17043311920110319301199/</a></p>
-<h2><span id="2-pssh-parallel-ssh">2. pssh - Parallel ssh</span></h2><p>与dsh一样，pssh的目标也是简化大量计算机的管理。除了具备dsh的所有功能之外，pssh还可以把文件从一组系统复制到中心服务器或反向复制，以及杀死一组系统上的进程。这个 shell 和它的底层库是用 Python 编写的，如果系统上已经安装了 Python 解释器和核心库，就很容易安装它。<br><a href="http://www.ibm.com/developerworks/cn/aix/library/au-spunix_remoteserver/index.html" target="_blank" rel="noopener">http://www.ibm.com/developerworks/cn/aix/library/au-spunix_remoteserver/index.html</a></p>
-<h2><span id="3-pdsh">3. pdsh</span></h2><p>pdsh可以在指定的一组机器上执行同一个命令。pdsh软件包还自带了pdcp命令，可以将文件拷贝到一组机器上。<br><a href="http://scmbob.org/parallel-distributed-shell.html" target="_blank" rel="noopener">http://scmbob.org/parallel-distributed-shell.html</a><br><a href="http://linux.die.net/man/1/pdsh" target="_blank" rel="noopener">http://linux.die.net/man/1/pdsh</a><br><a href="http://bbs.chinaunix.net/thread-2002080-1-1.html" target="_blank" rel="noopener">http://bbs.chinaunix.net/thread-2002080-1-1.html</a></p>
-<h2><span id="4clusterssh">4.ClusterSSH</span></h2><p>Cluster SSH是一个可以用来通过SSH协议同时管理多台远程计算机的工具。它非常适合用来快速配置一个集群中的所有运行相同服务和具备相同配置的计算机节点。<br><a href="http://os.51cto.com/art/201103/250014.htm" target="_blank" rel="noopener">http://os.51cto.com/art/201103/250014.htm</a></p>
-<h2><span id="5-mussh">5. mussh</span></h2><p>mussh是一款管理多主机的ssh软件，mussh可以让你把本地的脚本，在多台ssh目的机器上执行。<br><a href="http://rtxbc.blog.163.com/blog/static/1228936592010825105416832/" target="_blank" rel="noopener">http://rtxbc.blog.163.com/blog/static/1228936592010825105416832/</a></p>
-<h2><span id="6-saltstack">6. SaltStack</span></h2><p>Saltstack可以看做是func的增强版+Puppet的弱化版，使用Python编写，非常好用，可以快速基于EPEL部署。Salt 是一个开源的工具用来管理你的基础架构，可轻松管理成千上万台服务器。<br><a href="http://zhoulg.blog.51cto.com/48455/1140178" target="_blank" rel="noopener">http://zhoulg.blog.51cto.com/48455/1140178</a></p>
+<h2><span id="问题">问题</span></h2><p>数仓批处理任务有很多是使用TEZ引擎执行的，TEZ经常偶发一个报错，但是找不到具体的报错信息，而且重试基本能成功。<br>提交客户端只能看到以下信息。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">07-01-2022 13:31:29 CST - FAILED: Execution Error, return code 1 from org.apache.hadoop.hive.ql.exec.tez.TezTask</span><br><span class="line">07-01-2022 13:31:29 CST - Error: org.apache.hive.service.cli.HiveSQLException: Error while processing statement: FAILED: Execution Error, return code 1 from org.apache.hadoop.hive.ql.exec.tez.TezTask</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.Operation.toSQLException(Operation.java:380)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.SQLOperation.runQuery(SQLOperation.java:257)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.SQLOperation.access$800(SQLOperation.java:91)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.SQLOperation$BackgroundWork$1.run(SQLOperation.java:348)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.security.AccessController.doPrivileged(Native Method)</span><br><span class="line">07-01-2022 13:31:29 CST -   at javax.security.auth.Subject.doAs(Subject.java:422)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hadoop.security.UserGroupInformation.doAs(UserGroupInformation.java:1734)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.SQLOperation$BackgroundWork.run(SQLOperation.java:362)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.util.concurrent.FutureTask.run(FutureTask.java:266)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.lang.Thread.run(Thread.java:748) (state=08S01,code=1)</span><br></pre></td></tr></table></figure></p>
+<p>以下是对应时间点HiveServer2的日志报错信息。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">2022-01-07T13:31:27,255 ERROR [Thread-308969] exec.Task: Failed to execute tez graph.</span><br><span class="line">org.apache.tez.dag.api.SessionNotRunning: TezSession has already shutdown. No cluster diagnostics found.</span><br><span class="line">        at org.apache.tez.client.TezClient.waitTillReady(TezClient.java:1019) ~[tez-api-0.9.2.jar:0.9.2]</span><br><span class="line">        at org.apache.tez.client.TezClient.waitTillReady(TezClient.java:988) ~[tez-api-0.9.2.jar:0.9.2]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezSessionState.startSessionAndContainers(TezSessionState.java:396) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezSessionState.openInternal(TezSessionState.java:323) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezSessionPoolManager$TezSessionPoolSession.openInternal(TezSessionPoolManager.java:703) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezSessionState.open(TezSessionState.java:196) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezTask.updateSession(TezTask.java:303) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezTask.execute(TezTask.java:168) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.Task.executeTask(Task.java:199) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.TaskRunner.runSequential(TaskRunner.java:100) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.TaskRunner.run(TaskRunner.java:79) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">2022-01-07T13:31:29,241 ERROR [HiveServer2-Background-Pool: Thread-397923] ql.Driver: FAILED: Execution Error, return code 1 from org.apache.hadoop.hive.ql.exec.tez.TezTask</span><br><span class="line">2022-01-07T13:31:29,241  INFO [HiveServer2-Background-Pool: Thread-403158] hive.metastore: Closed a connection to metastore, current connections: 15</span><br><span class="line">2022-01-07T13:31:29,242  INFO [HiveServer2-Background-Pool: Thread-397923] hive.metastore: Closed a connection to metastore, current connections: 14</span><br><span class="line">2022-01-07T13:31:29,242  INFO [HiveServer2-Background-Pool: Thread-397923] ql.Driver: Completed executing command(queryId=hadoop_20220107131226_b26d6e21-7b1f-460c-b383-15a8541f57d4); Time taken: 1135.311 seconds</span><br><span class="line">2022-01-07T13:31:29,243  INFO [HiveServer2-Background-Pool: Thread-403158] hive.metastore: Opened a connection to metastore, current connections: 15</span><br><span class="line">2022-01-07T13:31:29,243 ERROR [HiveServer2-Background-Pool: Thread-397923] operation.Operation: Error running hive query: </span><br><span class="line">org.apache.hive.service.cli.HiveSQLException: Error while processing statement: FAILED: Execution Error, return code 1 from org.apache.hadoop.hive.ql.exec.tez.TezTask</span><br><span class="line">        at org.apache.hive.service.cli.operation.Operation.toSQLException(Operation.java:380) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hive.service.cli.operation.SQLOperation.runQuery(SQLOperation.java:257) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hive.service.cli.operation.SQLOperation.access$800(SQLOperation.java:91) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hive.service.cli.operation.SQLOperation$BackgroundWork$1.run(SQLOperation.java:348) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at java.security.AccessController.doPrivileged(Native Method) ~[?:1.8.0_151]</span><br><span class="line">        at javax.security.auth.Subject.doAs(Subject.java:422) ~[?:1.8.0_151]</span><br><span class="line">        at org.apache.hadoop.security.UserGroupInformation.doAs(UserGroupInformation.java:1734) ~[hadoop-common-2.7.2.jar:?]</span><br><span class="line">        at org.apache.hive.service.cli.operation.SQLOperation$BackgroundWork.run(SQLOperation.java:362) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511) ~[?:1.8.0_151]</span><br><span class="line">        at java.util.concurrent.FutureTask.run(FutureTask.java:266) ~[?:1.8.0_151]</span><br><span class="line">        at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149) [?:1.8.0_151]</span><br><span class="line">        at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624) [?:1.8.0_151]</span><br><span class="line">        at java.lang.Thread.run(Thread.java:748) [?:1.8.0_151]</span><br></pre></td></tr></table></figure></p>
+<p>由于报错信息中没有关键信息，甚至找不到application id，很难直接判断出问题根源。<br>但是怀疑，这种没法稳定复现的问题，大概率是触发了某个未知的瓶颈点引起的。</p>
+<h2><span id="排查">排查</span></h2><p>仔细翻看HiveServer2的日志，注意到以下日志信息。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220116111408.png" alt=""><br>而且一般在出现报错的时间点附近，也会出现这种长时间pause的日志，遂怀疑是因为HiveServer2长时间gc导致服务无响应。<br>对HiveServer2 gc参数进行调整，增加了以下参数，果然这个报错的出现频率大大降低。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">-XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:+UseCMSInitiatingOccupancyOnly -XX:CMSInitiatingOccupancyFraction=68 -XX:+CMSClassUnloadingEnabled -XX:+CMSParallelRemarkEnabled -XX:+UseCMSCompactAtFullCollection -XX:CMSFullGCsBeforeCompaction=3</span><br></pre></td></tr></table></figure></p>
 
       
 
@@ -1153,7 +421,15 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">批量管理</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">hive</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">tez</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">gc</a>
         		</li>
       		
 		</ul>
@@ -1165,7 +441,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
         		</li>
       		
 		</ul>
@@ -1174,7 +450,7 @@
 
       
         <p class="article-more-link">
-          <a class="article-more-a" href="/2013/05/11/server-batch-manage-tool-introduction/">展开全文 >></a>
+          <a class="article-more-a" href="/2022/01/16/hs2-gc/">展开全文 >></a>
         </p>
       
 
@@ -1206,7 +482,7 @@
   
   
     <nav id="page-nav">
-      <a class="extend prev" rel="prev" href="/page/11/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/10/">10</a><a class="page-number" href="/page/11/">11</a><span class="page-number current">12</span><a class="page-number" href="/page/13/">13</a><a class="extend next" rel="next" href="/page/13/">Next &raquo;</a>
+      <a class="extend prev" rel="prev" href="/page/11/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/10/">10</a><a class="page-number" href="/page/11/">11</a><span class="page-number current">12</span><a class="page-number" href="/page/13/">13</a><a class="page-number" href="/page/14/">14</a><span class="space">&hellip;</span><a class="page-number" href="/page/41/">41</a><a class="extend next" rel="next" href="/page/13/">Next &raquo;</a>
     </nav>
   
 
@@ -1328,11 +604,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1360,10 +636,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
@@ -1372,7 +644,63 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">storm</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">olap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">presto</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1385,10 +713,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">systemd</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1412,11 +736,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">备份</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hexo</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">github pages</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1428,15 +760,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">备份</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1452,27 +776,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1484,15 +796,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">手机号</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1520,43 +832,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">storm</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">datax</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">olap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">presto</a>
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1565,10 +853,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1588,23 +872,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1613,6 +885,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">doris</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
               </li>
              
               <li class="article-tag-list-item">
