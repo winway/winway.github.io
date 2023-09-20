@@ -154,6 +154,146 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-nagios-deploy-practice" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2013/11/16/nagios-deploy-practice/">Nagios部署实践</a>
+    </h1>
+  
+
+        
+        <a href="/2013/11/16/nagios-deploy-practice/" class="archive-article-date">
+  	<time datetime="2013-11-16T09:35:13.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-11-16</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>最近尝试了下Nagios，确实挺灵活，需要监控什么，自己动手写插件就行。什么是Nagios以及Nagios的安装就不再赘述，可以参考这里：</p>
+<ul>
+<li><a href="http://netsecurity.51cto.com/art/200706/48728.htm" target="_blank" rel="noopener">http://netsecurity.51cto.com/art/200706/48728.htm</a></li>
+<li><a href="http://tomas.blog.51cto.com/2660202/477956" target="_blank" rel="noopener">http://tomas.blog.51cto.com/2660202/477956</a></li>
+</ul>
+<p>本文就将部署Nagios的主要过程和遇到的问题总结一下。</p>
+<!-- toc -->
+<ul>
+<li><a href="#1-在被监控机上安装nrpe">1. 在被监控机上安装nrpe</a></li>
+<li><a href="#2-将定制的插件放到被监控机上并在被监控机的nrpecfg里定义command">2. 将定制的插件放到被监控机上，并在被监控机的nrpe.cfg里定义command</a></li>
+<li><a href="#3-针对被监控的主机和服务在监控机上进行配置">3. 针对被监控的主机和服务，在监控机上进行配置</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="1-在被监控机上安装nrpe">1. 在被监控机上安装nrpe</span></h2><p>批量安装脚本原理：将安装脚本install_nrpe.sh和安装包 scp到被监控机上（需要建立ssh信任）并执行。执行：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sh install.sh iplist install_nrpe.sh nrpe-2.15.tar.gz</span><br></pre></td></tr></table></figure></p>
+<p>便会批量在被监控机上安装并运行nrpe，其中iplist每行是一个ip地址。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">[winway@localhost auto_install]$ cat install.sh</span><br><span class="line"><span class="meta">#</span>! /bin/bash</span><br><span class="line"><span class="meta">#</span></span><br><span class="line"></span><br><span class="line">if [[ "$&#123;#@&#125;" -ne 3 ]]</span><br><span class="line">then</span><br><span class="line">    echo "Usage: $0 &lt;iplistfile&gt; &lt;installsh&gt; &lt;tarball&gt;"</span><br><span class="line">    exit</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">iplistfile="$1"</span><br><span class="line">installsh="$2"</span><br><span class="line">tarball="$3"</span><br><span class="line"></span><br><span class="line">DIR="/usr/local/src"</span><br><span class="line"></span><br><span class="line">exec 4&lt;&gt;"$iplistfile"</span><br><span class="line"></span><br><span class="line">n=0</span><br><span class="line">while read -u 4 ip</span><br><span class="line">do</span><br><span class="line">    echo "$&#123;ip&#125;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;"</span><br><span class="line">    ((n++))</span><br><span class="line">    (</span><br><span class="line">    scp -o ConnectTimeout=3 "$installsh" "$&#123;ip&#125;:$&#123;DIR&#125;" || &#123; echo "$ip: scp installsh error"; continue; &#125;</span><br><span class="line">    scp -o ConnectTimeout=3 "$tarball" "$&#123;ip&#125;:$&#123;DIR&#125;" || &#123; echo "$ip: scp tarball error"; continue; &#125;</span><br><span class="line">    ssh -o ConnectTimeout=3 "$ip" "bash $&#123;DIR&#125;/$(basename $&#123;installsh&#125;) $&#123;DIR&#125;/$(basename $&#123;tarball&#125;)" || &#123; echo "$ip: install error"; &#125;</span><br><span class="line">    ) &amp;</span><br><span class="line">done</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> wait all background processes to complete</span><br><span class="line">for ((i=1; i&lt;=n; i++))</span><br><span class="line">do</span><br><span class="line">    wait %$i</span><br><span class="line">done</span><br><span class="line"></span><br><span class="line">exec 4&gt;&amp;-</span><br></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br></pre></td><td class="code"><pre><span class="line">[winway@localhost auto_install]$ cat install_nrpe.sh</span><br><span class="line"><span class="meta">#</span>! /bin/bash</span><br><span class="line"><span class="meta">#</span></span><br><span class="line"></span><br><span class="line">if [[ "$&#123;#@&#125;" -ne 1 ]]</span><br><span class="line">then</span><br><span class="line">    echo "Usage: $0 &lt;tarball&gt;"</span><br><span class="line">    exit</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">tarball="$1"</span><br><span class="line"></span><br><span class="line">PATH=$PATH:/usr/sbin/</span><br><span class="line">export PATH</span><br><span class="line"></span><br><span class="line">groupadd nagios</span><br><span class="line">useradd -g nagios nagios</span><br><span class="line"></span><br><span class="line">if id oracle</span><br><span class="line">then</span><br><span class="line">    user=oracle</span><br><span class="line">    group=oinstall</span><br><span class="line">elif id admin</span><br><span class="line">then</span><br><span class="line">    user=admin</span><br><span class="line">    group=admin</span><br><span class="line">elif id smmc</span><br><span class="line">then</span><br><span class="line">    user=smmc</span><br><span class="line">    group=nagios</span><br><span class="line">else</span><br><span class="line">    user=nagios</span><br><span class="line">    group=nagios</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">cd "$(dirname $&#123;tarball&#125;)" || &#123; echo "cd error"; exit 1; &#125;</span><br><span class="line"></span><br><span class="line">tar -zxvf "$tarball"</span><br><span class="line"></span><br><span class="line">cd $&#123;tarball%.tar.gz&#125; || &#123; echo "cd error"; exit 2; &#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> --enable-command-args的作用是使nrpe支持传递参数</span><br><span class="line">./configure --prefix=/usr/local/nagios --enable-command-args --with-nrpe-user=$user --with-nrpe-group=$group || &#123; echo "configure error"; exit 3; &#125;</span><br><span class="line"></span><br><span class="line">make all || &#123; echo "make all error"; exit 4; &#125;</span><br><span class="line"></span><br><span class="line">make install-plugin || &#123; echo "make install-plugin error"; exit 5; &#125;</span><br><span class="line"></span><br><span class="line">make install-daemon || &#123; echo "make install-daemon error"; exit 6; &#125;</span><br><span class="line"></span><br><span class="line">make install-daemon-config || &#123; echo "make install-daemon-config error"; exit 7; &#125;</span><br><span class="line"></span><br><span class="line">cp -f /usr/local/nagios/etc/nrpe.cfg /usr/local/nagios/etc/nrpe.cfg.bk</span><br><span class="line"></span><br><span class="line">if ! grep '^[ \t]*allowed_hosts.*10.208.253.87' /usr/local/nagios/etc/nrpe.cfg &amp;&gt;/dev/null</span><br><span class="line">then</span><br><span class="line">    sed 's/^[ \t]*\(allowed_hosts.*\)/\1,10.208.253.87/' /usr/local/nagios/etc/nrpe.cfg.bk | \</span><br><span class="line">    sed 's/^[ \t]*dont_blame_nrpe=[01]/dont_blame_nrpe=1/' &gt;/usr/local/nagios/etc/nrpe.cfg</span><br><span class="line">else</span><br><span class="line">    sed 's/^[ \t]*dont_blame_nrpe=[01]/dont_blame_nrpe=1/' /usr/local/nagios/etc/nrpe.cfg.bk &gt;/usr/local/nagios/etc/nrpe.cfg</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">chown -R $user:$group /usr/local/nagios</span><br><span class="line"></span><br><span class="line">killall nrpe</span><br><span class="line"></span><br><span class="line">sleep 2</span><br><span class="line"></span><br><span class="line">nohup /usr/local/nagios/bin/nrpe -c /usr/local/nagios/etc/nrpe.cfg -4 -d &amp;&gt;/dev/null &amp;</span><br><span class="line"></span><br><span class="line">sleep 2</span><br><span class="line"></span><br><span class="line">if ps -ef | grep nrpe &amp;&gt;/dev/null</span><br><span class="line">then</span><br><span class="line">    echo "start successfully"</span><br><span class="line">else</span><br><span class="line">    echo "start failed"</span><br><span class="line">    exit 8</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">if [[ -f /etc/rc.d/boot.local ]]</span><br><span class="line">then</span><br><span class="line">    if ! grep 'nrpe' /etc/rc.d/boot.local &amp;&gt;/dev/null</span><br><span class="line">    then</span><br><span class="line">        echo "nohup /usr/local/nagios/bin/nrpe -c /usr/local/nagios/etc/nrpe.cfg -4 -d &amp;&gt;/dev/null &amp;" &gt;&gt;/etc/rc.d/boot.local</span><br><span class="line">    fi</span><br><span class="line">elif [[ -f /etc/rc.local ]]</span><br><span class="line">then</span><br><span class="line">    if ! grep 'nrpe' /etc/rc.local &amp;&gt;/dev/null</span><br><span class="line">    then</span><br><span class="line">        echo "nohup /usr/local/nagios/bin/nrpe -c /usr/local/nagios/etc/nrpe.cfg -4 -d &amp;&gt;/dev/null &amp;" &gt;&gt;/etc/rc.local</span><br><span class="line">    fi</span><br><span class="line">else</span><br><span class="line">    echo "Did not set self on"</span><br><span class="line">fi</span><br></pre></td></tr></table></figure>
+<p>为了验证是否成功在被监控机器上安装了nrpe，编写了验证脚本verify_nrpe.sh。内容如下：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">[winway@localhost auto_install]$ cat verify_nrpe.sh</span><br><span class="line"><span class="meta">#</span>! /bin/bash</span><br><span class="line"><span class="meta">#</span></span><br><span class="line"></span><br><span class="line">if [[ $&#123;#@&#125; -ne 1 ]]</span><br><span class="line">then</span><br><span class="line">    echo "Usage: $0 &lt;iplistfile&gt;"</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">iplistfile="$1"</span><br><span class="line"></span><br><span class="line">n=0</span><br><span class="line">while read ip</span><br><span class="line">do</span><br><span class="line">    echo "$ip"</span><br><span class="line">    /usr/local/nagios/libexec/check_nrpe -H $ip -t 3</span><br><span class="line">    [[ "$?" -ne 0 ]] &amp;&amp; echo "check $ip please"</span><br><span class="line">done &lt;"$1"</span><br></pre></td></tr></table></figure></p>
+<p>执行：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sh verify_nrpe.sh iplist</span><br></pre></td></tr></table></figure></p>
+<p>便可以查看哪些机器的nrpe在正常运行，哪些机器的nrpe有问题，可以方便的定位安装有问题的机器。</p>
+<p>回顾整个安装过程，还遇到了其他几个问题：</p>
+<ul>
+<li>部分机器没有安装openssl-devel包，导致configure报错找不到SSL libraries，从光盘上取得相应版本的openssl-devel包，使用pscp批量拷贝到目标机上，使用mussh批量安装，解决；</li>
+<li>部分机器的编译环境有问题，configure报错“c preprocessor /lib/cpp fails sanity check”、“no acceptable C compiler found in $PATH”、“C compiler annot create executables”，上网搜索了相关问题，没有找到太好的解决方法（我可不想重装gcc及相关pkg），就采用了一个取巧的方法，从具有相同操作系统的机器上，将成功安装的nrpe的相关文件夹，拷贝到有问题的机器上，解决；</li>
+<li>这个问题算是一个奇怪的问题，至今未解决，最后剩余16台机器死活装不上，原因是无法将安装包scp到被监控机器上。具体现象就是scp文件的时候，一直卡着不动，但是又不是所有文件都scp不成功，上面的install_nrpe.sh能scp成功， 但是nrpe-2.15.tar.gz就是scp不过去。我也尝试了rsync，nc，都不行，现象差不多。实在搞不定了，有空再说吧╮(╯▽╰)╭。<blockquote>
+<p>至此，基本在所有被监控机上成功安装并运行了nrpe。</p>
+</blockquote>
+</li>
+</ul>
+<p><strong>注意：这里在被监控机上只是安装了nrpe，并未安装nagios-plugins，因为所用到的插件都是我自己写的，所以安不安装nagios-plugins无所谓。</strong></p>
+<h2><span id="2-将定制的插件放到被监控机上并在被监控机的nrpecfg里定义command">2. 将定制的插件放到被监控机上，并在被监控机的nrpe.cfg里定义command</span></h2><p>为了监控服务，我总共编写了17个插件。插件的编写很简单，你可以用shell、python，甚至C，只要遵守插件编写的规范即可，具体插件编写的规范可以参考这里：<br><a href="http://www.ibm.com/developerworks/cn/aix/library/au-nagios/" target="_blank" rel="noopener">http://www.ibm.com/developerworks/cn/aix/library/au-nagios/</a><br>除了将编写的插件拷贝到被监控机上，还需要在被监控机上的nrpe的配置文件nrpe.cfg里定义检查命令，格式为：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">command[check_xxx]=/usr/local/nagios/libexec/check_xxx -a $ARG1$ -b $ARG2$ -c $ARG3$</span><br></pre></td></tr></table></figure></p>
+<p>可以在监控机上用<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">check_nrpe –H x.x.x.x –c check_xxx –a arg1 arg2 arg3</span><br></pre></td></tr></table></figure></p>
+<p>来验证是否能成功获取信息。<br>为了批量对被监控机的nrpe进行配置，编写了脚本config_nrpe.sh，内容为：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br></pre></td><td class="code"><pre><span class="line">[winway@localhost auto_install]$ cat config_nrpe.sh</span><br><span class="line"><span class="meta">#</span>! /bin/bash</span><br><span class="line"><span class="meta">#</span></span><br><span class="line"></span><br><span class="line">if [[ "$&#123;#@&#125;" -ne 1 ]]</span><br><span class="line">then</span><br><span class="line">    echo "Usage: $0 &lt;tarball&gt;"</span><br><span class="line">    exit</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">tarball="$1"</span><br><span class="line"></span><br><span class="line">if id oracle</span><br><span class="line">then</span><br><span class="line">    user=oracle</span><br><span class="line">    group=oinstall</span><br><span class="line">elif id admin</span><br><span class="line">then</span><br><span class="line">    user=admin</span><br><span class="line">    group=admin</span><br><span class="line">elif id smmc</span><br><span class="line">then</span><br><span class="line">    user=smmc</span><br><span class="line">    if id nagios</span><br><span class="line">    then</span><br><span class="line">        group=nagios</span><br><span class="line">    else</span><br><span class="line">        echo "Did not find valid group"</span><br><span class="line">    fi</span><br><span class="line">elif id nagios</span><br><span class="line">then</span><br><span class="line">    user=nagios</span><br><span class="line">    group=nagios</span><br><span class="line">else</span><br><span class="line">    echo "Did not find valid user"</span><br><span class="line">    exit 1</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">cd "$(dirname $&#123;tarball&#125;)" || &#123; echo "cd error"; exit 1; &#125;</span><br><span class="line"></span><br><span class="line">tar -zxvf "$tarball"</span><br><span class="line"></span><br><span class="line">cd $&#123;tarball%.tar.gz&#125; || &#123; echo "cd error"; exit 2; &#125;</span><br><span class="line"></span><br><span class="line">if [[ -d /usr/local/nagios/libexec/ ]]</span><br><span class="line">then</span><br><span class="line">    cp -f plugins/* /usr/local/nagios/libexec/</span><br><span class="line">else</span><br><span class="line">    echo "/usr/local/nagios/libexec/ does not exists"</span><br><span class="line">    exit 1</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">if [[ -f /usr/local/nagios/etc/nrpe.cfg ]]</span><br><span class="line">then</span><br><span class="line">    sed '/^command\[.*602/d' /usr/local/nagios/etc/nrpe.cfg &gt;nrpe.cfg.tmp</span><br><span class="line">    cat nrpe_cmd.cfg &gt;&gt;nrpe.cfg.tmp</span><br><span class="line">    mv -f nrpe.cfg.tmp /usr/local/nagios/etc/nrpe.cfg</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">chown -R $user:$group /usr/local/nagios</span><br><span class="line"></span><br><span class="line">killall nrpe</span><br><span class="line"></span><br><span class="line">sleep 2</span><br><span class="line"></span><br><span class="line">nohup /usr/local/nagios/bin/nrpe -c /usr/local/nagios/etc/nrpe.cfg -4 -d &amp;&gt;/dev/null &amp;</span><br><span class="line"></span><br><span class="line">sleep 2</span><br><span class="line"></span><br><span class="line">if ps -ef | grep nrpe &amp;&gt;/dev/null</span><br><span class="line">then</span><br><span class="line">    echo "start successfully"</span><br><span class="line">else</span><br><span class="line">    echo "start failed"</span><br><span class="line">    exit 8</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">if [[ -f /etc/rc.d/boot.local ]]</span><br><span class="line">then</span><br><span class="line">    if ! grep 'nrpe' /etc/rc.d/boot.local &amp;&gt;/dev/null</span><br><span class="line">    then</span><br><span class="line">        echo "nohup /usr/local/nagios/bin/nrpe -c /usr/local/nagios/etc/nrpe.cfg -4 -d &amp;&gt;/dev/null &amp;" &gt;&gt;/etc/rc.d/boot.local</span><br><span class="line">    fi</span><br><span class="line">elif [[ -f /etc/rc.local ]]</span><br><span class="line">then</span><br><span class="line">    if ! grep 'nrpe' /etc/rc.local &amp;&gt;/dev/null</span><br><span class="line">    then</span><br><span class="line">        echo "nohup /usr/local/nagios/bin/nrpe -c /usr/local/nagios/etc/nrpe.cfg -4 -d &amp;&gt;/dev/null &amp;" &gt;&gt;/etc/rc.local</span><br><span class="line">    fi</span><br><span class="line">else</span><br><span class="line">    echo "Did not set self on"</span><br><span class="line">fi</span><br></pre></td></tr></table></figure></p>
+<p>使用方法与批量安装类似：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sh install.sh iplist config_nrpe.sh nrpe-config.tar.gz</span><br></pre></td></tr></table></figure></p>
+<p>原理也是将配置用到的文件，如自定义插件，定义的命令以及配置脚本scp到被监控机器上并执行。</p>
+<blockquote>
+<p>至此，被监控机上的nrpe都进行了正确的配置，并正常运行。</p>
+</blockquote>
+<h2><span id="3-针对被监控的主机和服务在监控机上进行配置">3. 针对被监控的主机和服务，在监控机上进行配置</span></h2><p>需要将被监控机及其上的服务信息配置到Nagios中，由于机器较多所以需要自动生成hosts.cfg。自动生成hosts.cfg的脚本spawn_hosts.sh，内容如下：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">[winway@localhost auto_install]$ cat spawn_hosts.sh</span><br><span class="line"><span class="meta">#</span>! /bin/bash</span><br><span class="line"><span class="meta">#</span></span><br><span class="line"></span><br><span class="line">if [[ $&#123;#@&#125; -ne 1 ]]</span><br><span class="line">then</span><br><span class="line">    echo "Usage: $0 &lt;dir&gt;"</span><br><span class="line">    exit</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">DIR="$1"</span><br><span class="line">cd $DIR || &#123; echo "Enter $DIR failed"; exit; &#125;</span><br><span class="line"></span><br><span class="line">for f in *.lst</span><br><span class="line">do</span><br><span class="line">    type=$(basename $f)</span><br><span class="line">    type=$&#123;type%.*&#125;</span><br><span class="line">    members=""</span><br><span class="line">    echo "$f"</span><br><span class="line">    &#123;</span><br><span class="line">        while read address ip comment</span><br><span class="line">        do</span><br><span class="line">            echo -e "define host&#123;"</span><br><span class="line">            echo -e "\tuse\tlinux-server"</span><br><span class="line">            echo -e "\thost_name\t$&#123;type&#125;-$&#123;ip&#125;"</span><br><span class="line">            echo -e "\talias\t$address($comment)"</span><br><span class="line">            echo -e "\taddress\t$ip"</span><br><span class="line">            echo -e "&#125;"</span><br><span class="line">            members="$&#123;members&#125;,$&#123;type&#125;-$&#123;ip&#125;"</span><br><span class="line">        done &lt;"$f"</span><br><span class="line">        echo -e "\n###############################################################################\n"</span><br><span class="line">        echo -e "define hostgroup&#123;"</span><br><span class="line">        echo -e "\thostgroup_name\t$type"</span><br><span class="line">        echo -e "\talias\t$type"</span><br><span class="line">        echo -e "\tmembers\t$members"</span><br><span class="line">        echo -e "&#125;"</span><br><span class="line">    &#125; &gt;/usr/local/nagios/etc/objects/hosts/"$&#123;type&#125;.cfg"</span><br><span class="line">done</span><br></pre></td></tr></table></figure></p>
+<p>使用方法<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sh spawn_hosts.sh dir</span><br></pre></td></tr></table></figure></p>
+<p>其中dir中含有若干xxx.lst文件，xxx代表机器的类别，如web，db等，分类依据是，同类别机器需要监控的服务是相同的，这些机器会被放到一个hostgroup组内。xxx.lst文件每一行的格式为：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">address ip comment</span><br></pre></td></tr></table></figure></p>
+<p>address可以用来标明该机器的位置信息，如在哪个机房；comment相当于备注，这两项没有严格要求，目的在于更清楚的辨别机器。<br>执行结果是在/usr/local/nagios/etc/objects/hosts/目录下生成若干*.cfg文件，如web.cfg的 文件内容大致为：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">define host&#123;</span><br><span class="line">use   linux-server</span><br><span class="line">host_name      web-192.168.100.37</span><br><span class="line">alias 北京(这是一台web服务器)</span><br><span class="line">address    192.168.100.37</span><br><span class="line">&#125;</span><br><span class="line"><span class="meta">#</span>##############################################################################</span><br><span class="line">define hostgroup&#123;</span><br><span class="line">hostgroup_name     web</span><br><span class="line">alias web</span><br><span class="line">members , web-192.168.100.37</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>在services.cfg中进行如下配置<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">define service&#123;</span><br><span class="line">use   generic-service</span><br><span class="line">hostgroup_name     web</span><br><span class="line">service_description disk_usage</span><br><span class="line">check_command     check_nrpe!check_web_disk_usage!80%</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>如果有其他服务需要监控，依此添加。最后在nagios.cfg中添加<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">cfg_file=/usr/local/nagios/etc/objects/services.cfg</span><br><span class="line">cfg_dir=/usr/local/nagios/etc/objects/hosts</span><br></pre></td></tr></table></figure></p>
+<blockquote>
+<p>至此，nagios部署完毕O(∩_∩)O。</p>
+</blockquote>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">监控</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">nagios</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2013/11/16/nagios-deploy-practice/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-a-simple-Linux-app-monitor-framework-2" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
@@ -380,101 +520,6 @@
 
 
   
-    <article id="post-c-debug-macro" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/07/09/c-debug-macro/">一个方便打印C程序调试信息的宏</a>
-    </h1>
-  
-
-        
-        <a href="/2013/07/09/c-debug-macro/" class="archive-article-date">
-  	<time datetime="2013-07-09T12:24:25.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-07-09</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<!-- tocstop -->
-<p>为了方便调试C程序，写了个打印信息的宏，能够打印错误信息，以及错误发生的文件名、行号。<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">ifndef</span> _DEBUG_H_</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> _DEBUG_H_</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;stdio.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;string.h&gt;</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">&lt;malloc.h&gt;</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> ERRBUFLEN 1024</span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">ifdef</span> DEBUG_ON</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> ERR_PRINT(str) \</span></span><br><span class="line">    <span class="keyword">do</span> \</span><br><span class="line">    &#123; \</span><br><span class="line">        <span class="keyword">char</span> errbuf[ERRBUFLEN] = &#123;<span class="string">'\0'</span>&#125;; \</span><br><span class="line">        <span class="built_in">snprintf</span>(errbuf, ERRBUFLEN, <span class="string">"[file: %s line: %d] %s"</span>, \</span><br><span class="line">                                    __FILE__, __LINE__, str); \</span><br><span class="line">        <span class="built_in">fprintf</span>(<span class="built_in">stderr</span>, <span class="string">"\033[31m"</span>); \</span><br><span class="line">        perror(errbuf); \</span><br><span class="line">        <span class="built_in">fprintf</span>(<span class="built_in">stderr</span>, <span class="string">"\033[0m"</span>); \</span><br><span class="line">    &#125; <span class="keyword">while</span> (<span class="number">0</span>)</span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> INFO_PRINT(str) \</span></span><br><span class="line">    <span class="keyword">do</span> \</span><br><span class="line">    &#123; \</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"\033[31m"</span>); \</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"[file: %s line: %d] %s\n"</span>, __FILE__, __LINE__, str); \</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"\033[0m"</span>); \</span><br><span class="line">    &#125; <span class="keyword">while</span>(<span class="number">0</span>)</span><br><span class="line"><span class="meta">#<span class="meta-keyword">else</span></span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> ERR_PRINT(str)</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">define</span> INFO_PRINT(str)</span></span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br><span class="line"></span><br><span class="line"><span class="meta">#<span class="meta-keyword">endif</span></span></span><br></pre></td></tr></table></figure></p>
-<p>测试程序：<br><figure class="highlight c"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="meta-keyword">include</span> <span class="meta-string">"debug.h"</span></span></span><br><span class="line"></span><br><span class="line"><span class="keyword">int</span></span><br><span class="line">main()</span><br><span class="line">&#123;</span><br><span class="line">        <span class="built_in">printf</span>(<span class="string">"test\n"</span>);</span><br><span class="line"></span><br><span class="line">        FILE *fp = <span class="literal">NULL</span>;</span><br><span class="line"></span><br><span class="line">        fp = fopen(<span class="string">"./none.txt"</span>, <span class="string">"r"</span>);</span><br><span class="line">        <span class="keyword">if</span> (fp == <span class="literal">NULL</span>)</span><br><span class="line">        &#123;</span><br><span class="line">                ERR_PRINT(<span class="string">"fopen error"</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">int</span> i = <span class="number">1</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (i &lt; <span class="number">2</span>)</span><br><span class="line">        &#123;</span><br><span class="line">                INFO_PRINT(<span class="string">"i &lt; 2"</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> <span class="number">0</span>;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">[winway@s211 err_print]$ gcc test.c</span><br><span class="line">[winway@s211 err_print]$ ./a.out</span><br><span class="line">test</span><br><span class="line">[winway@s211 err_print]$ gcc test.c -DDEBUG_ON</span><br><span class="line">[winway@s211 err_print]$ ./a.out</span><br><span class="line">test</span><br><span class="line">[file: test.c line: 13] fopen error: No such file or directory</span><br><span class="line">[file: test.c line: 20] i &lt; 2</span><br></pre></td></tr></table></figure>
-<p>欢迎使用。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">C</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/07/09/c-debug-macro/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/36/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/35/">35</a><a class="page-number" href="/page/36/">36</a><span class="page-number current">37</span><a class="page-number" href="/page/38/">38</a><a class="page-number" href="/page/39/">39</a><span class="space">&hellip;</span><a class="page-number" href="/page/41/">41</a><a class="extend next" rel="next" href="/page/38/">Next &raquo;</a>
@@ -489,7 +534,7 @@
   <div class="outer">
     <div id="footer-info">
     	<div class="footer-left">
-    		&copy; 2022 winway
+    		&copy; 2023 winway
     	</div>
       	<div class="footer-right">
       		<a href="http://hexo.io/" target="_blank">Hexo</a>  Theme <a href="https://github.com/litten/hexo-theme-yilia" target="_blank">Yilia</a> by Litten
@@ -591,18 +636,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">C</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
@@ -615,7 +648,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">C</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hive</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -635,11 +680,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">flume</a>
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">flume</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -647,55 +692,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">storm</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">yarn</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">datax</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">olap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">presto</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -703,11 +700,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
+                <a href="javascript:void(0)" class="js-tag color2">Python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -743,7 +740,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -755,11 +752,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -771,7 +772,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -779,15 +784,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -799,7 +800,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">telent</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -819,19 +828,51 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+                <a href="javascript:void(0)" class="js-tag color5">life</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">storm</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">olap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">presto</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -867,11 +908,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -880,10 +933,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">doris</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
               </li>
              
               <li class="article-tag-list-item">

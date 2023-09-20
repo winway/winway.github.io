@@ -154,6 +154,113 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-kafkapb" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2021/09/04/kafkapb/">动态解析protobuf格式kafka消息</a>
+    </h1>
+  
+
+        
+        <a href="/2021/09/04/kafkapb/" class="archive-article-date">
+  	<time datetime="2021-09-04T12:40:59.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-09-04</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#背景">背景</a></li>
+<li><a href="#代码">代码</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="背景">背景</span></h2><p>为了减少日志量，业务方直接将经过protobuf序列化的数据写入kafka，需要消费kafka并解析其中PB格式的消息。为了避免将业务方的PB对象集成到解析项目中（因为可能会有很多业务的PB对象），需要动态完成解析工作。</p>
+<h2><span id="代码">代码</span></h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> com.google.protobuf.*;</span><br><span class="line"><span class="keyword">import</span> com.google.protobuf.util.JsonFormat;</span><br><span class="line"><span class="keyword">import</span> org.apache.kafka.clients.consumer.ConsumerRecord;</span><br><span class="line"><span class="keyword">import</span> org.apache.kafka.clients.consumer.ConsumerRecords;</span><br><span class="line"><span class="keyword">import</span> org.apache.kafka.clients.consumer.KafkaConsumer;</span><br><span class="line"><span class="keyword">import</span> org.apache.kafka.common.serialization.ByteArrayDeserializer;</span><br><span class="line"><span class="keyword">import</span> org.apache.kafka.common.serialization.StringDeserializer;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.io.FileInputStream;</span><br><span class="line"><span class="keyword">import</span> java.io.IOException;</span><br><span class="line"><span class="keyword">import</span> java.nio.file.Path;</span><br><span class="line"><span class="keyword">import</span> java.nio.file.Paths;</span><br><span class="line"><span class="keyword">import</span> java.time.Duration;</span><br><span class="line"><span class="keyword">import</span> java.util.ArrayList;</span><br><span class="line"><span class="keyword">import</span> java.util.Arrays;</span><br><span class="line"><span class="keyword">import</span> java.util.List;</span><br><span class="line"><span class="keyword">import</span> java.util.Properties;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">TestKafkaPB</span> </span>&#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> DynamicMessage.<span class="function">Builder <span class="title">getBuilder</span><span class="params">(String protoFile, String targetClassName)</span> <span class="keyword">throws</span> InterruptedException, Descriptors.DescriptorValidationException, IOException </span>&#123;</span><br><span class="line">        System.out.println(<span class="string">"------generate descriptor------"</span>);</span><br><span class="line"></span><br><span class="line">        Path path = Paths.get(protoFile);</span><br><span class="line">        String dirName = path.getParent().toString();</span><br><span class="line">        String fileName = path.getFileName().toString();</span><br><span class="line">        String fileNameNoExt = fileName.split(<span class="string">"\\."</span>)[<span class="number">0</span>];</span><br><span class="line">        String descriptorFile = dirName + <span class="string">"/"</span> + fileNameNoExt + <span class="string">".description"</span>;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 生成descriptor文件</span></span><br><span class="line">        String protocCMD = String.format(<span class="string">"protoc --descriptor_set_out=%s %s --include_imports --proto_path %s"</span>, descriptorFile, protoFile, dirName);</span><br><span class="line">        System.out.println(protocCMD);</span><br><span class="line"></span><br><span class="line">        Process process = Runtime.getRuntime().exec(protocCMD);</span><br><span class="line">        process.waitFor();</span><br><span class="line">        <span class="keyword">int</span> exitValue = process.exitValue();</span><br><span class="line">        <span class="keyword">if</span> (exitValue != <span class="number">0</span>) &#123;</span><br><span class="line">            System.out.println(<span class="string">"protoc execute failed"</span>);</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        System.out.println(<span class="string">"------customer msg------"</span>);</span><br><span class="line">        Descriptors.Descriptor pbDescritpor = <span class="keyword">null</span>;</span><br><span class="line">        DescriptorProtos.FileDescriptorSet descriptorSet = DescriptorProtos.FileDescriptorSet.parseFrom(<span class="keyword">new</span> FileInputStream(descriptorFile));</span><br><span class="line"></span><br><span class="line">        List&lt;Descriptors.FileDescriptor&gt; dependencyFileDescriptorList = <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; descriptorSet.getFileCount() - <span class="number">1</span>; i++) &#123;</span><br><span class="line">            dependencyFileDescriptorList.add(Descriptors.FileDescriptor.buildFrom(descriptorSet.getFile(i), dependencyFileDescriptorList.toArray(<span class="keyword">new</span> Descriptors.FileDescriptor[i])));</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (DescriptorProtos.FileDescriptorProto fdp : descriptorSet.getFileList()) &#123;</span><br><span class="line">            Descriptors.FileDescriptor fileDescriptor = Descriptors.FileDescriptor.buildFrom(fdp, dependencyFileDescriptorList.toArray(<span class="keyword">new</span> Descriptors.FileDescriptor[<span class="number">0</span>]));</span><br><span class="line"></span><br><span class="line">            <span class="keyword">for</span> (Descriptors.Descriptor descriptor : fileDescriptor.getMessageTypes()) &#123;</span><br><span class="line">                String className = fdp.getOptions().getJavaPackage() + <span class="string">"."</span></span><br><span class="line">                        + fdp.getOptions().getJavaOuterClassname() + <span class="string">"$"</span></span><br><span class="line">                        + descriptor.getName();</span><br><span class="line">                System.out.println(descriptor.getFullName() + <span class="string">" -&gt; "</span> + className);</span><br><span class="line"></span><br><span class="line">                <span class="keyword">if</span> (descriptor.getName().equals(targetClassName)) &#123;</span><br><span class="line">                    System.out.println(targetClassName + <span class="string">" descriptor found"</span>);</span><br><span class="line">                    pbDescritpor = descriptor;</span><br><span class="line">                    <span class="keyword">break</span>;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (pbDescritpor != <span class="keyword">null</span>) &#123;</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (pbDescritpor == <span class="keyword">null</span>) &#123;</span><br><span class="line">            System.out.println(<span class="string">"No matched descriptor"</span>);</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> DynamicMessage.newBuilder(pbDescritpor);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> InterruptedException, IOException, Descriptors.DescriptorValidationException </span>&#123;</span><br><span class="line"></span><br><span class="line">        Properties kafkaParams = <span class="keyword">new</span> Properties();</span><br><span class="line">        kafkaParams.put(<span class="string">"bootstrap.servers"</span>, <span class="string">"192.168.101.31:9092"</span>);</span><br><span class="line">        kafkaParams.put(<span class="string">"group.id"</span>, <span class="string">"TestKafkaPB"</span>);</span><br><span class="line">        kafkaParams.put(<span class="string">"key.deserializer"</span>, StringDeserializer.class);</span><br><span class="line">        kafkaParams.put(<span class="string">"value.deserializer"</span>, ByteArrayDeserializer.class);</span><br><span class="line"></span><br><span class="line">        KafkaConsumer&lt;String, <span class="keyword">byte</span>[]&gt; consumer = <span class="keyword">new</span> KafkaConsumer&lt;String, <span class="keyword">byte</span>[]&gt;(kafkaParams);</span><br><span class="line">        consumer.subscribe(Arrays.asList(<span class="string">"ads-request-pageview"</span>));</span><br><span class="line"></span><br><span class="line">        DynamicMessage.Builder pbBuilder = getBuilder(<span class="string">"/tmp/my_message.proto"</span>, <span class="string">"MessageInfo"</span>);</span><br><span class="line"></span><br><span class="line">        ConsumerRecords&lt;String, <span class="keyword">byte</span>[]&gt; records = consumer.poll(Duration.ofMillis(<span class="number">1024</span>));</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (ConsumerRecord&lt;String, <span class="keyword">byte</span>[]&gt; record : records) &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                Message pbMessage = pbBuilder.mergeFrom(record.value()).build();</span><br><span class="line">                System.out.println(pbMessage);</span><br><span class="line"></span><br><span class="line">                String j = JsonFormat.printer().print(pbMessage);</span><br><span class="line">                System.out.println(j);</span><br><span class="line">            &#125; <span class="keyword">catch</span> (InvalidProtocolBufferException e) &#123;</span><br><span class="line">                e.printStackTrace();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://blog.csdn.net/lan_liang/article/details/6632127" target="_blank" rel="noopener">https://blog.csdn.net/lan_liang/article/details/6632127</a></li>
+<li><a href="https://www.codeleading.com/article/97581603821/" target="_blank" rel="noopener">https://www.codeleading.com/article/97581603821/</a></li>
+<li><a href="https://stackoverflow.com/questions/53413674/importing-descriptor-with-included-import" target="_blank" rel="noopener">https://stackoverflow.com/questions/53413674/importing-descriptor-with-included-import</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">kafka</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">protobuf</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2021/09/04/kafkapb/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-yarnapphang" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
@@ -403,159 +510,6 @@
 
 
   
-    <article id="post-hdfscompress" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2020/06/06/hdfscompress/">HDFS文件压缩转储</a>
-    </h1>
-  
-
-        
-        <a href="/2020/06/06/hdfscompress/" class="archive-article-date">
-  	<time datetime="2020-06-06T09:00:01.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2020-06-06</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#需求">需求</a></li>
-<li><a href="#步骤">步骤</a><ul>
-<li><a href="#选取压缩类型">选取压缩类型</a></li>
-<li><a href="#转储">转储</a></li>
-</ul>
-</li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<h1><span id="需求">需求</span></h1><p>定期将HDFS文件压缩转储到阿里云OSS。</p>
-<h1><span id="步骤">步骤</span></h1><h2><span id="选取压缩类型">选取压缩类型</span></h2><p>Hadoop支持的主流压缩格式包括以下几种：</p>
-<table>
-<thead>
-<tr>
-<th>Codec</th>
-<th>File Extension</th>
-<th>Splittable?</th>
-<th>Degree of Compression</th>
-<th>Compression Speed</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Gzip</td>
-<td>.gz</td>
-<td>No</td>
-<td>Medium</td>
-<td>Medium</td>
-</tr>
-<tr>
-<td>Bzip2</td>
-<td>.bz2</td>
-<td>Yes</td>
-<td>High</td>
-<td>Slow</td>
-</tr>
-<tr>
-<td>Snappy</td>
-<td>.snappy</td>
-<td>No</td>
-<td>Medium</td>
-<td>Fast</td>
-</tr>
-<tr>
-<td>LZO</td>
-<td>.lzo</td>
-<td>No, unless indexed</td>
-<td>Medium</td>
-<td>Fast</td>
-</tr>
-</tbody>
-</table>
-<p>其中可分割的只有bzip2和lzo(indexed)。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">hadoop jar $HADOOP_HOME/share/hadoop/tools/lib/hadoop-streaming-2.7.2.jar \</span><br><span class="line">    -Dmapreduce.map.java.opts=&apos;-Xmx768m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.map.memory.mb=1024 \</span><br><span class="line">    -Dmapreduce.reduce.java.opts=&apos;-Xmx1536m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.reduce.memory.mb=2048 \</span><br><span class="line">    -Dmapreduce.job.reduce.slowstart.completedmaps=0.9 \</span><br><span class="line">    -Dmapred.reduce.tasks=$parallelN \</span><br><span class="line">    -Dmapred.output.compress=true \</span><br><span class="line">    -Dmapred.compress.map.output=true \</span><br><span class="line">    -Dmapred.output.compression.codec=org.apache.hadoop.io.compress.BZip2Codec \</span><br><span class="line">    -input $hdfspath \</span><br><span class="line">    -output $hdfszippath \</span><br><span class="line">    -mapper /bin/cat \</span><br><span class="line">    -reducer /bin/cat \</span><br><span class="line">    -inputformat org.apache.hadoop.mapred.TextInputFormat \</span><br><span class="line">    -outputformat org.apache.hadoop.mapred.TextOutputFormat</span><br></pre></td></tr></table></figure></p>
-<p>先是使用bizp2进行了测试，但是压缩速度实在是太慢了，于是决定使用lzo。<br>lzo为了达到可分割，需要在压缩之后建立索引。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">hadoop jar $HADOOP_HOME/share/hadoop/tools/lib/hadoop-streaming-2.7.2.jar \</span><br><span class="line">    -Dmapreduce.map.java.opts=&apos;-Xmx768m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.map.memory.mb=1024 \</span><br><span class="line">    -Dmapreduce.reduce.java.opts=&apos;-Xmx1536m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.reduce.memory.mb=2048 \</span><br><span class="line">    -Dmapreduce.job.reduce.slowstart.completedmaps=0.9 \</span><br><span class="line">    -Dmapred.reduce.tasks=$parallelN \</span><br><span class="line">    -Dmapred.output.compress=true \</span><br><span class="line">    -Dmapred.compress.map.output=true \</span><br><span class="line">    -Dmapred.output.compression.codec=com.hadoop.compression.lzo.LzopCodec \</span><br><span class="line">    -input $hdfspath \</span><br><span class="line">    -output $hdfszippath \</span><br><span class="line">    -mapper /bin/cat \</span><br><span class="line">    -reducer /bin/cat \</span><br><span class="line">    -inputformat org.apache.hadoop.mapred.TextInputFormat \</span><br><span class="line">    -outputformat org.apache.hadoop.mapred.TextOutputFormat</span><br><span class="line"></span><br><span class="line">hadoop jar $HADOOP_HOME/lib/hadoop-lzo-0.4.21-SNAPSHOT.jar com.hadoop.compression.lzo.DistributedLzoIndexer $hdfszippath</span><br></pre></td></tr></table></figure></p>
-<h2><span id="转储">转储</span></h2><p>压缩完毕后，将文件拷贝到oss。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hadoop distcp -Dmapreduce.task.timeout=1200000 -m $parallelN $&#123;hdfszippath&#125;/* $&#123;osspath&#125;/</span><br></pre></td></tr></table></figure></p>
-<p><em>distcp过程中遇到一个问题：如果单个文件过大，在往oss拷贝的时候有可能失败，所以需要通过设置压缩任务reduce个数，控制最终单个文件的大小。</em></p>
-<h1><span id="参考资料">参考资料</span></h1><ul>
-<li><a href="https://www.dummies.com/programming/big-data/hadoop/compressing-data-in-hadoop/" target="_blank" rel="noopener">https://www.dummies.com/programming/big-data/hadoop/compressing-data-in-hadoop/</a></li>
-<li><a href="https://data-flair.training/forums/topic/which-compression-is-used-in-hadoop-which-of-them-is-splittable/" target="_blank" rel="noopener">https://data-flair.training/forums/topic/which-compression-is-used-in-hadoop-which-of-them-is-splittable/</a></li>
-<li><a href="https://blog.csdn.net/fjssharpsword/article/details/74908251" target="_blank" rel="noopener">https://blog.csdn.net/fjssharpsword/article/details/74908251</a></li>
-<li><a href="https://www.jianshu.com/p/10fc6c511761" target="_blank" rel="noopener">https://www.jianshu.com/p/10fc6c511761</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">hdfs</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2020/06/06/hdfscompress/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/13/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><a class="page-number" href="/page/13/">13</a><span class="page-number current">14</span><a class="page-number" href="/page/15/">15</a><a class="page-number" href="/page/16/">16</a><span class="space">&hellip;</span><a class="page-number" href="/page/41/">41</a><a class="extend next" rel="next" href="/page/15/">Next &raquo;</a>
@@ -570,7 +524,7 @@
   <div class="outer">
     <div id="footer-info">
     	<div class="footer-left">
-    		&copy; 2022 winway
+    		&copy; 2023 winway
     	</div>
       	<div class="footer-right">
       		<a href="http://hexo.io/" target="_blank">Hexo</a>  Theme <a href="https://github.com/litten/hexo-theme-yilia" target="_blank">Yilia</a> by Litten
@@ -672,18 +626,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">C</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
@@ -696,7 +638,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">C</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hive</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -716,11 +670,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">flume</a>
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">flume</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -728,55 +682,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">storm</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">yarn</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">datax</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">olap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">presto</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -784,11 +690,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
+                <a href="javascript:void(0)" class="js-tag color2">Python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -824,7 +730,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -836,11 +742,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -852,7 +762,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -860,15 +774,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -880,7 +790,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">telent</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -900,19 +818,51 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+                <a href="javascript:void(0)" class="js-tag color5">life</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">storm</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">olap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">presto</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -948,11 +898,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -961,10 +923,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">doris</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
               </li>
              
               <li class="article-tag-list-item">
