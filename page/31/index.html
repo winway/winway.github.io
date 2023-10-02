@@ -154,171 +154,6 @@
           <div id="js-content" class="content-ll">
             
   
-    <article id="post-big-data-yarn" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/01/12/big-data-yarn/">Hadoop生态系统介绍-YARN</a>
-    </h1>
-  
-
-        
-        <a href="/2017/01/12/big-data-yarn/" class="archive-article-date">
-  	<time datetime="2017-01-12T02:34:57.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-01-12</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#前言">前言</a></li>
-<li><a href="#工作原理">工作原理</a><ul>
-<li><a href="#经典-mapreduce-的局限性">经典 MapReduce 的局限性</a></li>
-<li><a href="#yarn下一代-hadoop-计算平台">YARN：下一代 Hadoop 计算平台</a></li>
-</ul>
-</li>
-</ul>
-<!-- tocstop -->
-<h2><span id="前言">前言</span></h2><p>提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。</p>
-<ol>
-<li><a href="https://winway.github.io/2017/01/07/big-data-intro/">Hadoop生态系统介绍-概览</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-kerberos/">Hadoop生态系统介绍-Kerberos</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-zookeeper/">Hadoop生态系统介绍-Zookeeper</a></li>
-<li><a href="https://winway.github.io/2017/01/11/big-data-hdfs/">Hadoop生态系统介绍-HDFS</a></li>
-<li><strong><a href="https://winway.github.io/2017/01/12/big-data-yarn/">Hadoop生态系统介绍-YARN</a></strong></li>
-<li><a href="https://winway.github.io/2017/01/12/big-data-mapreduce/">Hadoop生态系统介绍-MapReduce</a></li>
-<li><a href="https://winway.github.io/2017/01/13/big-data-hive/">Hadoop生态系统介绍-Hive</a></li>
-<li><a href="https://winway.github.io/2017/01/13/big-data-pig/">Hadoop生态系统介绍-Pig</a></li>
-<li><a href="https://winway.github.io/2017/01/21/big-data-storm/">Hadoop生态系统介绍-Storm</a></li>
-<li><a href="https://winway.github.io/2017/01/26/big-data-hbase/">Hadoop生态系统介绍-Hbase</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-phoenix/">Hadoop生态系统介绍-Phoenix</a></li>
-</ol>
-<p>本文对集群资源管理系统YARN的工作原理进行介绍。</p>
-<h2><span id="工作原理">工作原理</span></h2><h3><span id="经典-mapreduce-的局限性">经典 MapReduce 的局限性</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519113151.png" alt=""><br>在 MapReduce 框架中，作业执行受两种类型的进程控制：</p>
-<ul>
-<li>一个称为 JobTracker 的主要进程，它协调在集群上运行的所有作业，分配要在 TaskTracker 上运行的 map 和 reduce 任务。</li>
-<li>许多称为 TaskTracker 的下级进程，它们运行分配的任务并定期向 JobTracker 报告进度。</li>
-</ul>
-<p>经典 MapReduce 的最严重的限制主要关系到可伸缩性、资源利用和对与 MapReduce 不同的工作负载的支持。</p>
-<ul>
-<li>大型的 Hadoop 集群显现出了由单个 JobTracker 导致的可伸缩性瓶颈。在 Yahoo!，集群中有 5,000 个节点和 40,000 个任务同时运行时，这样一种设计实际上就会受到限制。由于此限制，必须创建和维护较小的集群。</li>
-<li>较小和较大的 Hadoop 集群都从未最高效地使用他们的计算资源。在 Hadoop MapReduce 中，每个从属节点上的计算资源由集群管理员分解为固定数量的 map 和 reduce slot，这些 slot 不可替代。设定 map slot 和 reduce slot 的数量后，节点在任何时刻都不能运行比 map slot 更多的 map 任务，即使没有 reduce 任务在运行。这影响了集群的利用率，因为在所有 map slot 都被使用时，我们无法使用任何 reduce slot，即使它们可用，反之亦然。</li>
-<li>Hadoop 设计为仅运行 MapReduce 作业。随着替代性的编程模型（比如 Apache Giraph 所提供的图形处理）的到来，除 MapReduce 外，越来越需要为可通过高效的、公平的方式在同一个集群上运行并共享资源的其他编程模型提供支持。</li>
-</ul>
-<p><strong>解决可伸缩性问题</strong></p>
-<p>在 Hadoop MapReduce 中，JobTracker 具有两种不同的职责：</p>
-<ul>
-<li>管理集群中的计算资源，这涉及到维护活动节点列表、可用和占用的 map 和 reduce slots 列表，以及依据所选的调度策略将可用 slots 分配给合适的作业和任务</li>
-<li>协调在集群上运行的所有任务，这涉及到指导 TaskTracker 启动 map 和 reduce 任务，监视任务的执行，重新启动失败的任务，推测性地运行缓慢的任务，计算作业计数器值的总和，等等</li>
-</ul>
-<p>为单个进程安排大量职责会导致重大的可伸缩性问题，尤其是在较大的集群上，JobTracker 必须不断跟踪数千个 TaskTracker、数百个作业，以及数万个 map 和 reduce 任务。下图演示了这一问题。相反，TaskTracker 通常仅运行十来个任务，这些任务由勤勉的 JobTracker 分配给它们。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519113512.png" alt=""></p>
-<p>为了解决可伸缩性问题，一个简单而又绝妙的想法应运而生：我们减少了单个 JobTracker 的职责，将部分职责委派给 TaskTracker，因为集群中有许多 TaskTracker。在新设计中，这个概念通过将 JobTracker 的双重职责（集群资源管理和任务协调）分开为两种不同类型的进程来反映。</p>
-<ul>
-<li>不再拥有单个 JobTracker，而是引入了一个集群资源管理器，它惟一的职责就是跟踪集群中的活动节点和可用资源，并将它们分配给任务。</li>
-<li>对于提交给集群的每个作业，会启动一个专用的、短暂的 JobTracker 来控制该作业中的任务的执行。有趣的是，短暂的 JobTracker 由在从属节点上运行的 TaskTracker 启动。因此，作业的生命周期的协调工作分散在集群中所有可用的机器上。得益于这种行为，更多工作可并行运行，可伸缩性得到了显著提高。</li>
-</ul>
-<h3><span id="yarn下一代-hadoop-计算平台">YARN：下一代 Hadoop 计算平台</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519113708.png" alt=""></p>
-<ul>
-<li>ResourceManager 代替集群资源管理器</li>
-<li>ApplicationMaster 代替一个专用且短暂的 JobTracker</li>
-<li>NodeManager 代替 TaskTracker</li>
-<li>一个分布式应用程序代替一个 MapReduce 作业</li>
-</ul>
-<p>在 YARN 架构中，一个全局 ResourceManager 以后台进程的形式运行，它通常在专用机器上运行，在各种竞争的应用程序之间仲裁可用的集群资源。ResourceManager 会追踪集群中有多少可用的活动节点和资源，协调用户提交的哪些应用程序应该在何时获取这些资源。ResourceManager 是惟一拥有此信息的进程，所以它可通过某种共享的、安全的、多租户的方式制定分配（或者调度）决策（例如，依据应用程序优先级、队列容量、ACLs、数据位置等）</p>
-<p>在用户提交一个应用程序时，一个称为 ApplicationMaster 的轻量型进程实例会启动来协调应用程序内的所有任务的执行。这包括监视任务，重新启动失败的任务，推测性地运行缓慢的任务，以及计算应用程序计数器值的总和。这些职责以前分配给所有作业的单个 JobTracker。</p>
-<p>ApplicationMaster 和属于它的应用程序的任务，在受 NodeManager 控制的资源容器中运行。</p>
-<p>NodeManager 是 TaskTracker 的一种更加普通和高效的版本。没有固定数量的 map 和 reduce slots，NodeManager 拥有许多动态创建的资源容器。容器的大小取决于它所包含的资源量，比如内存、CPU、磁盘和网络 IO。目前，仅支持内存和 CPU (YARN-3)。未来可使用 cgroups 来控制磁盘和网络 IO。一个节点上的容器数量，由配置参数与总 CPU 数和总内存共同决定。</p>
-<p>有趣的是，ApplicationMaster 可在容器内运行任何类型的任务。例如，MapReduce ApplicationMaster 请求一个容器来启动 map 或 reduce 任务，而 Giraph ApplicationMaster 请求一个容器来运行 Giraph 任务。您还可以实现一个自定义的 ApplicationMaster 来运行特定的任务，进而发明出一种全新的分布式应用程序框架，改变大数据世界的格局。</p>
-<p>在 YARN 中，MapReduce 降级为一个分布式应用程序的一个角色（一个非常流行且有用的角色），现在称为 MRv2。MRv2 是经典 MapReduce 引擎（现在称为 MRv1）的重现，运行在 YARN 之上。</p>
-<p><strong>YARN 中的应用程序提交</strong><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519113936.png" alt=""><br>假设用户采用与 MRv1 中相同的方式键入 hadoop jar 命令，将应用程序提交到 ResourceManager。</p>
-<p>ResourceManager 维护着集群上运行的应用程序列表，以及每个活动的 NodeManager 上的可用资源列表。ResourceManager 需要确定哪个应用程序接下来应该获得一部分集群资源。该决策受到许多限制，比如队列容量、ACL 和公平性。ResourceManager 使用一个可插拔的 Scheduler。Scheduler 仅执行调度；它管理谁在何时获取集群资源（以容器的形式），但不会对应用程序内的任务执行任何监视，所以它不会尝试重新启动失败的任务。</p>
-<p>在 ResourceManager 接受一个新应用程序提交时，Scheduler 制定的第一个决策是选择将用来运行 ApplicationMaster 的容器。</p>
-<p>在 ApplicationMaster 启动后，它将负责此应用程序的整个生命周期。</p>
-<p>ApplicationMaster将资源请求发送到 ResourceManager，请求运行应用程序的任务所需的容器。资源请求是对一些容器的请求，用以满足一些资源需求，比如：</p>
-<ul>
-<li>一定量的资源，目前使用 MB 内存和 CPU 份额来表示</li>
-<li>一个首选的位置，由主机名、机架名称指定，或者使用 * 来表示没有偏好</li>
-<li>此应用程序中的一个优先级，而不是跨多个应用程序</li>
-</ul>
-<p>如果可能的话，ResourceManager 会分配一个满足 ApplicationMaster 在资源请求中所请求的需求的容器。该容器允许应用程序使用特定主机上给定的资源量。</p>
-<p>分配一个容器后，ApplicationMaster 会要求 NodeManager（管理分配容器的主机）使用这些资源来启动一个特定于应用程序的任务。此任务可以是在任何框架中编写的任何进程（比如一个 MapReduce 任务或一个 Giraph 任务）。</p>
-<p>NodeManager 不会监视任务；它仅监视容器中的资源使用情况，举例而言，如果一个容器消耗的内存比最初分配的更多，它会结束该容器。</p>
-<p>ApplicationMaster 会竭尽全力协调容器，启动所有需要的任务来完成它的应用程序。它还监视应用程序及其任务的进度，在新请求的容器中重新启动失败的任务，以及向提交应用程序的客户端报告进度。应用程序完成后，ApplicationMaster 会关闭自己并释放自己的容器。</p>
-<p>尽管 ResourceManager 不会对应用程序内的任务执行任何监视，但它会检查 ApplicationMaster 的健康状况。如果 ApplicationMaster 失败，ResourceManager 可在一个新容器中重新启动它。可以认为 ResourceManager 负责管理 ApplicationMaster，而 ApplicationMasters 负责管理任务。</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">yarn</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/01/12/big-data-yarn/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
     <article id="post-big-data-hdfs" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
@@ -736,6 +571,218 @@
       
         <p class="article-more-link">
           <a class="article-more-a" href="/2017/01/07/big-data-kerberos/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-big-data-intro" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/01/07/big-data-intro/">Hadoop生态系统介绍-概览</a>
+    </h1>
+  
+
+        
+        <a href="/2017/01/07/big-data-intro/" class="archive-article-date">
+  	<time datetime="2017-01-07T02:15:05.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-01-07</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#前言">前言</a></li>
+<li><a href="#kerberos">Kerberos</a></li>
+<li><a href="#zookeeper">Zookeeper</a></li>
+<li><a href="#hdfs">HDFS</a></li>
+<li><a href="#yarn">YARN</a></li>
+<li><a href="#mapreduce">MapReduce</a></li>
+<li><a href="#hive">Hive</a></li>
+<li><a href="#pig">Pig</a></li>
+<li><a href="#storm">Storm</a></li>
+<li><a href="#hbase">Hbase</a></li>
+<li><a href="#phoenix">Phoenix</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="前言">前言</span></h2><p>提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。</p>
+<ol>
+<li><strong><a href="https://winway.github.io/2017/01/07/big-data-intro/">Hadoop生态系统介绍-概览</a></strong></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-kerberos/">Hadoop生态系统介绍-Kerberos</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-zookeeper/">Hadoop生态系统介绍-Zookeeper</a></li>
+<li><a href="https://winway.github.io/2017/01/11/big-data-hdfs/">Hadoop生态系统介绍-HDFS</a></li>
+<li><a href="https://winway.github.io/2017/01/12/big-data-yarn/">Hadoop生态系统介绍-YARN</a></li>
+<li><a href="https://winway.github.io/2017/01/12/big-data-mapreduce/">Hadoop生态系统介绍-MapReduce</a></li>
+<li><a href="https://winway.github.io/2017/01/13/big-data-hive/">Hadoop生态系统介绍-Hive</a></li>
+<li><a href="https://winway.github.io/2017/01/13/big-data-pig/">Hadoop生态系统介绍-Pig</a></li>
+<li><a href="https://winway.github.io/2017/01/21/big-data-storm/">Hadoop生态系统介绍-Storm</a></li>
+<li><a href="https://winway.github.io/2017/01/26/big-data-hbase/">Hadoop生态系统介绍-Hbase</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-phoenix/">Hadoop生态系统介绍-Phoenix</a></li>
+</ol>
+<p>Hadoop生态系统包括如下组件（新的组件还在不断出现），本文对常见组件进行简要介绍。<br><img src="http://static.oschina.net/uploads/space/2015/0730/081518_Hno6_865233.jpg" alt=""></p>
+<h2><span id="kerberos">Kerberos</span></h2><p><strong>什么是Kerberos？</strong><br><img src="http://www.daoyouz.com/picture/35f9ddd556cd7e0c73155e1d0ef8d900.jpg" alt=""></p>
+<blockquote>
+<p>Kerberos is a network authentication protocol. It is designed to provide strong authentication for client/server applications by using secret-key cryptography.</p>
+</blockquote>
+<p>简单地说，Kerberos是一种认证机制，通过密钥系统为客户端/服务器应用程序提供强大的认证服务。</p>
+<p><strong>Kerberos存在的意义</strong><br>在Hadoop1.0.0或者CDH3 版本之前，并不存在安全认证一说。默认集群内所有的节点都是可靠的，值得信赖的。用户与HDFS或者M/R进行交互时并不需要进行验证。导致存在恶意用户伪装成真正的用户或者服务器入侵到hadoop集群上，恶意的提交作业，修改JobTracker状态，篡改HDFS上的数据，伪装成NameNode 或者TaskTracker接受任务等。尽管在版本0.16以后， HDFS增加了文件和目录的权限，但是并没有强认证的保障，这些权限只能对偶然的数据丢失起保护作用。恶意的用户可以轻易的伪装成其他用户来篡改权限，致使权限设置形同虚设，不能够对Hadoop集群起到安全保障。</p>
+<p>在Hadoop1.0.0或者CDH3版本后，加入了Kerberos认证机制。使得集群中的节点就是它们所宣称的，是信赖的。Kerberos可以将认证的密钥在集群部署时事先放到可靠的节点上。集群运行时，集群内的节点使用密钥得到认证。只有被认证过节点才能正常使用。企图冒充的节点由于没有事先得到的密钥信息，无法与集群内部的节点通信。防止了恶意的使用或篡改Hadoop集群的问题，确保了Hadoop集群的可靠安全。</p>
+<p><strong>Kerberos的工作原理</strong><br><img src="http://img.educity.cn/img_16/333/2014031814/139118145948.jpg" alt=""></p>
+<ul>
+<li>Client向KDC发送自己的身份信息，完成认证，获取TGT(ticket-granting ticket)</li>
+<li>Client利用之前获得的TGT向KDC请求其他Service的Ticket，从而通过其他Service的身份鉴别<ul>
+<li>① Client将之前获得的TGT和要请求的服务信息发送给KDC</li>
+<li>② KDC生成用于访问该服务的Session Ticket发给Client。 Session Ticket使用KDC与Service之间的密钥加密</li>
+<li>③ Client将刚才收到的Ticket转发到Service。由于Client不知道KDC与Service之间的密钥，所以它无法篡改Ticket中的信息</li>
+<li>④ Service 收到Ticket后利用它与KDC之间的密钥将Ticket中的信息解密出来，验证Client的身份。<br><img src="http://img.educity.cn/img_16/333/2014031814/139119145948.jpg" alt=""></li>
+</ul>
+</li>
+</ul>
+<h2><span id="zookeeper">Zookeeper</span></h2><p><strong>Zookeeper：用于分布式应用程序的分布式协调服务</strong><br><img src="http://www.thebigdata.cn/upload/2015-12/151223112314961.png" alt=""></p>
+<p>ZooKeeper是一种开源的用于构建分布式应用程序的分布式协调服务。它提供了一组简单的基元，分布式应用程序可以基于这些基元来实现同步、配置维护以及分组和命名等更高级的服务。ZooKeeper易于编程，并且使用类似于传统文件系统的目录树结构来组织数据。</p>
+<p>由于协调服务实现起来比较困难，很容易出现竞态和死锁等问题。ZooKeeper的目标是<em>将分布式应用程序从实现协调服务的工作中解放出来。</em></p>
+<p><strong>Zookeeper的特点</strong></p>
+<ul>
+<li><p>简单<br>ZooKeeper允许分布式程序通过共享的层次结构命名空间相互协调。命名空间由ZooKeeper中的数据寄存器（znode）组成，结构类似于标准的文件系统。<br><img src="http://images2015.cnblogs.com/blog/126867/201602/126867-20160209232509667-1334974111.png" alt=""></p>
+</li>
+<li><p>高性能<br>与为存储设计的典型文件系统不同，ZooKeeper用于存储配置、状态等少量数据，可以将数据保存在内存中，这意味着ZooKeeper可以实现高吞吐和低延迟。</p>
+</li>
+<li><p>有序<br>ZooKeeper采用递增的事务id号（zxid）来标识事务，严格有序意味着客户端可以实现复杂的同步原语。</p>
+</li>
+<li><p>高可用<br>ZooKeeper由一组机器组成，只要有一半以上的机器存活，集群就可以正常提供服务。<br>每个ZooKeeper服务器都提供服务。客户端只连接到一个服务器提交请求。读请求由当前服务器响应。写请求被转发至leader并广播到其他机器，一致性使用<a href="http://thesecretlivesofdata.com/raft/" target="_blank" rel="noopener">Zab</a>协议保证。<br><img src="http://img.mukewang.com/5761fa0b0001dac909550388.jpg" alt=""></p>
+</li>
+</ul>
+<h2><span id="hdfs">HDFS</span></h2><p><strong>什么是HDFS？</strong><br><img src="http://www.thebigdata.cn/upload/2015-02/150227103663925.jpg" alt=""></p>
+<blockquote>
+<p>A distributed Java-based file system for storing large volumes of data provides the scalable, fault-tolerant, cost-efficient storage for big data</p>
+</blockquote>
+<p>Hadoop Distributed File System (HDFS)是一个高度容错性的系统，适合部署在廉价的机器上，能提供高吞吐量的数据访问，非常适合大规模数据集上的应用。</p>
+<p>HDFS是Hadoop应用用到的一个最主要的分布式存储系统。</p>
+<p>HDFS采用master/slave架构。一个HDFS集群是由一个Namenode和一定数目的Datanode组成。Namenode是一个中心服务器，负责管理文件系统的名字空间(namespace)以及客户端对文件的访问。集群中的Datanode一般是一个节点一个，负责管理它所在节点上的存储。</p>
+<p>HDFS暴露了文件系统的名字空间，用户能够以文件的形式在上面存储数据。从内部看，一个文件其实被分成一个或多个数据块，这些块存储在一组Datanode上。Namenode执行文件系统的名字空间操作，比如打开、关闭、重命名文件或目录。它也负责确定数据块到具体Datanode节点的映射。Datanode负责处理文件系统客户端的读写请求。在Namenode的统一调度下进行数据块的创建、删除和复制。</p>
+<p><strong>HDFS架构</strong><br>HDFS集群由管理集群元数据的NameNode和存储数据的DataNode组成。文件和目录通过inode在NameNode上表示。Inode记录属性，如权限，修改和访问时间，命名空间和磁盘空间配额。<br><img src="http://www.51wendang.com/pic/37c135ca81991f562ceb0964/1-408-png_6_0_0_0_0_0_0_892.83_1263-622-0-76-622.jpg" alt=""><br>文件内容被切分成块（通常为128兆字节），并且文件的每个块独立存储在多个DataNode的本地文件系统上。<br>Namenode主动监视一个块的副本数。当由于DataNode故障或磁盘故障而导致块的副本丢失时，NameNode将创建该块的另一个副本。<br>NameNode维护命名空间树和块到DataNode的映射，将整个命名空间映像保存在RAM中。</p>
+<p>NameNode不直接向DataNode发送请求。它通过回复DataNode周期发送的心跳来向DataNode发送指令。指令包括以下命令：</p>
+<ul>
+<li>将块复制到其他节点</li>
+<li>删除本地块副本</li>
+<li>重新注册并立即发送数据块报告</li>
+<li>关闭节点</li>
+</ul>
+<h2><span id="yarn">YARN</span></h2><p><strong>什么是YARN？</strong><br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/hadoop-yarn.png" alt=""><br>YARN是开源项目Hadoop的一个<strong>资源管理系统</strong>，最初设计是为了解决Hadoop中MapReduce计算框架中的资源管理问题，但是现在它已经是一个更加通用的资源管理系统，可以把MapReduce计算框架作为一个应用程序运行在YARN系统之上，通过YARN来管理资源。<br>如果你的应用程序也需要借助YARN的资源管理功能，你也可以实现YARN提供的编程API，将你的应用程序运行于YARN之上，将资源的分配与回收统一交给YARN去管理，可以大大简化资源管理功能的开发。<br>当前，也有很多应用程序已经可以构建于YARN之上，如Storm、Spark等计算框架。</p>
+<p><strong>YARN架构</strong><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519114315.png" alt=""></p>
+<ul>
+<li>YARN Client<br>YARN Client提交Application到RM，它会首先创建一个Application上下文件对象，并设置AM必需的资源请求信息，然后提交到RM。YARN Client也可以与RM通信，获取到一个已经提交并运行的Application的状态信息等</li>
+<li>ResourceManager（RM）<br>RM是YARN集群的Master，负责管理整个集群的资源和资源分配。RM作为集群资源的管理和调度的角色，如果存在单点故障，则整个集群的资源都无法使用。在2.4.0版本才新增了RM HA的特性，这样就增加了RM的可用性。</li>
+<li>NodeManager（NM）<br>NM是YARN集群的Slave，是集群中实际拥有计算资源的工作节点。我们提交Job以后，会将组成Job的多个Task调度到对应的NM上进行执行。Hadoop集群中，为了获得分布式计算中的Locality特性，会将DN和NM在同一个节点上运行，这样对应的HDFS上的Block可能就在本地，而无需在网络间进行数据的传输。</li>
+<li>Container<br>Container是YARN集群中资源的抽象，将NM上的资源进行量化，根据需要组装成一个个Container，然后服务于已授权资源的计算任务。计算任务在完成计算后，系统会回收资源，以供后续计算任务申请使用。Container包含两种资源：内存和CPU，后续Hadoop版本可能会增加硬盘、网络等资源。</li>
+<li>ApplicationMaster（AM）<br>AM主要管理和监控部署在YARN集群上的Application，以MapReduce为例，MapReduce Application是一个用来处理MapReduce计算的服务框架程序，为用户编写的MapReduce程序提供运行时支持。通常我们在编写的一个MapReduce程序可能包含多个Map Task或Reduce Task，而各个Task的运行管理与监控都是由这个MapReduce Application来负责，比如运行Task的资源申请，由AM向RM申请；启动/停止NM上某Task的对应的Container，由AM向NM请求来完成。</li>
+</ul>
+<h2><span id="mapreduce">MapReduce</span></h2><p><strong>什么是MapReduce？</strong><br><img src="http://img.mp.itc.cn/upload/20160512/66fe4ae04e6044e7ac0e84f84e91b82d.jpg" alt=""><br>Hadoop Map/Reduce是一个使用简易的<strong>软件框架</strong>，基于它写出来的应用程序能够运行在由上千个商用机器组成的大型集群上，并以一种可靠容错的方式并行处理上T级别的数据集。</p>
+<p><strong>MapReduce原理</strong><br>一个Map/Reduce 作业（job） 通常会把输入的数据集切分为若干独立的数据块，由 map任务以完全并行的方式处理它们。框架会对map的输出先进行排序， 然后把结果输入给reduce任务。通常作业的输入和输出都会被存储在文件系统中。 整个框架负责任务的调度和监控，以及重新执行已经失败的任务。<br><img src="http://www.36dsj.com/wp-content/uploads/2015/03/174.jpg" alt=""><br>通常，Map/Reduce框架和hdfs是运行在一组相同的节点上的，也就是说，计算节点和存储节点通常在一起。这种配置允许框架在那些已经存好数据的节点上高效地调度任务，这可以使整个集群的网络带宽被非常高效地利用。</p>
+<h2><span id="hive">Hive</span></h2><p><strong>什么是Hive？</strong><br><img src="http://n1.itc.cn/img8/wb/recom/2016/08/10/147082220481677593.JPEG" alt=""></p>
+<blockquote>
+<p>The Apache Hive ™ data warehouse software facilitates reading, writing, and managing large datasets residing in distributed storage using SQL. Structure can be projected onto data already in storage. A command line tool and JDBC driver are provided to connect users to Hive.</p>
+</blockquote>
+<p>Apache Hive是一个建立Hadoop架构之上的数据仓库。它能够提供数据的精炼，查询和分析。</p>
+<h2><span id="pig">Pig</span></h2><p><strong>什么是Pig？</strong><br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/hadoop-pig.png" alt=""></p>
+<blockquote>
+<p>Apache Pig is a platform for analyzing large data sets that consists of a high-level language for expressing data analysis programs, coupled with infrastructure for evaluating these programs. The salient property of Pig programs is that their structure is amenable to substantial parallelization, which in turns enables them to handle very large data sets.</p>
+</blockquote>
+<p>Apache Pig 是一个高级过程语言，适合于使用 Hadoop 和 MapReduce 平台来查询大型半结构化数据集。通过允许对分布式数据集进行类似 SQL 的查询，Pig 可以简化 Hadoop 的使用。</p>
+<h2><span id="storm">Storm</span></h2><p><strong>什么是Storm？</strong><br><img src="http://static.oschina.net/uploads/img/201410/14080822_ia5p.png" alt=""></p>
+<blockquote>
+<p>Apache Storm is a free and open source distributed realtime computation system.<br>Storm makes it easy to reliably process unbounded streams of data, doing for realtime processing what Hadoop did for batch processing.<br>Storm is simple, can be used with any programming language, and is a lot of fun to use!</p>
+</blockquote>
+<p><strong>Storm与传统的大数据</strong><br><img src="http://static.oschina.net/uploads/img/201410/01065722_3geS.png" alt=""><br>Storm 与其他大数据解决方案的不同之处在于它的处理方式。Hadoop 在本质上是一个批处理系统。数据被引入 Hadoop 文件系统 (HDFS) 并分发到各个节点进行处理。当处理完成时，结果数据返回到 HDFS 供任务提交者使用。Storm 支持创建拓扑结构来转换没有终点的数据流。不同于 Hadoop 作业，这些转换从不停止，它们会持续处理到达的数据。</p>
+<h2><span id="hbase">Hbase</span></h2><p><strong>什么是Hbase？</strong></p>
+<blockquote>
+<p>Apache HBase™ is the Hadoop database, a distributed, scalable, big data store. Use Apache HBase™ when you need random, realtime read/write access to your Big Data.</p>
+</blockquote>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220425111757.png" alt=""><br>HBase – Hadoop Database，是一个<strong>高可靠性、高性能、面向列、可伸缩</strong>的分布式存储系统，利用HBase技术可在廉价PC Server上搭建起大规模结构化存储集群。<br>HBase是Google Bigtable的开源实现，类似Google Bigtable利用GFS作为其文件存储系统，HBase利用Hadoop HDFS作为其文件存储系统；Google运行MapReduce来处理Bigtable中的海量数据，HBase同样可以利用Hadoop MapReduce来处理HBase中的海量数据；Google Bigtable利用 Chubby作为协同服务，HBase利用Zookeeper作为对应。</p>
+<p><strong>Hadoop EcoSystem中的关系</strong><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220425111741.png" alt=""><br>其中HBase位于结构化存储层，Hadoop HDFS为HBase提供了高可靠性的底层存储支持，Hadoop MapReduce为HBase提供了高性能的计算能力，Zookeeper为HBase提供了稳定服务和failover机制。<br>此外，Pig和Hive还为HBase提供了高层语言支持，使得在HBase上进行数据统计处理变的非常简单。 Sqoop则为HBase提供了方便的RDBMS数据导入功能，使得传统数据库数据向HBase中迁移变的非常方便。</p>
+<p><strong>HBase系统架构</strong><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220425111717.png" alt=""></p>
+<ul>
+<li>Client<br>HBase Client使用HBase的RPC机制与HMaster和HRegionServer进行通信，对于管理类操作，Client与HMaster进行RPC；对于数据读写类操作，Client与HRegionServer进行RPC</li>
+<li>Zookeeper<br>Zookeeper中除了存储了META表的地址和HMaster的地址，HRegionServer也会把自己以Ephemeral方式注册到Zookeeper中，使得HMaster可以随时感知到各个HRegionServer的健康状态。</li>
+<li><p>HMaster<br>HMaster没有单点问题，HBase中可以启动多个HMaster，通过Zookeeper的Master Election机制保证总有一个Master运行，HMaster在功能上主要负责Table和Region的管理工作：</p>
+<ul>
+<li>管理用户对Table的增、删、改、查操作</li>
+<li>管理HRegionServer的负载均衡，调整Region分布</li>
+<li>在Region Split后，负责新Region的分配</li>
+<li>在HRegionServer停机后，负责失效HRegionServer 上的Regions迁移</li>
+</ul>
+</li>
+<li><p>HRegionServer<br>HRegionServer主要负责响应用户I/O请求，向HDFS文件系统中读写数据，是HBase中最核心的模块。<br>HRegionServer内部管理了一系列HRegion对象，每个HRegion对应了Table中的一个Region，HRegion中由多个HStore组成。每个HStore对应了Table中的一个Column Family的存储，可以看出每个Column Family其实就是一个集中的存储单元，因此最好将具备共同IO特性的column放在一个Column Family中，这样最高效。</p>
+</li>
+</ul>
+<h2><span id="phoenix">Phoenix</span></h2><p><strong>什么是Phoenix？</strong><br><img src="http://phoenix.apache.org/images/phoenix-logo-small.png" alt=""></p>
+<blockquote>
+<p>Apache Phoenix enables OLTP and operational analytics in Hadoop for low latency applications by combining the best of both worlds:</p>
+<ul>
+<li>the power of standard SQL and JDBC APIs with full ACID transaction capabilities</li>
+<li>the flexibility of late-bound, schema-on-read capabilities from the NoSQL world by leveraging HBase as its backing store</li>
+</ul>
+</blockquote>
+<p>HBase，一个NoSQL数据库，可存储大量非关系型数据。<br>HBase，可以用HBase shell进行操作，也可以用HBase Java api进行操作。HBase虽然是一个数据库，但是它的查询语句，很不好用。有没有一种方法可以把 sql 语句转换成 Hbase的原生API呢？<br>Phoenix，由saleforce.com开源的一个项目，后捐给了Apache。它相当于一个Java中间件，帮助开发者，像使用jdbc访问关系型数据库一样，访问NoSql数据库HBase。它还提供了二级索引功能。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/01/07/big-data-intro/">展开全文 >></a>
         </p>
       
 
