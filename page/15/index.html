@@ -156,6 +156,127 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-orc-snappy-splittable" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2021/03/30/orc-snappy-splittable/">Is orc+SNAPPY splittable?</a>
+    </h1>
+  
+
+        
+        <a href="/2021/03/30/orc-snappy-splittable/" class="archive-article-date">
+  	<time datetime="2021-03-30T09:24:54.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-03-30</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#orcparquetsnappy是不是可分的">orc/parquet+SNAPPY是不是可分的？</a><ul>
+<li><a href="#问题">问题</a></li>
+<li><a href="#测试过程">测试过程</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h1><span id="orcparquetsnappy是不是可分的">orc/parquet+SNAPPY是不是可分的？</span></h1><p><strong>先说结论，实际测试结果是：orc+SNAPPY和parquet+SNAPPY都是可分的。</strong></p>
+<h2><span id="问题">问题</span></h2><p>最近遇到一个场景，想通过设置<code>tez.grouping.min-size/tez.grouping.max-size</code>参数，增加tez mapper数量，但是无论怎么调整这两个参数，tez mapper的数量始终不变。</p>
+<p>在我的认知里，一直认为orc+SNAPPY是可分的。查询网上的资料，说法不统一，但是大部分的观点也是可分的。</p>
+<p><a href="https://stackoverflow.com/questions/32382352/is-snappy-splittable-or-not-splittable" target="_blank" rel="noopener">https://stackoverflow.com/questions/32382352/is-snappy-splittable-or-not-splittable</a><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/orc_snappy1.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/orc_snappy2.png" alt=""></p>
+<p><a href="http://cloudsqale.com/2018/12/24/orc-files-split-computation-hive-on-tez/" target="_blank" rel="noopener">http://cloudsqale.com/2018/12/24/orc-files-split-computation-hive-on-tez/</a><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/orc_snappy3.png" alt=""></p>
+<p><a href="https://www.jianshu.com/p/885a3eca6f97" target="_blank" rel="noopener">https://www.jianshu.com/p/885a3eca6f97</a><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/orc_snappy4.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/orc_snappy5.png" alt=""></p>
+<h2><span id="测试过程">测试过程</span></h2><p>于是进行了下述测试。<br><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">-- 创建orc+SNAPPY表</span></span><br><span class="line"><span class="keyword">create</span> <span class="keyword">table</span> tmp.tmp_orc_parquet_test_orc <span class="keyword">STORED</span> <span class="keyword">as</span> orc TBLPROPERTIES (<span class="string">'orc.compress'</span>=<span class="string">'SNAPPY'</span>) <span class="keyword">as</span> </span><br><span class="line"><span class="keyword">select</span> t1.uid, <span class="keyword">action</span>, day_range, entity_id, cnt</span><br><span class="line"><span class="keyword">from</span> (</span><br><span class="line">    <span class="keyword">select</span> uid</span><br><span class="line">           ,nvl(<span class="keyword">action</span>, <span class="string">'all'</span>) <span class="keyword">as</span> <span class="keyword">action</span></span><br><span class="line">           ,day_range</span><br><span class="line">           ,entity_id</span><br><span class="line">           ,<span class="keyword">sum</span>(cnt) <span class="keyword">as</span> cnt</span><br><span class="line">    <span class="keyword">from</span> (</span><br><span class="line">        <span class="keyword">select</span> uid</span><br><span class="line">               ,(<span class="keyword">case</span> <span class="keyword">when</span> <span class="keyword">action</span>=<span class="string">'chat'</span> <span class="keyword">then</span> <span class="keyword">action</span></span><br><span class="line">                      <span class="keyword">when</span> <span class="keyword">action</span>=<span class="string">'publish'</span> <span class="keyword">then</span> <span class="keyword">action</span></span><br><span class="line">                      <span class="keyword">else</span> <span class="string">'interact'</span> <span class="keyword">end</span>) <span class="keyword">as</span> <span class="keyword">action</span></span><br><span class="line">               ,<span class="number">1</span> <span class="keyword">as</span> day_range</span><br><span class="line">               ,entity_id</span><br><span class="line">               ,cnt_d <span class="keyword">as</span> cnt</span><br><span class="line">        <span class="keyword">from</span> tmp.orc_parquet_test_input</span><br><span class="line">        <span class="keyword">where</span> <span class="keyword">day</span>=<span class="string">'2021-03-29'</span> <span class="keyword">and</span> cnt_d&gt;<span class="number">0</span></span><br><span class="line">    ) t</span><br><span class="line">    <span class="keyword">group</span> <span class="keyword">by</span> uid, <span class="keyword">action</span>, day_range, entity_id</span><br><span class="line">    <span class="keyword">grouping</span> <span class="keyword">sets</span>((uid, day_range, entity_id), (uid, <span class="keyword">action</span>, day_range, entity_id))</span><br><span class="line">) t1</span><br><span class="line">;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">--文件结构</span></span><br><span class="line">257044486 2021-03-30 15:52 hdfs://warehouse/tmp.db/tmp_orc_parquet_test_orc/000000_0</span><br><span class="line">111486209 2021-03-30 15:52 hdfs://warehouse/tmp.db/tmp_orc_parquet_test_orc/000001_0</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 创建parquet+SNAPPY表</span></span><br><span class="line"><span class="keyword">create</span> <span class="keyword">table</span> tmp.tmp_orc_parquet_test_parquet <span class="keyword">STORED</span> <span class="keyword">as</span> parquet TBLPROPERTIES(<span class="string">'parquet.compression'</span>=<span class="string">'SNAPPY'</span>) <span class="keyword">as</span> </span><br><span class="line"><span class="keyword">select</span> t1.uid, <span class="keyword">action</span>, day_range, entity_id, cnt</span><br><span class="line"><span class="keyword">from</span> (</span><br><span class="line">    <span class="keyword">select</span> uid</span><br><span class="line">           ,nvl(<span class="keyword">action</span>, <span class="string">'all'</span>) <span class="keyword">as</span> <span class="keyword">action</span></span><br><span class="line">           ,day_range</span><br><span class="line">           ,entity_id</span><br><span class="line">           ,<span class="keyword">sum</span>(cnt) <span class="keyword">as</span> cnt</span><br><span class="line">    <span class="keyword">from</span> (</span><br><span class="line">        <span class="keyword">select</span> uid</span><br><span class="line">               ,(<span class="keyword">case</span> <span class="keyword">when</span> <span class="keyword">action</span>=<span class="string">'chat'</span> <span class="keyword">then</span> <span class="keyword">action</span></span><br><span class="line">                      <span class="keyword">when</span> <span class="keyword">action</span>=<span class="string">'publish'</span> <span class="keyword">then</span> <span class="keyword">action</span></span><br><span class="line">                      <span class="keyword">else</span> <span class="string">'interact'</span> <span class="keyword">end</span>) <span class="keyword">as</span> <span class="keyword">action</span></span><br><span class="line">               ,<span class="number">1</span> <span class="keyword">as</span> day_range</span><br><span class="line">               ,entity_id</span><br><span class="line">               ,cnt_d <span class="keyword">as</span> cnt</span><br><span class="line">        <span class="keyword">from</span> tmp.orc_parquet_test_input</span><br><span class="line">        <span class="keyword">where</span> <span class="keyword">day</span>=<span class="string">'2021-03-29'</span> <span class="keyword">and</span> cnt_d&gt;<span class="number">0</span></span><br><span class="line">    ) t</span><br><span class="line">    <span class="keyword">group</span> <span class="keyword">by</span> uid, <span class="keyword">action</span>, day_range, entity_id</span><br><span class="line">    <span class="keyword">grouping</span> <span class="keyword">sets</span>((uid, day_range, entity_id), (uid, <span class="keyword">action</span>, day_range, entity_id))</span><br><span class="line">) t1</span><br><span class="line">;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">--文件结构</span></span><br><span class="line">272461453 2021-03-30 15:53 hdfs://warehouse/tmp.db/tmp_orc_parquet_test_parquet/000000_0</span><br><span class="line">105226145 2021-03-30 15:51 hdfs://warehouse/tmp.db/tmp_orc_parquet_test_parquet/000001_0</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 查询测试orc+SNAPPY</span></span><br><span class="line"><span class="keyword">select</span> <span class="keyword">action</span>, <span class="keyword">count</span>(*) <span class="keyword">from</span> tmp.tmp_orc_parquet_test_orc <span class="keyword">group</span> <span class="keyword">by</span> <span class="keyword">action</span>;</span><br><span class="line">Query ID = root_20210330180037_a584d773-c304-43f4-9df7-6acbd1551e08</span><br><span class="line">Total jobs = 1</span><br><span class="line">Launching Job 1 out of 1</span><br><span class="line">Status: Running (Executing on YARN cluster with App id application_1585297125447_2191065)</span><br><span class="line"></span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">        VERTICES      MODE        STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">Map 1 .......... container     SUCCEEDED      3          3        0        0       0       0  </span><br><span class="line">Reducer 2 ...... container     SUCCEEDED      2          2        0        0       0       0  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">VERTICES: 02/02  [==========================&gt;&gt;] 100%  ELAPSED TIME: 34.31 s    </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 查询测试parquet+SNAPPY</span></span><br><span class="line"><span class="keyword">select</span> <span class="keyword">action</span>, <span class="keyword">count</span>(*) <span class="keyword">from</span> tmp.tmp_orc_parquet_test_parquet <span class="keyword">group</span> <span class="keyword">by</span> <span class="keyword">action</span>;</span><br><span class="line">Query ID = root_20210330175955_56c67b68-4b51-41bc-8873-d61710fc9eb9</span><br><span class="line">Total jobs = 1</span><br><span class="line">Launching Job 1 out of 1</span><br><span class="line">Status: Running (Executing on YARN cluster with App id application_1585297125447_2191021)</span><br><span class="line"></span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">        VERTICES      MODE        STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">Map 1 .......... container     SUCCEEDED      8          8        0        0       0       0  </span><br><span class="line">Reducer 2 ...... container     SUCCEEDED      3          3        0        0       0       0  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">VERTICES: 02/02  [==========================&gt;&gt;] 100%  ELAPSED TIME: 16.62 s    </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">--设置读取size</span></span><br><span class="line"><span class="keyword">SET</span> tez.grouping.min-<span class="keyword">size</span>=<span class="number">10000000</span>; <span class="comment">-- 10M</span></span><br><span class="line"><span class="keyword">SET</span> tez.grouping.max-<span class="keyword">size</span>=<span class="number">50000000</span>;  <span class="comment">-- 50M</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 查询测试orc+SNAPPY</span></span><br><span class="line"><span class="keyword">select</span> <span class="keyword">action</span>, <span class="keyword">count</span>(*) <span class="keyword">from</span> tmp.tmp_orc_parquet_test_orc <span class="keyword">group</span> <span class="keyword">by</span> <span class="keyword">action</span>;</span><br><span class="line">Query ID = root_20210330180147_331eb0b4-5ab4-4b5d-aedb-f3492852c563</span><br><span class="line">Total jobs = 1</span><br><span class="line">Launching Job 1 out of 1</span><br><span class="line">Status: Running (Executing on YARN cluster with App id application_1585297125447_2191065)</span><br><span class="line"></span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">        VERTICES      MODE        STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">Map 1 .......... container     SUCCEEDED      3          3        0        0       0       0  </span><br><span class="line">Reducer 2 ...... container     SUCCEEDED      2          2        0        0       0       0  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">VERTICES: 02/02  [==========================&gt;&gt;] 100%  ELAPSED TIME: 20.13 s    </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 查询测试parquet+SNAPPY</span></span><br><span class="line"><span class="keyword">select</span> <span class="keyword">action</span>, <span class="keyword">count</span>(*) <span class="keyword">from</span> tmp.tmp_orc_parquet_test_parquet <span class="keyword">group</span> <span class="keyword">by</span> <span class="keyword">action</span>;</span><br><span class="line">Query ID = root_20210330180217_bb02f52f-6c3b-4bcf-ae70-ec44abb306c4</span><br><span class="line">Total jobs = 1</span><br><span class="line">Launching Job 1 out of 1</span><br><span class="line">Status: Running (Executing on YARN cluster with App id application_1585297125447_2191065)</span><br><span class="line"></span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">        VERTICES      MODE        STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">Map 1 .......... container     SUCCEEDED     39         39        0        0       0       0  </span><br><span class="line">Reducer 2 ...... container     SUCCEEDED      3          3        0        0       0       0  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">VERTICES: 02/02  [==========================&gt;&gt;] 100%  ELAPSED TIME: 21.49 s    </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">SET</span> mapreduce.input.fileinputformat.split.minsize=<span class="number">10000000</span>;</span><br><span class="line"><span class="keyword">SET</span> mapreduce.input.fileinputformat.split.maxsize=<span class="number">50000000</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">select</span> <span class="keyword">action</span>, <span class="keyword">count</span>(*) <span class="keyword">from</span> tmp.tmp_orc_parquet_test_orc <span class="keyword">group</span> <span class="keyword">by</span> <span class="keyword">action</span>;</span><br><span class="line">Query ID = root_20210406174753_a44ae3da-81be-4905-b965-67ae5fa35d14</span><br><span class="line">Total jobs = 1</span><br><span class="line">Launching Job 1 out of 1</span><br><span class="line">Status: Running (Executing on YARN cluster with App id application_1585297125447_2234780)</span><br><span class="line"></span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">        VERTICES      MODE        STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">Map 1 .......... container     SUCCEEDED     11         11        0        0       0       0  </span><br><span class="line">Reducer 2 ...... container     SUCCEEDED      4          4        0        0       0       0  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">VERTICES: 02/02  [==========================&gt;&gt;] 100%  ELAPSED TIME: 7.10 s     </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br></pre></td></tr></table></figure></p>
+<p>可见通过减小<code>tez.grouping.min-size/tez.grouping.max-size</code>参数，可以增加parquet+SNAPPY的mapper数，但是orc+SNAPPY的mapper数不变。<br>通过减小<code>mapreduce.input.fileinputformat.split.minsize、mapreduce.input.fileinputformat.split.maxsize</code>参数，可以增加orc+SNAPPY和parquet+SNAPPY的mapper数。<br>至于更深层次的原因，还没有功夫就探究。</p>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://stackoverflow.com/questions/32382352/is-snappy-splittable-or-not-splittable" target="_blank" rel="noopener">https://stackoverflow.com/questions/32382352/is-snappy-splittable-or-not-splittable</a></li>
+<li><a href="http://cloudsqale.com/2018/12/24/orc-files-split-computation-hive-on-tez/" target="_blank" rel="noopener">http://cloudsqale.com/2018/12/24/orc-files-split-computation-hive-on-tez/</a></li>
+<li><a href="https://orc.apache.org/docs/hive-config.html" target="_blank" rel="noopener">https://orc.apache.org/docs/hive-config.html</a></li>
+<li><a href="https://www.jianshu.com/p/885a3eca6f97" target="_blank" rel="noopener">https://www.jianshu.com/p/885a3eca6f97</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">tez</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">orc</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">snappy</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2021/03/30/orc-snappy-splittable/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-hdfscompress" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
@@ -421,121 +542,6 @@
 
 
   
-    <article id="post-phoneRegion" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2020/02/28/phoneRegion/">手机号归属地查询</a>
-    </h1>
-  
-
-        
-        <a href="/2020/02/28/phoneRegion/" class="archive-article-date">
-  	<time datetime="2020-02-28T09:52:07.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2020-02-28</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#背景">背景</a><ul>
-<li><a href="#实时查询">实时查询</a></li>
-<li><a href="#离线查询">离线查询</a></li>
-</ul>
-</li>
-</ul>
-<!-- tocstop -->
-<h2><span id="背景">背景</span></h2><p>根据手机号查询归属地信息有很多种方法，可以使用<a href="http://www.ip138.com/sj/" target="_blank" rel="noopener">网页</a>查询，或使用程序调用其查询接口。不过如果需要频繁的或大批量的查询，这种方式就不太可行了。下面介绍两种使用场景，供大家参考。</p>
-<h3><span id="实时查询">实时查询</span></h3><p><em>场景：使用spark streaming实时消费用户注册信息（kafka），根据其中的手机号获取到对应的归属地信息并存储。</em><br>这种场景对处理延时要求较高，需要将归属地查询服务集成到程序内部，或至少提供内网的rpc调用方法。可以使用下面的库，支持java、python、go。<br><a href="https://github.com/fengjiajie/phone-number-geo" target="_blank" rel="noopener">https://github.com/fengjiajie/phone-number-geo</a></p>
-<h3><span id="离线查询">离线查询</span></h3><p><em>场景：数仓中查询用户的归属地信息，根据归属地信息进行聚合、统计。</em><br>这种场景由于涉及数据量较大，使用调用查询的方式不太可行，因为会进行上亿次的查询。可以将手机号和归属地的对应关系事先全部加载到hive表中，查询的时候根据手机号进行关联，具体方法如下。</p>
-<ol>
-<li><p>下载手机号归属地<a href="https://pypi.org/project/phone-db/" target="_blank" rel="noopener">数据文件</a>，这个文件是sqlite数据文件，可以使用sqlite打开。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"># sqlite3 phone.db</span><br><span class="line">sqlite&gt; .table</span><br><span class="line">phones   regions</span><br><span class="line">sqlite&gt; .schema phones # 查看表结构</span><br><span class="line">CREATE TABLE phones (</span><br><span class="line">        id INTEGER NOT NULL,</span><br><span class="line">        number INTEGER,</span><br><span class="line">        type INTEGER,</span><br><span class="line">        region_id INTEGER,</span><br><span class="line">        PRIMARY KEY (id),</span><br><span class="line">        FOREIGN KEY(region_id) REFERENCES regions (id)</span><br><span class="line">);</span><br><span class="line">CREATE INDEX ix_phones_number ON phones (number);</span><br><span class="line">sqlite&gt; .schema regions</span><br><span class="line">CREATE TABLE regions (</span><br><span class="line">        id INTEGER NOT NULL,</span><br><span class="line">        province VARCHAR,</span><br><span class="line">        city VARCHAR,</span><br><span class="line">        zip_code VARCHAR,</span><br><span class="line">        area_code VARCHAR,</span><br><span class="line">        PRIMARY KEY (id)</span><br><span class="line">);</span><br><span class="line">sqlite&gt; .headers on # 导出csv格式文件</span><br><span class="line">sqlite&gt; .mode csv</span><br><span class="line">sqlite&gt; .output /tmp/data.csv</span><br><span class="line">sqlite&gt; select t1.number, t1.type, t2.province, t2.city, t2.zip_code, t2.area_code from (</span><br><span class="line">   ...&gt;     select number, type, region_id from phones</span><br><span class="line">   ...&gt; ) t1 left join (</span><br><span class="line">   ...&gt;     select id, province, city, zip_code, area_code from regions</span><br><span class="line">   ...&gt; ) t2 on t1.region_id = t2.id;</span><br><span class="line">sqlite&gt; .quit</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>data.csv里面就是所有手机号归属地的对应信息了。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"># sed -i &apos;s/,/\t/g; s/&quot;//g&apos; /tmp/data.csv</span><br><span class="line"># head /tmp/data.csv</span><br><span class="line">0       2       山东    济南    250000  0531</span><br><span class="line">1300001 2       江苏    常州    213000  0519</span><br><span class="line">1300002 2       安徽    合肥    230000  0551</span><br><span class="line">1300003 2       四川    宜宾    644000  0831</span><br><span class="line">1300004 2       四川    自贡    643000  0813</span><br><span class="line">1300005 2       陕西    西安    710000  029</span><br><span class="line">1300006 2       江苏    南京    210000  025</span><br><span class="line">1300007 2       陕西    西安    710000  029</span><br><span class="line">1300008 2       湖北    武汉    430000  027</span><br><span class="line">1300009 2       陕西    西安    710000  029</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>将csv文件加载到hive表中。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line">hive&gt; CREATE TABLE IF NOT EXISTS phone_region (</span><br><span class="line">    &gt; phone7             STRING     COMMENT &apos;手机号前7位&apos;,</span><br><span class="line">    &gt; phone_type         STRING     COMMENT &apos;手机号运营商&apos;,</span><br><span class="line">    &gt; province           STRING     COMMENT &apos;省&apos;,</span><br><span class="line">    &gt; city               STRING     COMMENT &apos;城市&apos;,</span><br><span class="line">    &gt; zip_code           STRING     COMMENT &apos;邮编&apos;,</span><br><span class="line">    &gt; area_code          STRING     COMMENT &apos;区号&apos;</span><br><span class="line">    &gt; ) COMMENT &apos;手机号归属地映射表&apos;</span><br><span class="line">    &gt; ROW FORMAT SERDE</span><br><span class="line">    &gt;     &apos;org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe&apos;</span><br><span class="line">    &gt; WITH SERDEPROPERTIES (</span><br><span class="line">    &gt;     &apos;colelction.delim&apos;=&apos;-&apos;,</span><br><span class="line">    &gt;     &apos;field.delim&apos;=&apos;\t&apos;,</span><br><span class="line">    &gt;     &apos;line.delim&apos;=&apos;\n&apos;,</span><br><span class="line">    &gt;     &apos;mapkey.delim&apos;=&apos;:&apos;,</span><br><span class="line">    &gt;     &apos;serialization.format&apos;=&apos;\t&apos;</span><br><span class="line">    &gt; );</span><br><span class="line">OK</span><br><span class="line">Time taken: 0.376 seconds</span><br><span class="line">hive&gt; LOAD DATA LOCAL INPATH &apos;/tmp/data.csv&apos; INTO TABLE phone_region;</span><br><span class="line">Loading data to table phone_region</span><br><span class="line">OK</span><br><span class="line">Time taken: 3.489 seconds</span><br><span class="line">hive&gt; INSERT OVERWRITE TABLE phone_region</span><br><span class="line">    &gt; SELECT phone7</span><br><span class="line">    &gt;        ,(CASE WHEN phone_type=&apos;1&apos; THEN &apos;移动&apos;</span><br><span class="line">    &gt;               WHEN phone_type=&apos;2&apos; THEN &apos;联通&apos;</span><br><span class="line">    &gt;               WHEN phone_type=&apos;3&apos; THEN &apos;电信&apos;</span><br><span class="line">    &gt;               WHEN phone_type=&apos;4&apos; THEN &apos;电信虚拟运营商&apos;</span><br><span class="line">    &gt;               WHEN phone_type=&apos;5&apos; THEN &apos;联通虚拟运营商&apos;</span><br><span class="line">    &gt;               WHEN phone_type=&apos;6&apos; THEN &apos;移动虚拟运营商&apos;</span><br><span class="line">    &gt;               ELSE &apos;&apos; END)</span><br><span class="line">    &gt;        ,province</span><br><span class="line">    &gt;        ,city</span><br><span class="line">    &gt;        ,zip_code</span><br><span class="line">    &gt;        ,area_code</span><br><span class="line">    &gt; FROM phone_region;</span><br><span class="line">Loading data to table phone_region</span><br><span class="line">hive&gt; select * FROM phone_region limit 10;</span><br><span class="line">OK</span><br><span class="line">0       联通    山东    济南    250000  0531</span><br><span class="line">1300001 联通    江苏    常州    213000  0519</span><br><span class="line">1300002 联通    安徽    合肥    230000  0551</span><br><span class="line">1300003 联通    四川    宜宾    644000  0831</span><br><span class="line">1300004 联通    四川    自贡    643000  0813</span><br><span class="line">1300005 联通    陕西    西安    710000  029</span><br><span class="line">1300006 联通    江苏    南京    210000  025</span><br><span class="line">1300007 联通    陕西    西安    710000  029</span><br><span class="line">1300008 联通    湖北    武汉    430000  027</span><br><span class="line">1300009 联通    陕西    西安    710000  029</span><br><span class="line">Time taken: 0.191 seconds, Fetched: 10 row(s)</span><br><span class="line">hive&gt; SELECT COUNT(*) FROM phone_region;</span><br><span class="line">415284</span><br></pre></td></tr></table></figure></li>
-</ol>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">手机号</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">归属地</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/其他/" class="article-tag-list-link color3">其他</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2020/02/28/phoneRegion/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/14/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/13/">13</a><a class="page-number" href="/page/14/">14</a><span class="page-number current">15</span><a class="page-number" href="/page/16/">16</a><a class="page-number" href="/page/17/">17</a><span class="space">&hellip;</span><a class="page-number" href="/page/41/">41</a><a class="extend next" rel="next" href="/page/16/">Next &raquo;</a>
@@ -652,10 +658,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">shell</a>
               </li>
              
@@ -669,6 +671,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -696,11 +702,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -712,6 +718,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
@@ -720,11 +730,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -732,7 +742,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -748,23 +758,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hexo</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">github pages</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -776,11 +774,27 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
+                <a href="javascript:void(0)" class="js-tag color5">独立开发</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -796,10 +810,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
@@ -812,11 +822,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -840,15 +850,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">spark</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -856,11 +858,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">storm</a>
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">storm</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -872,7 +878,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -884,11 +898,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
+                <a href="javascript:void(0)" class="js-tag color2">presto</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">presto</a>
+                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -901,10 +915,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -932,11 +942,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -944,11 +954,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">离线数仓</a>
+                <a href="javascript:void(0)" class="js-tag color1">doris</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">doris</a>
+                <a href="javascript:void(0)" class="js-tag color5">离线数仓</a>
               </li>
              
               <li class="article-tag-list-item">

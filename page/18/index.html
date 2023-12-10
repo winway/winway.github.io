@@ -156,6 +156,116 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-azkaban-api" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2019/08/24/azkaban-api/">Azkaban api使用介绍</a>
+    </h1>
+  
+
+        
+        <a href="/2019/08/24/azkaban-api/" class="archive-article-date">
+  	<time datetime="2019-08-24T07:43:46.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-08-24</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#azkaban介绍">Azkaban介绍</a></li>
+<li><a href="#使用curl操作azkaban-api">使用Curl操作Azkaban API</a></li>
+<li><a href="#使用python操作azkaban-api">使用Python操作Azkaban API</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="azkaban介绍">Azkaban介绍</span></h2><p><a href="https://azkaban.github.io/azkaban/docs/latest/" target="_blank" rel="noopener">Azkaban</a>是由Linkedin公司推出的一个批量工作流任务调度器，用于在一个工作流内以一个特定的顺序运行一组工作和流程。Azkaban使用job配置文件建立任务之间的依赖关系，并提供一个易于使用的web用户界面维护和跟踪你的工作流。</p>
+<p>Azkaban功能特点：<br>1.Web用户界面<br>2.方便上传工作流<br>3.方便设置任务之间的关系<br>4.调度工作流<br>5.认证/授权(权限的工作)<br>6.能够杀死并重新启动工作流<br>7.模块化和可插拔的插件机制<br>8.项目工作区<br>9.工作流和任务的日志记录和审计</p>
+<p>Azkaban有两种部署方式：solo server mode 和 cluster server mode。</p>
+<ul>
+<li>solo server mode(单机模式)：该模式中webServer和executorServer运行在同一个进程中，进程名是AzkabanSingleServer。可以使用自带的H2数据库或者配置mysql数据。该模式适用于小规模的使用。</li>
+<li>cluster server mode(集群模式)：该模式使用MySQL数据库，webServer和executorServer运行在不同进程中，该模式适用于大规模应用。</li>
+</ul>
+<p><img src="https://azkaban.github.io/azkaban/docs/latest/images/azkaban2overviewdesign.png" alt="azkaban2overviewdesign"></p>
+<h2><span id="使用curl操作azkaban-api">使用Curl操作Azkaban API</span></h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 获取登录sessionid</span><br><span class="line">curl -k -X POST --data 'action=login&amp;username=winway&amp;password=123456' https://localhost:8443</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 获取项目foo工作流bar运行中的execution id</span><br><span class="line">curl -k -X POST --data "session.id=2c03d089-eaad-4c95-b670-400e4cd3304d&amp;ajax=getRunning&amp;project=foo&amp;flow=bar" https://localhost:8443/executor</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 获取项目foo工作流bar最近3个execution id</span><br><span class="line">curl -k --get --data "session.id=2c03d089-eaad-4c95-b670-400e4cd3304d&amp;ajax=fetchFlowExecutions&amp;project=foo&amp;flow=bar&amp;start=0&amp;length=3" https://localhost:8443/manager</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 获取某个execution的job执行日志</span><br><span class="line">curl -k -X POST --data "session.id=2c03d089-eaad-4c95-b670-400e4cd3304d&amp;ajax=fetchExecJobLogs&amp;execid=26501&amp;jobId=helloworld&amp;offset=0&amp;length=99999" https://localhost:8443/executor</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> 获取execution运行状态</span><br><span class="line">curl -k -X POST --data "session.id=2c03d089-eaad-4c95-b670-400e4cd3304d&amp;ajax=fetchexecflow&amp;execid=24138" https://localhost:8443/executor</span><br></pre></td></tr></table></figure>
+<p>完整api文档：<a href="https://azkaban.readthedocs.io/en/latest/ajaxApi.html" target="_blank" rel="noopener">https://azkaban.readthedocs.io/en/latest/ajaxApi.html</a></p>
+<h2><span id="使用python操作azkaban-api">使用Python操作Azkaban API</span></h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#!/usr/bin/env python</span></span><br><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> sys</span><br><span class="line"><span class="keyword">import</span> requests</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">AZKABANURL = <span class="string">'https://localhost:8443'</span></span><br><span class="line">USERNAME = <span class="string">'winway'</span></span><br><span class="line">PASSWORD = <span class="string">'123456'</span></span><br><span class="line">SESSIONID = <span class="keyword">None</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">getSessionId</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="string">'''获取azkaban登录sessionid'''</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        r = requests.post(AZKABANURL, verify=<span class="keyword">False</span>, data=&#123;<span class="string">'action'</span>: <span class="string">'login'</span>,</span><br><span class="line">                                                          <span class="string">'username'</span>: USERNAME,</span><br><span class="line">                                                          <span class="string">'password'</span>: PASSWORD&#125;)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> r.status_code == <span class="number">200</span> <span class="keyword">and</span> <span class="string">'session.id'</span> <span class="keyword">in</span> r.json():</span><br><span class="line">            <span class="keyword">global</span> SESSIONID</span><br><span class="line">            SESSIONID = r.json()[<span class="string">'session.id'</span>]</span><br><span class="line">            <span class="keyword">print</span> <span class="string">'[INFO] SESSIONID:'</span>, SESSIONID</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">raise</span> Exception(<span class="string">'[FAIL] getSessionId: status_code(%d), %s'</span> % (r.status_code, r.json()))</span><br><span class="line">    <span class="keyword">except</span> Exception <span class="keyword">as</span> e:</span><br><span class="line">        <span class="keyword">print</span> <span class="string">'[FAIL] getSessionId: %s'</span> % str(e)</span><br><span class="line">        sys.exit(<span class="number">-1</span>)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">getExecId</span><span class="params">(project, flow)</span>:</span></span><br><span class="line">    <span class="string">'''获取azkaban任务的运行id'''</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> SESSIONID <span class="keyword">is</span> <span class="keyword">None</span>:</span><br><span class="line">        getSessionId()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        r = requests.get(<span class="string">'%s/manager?session.id=%s&amp;ajax=fetchFlowExecutions&amp;project=%s&amp;flow=%s&amp;start=0&amp;length=3'</span> % (</span><br><span class="line">            AZKABANURL, SESSIONID, project, flow), verify=<span class="keyword">False</span>)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> r.status_code == <span class="number">200</span> <span class="keyword">and</span> <span class="string">'executions'</span> <span class="keyword">in</span> r.json():</span><br><span class="line">            execIds = []</span><br><span class="line">            <span class="keyword">for</span> execution <span class="keyword">in</span> r.json()[<span class="string">'executions'</span>]:</span><br><span class="line">                execIds.append(execution[<span class="string">'execId'</span>])</span><br><span class="line">            <span class="keyword">print</span> <span class="string">'[INFO] execIds:'</span>, execIds</span><br><span class="line">            <span class="keyword">return</span> execIds</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">raise</span> Exception(<span class="string">'[FAIL] getExecId: status_code(%d), %s'</span> % (r.status_code, r.json()))</span><br><span class="line">    <span class="keyword">except</span> Exception <span class="keyword">as</span> e:</span><br><span class="line">        <span class="keyword">print</span> <span class="string">'[FAIL] getExecId: %s'</span> % str(e)</span><br><span class="line">        sys.exit(<span class="number">-1</span>)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">getRunningStatus</span><span class="params">(project, flow, execId)</span>:</span></span><br><span class="line">    <span class="string">'''获取azkaban任务的运行状态'''</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        r = requests.post(<span class="string">'%s/executor'</span> % AZKABANURL, verify=<span class="keyword">False</span>, data=&#123;<span class="string">'session.id'</span>: SESSIONID,</span><br><span class="line">                                                                          <span class="string">'ajax'</span>: <span class="string">'fetchexecflow'</span>,</span><br><span class="line">                                                                          <span class="string">'execid'</span>: execId&#125;)</span><br><span class="line">        <span class="keyword">if</span> r.status_code == <span class="number">200</span> <span class="keyword">and</span> <span class="string">'nodes'</span> <span class="keyword">in</span> r.json():</span><br><span class="line">            <span class="keyword">return</span> r.json()[<span class="string">'nodes'</span>]</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">raise</span> Exception(<span class="string">'[FAIL] getRunningStatus: status_code(%d), %s'</span> % (r.status_code, r.json()))</span><br><span class="line">    <span class="keyword">except</span> Exception <span class="keyword">as</span> e:</span><br><span class="line">        <span class="keyword">print</span> <span class="string">'[FAIL] getRunningStatus: %s'</span> % str(e)</span><br><span class="line">        sys.exit(<span class="number">-1</span>)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">checkStatus</span><span class="params">(project, flow)</span>:</span></span><br><span class="line">    <span class="string">'''检查azkaban任务的运行状态'''</span></span><br><span class="line"></span><br><span class="line">    execIds = getExecId(project, flow)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> execId <span class="keyword">in</span> execIds:</span><br><span class="line">        runningStatus = getRunningStatus(project, flow, execId)</span><br><span class="line">        <span class="keyword">for</span> rs <span class="keyword">in</span> runningStatus:</span><br><span class="line">            id, attempt, status = rs[<span class="string">'id'</span>], rs[<span class="string">'attempt'</span>], rs[<span class="string">'status'</span>]</span><br><span class="line">            <span class="keyword">print</span> <span class="string">'execId: %s, id: %s, attempt: %d, status: %s'</span> % (execId, id, attempt, status)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line"></span><br><span class="line">    checkStatus(<span class="string">'foo'</span>, <span class="string">'bar'</span>)</span><br></pre></td></tr></table></figure>
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">python</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">azkaban</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2019/08/24/azkaban-api/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-blogPicMigrate" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
@@ -378,129 +488,6 @@
 
 
   
-    <article id="post-kaggle-intro" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2018/06/03/kaggle-intro/">kaggle快速上手指南</a>
-    </h1>
-  
-
-        
-        <a href="/2018/06/03/kaggle-intro/" class="archive-article-date">
-  	<time datetime="2018-06-03T07:13:03.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-06-03</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#1-简介">1. 简介</a></li>
-<li><a href="#2-注册">2. 注册</a></li>
-<li><a href="#3-竞赛">3. 竞赛</a><ul>
-<li><a href="#kaggle竞赛分类">Kaggle竞赛分类</a></li>
-<li><a href="#kaggle竞赛排名机制">Kaggle竞赛排名机制</a></li>
-<li><a href="#kaggle竞赛价值">Kaggle竞赛价值</a></li>
-</ul>
-</li>
-<li><a href="#kernel">kernel</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<h1><span id="1-简介">1. 简介</span></h1><p><a href="https://www.kaggle.com/" target="_blank" rel="noopener">Kaggle</a>是一个数据建模和数据分析竞赛平台。企业和研究者可在其上发布数据，统计学者和数据挖掘专家可在其上进行竞赛以产生最好的模型。这一众包模式依赖于这一事实，即有众多策略可以用于解决几乎所有预测建模的问题，而研究者不可能在一开始就了解什么方法对于特定问题是最为有效的。Kaggle的目标则是试图通过众包的形式来解决这一难题，进而使数据科学成为一场运动。2017年3月8日谷歌官方博客宣布收购Kaggle。</p>
-<h1><span id="2-注册">2. 注册</span></h1><p>首先注册一个kaggle账号。如果你有Facebook、Google、Yahoo账号，可以直接登录，否则请注册。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/kaggle-signin.png" alt=""></p>
-<h1><span id="3-竞赛">3. 竞赛</span></h1><h2><span id="kaggle竞赛分类">Kaggle竞赛分类</span></h2><p>竞赛种类包括：</p>
-<ul>
-<li>推荐比赛Featured：瞄准商业问题带有奖金的公开竞赛。如果有幸赢得比赛，不但可以获得奖金，模型也可能会被竞赛赞助商应用到商业实践中呢。</li>
-<li>人才征募Recruitment：赞助企业寻求数据科学家、算法设计人才的渠道。只允许个人参赛，不接受团队报名。</li>
-<li>研究型Research：机器学习前沿技术或者公益性质的题目。竞赛奖励可能是现金，也有一部分以会议邀请、发表论文的形式奖励。</li>
-<li>游乐场Playground：以有趣为主，比如猫狗照片分类的问题。现在这个分类下的题目不算多，但是热度很高。</li>
-<li>入门比赛Getting Started：给萌新们一个试水的机会，没有奖金，但有非常多的前辈经验可供学习。</li>
-<li>课业比赛In Class：学校教授机器学习的老师留作业的地方，这里的竞赛有些会向public开放参赛，也有些仅仅是学校内部教学使用。</li>
-</ul>
-<p>除此以外，还有大师邀请赛Master、前沿探索型Kaggle Prospect等非公开的竞赛，这里不做介绍了。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/kaggle-competition.png" alt=""></p>
-<h2><span id="kaggle竞赛排名机制">Kaggle竞赛排名机制</span></h2><p>了解Kaggle的排名机制也会对取得好成绩有所帮助。在比赛结束之前，参赛者每天最多可以提交5次测试集的预测结果。每一次提交结果都会获得最新的临时排名成绩，直至比赛结束获得最终排名。在比赛过程中，Kaggle将参赛者每次提交的结果取出25%-33%，并依照准确率进行临时排名。在比赛结束时，参赛者可以指定几个已经提交的结果，Kaggle从中去除之前用于临时排名的部分，用剩余数据的准确率综合得到最终排名。所以，比赛过程中用于最终排名的那部分数据，参赛者是始终得不到关于准确率的反馈的。这样一定程度避免参赛模型的过拟合，保证评选出兼顾准确率和泛化能力的模型。</p>
-<h2><span id="kaggle竞赛价值">Kaggle竞赛价值</span></h2><p>Kaggle作为Data Science业内享有盛名的平台，在业界拥有极高的认可度。所以如果你是想寻找相关行业的工作，那一个漂亮的Kaggle profile将为你的简历增色不少。Quora上的这个问题：<a href="https://link.zhihu.com/?target=https%3A//www.quora.com/How-can-we-use-kaggle" target="_blank" rel="noopener">How can we use Kaggle?</a>就提到，把Kaggle的项目经验写在Linkedin上可以很直观的展现自己作为一个Data Scientist的能力。</p>
-<h1><span id="kernel">kernel</span></h1><p>kernel是kaggle的核心，提供了数据分析所需的环境、数据集、代码和输出样式（比如Python Notebook），将这些功能聚合在一起可以使得Kernels可以很方便的复现和分享。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/kaggle-kernel1.png" alt=""><br>kernel包括两种格式，script和notebook<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/kaggle-kernel2.png" alt=""><br>kernel凝聚了所有的解题心路历程、代码，可以通过学习排名靠前的kernel，学习大神的经验。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/kaggle-kernel3.png" alt=""><br>kernel同时又是一个交互式的python开发环境，默认集成了常见的科学计算和机器学习库，如np、pd、sns、matplotlib、scipy、sklearn等，并自带训练和测试数据集，十分方便，堪称神器。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/kaggle-kernel4.png" alt=""></p>
-<h1><span id="参考资料">参考资料</span></h1><ul>
-<li><a href="https://zh.wikipedia.org/wiki/Kaggle" target="_blank" rel="noopener">https://zh.wikipedia.org/wiki/Kaggle</a></li>
-<li><a href="https://blog.csdn.net/colouroo/article/details/53730011" target="_blank" rel="noopener">https://blog.csdn.net/colouroo/article/details/53730011</a></li>
-<li><a href="https://zhuanlan.zhihu.com/p/25686876" target="_blank" rel="noopener">https://zhuanlan.zhihu.com/p/25686876</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">kaggle</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/其他/" class="article-tag-list-link color3">其他</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2018/06/03/kaggle-intro/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/17/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/16/">16</a><a class="page-number" href="/page/17/">17</a><span class="page-number current">18</span><a class="page-number" href="/page/19/">19</a><a class="page-number" href="/page/20/">20</a><span class="space">&hellip;</span><a class="page-number" href="/page/41/">41</a><a class="extend next" rel="next" href="/page/19/">Next &raquo;</a>
@@ -617,10 +604,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">shell</a>
               </li>
              
@@ -634,6 +617,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -661,11 +648,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -677,6 +664,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
@@ -685,11 +676,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -697,7 +688,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -713,23 +704,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hexo</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">github pages</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -741,11 +720,27 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
+                <a href="javascript:void(0)" class="js-tag color5">独立开发</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -761,10 +756,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
@@ -777,11 +768,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -805,15 +796,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">spark</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -821,11 +804,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">storm</a>
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">storm</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -837,7 +824,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -849,11 +844,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
+                <a href="javascript:void(0)" class="js-tag color2">presto</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">presto</a>
+                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -866,10 +861,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -897,11 +888,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -909,11 +900,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">离线数仓</a>
+                <a href="javascript:void(0)" class="js-tag color1">doris</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">doris</a>
+                <a href="javascript:void(0)" class="js-tag color5">离线数仓</a>
               </li>
              
               <li class="article-tag-list-item">

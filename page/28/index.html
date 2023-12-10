@@ -156,6 +156,144 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-salt-master-option-parser" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/07/18/salt-master-option-parser/">saltstack源码解析之master选项解析-MasterOptionParser</a>
+    </h1>
+  
+
+        
+        <a href="/2017/07/18/salt-master-option-parser/" class="archive-article-date">
+  	<time datetime="2017-07-18T10:56:27.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-07-18</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p><em>ENV: Version: 2016.11.0, Transport: tcp, Multi-Master</em></p>
+<!-- toc -->
+<ul>
+<li><a href="#1-类图和重要方法说明">1. 类图和重要方法说明</a></li>
+<li><a href="#2-核心设计思想">2. 核心设计思想</a></li>
+<li><a href="#3-源码解析">3. 源码解析</a><ul>
+<li><a href="#optionparsermeta">OptionParserMeta</a></li>
+<li><a href="#optionparser">OptionParser</a></li>
+<li><a href="#configdirmixin">ConfigDirMixIn</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h2><span id="1-类图和重要方法说明">1. 类图和重要方法说明</span></h2><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/master%E9%80%89%E9%A1%B9salt-%E8%A7%A3%E6%9E%90.png" alt="salt-master选项解析"></p>
+<h2><span id="2-核心设计思想">2. 核心设计思想</span></h2><p>每个/类option类中可以定义option的优先级和处理函数，并通过元类OptionParserMeta根据优先级进行组织，并在parse_args（重写optparse）中适时调用。这样设计是为了解耦，方便option的增加、删除和修改。如下，不同的对象通过继承组合不同的MixIn，就能实现选项参数的构建。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MasterOptionParser</span><span class="params">(six.with_metaclass<span class="params">(OptionParserMeta,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            OptionParser,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            ConfigDirMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            MergeConfigMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            LogLevelMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            RunUserMixin,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            DaemonMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            SaltfileMixIn)</span>)</span>:</span></span><br></pre></td></tr></table></figure></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">ProxyMinionOptionParser</span><span class="params">(six.with_metaclass<span class="params">(OptionParserMeta,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                                 OptionParser,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                                 ProxyIdMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                                 ConfigDirMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                                 MergeConfigMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                                 LogLevelMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                                 RunUserMixin,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                                 DaemonMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                                 SaltfileMixIn)</span>)</span>:</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">SyndicOptionParser</span><span class="params">(six.with_metaclass<span class="params">(OptionParserMeta,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            OptionParser,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            ConfigDirMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            MergeConfigMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            LogLevelMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            RunUserMixin,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            DaemonMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            SaltfileMixIn)</span>)</span>:</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">SaltCMDOptionParser</span><span class="params">(six.with_metaclass<span class="params">(OptionParserMeta,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                             OptionParser,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                             ConfigDirMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                             MergeConfigMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                             TimeoutMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                             ExtendedTargetOptionsMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                             OutputOptionsMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                             LogLevelMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                             HardCrashMixin,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                             SaltfileMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                             ArgsStdinMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                             EAuthMixIn)</span>)</span>:</span></span><br></pre></td></tr></table></figure>
+<h2><span id="3-源码解析">3. 源码解析</span></h2><p>入口函数在<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/scripts.py</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">salt_master</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    Start the salt master.</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    <span class="keyword">import</span> salt.cli.daemons</span><br><span class="line">    master = salt.cli.daemons.Master()</span><br><span class="line">    master.start()</span><br></pre></td></tr></table></figure></p>
+<p>首先分析一下salt.cli.daemons.Master类</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/cli/daemons.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">Master</span><span class="params">(parsers.MasterOptionParser, DaemonsMixin)</span>:</span>  <span class="comment"># pylint: disable=no-init</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    Creates a master server</span></span><br><span class="line"><span class="string">    '''</span></span><br></pre></td></tr></table></figure>
+<p>salt.cli.daemons.Master有两个父类，DaemonsMixin比较简单，重点是parsers.MasterOptionParser<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/utils/parsers.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MasterOptionParser</span><span class="params">(six.with_metaclass<span class="params">(OptionParserMeta,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            OptionParser,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            ConfigDirMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            MergeConfigMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            LogLevelMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            RunUserMixin,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            DaemonMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            SaltfileMixIn)</span>)</span>:</span></span><br></pre></td></tr></table></figure></p>
+<p>MasterOptionParser有一个父类，该类的元类是OptionParserMeta，父类是</p>
+<ul>
+<li>OptionParser</li>
+<li>ConfigDirMixIn</li>
+<li>MergeConfigMixIn</li>
+<li>LogLevelMixIn</li>
+<li>RunUserMixin</li>
+<li>DaemonMixIn</li>
+<li>SaltfileMixIn</li>
+</ul>
+<p><em>six.with_metaclass的用法可以参考<a href="https://stackoverflow.com/questions/18513821/python-metaclass-understanding-the-with-metaclass" target="_blank" rel="noopener">这里</a></em></p>
+<p>下面重点对OptionParserMeta、OptionParser和ConfigDirMixIn进行分析</p>
+<h3><span id="optionparsermeta">OptionParserMeta</span></h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/utils/parsers.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">OptionParserMeta</span><span class="params">(MixInMeta)</span>:</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__new__</span><span class="params">(mcs, name, bases, attrs)</span>:</span></span><br><span class="line">        instance = super(OptionParserMeta, mcs).__new__(mcs,</span><br><span class="line">                                                        name,</span><br><span class="line">                                                        bases,</span><br><span class="line">                                                        attrs)</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> hasattr(instance, <span class="string">'_mixin_setup_funcs'</span>):</span><br><span class="line">            instance._mixin_setup_funcs = []</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> hasattr(instance, <span class="string">'_mixin_process_funcs'</span>):</span><br><span class="line">            instance._mixin_process_funcs = []</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> hasattr(instance, <span class="string">'_mixin_after_parsed_funcs'</span>):</span><br><span class="line">            instance._mixin_after_parsed_funcs = []</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> hasattr(instance, <span class="string">'_mixin_before_exit_funcs'</span>):</span><br><span class="line">            instance._mixin_before_exit_funcs = []</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> base <span class="keyword">in</span> _sorted(bases + (instance,)):</span><br><span class="line">            func = getattr(base, <span class="string">'_mixin_setup'</span>, <span class="keyword">None</span>)</span><br><span class="line">            <span class="keyword">if</span> func <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span> <span class="keyword">and</span> func <span class="keyword">not</span> <span class="keyword">in</span> instance._mixin_setup_funcs:</span><br><span class="line">                instance._mixin_setup_funcs.append(func)</span><br><span class="line"></span><br><span class="line">            func = getattr(base, <span class="string">'_mixin_after_parsed'</span>, <span class="keyword">None</span>)</span><br><span class="line">            <span class="keyword">if</span> func <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span> <span class="keyword">and</span> func <span class="keyword">not</span> <span class="keyword">in</span> \</span><br><span class="line">                    instance._mixin_after_parsed_funcs:</span><br><span class="line">                instance._mixin_after_parsed_funcs.append(func)</span><br><span class="line"></span><br><span class="line">            func = getattr(base, <span class="string">'_mixin_before_exit'</span>, <span class="keyword">None</span>)</span><br><span class="line">            <span class="keyword">if</span> func <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span> <span class="keyword">and</span> func <span class="keyword">not</span> <span class="keyword">in</span> \</span><br><span class="line">                    instance._mixin_before_exit_funcs:</span><br><span class="line">                instance._mixin_before_exit_funcs.append(func)</span><br><span class="line"></span><br><span class="line">            <span class="comment"># Mark process_&lt;opt&gt; functions with the base priority for sorting</span></span><br><span class="line">            <span class="keyword">for</span> func <span class="keyword">in</span> dir(base):</span><br><span class="line">                <span class="keyword">if</span> <span class="keyword">not</span> func.startswith(<span class="string">'process_'</span>):</span><br><span class="line">                    <span class="keyword">continue</span></span><br><span class="line"></span><br><span class="line">                func = getattr(base, func)</span><br><span class="line">                <span class="keyword">if</span> getattr(func, <span class="string">'_mixin_prio_'</span>, <span class="keyword">None</span>) <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span>:</span><br><span class="line">                    <span class="comment"># Function already has the attribute set, don't override it</span></span><br><span class="line">                    <span class="keyword">continue</span></span><br><span class="line"></span><br><span class="line">                <span class="keyword">if</span> six.PY2:</span><br><span class="line">                    func.__func__._mixin_prio_ = getattr(</span><br><span class="line">                        base, <span class="string">'_mixin_prio_'</span>, <span class="number">1000</span></span><br><span class="line">                    )</span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    func._mixin_prio_ = getattr(</span><br><span class="line">                        base, <span class="string">'_mixin_prio_'</span>, <span class="number">1000</span></span><br><span class="line">                    )</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> instance</span><br></pre></td></tr></table></figure>
+<p>OptionParserMeta继承自MixInMeta，MixInMeta的作用是确保类存在_mixin_setup方法。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MixInMeta</span><span class="params">(type)</span>:</span></span><br><span class="line">    <span class="comment"># This attribute here won't actually do anything. But, if you need to</span></span><br><span class="line">    <span class="comment"># specify an order or a dependency within the mix-ins, please define the</span></span><br><span class="line">    <span class="comment"># attribute on your own MixIn</span></span><br><span class="line">    _mixin_prio_ = <span class="number">0</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">__new__</span><span class="params">(mcs, name, bases, attrs)</span>:</span></span><br><span class="line">        instance = super(MixInMeta, mcs).__new__(mcs, name, bases, attrs)</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> hasattr(instance, <span class="string">'_mixin_setup'</span>):</span><br><span class="line">            <span class="keyword">raise</span> RuntimeError(</span><br><span class="line">                <span class="string">'Don\'t subclass &#123;0&#125; in &#123;1&#125; if you\'re not going to use it '</span></span><br><span class="line">                <span class="string">'as a salt parser mix-in.'</span>.format(mcs.__name__, name)</span><br><span class="line">            )</span><br><span class="line">        <span class="keyword">return</span> instance</span><br></pre></td></tr></table></figure></p>
+<p>OptionParserMeta的作用是构造_mixin_setup_funcs、_mixin_process_funcs、_mixin_after_parsed_funcs、_mixin_before_exit_funcs4个list，根据父类优先级_mixin_prio_按序分类保存各父类的方法。_mixin_process_funcs在此并未初始化，只是为process_*方法设置了_mixin_prio_属性</p>
+<h3><span id="optionparser">OptionParser</span></h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/utils/parser.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">OptionParser</span><span class="params">(optparse.OptionParser, object)</span>:</span></span><br><span class="line">    VERSION = version.__saltstack_version__.formatted_version    <span class="comment"># ????</span></span><br><span class="line"></span><br><span class="line">    usage = <span class="string">'%prog'</span></span><br><span class="line"></span><br><span class="line">    epilog = (<span class="string">'You can find additional help about %prog issuing "man %prog" '</span></span><br><span class="line">              <span class="string">'or on http://docs.saltstack.com'</span>)</span><br><span class="line">    description = <span class="keyword">None</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># Private attributes</span></span><br><span class="line">    _mixin_prio_ = <span class="number">100</span></span><br></pre></td></tr></table></figure>
+<p>OptionParser继承自optparse.OptionParser，optparse.OptionParser是python自带的模块，OptionParser重写了一些方法，目的是为了支持–args-stdin和在处理命令行参数的时候调用相应的处理函数，如_mixin_setup_funcs<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/utils/parser.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">_populate_option_list</span><span class="params">(self, option_list, add_help=True)</span>:</span></span><br><span class="line">        optparse.OptionParser._populate_option_list(</span><br><span class="line">            self, option_list, add_help=add_help</span><br><span class="line">        )</span><br><span class="line">        <span class="keyword">for</span> mixin_setup_func <span class="keyword">in</span> self._mixin_setup_funcs:  <span class="comment"># pylint: disable=no-member</span></span><br><span class="line">            mixin_setup_func(self)</span><br></pre></td></tr></table></figure></p>
+<p>process_*<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/utils/parser.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">parse_args</span><span class="params">(self, args=None, values=None)</span>:</span></span><br><span class="line">        options, args = optparse.OptionParser.parse_args(self, args, values)</span><br><span class="line">        <span class="keyword">if</span> <span class="string">'args_stdin'</span> <span class="keyword">in</span> options.__dict__ <span class="keyword">and</span> options.args_stdin <span class="keyword">is</span> <span class="keyword">True</span>:</span><br><span class="line">            <span class="comment"># Read additional options and/or arguments from stdin and combine</span></span><br><span class="line">            <span class="comment"># them with the options and arguments from the command line.</span></span><br><span class="line">            new_inargs = sys.stdin.readlines()</span><br><span class="line">            new_inargs = [arg.rstrip(<span class="string">'\r\n'</span>) <span class="keyword">for</span> arg <span class="keyword">in</span> new_inargs]</span><br><span class="line">            new_options, new_args = optparse.OptionParser.parse_args(</span><br><span class="line">                    self,</span><br><span class="line">                    new_inargs)</span><br><span class="line">            options.__dict__.update(new_options.__dict__)</span><br><span class="line">            args.extend(new_args)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> options.versions_report:</span><br><span class="line">            self.print_versions_report()</span><br><span class="line"></span><br><span class="line">        self.options, self.args = options, args</span><br><span class="line"></span><br><span class="line">        <span class="comment"># Let's get some proper sys.stderr logging as soon as possible!!!</span></span><br><span class="line">        <span class="comment"># This logging handler will be removed once the proper console or</span></span><br><span class="line">        <span class="comment"># logfile logging is setup.</span></span><br><span class="line">        log.setup_temp_logger(</span><br><span class="line">            getattr(self.options, <span class="string">'log_level'</span>, <span class="string">'error'</span>)    <span class="comment"># ????</span></span><br><span class="line">        )</span><br><span class="line"></span><br><span class="line">        <span class="comment"># Gather and run the process_&lt;option&gt; functions in the proper order</span></span><br><span class="line">        process_option_funcs = []</span><br><span class="line">        <span class="keyword">for</span> option_key <span class="keyword">in</span> options.__dict__:</span><br><span class="line">            process_option_func = getattr(</span><br><span class="line">                self, <span class="string">'process_&#123;0&#125;'</span>.format(option_key), <span class="keyword">None</span></span><br><span class="line">            )</span><br><span class="line">            <span class="keyword">if</span> process_option_func <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span>:</span><br><span class="line">                process_option_funcs.append(process_option_func)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> process_option_func <span class="keyword">in</span> _sorted(process_option_funcs):</span><br><span class="line">            <span class="keyword">try</span>:</span><br><span class="line">                process_option_func()</span><br><span class="line">            <span class="keyword">except</span> Exception <span class="keyword">as</span> err:  <span class="comment"># pylint: disable=broad-except</span></span><br><span class="line">                logging.getLogger(__name__).exception(err)</span><br><span class="line">                self.error(</span><br><span class="line">                    <span class="string">'Error while processing &#123;0&#125;: &#123;1&#125;'</span>.format(</span><br><span class="line">                        process_option_func, traceback.format_exc(err)</span><br><span class="line">                    )</span><br><span class="line">                )</span><br><span class="line"></span><br><span class="line">        <span class="comment"># Run the functions on self._mixin_after_parsed_funcs</span></span><br><span class="line">        <span class="keyword">for</span> mixin_after_parsed_func <span class="keyword">in</span> self._mixin_after_parsed_funcs:  <span class="comment"># pylint: disable=no-member</span></span><br><span class="line">            <span class="keyword">try</span>:</span><br><span class="line">                mixin_after_parsed_func(self)</span><br><span class="line">            <span class="keyword">except</span> Exception <span class="keyword">as</span> err:  <span class="comment"># pylint: disable=broad-except</span></span><br><span class="line">                logging.getLogger(__name__).exception(err)</span><br><span class="line">                self.error(</span><br><span class="line">                    <span class="string">'Error while processing &#123;0&#125;: &#123;1&#125;'</span>.format(</span><br><span class="line">                        mixin_after_parsed_func, traceback.format_exc(err)</span><br><span class="line">                    )</span><br><span class="line">                )</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> self.config.get(<span class="string">'conf_file'</span>, <span class="keyword">None</span>) <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span>:  <span class="comment"># pylint: disable=no-member    # ????</span></span><br><span class="line">            logging.getLogger(__name__).debug(</span><br><span class="line">                <span class="string">'Configuration file path: &#123;0&#125;'</span>.format(</span><br><span class="line">                    self.config[<span class="string">'conf_file'</span>]  <span class="comment"># pylint: disable=no-member</span></span><br><span class="line">                )</span><br><span class="line">            )</span><br><span class="line">        <span class="comment"># Retain the standard behavior of optparse to return options and args</span></span><br><span class="line">        <span class="keyword">return</span> options, args</span><br></pre></td></tr></table></figure></p>
+<p>_mixin_before_exit_funcs<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">exit</span><span class="params">(self, status=<span class="number">0</span>, msg=None)</span>:</span></span><br><span class="line">    <span class="comment"># Run the functions on self._mixin_after_parsed_funcs</span></span><br><span class="line">    <span class="keyword">for</span> mixin_before_exit_func <span class="keyword">in</span> self._mixin_before_exit_funcs:  <span class="comment"># pylint: disable=no-member</span></span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            mixin_before_exit_func(self)</span><br><span class="line">        <span class="keyword">except</span> Exception <span class="keyword">as</span> err:  <span class="comment"># pylint: disable=broad-except</span></span><br><span class="line">            logger = logging.getLogger(__name__)</span><br><span class="line">            logger.exception(err)</span><br><span class="line">            logger.error(</span><br><span class="line">                <span class="string">'Error while processing &#123;0&#125;: &#123;1&#125;'</span>.format(</span><br><span class="line">                    mixin_before_exit_func, traceback.format_exc(err)</span><br><span class="line">                )</span><br><span class="line">            )</span><br><span class="line">    <span class="keyword">if</span> self._setup_mp_logging_listener_ <span class="keyword">is</span> <span class="keyword">True</span>:</span><br><span class="line">        <span class="comment"># Stop the logging queue listener process</span></span><br><span class="line">        log.shutdown_multiprocessing_logging_listener(daemonizing=<span class="keyword">True</span>)</span><br><span class="line">    <span class="keyword">if</span> isinstance(msg, six.string_types) <span class="keyword">and</span> msg <span class="keyword">and</span> msg[<span class="number">-1</span>] != <span class="string">'\n'</span>:</span><br><span class="line">        msg = <span class="string">'&#123;0&#125;\n'</span>.format(msg)</span><br><span class="line">    optparse.OptionParser.exit(self, status, msg)</span><br></pre></td></tr></table></figure></p>
+<h3><span id="configdirmixin">ConfigDirMixIn</span></h3><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/utils/parser.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">ConfigDirMixIn</span><span class="params">(six.with_metaclass<span class="params">(MixInMeta, object)</span>)</span>:</span></span><br><span class="line">    _mixin_prio_ = <span class="number">-10</span></span><br><span class="line">    _config_filename_ = <span class="keyword">None</span></span><br><span class="line">    _default_config_dir_ = syspaths.CONFIG_DIR</span><br><span class="line">    _default_config_dir_env_var_ = <span class="string">'SALT_CONFIG_DIR'</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">_mixin_setup</span><span class="params">(self)</span>:</span></span><br><span class="line">        config_dir = os.environ.get(self._default_config_dir_env_var_, <span class="keyword">None</span>)</span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> config_dir:</span><br><span class="line">            config_dir = self._default_config_dir_</span><br><span class="line">            logging.getLogger(__name__).debug(<span class="string">'SYSPATHS setup as: &#123;0&#125;'</span>.format(syspaths.CONFIG_DIR))</span><br><span class="line">        self.add_option(</span><br><span class="line">            <span class="string">'-c'</span>, <span class="string">'--config-dir'</span>, default=config_dir,</span><br><span class="line">            help=(<span class="string">'Pass in an alternative configuration directory. Default: '</span></span><br><span class="line">                  <span class="string">'\'%default\'.'</span>)</span><br><span class="line">        )</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">process_config_dir</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> os.path.isdir(self.options.config_dir):</span><br><span class="line">            <span class="comment"># No logging is configured yet</span></span><br><span class="line">            sys.stderr.write(</span><br><span class="line">                <span class="string">'WARNING: CONFIG \'&#123;0&#125;\' directory does not exist.\n'</span>.format(</span><br><span class="line">                    self.options.config_dir</span><br><span class="line">                )</span><br><span class="line">            )</span><br><span class="line"></span><br><span class="line">        <span class="comment"># Make sure we have an absolute path</span></span><br><span class="line">        self.options.config_dir = os.path.abspath(self.options.config_dir)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> hasattr(self, <span class="string">'setup_config'</span>):</span><br><span class="line">            <span class="keyword">if</span> <span class="keyword">not</span> hasattr(self, <span class="string">'config'</span>):</span><br><span class="line">                self.config = &#123;&#125;</span><br><span class="line">            <span class="keyword">try</span>:</span><br><span class="line">                self.config.update(self.setup_config())    <span class="comment"># ????</span></span><br><span class="line">            <span class="keyword">except</span> (IOError, OSError) <span class="keyword">as</span> exc:</span><br><span class="line">                self.error(</span><br><span class="line">                    <span class="string">'Failed to load configuration: &#123;0&#125;'</span>.format(exc)</span><br><span class="line">                )</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">get_config_file_path</span><span class="params">(self, configfile=None)</span>:</span></span><br><span class="line">        <span class="keyword">if</span> configfile <span class="keyword">is</span> <span class="keyword">None</span>:</span><br><span class="line">            configfile = self._config_filename_</span><br><span class="line">        <span class="keyword">return</span> os.path.join(self.options.config_dir, configfile)</span><br></pre></td></tr></table></figure>
+<p>ConfigDirMixIn负责添加和处理–config-dir选项，具有_mixin_setup和process_config_dir方法，优先级_mixin_prio_ = -10。_mixin_setup负责add_option，process_config_dir调用setup_config读取配置文件内容，setup_config定义在MasterOptionParser中<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt.utils.parsers.py</span></span><br><span class="line"><span class="class"><span class="keyword">class</span> <span class="title">MasterOptionParser</span><span class="params">(six.with_metaclass<span class="params">(OptionParserMeta,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            OptionParser,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            ConfigDirMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            MergeConfigMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            LogLevelMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            RunUserMixin,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            DaemonMixIn,</span></span></span></span><br><span class="line"><span class="class"><span class="params"><span class="params">                                            SaltfileMixIn)</span>)</span>:</span></span><br><span class="line"></span><br><span class="line">    description = <span class="string">'The Salt master, used to control the Salt minions.'</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># ConfigDirMixIn config filename attribute</span></span><br><span class="line">    _config_filename_ = <span class="string">'master'</span></span><br><span class="line">    <span class="comment"># LogLevelMixIn attributes</span></span><br><span class="line">    _default_logging_logfile_ = os.path.join(syspaths.LOGS_DIR, <span class="string">'master'</span>)</span><br><span class="line">    _setup_mp_logging_listener_ = <span class="keyword">True</span></span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">setup_config</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="keyword">return</span> config.master_config(self.get_config_file_path())</span><br></pre></td></tr></table></figure></p>
+<p>分析完salt.cli.daemons.Master，回到<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/scripts.py</span></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">salt_master</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="string">'''</span></span><br><span class="line"><span class="string">    Start the salt master.</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line">    <span class="keyword">import</span> salt.cli.daemons</span><br><span class="line">    master = salt.cli.daemons.Master()</span><br><span class="line">    master.start()</span><br></pre></td></tr></table></figure></p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/cli/daemon.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">start</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Start the actual master.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        If sub-classed, don't **ever** forget to run:</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">            super(YourSubClass, self).start()</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        NOTE: Run any required code before calling `super()`.</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        super(Master, self).start()</span><br><span class="line">        <span class="keyword">if</span> check_user(self.config[<span class="string">'user'</span>]):</span><br><span class="line">            self.action_log_info(<span class="string">'Starting up'</span>)</span><br><span class="line">            self.verify_hash_type()</span><br><span class="line">            self.master.start()</span><br></pre></td></tr></table></figure>
+<p>start函数首先调用父类的start函数，即salt.utils.parsers.DaemonMixIn.start<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># sat/utils/parser.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">start</span><span class="params">(self)</span>:</span></span><br><span class="line">        self.prepare()</span><br><span class="line">        self._install_signal_handlers()</span><br></pre></td></tr></table></figure></p>
+<p>salt.utils.parsers.DaemonMixIn.start调用self.prepare()，即salt.cli.daemons.Master.prepare<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># salt/cli/daemon.py</span></span><br><span class="line">    <span class="function"><span class="keyword">def</span> <span class="title">prepare</span><span class="params">(self)</span>:</span></span><br><span class="line">        <span class="string">'''</span></span><br><span class="line"><span class="string">        Run the preparation sequence required to start a salt master server.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">        If sub-classed, don't **ever** forget to run:</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">            super(YourSubClass, self).prepare()</span></span><br><span class="line"><span class="string">        '''</span></span><br><span class="line">        super(Master, self).prepare()</span><br><span class="line"></span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            <span class="keyword">if</span> self.config[<span class="string">'verify_env'</span>]:</span><br><span class="line">                v_dirs = [</span><br><span class="line">                        self.config[<span class="string">'pki_dir'</span>],</span><br><span class="line">                        os.path.join(self.config[<span class="string">'pki_dir'</span>], <span class="string">'minions'</span>),</span><br><span class="line">                        os.path.join(self.config[<span class="string">'pki_dir'</span>], <span class="string">'minions_pre'</span>),</span><br><span class="line">                        os.path.join(self.config[<span class="string">'pki_dir'</span>], <span class="string">'minions_denied'</span>),</span><br><span class="line">                        os.path.join(self.config[<span class="string">'pki_dir'</span>],</span><br><span class="line">                                     <span class="string">'minions_autosign'</span>),</span><br><span class="line">                        os.path.join(self.config[<span class="string">'pki_dir'</span>],</span><br><span class="line">                                     <span class="string">'minions_rejected'</span>),</span><br><span class="line">                        self.config[<span class="string">'cachedir'</span>],</span><br><span class="line">                        os.path.join(self.config[<span class="string">'cachedir'</span>], <span class="string">'jobs'</span>),</span><br><span class="line">                        os.path.join(self.config[<span class="string">'cachedir'</span>], <span class="string">'proc'</span>),</span><br><span class="line">                        self.config[<span class="string">'sock_dir'</span>],</span><br><span class="line">                        self.config[<span class="string">'token_dir'</span>],</span><br><span class="line">                        self.config[<span class="string">'syndic_dir'</span>],</span><br><span class="line">                        self.config[<span class="string">'sqlite_queue_dir'</span>],</span><br><span class="line">                    ]</span><br><span class="line">                <span class="keyword">if</span> self.config.get(<span class="string">'transport'</span>) == <span class="string">'raet'</span>:</span><br><span class="line">                    v_dirs.append(os.path.join(self.config[<span class="string">'pki_dir'</span>], <span class="string">'accepted'</span>))</span><br><span class="line">                    v_dirs.append(os.path.join(self.config[<span class="string">'pki_dir'</span>], <span class="string">'pending'</span>))</span><br><span class="line">                    v_dirs.append(os.path.join(self.config[<span class="string">'pki_dir'</span>], <span class="string">'rejected'</span>))</span><br><span class="line">                    v_dirs.append(os.path.join(self.config[<span class="string">'cachedir'</span>], <span class="string">'raet'</span>))</span><br><span class="line">                verify_env(</span><br><span class="line">                    v_dirs,</span><br><span class="line">                    self.config[<span class="string">'user'</span>],</span><br><span class="line">                    permissive=self.config[<span class="string">'permissive_pki_access'</span>],</span><br><span class="line">                    pki_dir=self.config[<span class="string">'pki_dir'</span>],</span><br><span class="line">                )</span><br><span class="line">                <span class="comment"># Clear out syndics from cachedir</span></span><br><span class="line">                <span class="keyword">for</span> syndic_file <span class="keyword">in</span> os.listdir(self.config[<span class="string">'syndic_dir'</span>]):</span><br><span class="line">                    os.remove(os.path.join(self.config[<span class="string">'syndic_dir'</span>], syndic_file))</span><br><span class="line">        <span class="keyword">except</span> OSError <span class="keyword">as</span> error:</span><br><span class="line">            self.environment_failure(error)</span><br><span class="line"></span><br><span class="line">        self.setup_logfile_logger()</span><br><span class="line">        verify_log(self.config)</span><br><span class="line">        self.action_log_info(<span class="string">'Setting up'</span>)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># <span class="doctag">TODO:</span> AIO core is separate from transport</span></span><br><span class="line">        <span class="keyword">if</span> self.config[<span class="string">'transport'</span>].lower() <span class="keyword">in</span> (<span class="string">'zeromq'</span>, <span class="string">'tcp'</span>):</span><br><span class="line">            <span class="keyword">if</span> <span class="keyword">not</span> verify_socket(self.config[<span class="string">'interface'</span>],</span><br><span class="line">                                 self.config[<span class="string">'publish_port'</span>],</span><br><span class="line">                                 self.config[<span class="string">'ret_port'</span>]):</span><br><span class="line">                self.shutdown(<span class="number">4</span>, <span class="string">'The ports are not available to bind'</span>)</span><br><span class="line">            self.config[<span class="string">'interface'</span>] = ip_bracket(self.config[<span class="string">'interface'</span>])</span><br><span class="line">            migrations.migrate_paths(self.config)</span><br><span class="line"></span><br><span class="line">            <span class="comment"># Late import so logging works correctly</span></span><br><span class="line">            <span class="keyword">import</span> salt.master</span><br><span class="line">            self.master = salt.master.Master(self.config)</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="comment"># Add a udp port check here</span></span><br><span class="line">            <span class="keyword">import</span> salt.daemons.flo</span><br><span class="line">            self.master = salt.daemons.flo.IofloMaster(self.config)</span><br><span class="line">        self.daemonize_if_required()</span><br><span class="line">        self.set_pidfile()</span><br><span class="line">        salt.utils.process.notify_systemd()</span><br></pre></td></tr></table></figure></p>
+<p>salt.cli.daemons.Master.prepare调用父类的prepare，即salt.utils.parsers.DaemonMixIn.prepare，进行parse_args，并初始化salt.master.Master，在salt.cli.daemons.Master.start中调用start进行master的启动</p>
+<p>至此，master完成选项解析和配置文件加载，开始启动各组件。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">saltstack</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/07/18/salt-master-option-parser/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-hexo-githubpages-blog" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
@@ -409,122 +547,6 @@
 
 
   
-    <article id="post-fuse-dfs" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/04/13/fuse-dfs/">使用fuse_dfs挂载hdfs</a>
-    </h1>
-  
-
-        
-        <a href="/2017/04/13/fuse-dfs/" class="archive-article-date">
-  	<time datetime="2017-04-13T03:13:06.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-04-13</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#介绍">介绍</a></li>
-<li><a href="#安装配置">安装配置</a></li>
-<li><a href="#使用">使用</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="介绍">介绍</span></h2><p>用户空间文件系统（Filesystem in Userspace，简称FUSE）是一个面向类Unix计算机操作系统的软件接口，它使无特权的用户能够无需编辑内核代码而创建自己的文件系统。目前Linux通过内核模块对此进行支持。一些文件系统如ZFS、glusterfs和lustre使用FUSE实现。Linux用于支持用户空间文件系统的内核模块名叫FUSE，FUSE一词有时特指Linux下的用户空间文件系统。<br>通过使用Hadoop的Fuse-DFS分类模块，任意一个Hadoop文件系统(不过一般为HDFS)都可以作为一个标准文件系统进行挂载。我们随后便可以使用Unix的工具(如ls和cat)与这个文件系统交互，还可以通过任意一种编程语言使用POSIX库来访问文件系统。Fuse-DFS是用C语言实现的，使用libhdfs作为与HDFS的接口。</p>
-<h2><span id="安装配置">安装配置</span></h2><p>fuse的安装比较复杂，具体包括：</p>
-<ol>
-<li><p>安装 fuse，挂载内核模块modprobe fuse</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">yum install fuse</span><br><span class="line">yum install fuse-devel</span><br><span class="line">yum install fuse-libs</span><br><span class="line">modprobe fuse</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>配置fuse</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">groupadd fuse</span><br><span class="line">chgrp fuse /dev/fuse</span><br><span class="line">usermod -a -G fuse root</span><br><span class="line">add &quot;user_allow_other&quot; to /etc/fuse.conf</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>编译hadoop源码，生成fuse_dfs可执行文件和libhdfs.so，因为 hadoop 的二进制发布包中不包含 fuse_dfs。hadoop源码编译可参考：<br><a href="https://svn.apache.org/repos/asf/hadoop/common/branches/MR-4327/BUILDING.txt" target="_blank" rel="noopener">https://svn.apache.org/repos/asf/hadoop/common/branches/MR-4327/BUILDING.txt</a><br><a href="https://pravinchavan.wordpress.com/2013/04/14/building-apache-hadoop-from-source/" target="_blank" rel="noopener">https://pravinchavan.wordpress.com/2013/04/14/building-apache-hadoop-from-source/</a><br><a href="http://www.aboutyun.com/thread-12183-1-1.html" target="_blank" rel="noopener">http://www.aboutyun.com/thread-12183-1-1.html</a></p>
-</li>
-<li>修改fuse_dfs_wrapper.sh（从hadoop源码包中获取），指定hadoop客户端信息</li>
-</ol>
-<p>最终需要的文件如下：<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/fuse-dfs.bmp" alt=""></p>
-<h2><span id="使用">使用</span></h2><ol>
-<li>mkdir -p ./mnt/hdfs/</li>
-<li>sh fuse_dfs_wrapper.sh -o uid=$(id root -u) -o gid=$(id root -g) hdfs://democluster/ ./mnt/hdfs</li>
-<li>开始使用</li>
-<li>卸载fusermount -u  ./mnt/hdfs</li>
-</ol>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">fuse-dfs</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/04/13/fuse-dfs/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/27/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/26/">26</a><a class="page-number" href="/page/27/">27</a><span class="page-number current">28</span><a class="page-number" href="/page/29/">29</a><a class="page-number" href="/page/30/">30</a><span class="space">&hellip;</span><a class="page-number" href="/page/41/">41</a><a class="extend next" rel="next" href="/page/29/">Next &raquo;</a>
@@ -641,10 +663,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">shell</a>
               </li>
              
@@ -658,6 +676,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -685,11 +707,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -701,6 +723,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
@@ -709,11 +735,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -721,7 +747,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -737,23 +763,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hexo</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">github pages</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -765,11 +779,27 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
+                <a href="javascript:void(0)" class="js-tag color5">独立开发</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -785,10 +815,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
@@ -801,11 +827,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -829,15 +855,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">spark</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -845,11 +863,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">storm</a>
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">storm</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -861,7 +883,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -873,11 +903,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
+                <a href="javascript:void(0)" class="js-tag color2">presto</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">presto</a>
+                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -890,10 +920,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -921,11 +947,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -933,11 +959,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">离线数仓</a>
+                <a href="javascript:void(0)" class="js-tag color1">doris</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">doris</a>
+                <a href="javascript:void(0)" class="js-tag color5">离线数仓</a>
               </li>
              
               <li class="article-tag-list-item">
