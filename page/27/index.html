@@ -156,6 +156,111 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-centos-7-tmp-file-removed-when-logout" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/08/01/centos-7-tmp-file-removed-when-logout/">systemd-logind.service的RemoveIPC参数影响</a>
+    </h1>
+  
+
+        
+        <a href="/2017/08/01/centos-7-tmp-file-removed-when-logout/" class="archive-article-date">
+  	<time datetime="2017-08-01T09:48:21.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-08-01</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#1-背景">1. 背景</a></li>
+<li><a href="#2-原因">2. 原因</a></li>
+<li><a href="#3-解决方法">3. 解决方法</a></li>
+<li><a href="#4-参考资料">4. 参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="1-背景">1. 背景</span></h2><p>最近在centos7.2上遇到一个奇怪的问题，用户在/tmp目录下创建的文件，在用户logout后会被删除，具体场景如下：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">Last login: Tue Aug  1 17:47:23 2017 from 192.168.37.12</span><br><span class="line"><span class="meta">$</span> ll /tmp/test.file</span><br><span class="line">ls: cannot access /tmp/test.file: No such file or directory</span><br><span class="line"><span class="meta">$</span> touch /tmp/test.file</span><br><span class="line"><span class="meta">$</span> ll /tmp/test.file</span><br><span class="line">-rw-rw-r-- 1 biztech biztech 0 Aug  1 17:52 /tmp/test.file</span><br><span class="line"><span class="meta">$</span> logout</span><br><span class="line">Connection to 10.144.103.141 closed.</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Last login: Tue Aug  1 17:52:09 2017 from 192.168.37.12</span><br><span class="line"><span class="meta">$</span> ll /tmp/test.file</span><br><span class="line">ls: cannot access /tmp/test.file: No such file or directory</span><br></pre></td></tr></table></figure></p>
+<h2><span id="2-原因">2. 原因</span></h2><p>经过艰苦卓绝的google，发现是systemd-logind.service的RemoveIPC参数导致的。因为我的系统里/tmp是共享内存实现的，刚好满足了这个场景。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">RemoveIPC=</span><br><span class="line"></span><br><span class="line">    Controls whether System V and POSIX IPC objects belonging to the user shall be removed when the user fully logs out. Takes a boolean argument. If enabled, the user may not consume IPC resources after the last of the user's sessions terminated. This covers System V semaphores, shared memory and message queues, as well as POSIX shared memory and message queues. Note that IPC objects of the root user and other system users are excluded from the effect of this setting. Defaults to "yes".</span><br></pre></td></tr></table></figure></p>
+<h2><span id="3-解决方法">3. 解决方法</span></h2><p>如果想关闭这个特性，可以按如下操作：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> sed -i 's/.*RemoveIPC.*/RemoveIPC=no/' /etc/systemd/logind.conf </span><br><span class="line"><span class="meta">#</span> grep RemoveIPC /etc/systemd/logind.conf</span><br><span class="line">RemoveIPC=no</span><br><span class="line"><span class="meta">#</span> systemctl restart systemd-logind.service</span><br></pre></td></tr></table></figure></p>
+<h2><span id="4-参考资料">4. 参考资料</span></h2><ol>
+<li><a href="https://bbs.archlinux.org/viewtopic.php?id=191409" target="_blank" rel="noopener">https://bbs.archlinux.org/viewtopic.php?id=191409</a></li>
+<li><a href="https://www.freedesktop.org/software/systemd/man/logind.conf.html" target="_blank" rel="noopener">https://www.freedesktop.org/software/systemd/man/logind.conf.html</a></li>
+<li><a href="https://docs.oracle.com/cd/E52668_01/E67200/html/section-t51_kcn_f5.html" target="_blank" rel="noopener">https://docs.oracle.com/cd/E52668_01/E67200/html/section-t51_kcn_f5.html</a></li>
+</ol>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">systemd</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/08/01/centos-7-tmp-file-removed-when-logout/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-salt-master-publisher" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
@@ -460,165 +565,9 @@
 
 
   
-    <article id="post-hdfs-rack-awareness" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/07/25/hdfs-rack-awareness/">HDFS机架感知</a>
-    </h1>
-  
-
-        
-        <a href="/2017/07/25/hdfs-rack-awareness/" class="archive-article-date">
-  	<time datetime="2017-07-25T11:32:51.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-07-25</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#1-概念">1. 概念</a></li>
-<li><a href="#2-配置">2. 配置</a></li>
-<li><a href="#3-疑问">3. 疑问</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="1-概念">1. 概念</span></h2><p>机架感知的概念就不再赘述，可以查看以下链接进行了解：</p>
-<ul>
-<li><a href="http://www.jianshu.com/p/372d25352d3a" target="_blank" rel="noopener">http://www.jianshu.com/p/372d25352d3a</a></li>
-<li><a href="http://www.informit.com/articles/article.aspx?p=2460260&amp;seqNum=3" target="_blank" rel="noopener">http://www.informit.com/articles/article.aspx?p=2460260&amp;seqNum=3</a></li>
-<li><a href="https://community.hortonworks.com/articles/43057/rack-awareness-1.html" target="_blank" rel="noopener">https://community.hortonworks.com/articles/43057/rack-awareness-1.html</a></li>
-</ul>
-<h2><span id="2-配置">2. 配置</span></h2><table>
-<thead>
-<tr>
-<th>name</th>
-<th>value</th>
-<th>description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>net.topology.node.switch.mapping.impl</td>
-<td>org.apache.hadoop.net.ScriptBasedMapping</td>
-<td>The default implementation of the DNSToSwitchMapping. It invokes a script specified in net.topology.script.file.name to resolve node names. If the value for net.topology.script.file.name is not set, the default value of DEFAULT_RACK is returned for all node names.</td>
-</tr>
-<tr>
-<td>net.topology.impl</td>
-<td>org.apache.hadoop.net.NetworkTopology</td>
-<td>The default implementation of NetworkTopology which is classic three layer one.</td>
-</tr>
-<tr>
-<td>net.topology.script.file.name</td>
-<td></td>
-<td>The script name that should be invoked to resolve DNS names to NetworkTopology names. Example: the script would take host.foo.bar as an argument, and return /rack1 as the output.</td>
-</tr>
-<tr>
-<td>net.topology.script.number.args</td>
-<td>100</td>
-<td>The max number of args that the script configured with net.topology.script.file.name should be run with. Each arg is an IP address.</td>
-</tr>
-<tr>
-<td>net.topology.table.file.name</td>
-<td></td>
-<td>The file name for a topology file, which is used when the net.topology.node.switch.mapping.impl property is set to org.apache.hadoop.net.TableMapping. The file format is a two column text file, with columns separated by whitespace. The first column is a DNS or IP address and the second column specifies the rack where the address maps. If no entry corresponding to a host in the cluster is found, then /default-rack is assumed.</td>
-</tr>
-</tbody>
-</table>
-<p>开启机架感知的相关配置（<a href="https://hadoop.apache.org/docs/r2.8.0/hadoop-project-dist/hadoop-common/core-default.xml" target="_blank" rel="noopener">core-site.xml</a>）如上所述，主要有两种方式：</p>
-<ul>
-<li>脚本方式：<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">property</span>&gt;</span></span><br><span class="line">     <span class="tag">&lt;<span class="name">name</span>&gt;</span>net.topology.node.switch.mapping.impl<span class="tag">&lt;/<span class="name">name</span>&gt;</span></span><br><span class="line">     <span class="tag">&lt;<span class="name">value</span>&gt;</span>org.apache.hadoop.net.ScriptBasedMapping<span class="tag">&lt;/<span class="name">value</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">property</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">property</span>&gt;</span></span><br><span class="line">     <span class="tag">&lt;<span class="name">name</span>&gt;</span>net.topology.script.file.name<span class="tag">&lt;/<span class="name">name</span>&gt;</span></span><br><span class="line">     <span class="tag">&lt;<span class="name">value</span>&gt;</span>/hadoop/etc/hadoop/rack_topology.sh<span class="tag">&lt;/<span class="name">value</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">property</span>&gt;</span></span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-<ul>
-<li>数据文件方式：<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="tag">&lt;<span class="name">property</span>&gt;</span></span><br><span class="line">     <span class="tag">&lt;<span class="name">name</span>&gt;</span>net.topology.node.switch.mapping.impl<span class="tag">&lt;/<span class="name">name</span>&gt;</span></span><br><span class="line">     <span class="tag">&lt;<span class="name">value</span>&gt;</span>org.apache.hadoop.net.TableMapping<span class="tag">&lt;/<span class="name">value</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">property</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">property</span>&gt;</span></span><br><span class="line">     <span class="tag">&lt;<span class="name">name</span>&gt;</span>net.topology.table.file.name<span class="tag">&lt;/<span class="name">name</span>&gt;</span></span><br><span class="line">     <span class="tag">&lt;<span class="name">value</span>&gt;</span>/hadoop/etc/hadoop/rack_topology.data<span class="tag">&lt;/<span class="name">value</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">property</span>&gt;</span></span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-<p>以脚本方式为例：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> cat rack_topology.sh</span><br><span class="line"><span class="meta">#</span>! /bin/bash</span><br><span class="line"><span class="meta">#</span></span><br><span class="line"></span><br><span class="line">rack_topology_file=$&#123;HADOOP_HOME&#125;/etc/hadoop/rack_topology.data</span><br><span class="line"></span><br><span class="line">if [[ -f $rack_topology_file ]]</span><br><span class="line">then</span><br><span class="line">    rack_topology_data="$(cat $rack_topology_file | grep -v '^#')"</span><br><span class="line">else</span><br><span class="line">    rack_topology_data=</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">while [[ $# -gt 0 ]]</span><br><span class="line">do</span><br><span class="line">    rack=$(echo "$rack_topology_data" | awk '$1 == "'"$1"'"&#123;print $2;next&#125;')</span><br><span class="line"></span><br><span class="line">    if [[ -z $rack ]]</span><br><span class="line">    then</span><br><span class="line">        echo "/default-rack"</span><br><span class="line">    else</span><br><span class="line">        echo "$rack"</span><br><span class="line">    fi</span><br><span class="line">    shift</span><br><span class="line">done</span><br></pre></td></tr></table></figure></p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> cat rack_topology.data</span><br><span class="line">10.13.77.140 /rack1</span><br><span class="line">10.13.81.200 /rack2</span><br><span class="line">10.13.88.198 /rack1</span><br><span class="line">10.13.104.202 /rack3</span><br></pre></td></tr></table></figure>
-<h2><span id="3-疑问">3. 疑问</span></h2><ul>
-<li><p>net.topology.script.file.name脚本的调用时机？<br><strong>当需要映射不在cache中的datanode ip时进行调用。</strong><br>假如集群有3个datanode，在集群启动时会调用这个脚本，参数是3个ip。这种场景是集群之前已经正常运行，然后进行了重启。注意，如果datanode ip在namenode的dfs.hosts文件中配置了，即便datanode不来注册，也会进行映射。<br>新增第4个datanode，这时会调用这个脚本，参数是新增的ip。<br>已经注册过的datanode发生重启，并不会再次进行映射，因为已经在namenode上存在了cache，除非重启namenode</p>
-<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> List&lt;String&gt; <span class="title">resolve</span><span class="params">(List&lt;String&gt; names)</span> </span>&#123;</span><br><span class="line">  <span class="comment">// normalize all input names to be in the form of IP addresses</span></span><br><span class="line">  names = NetUtils.normalizeHostNames(names);</span><br><span class="line"></span><br><span class="line">  List &lt;String&gt; result = <span class="keyword">new</span> ArrayList&lt;String&gt;(names.size());</span><br><span class="line">  <span class="keyword">if</span> (names.isEmpty()) &#123;</span><br><span class="line">    <span class="keyword">return</span> result;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  List&lt;String&gt; uncachedHosts = getUncachedHosts(names);</span><br><span class="line"></span><br><span class="line">  <span class="comment">// Resolve the uncached hosts</span></span><br><span class="line">  List&lt;String&gt; resolvedHosts = rawMapping.resolve(uncachedHosts);</span><br><span class="line">  <span class="comment">//cache them</span></span><br><span class="line">  cacheResolvedHosts(uncachedHosts, resolvedHosts);</span><br><span class="line">  <span class="comment">//now look up the entire list in the cache</span></span><br><span class="line">  <span class="keyword">return</span> getCachedHosts(names);</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>机架感知是否考虑机房？<br>机架感知不考虑机房，副本存放只考虑机架层面。以下面的网络拓扑为例，一个block的3个副本是有可能存放在/d1/r1、/d1/r2、/d1/r3上面的，即全部存放在d1机房的3个机架上。<br>/d1/r1<br>/d1/r2<br>/d1/r3<br>/d2/r4</p>
-</li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">hdfs</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/07/25/hdfs-rack-awareness/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
-      <a class="extend prev" rel="prev" href="/page/26/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/25/">25</a><a class="page-number" href="/page/26/">26</a><span class="page-number current">27</span><a class="page-number" href="/page/28/">28</a><a class="page-number" href="/page/29/">29</a><span class="space">&hellip;</span><a class="page-number" href="/page/41/">41</a><a class="extend next" rel="next" href="/page/28/">Next &raquo;</a>
+      <a class="extend prev" rel="prev" href="/page/26/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/25/">25</a><a class="page-number" href="/page/26/">26</a><span class="page-number current">27</span><a class="page-number" href="/page/28/">28</a><a class="page-number" href="/page/29/">29</a><span class="space">&hellip;</span><a class="page-number" href="/page/42/">42</a><a class="extend next" rel="next" href="/page/28/">Next &raquo;</a>
     </nav>
   
 
@@ -752,11 +701,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
+                <a href="javascript:void(0)" class="js-tag color5">hive</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hive</a>
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -776,11 +725,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -792,10 +741,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
@@ -804,11 +749,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -816,11 +761,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">备份</a>
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -832,19 +773,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">备份</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hexo</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">github pages</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">tez</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">gc</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -864,11 +805,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+                <a href="javascript:void(0)" class="js-tag color4">tez</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">gc</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -880,14 +833,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
               </li>
              
@@ -896,11 +841,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -932,11 +881,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -944,11 +893,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1016,11 +965,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
               </li>
              
               <li class="article-tag-list-item">

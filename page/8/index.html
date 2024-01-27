@@ -156,6 +156,345 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-bigdata-stack-batchtune" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/05/13/bigdata-stack-batchtune/">大数据开发之路-离线任务优化</a>
+    </h1>
+  
+
+        
+        <a href="/2022/05/13/bigdata-stack-batchtune/" class="archive-article-date">
+  	<time datetime="2022-05-13T11:11:34.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-13</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#离线任务优化-数据开发的看家本领">离线任务优化-数据开发的看家本领</a></li>
+<li><a href="#优化方向">优化方向</a></li>
+<li><a href="#优化层面">优化层面</a></li>
+<li><a href="#hive常用优化手段参数">hive常用优化手段&amp;参数</a></li>
+<li><a href="#spark常用优化手段参数">spark常用优化手段&amp;参数</a></li>
+<li><a href="#spark-sql常用优化手段参数">spark-sql常用优化手段&amp;参数</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<blockquote>
+<p>导引</p>
+<ol>
+<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
+<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
+<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
+<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
+<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
+<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
+<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
+<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
+<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
+<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
+<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
+<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
+</ol>
+</blockquote>
+<blockquote>
+<p>关联阅读<br><a href="https://winway.github.io/2019/09/07/hiveProblems/">Hive问题记录</a><br><a href="https://winway.github.io/2020/06/06/sparkProblems/">Spark问题记录</a><br><a href="https://winway.github.io/2022/01/16/spark-small-file/">Spark-sql生成小文件问题</a><br><a href="https://winway.github.io/2022/01/16/sparksql-cluster/">Spark-sql支持cluster模式</a><br><a href="https://winway.github.io/2022/05/10/tezVsSparksql/">tez vs spark-sql对比</a><br><a href="https://winway.github.io/2021/03/30/orc-snappy-splittable/">Is orc+SNAPPY splittable?</a><br><a href="https://winway.github.io/2022/01/16/hs2-gc/">HiveServer2 gc问题引发的幽灵问题</a><br><a href="https://winway.github.io/2021/05/15/yarnapphang/">YARN集群任务一直处于Accepted状态无法Running</a></p>
+</blockquote>
+<h2><span id="离线任务优化-数据开发的看家本领">离线任务优化-数据开发的看家本领</span></h2><p>离线任务优化是数据开发的重要内容，下面从<strong>优化方向</strong>和<strong>优化层面</strong>两个角度总结一下优化的思路。这些优化的思想具有普适性，跟具体的计算引擎无关，普遍适用于hive mapreduce、hive on tez、spark、spark-sql，甚至部分适用于实时任务的优化。</p>
+<h2><span id="优化方向">优化方向</span></h2><ul>
+<li>无用数据尽早过滤掉</li>
+<li>合理的分配、利用资源，使每个task处理的数据量适中，避免启动过多或过少的task</li>
+<li>减少shuffle或者减少参与shuffle的数据量</li>
+<li>避免数据倾斜，遇到倾斜的key进行打散处理</li>
+</ul>
+<h2><span id="优化层面">优化层面</span></h2><ul>
+<li>业务层面<br> 思考业务逻辑的合理性、可行性、必要性<ul>
+<li>计算量太大是不是必须的，是否可以减少参与计算的用户量或者时间跨度</li>
+<li>计算逻辑是否过于复杂，是否可以简化</li>
+</ul>
+</li>
+<li>模型层面<br> 设计合理的数仓模型<ul>
+<li>是否有现成的数据可以使用或者基于现成的数据进行加工</li>
+<li>是否可以将整个计算逻辑进行合理拆分，降低每个子任务的复杂度，同时提高复用的可能性</li>
+<li>维度退化，空间和时间的权衡</li>
+</ul>
+</li>
+<li>系统层面<br> 遵循一些计算引擎建议的使用规则和参数设置<ul>
+<li>输入文件的存储格式、压缩格式、大小</li>
+<li>输出文件的大小</li>
+<li>启用压缩</li>
+<li>分区、分桶</li>
+<li>yarn队列的设置</li>
+<li>合适的计算引擎</li>
+<li>task的内存设置</li>
+<li>task处理的数据量</li>
+<li>task的数量</li>
+</ul>
+</li>
+<li>sql、代码层面<ul>
+<li>列裁剪，避免select *</li>
+<li>分区裁剪，使用分区字段过滤</li>
+<li>谓词下推</li>
+<li>map端预聚合</li>
+<li>打散倾斜key</li>
+<li>合适的join方式</li>
+</ul>
+</li>
+</ul>
+<h2><span id="hive常用优化手段amp参数">hive常用优化手段&amp;参数</span></h2><ul>
+<li><p>使用tez引擎</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> hive.execution.engine=tez;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>列裁剪和分区裁剪</p>
+</li>
+<li>谓词下推，过滤操作尽可能提前执行</li>
+<li>sort by代替order by。避免单个reduce，配合distribute by控制map端数据的分配</li>
+<li>group by代替distinct（数据量大时使用）</li>
+<li><p>map端预聚合。group by时，如果先起一个combiner在map端做部分预聚合，可以有效减少shuffle数据量</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> hive.map.aggr=<span class="literal">true</span>;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>join</p>
+<ul>
+<li>streamtable指定大表。Hive假定join中最后一个表是大表，它会将其它表缓存起来，然后扫描最后那个表。因此通常需要将小表放前面，或者标记哪张表是大表：/*+ STREAMTABLE(a) */</li>
+<li>使用相同的连接键。多表join时key相同，会将多个join合并为一个MR job来处理</li>
+<li><p>利用map join特性</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> hive.auto.convert.join=<span class="literal">true</span>;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>Sort-Merge-Bucket Join（不常用）</p>
+</li>
+</ul>
+</li>
+<li><p>数据倾斜</p>
+<ul>
+<li>空值或无意义值处理。若不需要空值数据，就提前写where语句过滤掉。需要保留的话，将空值key用随机方式打散。</li>
+<li>join key统一数据类型</li>
+<li>单独处理倾斜key</li>
+<li>key加盐打散处理，二次聚合<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220513195135.png" alt=""></li>
+<li>倾斜处理参数<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> hive.optimize.skewjoin=<span class="literal">true</span>; // 将计数超过阈值的倾斜key单独处理</span><br><span class="line"><span class="keyword">SET</span> hive.groupby.skewindata=<span class="literal">true</span>; // 在group by时启动两个MR job。第一个job会将map端数据随机输入reducer，每个reducer做部分聚合，相同的key就会分布在不同的reducer中。第二个job再将前面预处理过的数据按key聚合并输出结果，这样就起到了均衡的效果</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+</li>
+<li><p>设置map数量</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> mapreduce.input.fileinputformat.split.minsize=xxxx;</span><br><span class="line"><span class="keyword">SET</span> mapreduce.input.fileinputformat.split.maxsize=xxxx;</span><br><span class="line"><span class="keyword">SET</span> tez.grouping.min-<span class="keyword">size</span>=xxxx;</span><br><span class="line"><span class="keyword">SET</span> tez.grouping.max-<span class="keyword">size</span>=xxxx;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>设置reduce数量</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> mapred.reduce.tasks=xxxx;</span><br><span class="line"><span class="keyword">SET</span> hive.exec.reducers.bytes.per.reducer=xxxx;</span><br><span class="line"><span class="keyword">SET</span> hive.exec.reducers.max=xxxx;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>设置map内存</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> mapreduce.map.memory.mb=xxx;</span><br><span class="line"><span class="keyword">SET</span> hive.tez.container.size=xxx;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>设置reduce内存</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> mapreduce.reduce.memory.mb=xxx;</span><br><span class="line"><span class="keyword">SET</span> hive.tez.container.size=xxx;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>合并小文件</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> hive.input.format=org.apache.hadoop.hive.ql.io.CombineHiveInputFormat; // 输入阶段合并</span><br><span class="line"><span class="keyword">SET</span> hive.merge.mapfiles=<span class="literal">true</span>; // 输出阶段合并</span><br><span class="line"><span class="keyword">SET</span> hive.merge.mapredfiles=<span class="literal">true</span>;</span><br><span class="line"><span class="keyword">SET</span> hive.merge.tezfiles=<span class="literal">true</span>;</span><br><span class="line"><span class="keyword">SET</span> hive.merge.size.smallfiles.avgsize=xxxx;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>启用压缩</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> hive.exec.compress.intermediate=<span class="literal">true</span>; // 中间结果启用压缩</span><br><span class="line"><span class="keyword">SET</span> hive.intermediate.compression.codec=org.apache.hadoop.io.compress.SnappyCodec;</span><br><span class="line"><span class="keyword">SET</span> hive.intermediate.compression.type=<span class="keyword">BLOCK</span>;</span><br><span class="line"><span class="keyword">SET</span> hive.exec.compress.output=<span class="literal">true</span>; // 最终输出启用压缩，最终生成的文件是xxxx.gz</span><br><span class="line"><span class="keyword">SET</span> mapreduce.output.fileoutputformat.compress=<span class="literal">true</span>;</span><br><span class="line"><span class="keyword">SET</span> mapreduce.output.fileoutputformat.compress.codec=org.apache.hadoop.io.compress.GzipCodec;  </span><br><span class="line"><span class="keyword">SET</span> mapreduce.output.fileoutputformat.compress.type=<span class="keyword">BLOCK</span>;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>JVM重用</p>
+   <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> mapred.job.reuse.jvm.num.tasks=xxx;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>并行执行</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> hive.exec.parallel=<span class="literal">true</span>;</span><br><span class="line"><span class="keyword">SET</span> hive.exec.parallel.thread.number=x;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>向量化执行</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> hive.vectorized.execution.enabled=<span class="literal">true</span>;</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<h2><span id="spark常用优化手段amp参数">spark常用优化手段&amp;参数</span></h2><ul>
+<li><p>使用Kryo优化序列化性能<br> 初始化 SparkConf 时，调用<code>conf.set(&quot;spark.serializer&quot;,&quot;org.apache.spark.serializer.KryoSerializer&quot;)</code>来使用 Kryo。一旦进行了这个配置，Kryo 序列化不仅仅会用在 Shuffling 操作时 worker 节点间的数据传递，也会用在 RDDs 序列化到硬盘的过程<br> Spark 官方解释没有将 Kryo 作为默认序列化方式的唯一原因是，Kryo 必须用户自己注册（注意如果我们不注册自定义类，Kryo 也是可以正常运行的，但是它必须存储每个对象的完整类名，这是非常浪费的），但是其推荐在网络频繁传输的应用中使用 Kryo</p>
+ <figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">val conf = <span class="keyword">new</span> SparkConf().setMaster(...).setAppName(...) <span class="comment">// Spark配置项</span></span><br><span class="line">conf.set(<span class="string">"spark.serializer"</span>, <span class="string">"org.apache.spark.serializer.KryoSerializer"</span>) <span class="comment">// 配置序列化方式</span></span><br><span class="line">conf.registerKryoClasses(Array(classOf[MyClass1], classOf[MyClass2])) <span class="comment">// 注册需要序列化的类</span></span><br><span class="line">val sc = <span class="keyword">new</span> SparkContext(conf)</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>动态分配executor数量</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> spark.dynamicAllocation.enabled=<span class="literal">true</span>;</span><br><span class="line"><span class="keyword">SET</span> spark.shuffle.service.enabled=<span class="literal">true</span>;</span><br><span class="line"><span class="keyword">SET</span> spark.dynamicAllocation.minExecutors=xxxx;</span><br><span class="line"><span class="keyword">SET</span> spark.dynamicAllocation.maxExecutors=xxxx;</span><br><span class="line"><span class="keyword">SET</span> spark.dynamicAllocation.initialExecutors=xxxx;</span><br></pre></td></tr></table></figure>
+<p> <img src="https://img-blog.csdn.net/20160515225532299" alt=""></p>
+</li>
+<li><p>合理设置内存和核数</p>
+ <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">--driver-memory</span><br><span class="line">--executor-memory</span><br><span class="line">--executor-cores</span><br></pre></td></tr></table></figure>
+<p> 当我们需要初步判断内存的占用情况时，可以创建一个 RDD，然后将其缓存（cache）起来，然后观察网页监控页面的存储页部分，就可以看出 RDD 占用了多少内存。而对于特殊的对象，我们可以调用 SizeEstimator 的 estimate()方法来评估内存消耗，这对于实验不同数据层的内存消耗，以及判断广播变量在每个 Executor 堆上所占用的内存是非常有效的。当我们了解了内存的消耗情况后，发现占用内存过大，可以着手做一些优化：</p>
+<ul>
+<li>避免使用只包含很少数据量的对象，String对象，基于指针的数据结构或者包装器类型</li>
+<li>在设计数据结构时，优先使用基本数据类型及对象数组等，避免使用 Java 或者 Scala 标准库当中的集合类（如 HashMap），在 fastutil 库中，为基本数据类型提供了方便的集合类接口，这些接口也兼容 Java 标准库。</li>
+<li>尽可能避免在数据结构中嵌套大量的小对象和指针。</li>
+<li>考虑使用数值类 ID 或者枚举对象来代替字符串类型作为主键（Key）。</li>
+<li>如果我们的运行时内存小于 32GB，可以加上 JVM 配置-XX:+UseCompressedOops 将指针的占用空间由 8 个字节压缩到 4 个字节，我们也可以在 Spark-env.sh 中进行配置。</li>
+<li>将对象以序列化的形式（serializedform）存储，在 RDD 的持久化接口中使用序列化的存储级别，如 MEMORY_ONLY_SER，Spark 便会将每个 RDD 分区存储为一个很大的字节数组。而这种方式会使得访问数据的速度有所下降，因为每个对象访问时都需要有一个反序列化的过程。</li>
+</ul>
+</li>
+<li>合理设置执行内存和存储内存比例（统一内存管理，还有一种叫静态内存管理，存储与执行两块内存的区域是完全分开的，不能互相借用）<br> Spark 提供了两个相关的配置，但是大多数情况下直接使用默认值就能满足大部分负载情况：<ul>
+<li>SparkMemory.Fraction 表示 M 的大小占整个 JVM（JavaVirtueMachine）堆空间的比例（默认是 0.6），剩余的空间（40%）被用来保存用户的数据结构及 Spark 内部的元数据（metadata），另一方面预防某些异常数据记录造成的 OOM（OutofMemory）错误。</li>
+<li>Spark.Memory.StorageFraction 表示 R 的大小占整个 M 的比例（默认是 0.5），R 是存储类内存在 M 中占用的空间，其中缓存的数据块不会被执行类内存剥夺。</li>
+</ul>
+</li>
+<li>垃圾回收（GC）优化<br> 垃圾回收的开销是和 Java 对象的个数成比例的，我们要尽可能地使用包含较少对象的数据结构（如使用 Int 数组代替 LinkedList）来降低这部分开销<br> Java 的 GC 机制主要是基于程序中创建的大多数对象，都会在创建后被很快销毁，只有极少数对象会存活下来，所以其分为年轻代和老年代两部分，而这两部分 GC 的方式也是不同的，其时间复杂度也是不同的，年轻代会更加快一些。Spark 在 GC 方面优化的主要目标是：只有长生命周期的 RDD 会被存储在老年代上，而年轻代上有足够的空间来存储短生命周期的对象，从而尽可能避免任务执行时创建的临时对象触发完整 GC 流程<ul>
+<li>如果触发了过多的小型 GC，而完整的 GC 操作并没有调用很多次，那么给 Eden 区域多分配一些内存空间会有所帮助</li>
+<li>如果我们观察 GC 打印的统计信息，发现老年代接近存满，那么就需要改变 spark.memory.fraction 来减少存储类内存（用于 caching）的占用，因为与其降低任务的执行速度，不如减少对象的缓存大小。另一个可选方案是减少年轻代的大小，即通过-Xmn 来进行配置，也可以通过 JVM 的 NewRatio 参数进行调整，大多数 JVM 的该参数的默认值是 2，意思是老年代占整个堆内存的 2/3，这个比例需要大于 Spark.Memory.Fraction</li>
+<li>通过加入-XX:+UserG1GC 来使用 G1GC 垃圾回收器，这可以一定程度提高 GC 的性能</li>
+</ul>
+</li>
+<li><p>合理设置并并行度</p>
+ <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">--spark.default.parallelism</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>使用repartition增加并行度</p>
+</li>
+<li>coalesce()取代repartition()降低并行度，在filter操作后，可以执行该操作可以减少任务数</li>
+<li>mapPartitions()取代map()，foreachPartitions替代foreach，可以对数据进行批量处理，尤其是在需要网络连接的地方</li>
+<li>优先使用DataFrame/Dataset取代RDD</li>
+<li>多个Action计算最好基于同一个RDD进行计算操作，并使用rdd cache或checkpoint，提高复用率，避免重复计算</li>
+<li>减少shuffle操作gropByKey(), reducebyKey(), join(), distinct()，使用map类的非shuffle算子</li>
+<li>在使用join的地方看是否可以使用map算子和广播变量的方式替代</li>
+<li>使用reduceByKey/aggregateByKey替代groupByKey，使用combiner预聚合操作<br> <img src="https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/5ebe0848.png" alt=""><br> <img src="https://awps-assets.meituan.net/mit-x/blog-images-bundle-2016/a6c7d4c4.png" alt=""></li>
+<li>数据倾斜<ul>
+<li>调整并行度或自定义 Partitioner 从而分散分配给同一 Task 的大量不同 Key</li>
+<li>使用 BroadcastJoin 代替 ReduceJoin 消除 Shuffle 从而避免 Shuffle 引起的数据倾斜</li>
+<li>对倾斜 Key 使用随机前缀或后缀从而分散大量倾斜 Key，同时将参与 Join 的小表扩容，从而保证 Join 结果的正确性</li>
+<li>对于聚合操作，可以利用两次聚合的思想来解决， 核心是先进行key加随机数操作，使数据分布均匀，并进行聚合，最后是剔除随机，用实际数据来进行聚合操作</li>
+</ul>
+</li>
+<li>使用HashShuffleManager时，设置spark.shuffle.consolidateFiles=true，减少shuffle write的文件数量</li>
+</ul>
+<h2><span id="spark-sql常用优化手段amp参数">spark-sql常用优化手段&amp;参数</span></h2><ul>
+<li><p>合理设置单partition读取数据量</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> spark.sql.files.maxPartitionBytes=xxxx;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>合理设置shuffle partition的数量</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> spark.sql.shuffle.partitions=xxxx;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>使用coalesce &amp; repartition调整partition数量</p>
+ <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ COALESCE(3) */</span> * <span class="keyword">FROM</span> EMP_TABLE</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION(3) */</span> * <span class="keyword">FROM</span> EMP_TABLE</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION(c) */</span> * <span class="keyword">FROM</span> EMP_TABLE</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION(3, dept_col) */</span> * <span class="keyword">FROM</span> EMP_TABLE</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION_BY_RANGE(dept_col) */</span> * <span class="keyword">FROM</span> EMP_TABLE</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION_BY_RANGE(3, dept_col) */</span> * <span class="keyword">FROM</span> EMP_TABLE</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>使用broadcast join</p>
+</li>
+<li>开启Adaptive Query Execution（Spark 3.0） <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SET</span> spark.sql.adaptive.enabled=<span class="literal">true</span>;</span><br><span class="line"><span class="keyword">SET</span> spark.sql.adaptive.join.enabled=<span class="literal">true</span>; // 开启 Adaptive Execution 的动态调整 Join 功能</span><br><span class="line"><span class="keyword">SET</span> spark.sql.adaptive.shuffle.targetPostShuffleInputSize=xxxx; // shuffle后每个partition的目标数据量</span><br><span class="line"><span class="keyword">SET</span> spark.sql.adaptive.skewedJoin.enabled=<span class="literal">true</span>; // 自动处理 Join 时数据倾斜</span><br></pre></td></tr></table></figure>
+</li>
+</ul>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220513195229.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220513195250.png" alt=""></p>
+<ul>
+<li>控制小文件数量<br> <a href="https://winway.github.io/2022/01/16/spark-small-file/">https://winway.github.io/2022/01/16/spark-small-file/</a></li>
+</ul>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://cloud.tencent.com/developer/article/1453464" target="_blank" rel="noopener">Hive/HiveSQL常用优化方法全面总结</a></li>
+<li><a href="https://cloud.tencent.com/developer/article/1482145" target="_blank" rel="noopener">Hive 启用压缩</a></li>
+<li><a href="https://www.modb.pro/db/44094" target="_blank" rel="noopener">大数据开发之Hive优化篇1-Hive 优化概述</a></li>
+<li><a href="https://sparkbyexamples.com/spark/spark-performance-tuning/" target="_blank" rel="noopener">Spark Performance Tuning &amp; Best Practices</a></li>
+<li><a href="https://blog.csdn.net/u013668852/article/details/79768266" target="_blank" rel="noopener">Hive Join的实现原理</a></li>
+<li><a href="https://blog.51cto.com/u_15346267/3669285" target="_blank" rel="noopener">Hive中小表与大表关联(join)的性能分析</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/317226768" target="_blank" rel="noopener">深入浅出Spark Join</a></li>
+<li><a href="https://towardsdatascience.com/apache-spark-performance-boosting-e072a3ec1179?gi=c294a45fc810" target="_blank" rel="noopener">Apache Spark Performance Boosting</a></li>
+<li><a href="https://tech.meituan.com/2016/04/29/spark-tuning-basic.html" target="_blank" rel="noopener">Spark性能优化指南——基础篇</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/108454557" target="_blank" rel="noopener">超全spark性能优化总结</a></li>
+<li><a href="https://blog.csdn.net/zhuxuemin1991/article/details/119074721" target="_blank" rel="noopener">Spark性能优化指南—思路梳理</a></li>
+<li><a href="https://blog.51cto.com/u_15288309/3131058" target="_blank" rel="noopener">Spark-Submit 常用参数用法</a></li>
+<li><a href="https://stackoverflow.com/questions/44633410/meaning-of-registering-a-class-with-kryo-serialization" target="_blank" rel="noopener">Meaning of registering a class with kryo serialization</a></li>
+<li><a href="https://www.jianshu.com/p/4f1e551553ae" target="_blank" rel="noopener">Spark的两种内存管理机制：静态内存管理与统一内存管理</a></li>
+<li><a href="https://sparkbyexamples.com/spark/spark-sql-performance-tuning-configurations/" target="_blank" rel="noopener">Spark SQL Performance Tuning by Configurations</a></li>
+<li><a href="http://www.jasongj.com/spark/adaptive_execution/" target="_blank" rel="noopener">Adaptive Execution 让 Spark SQL 更高效更智能</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">hive</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">tez</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">spark</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">spark-sql</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2022/05/13/bigdata-stack-batchtune/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-bigdata-stack-kafka" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
@@ -546,179 +885,9 @@
 
 
   
-    <article id="post-bigdata-stack-hbase" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/12/bigdata-stack-hbase/">大数据开发之路-hbase</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/12/bigdata-stack-hbase/" class="archive-article-date">
-  	<time datetime="2022-05-12T11:43:26.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-12</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#hbase-基于hdfs的支持实时随机读写的列式数据库">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
-<li><a href="#hadoop-ecosystem中的关系">Hadoop EcoSystem中的关系</a></li>
-<li><a href="#hbase系统架构">HBase系统架构</a></li>
-<li><a href="#hbase适用场景">HBase适用场景</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引</p>
-<ol>
-<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
-<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
-<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
-<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
-</ol>
-</blockquote>
-<h2><span id="hbase-基于hdfs的支持实时随机读写的列式数据库">hbase-基于hdfs的支持实时随机读写的列式数据库</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220425111741.png" alt=""></p>
-<blockquote>
-<p>Apache HBase™ is the Hadoop database, a distributed, scalable, big data store. Use Apache HBase™ when you need random, realtime read/write access to your Big Data.</p>
-</blockquote>
-<p>HBase – Hadoop Database，是一个高可靠性、高性能、面向列、可伸缩的分布式存储系统，利用HBase技术可在廉价PC Server上搭建起大规模结构化存储集群。</p>
-<p>HBase是Google Bigtable的开源实现，类似Google Bigtable利用GFS作为其文件存储系统，HBase利用Hadoop HDFS作为其文件存储系统；Google运行MapReduce来处理Bigtable中的海量数据，HBase同样可以利用Hadoop MapReduce来处理HBase中的海量数据；Google Bigtable利用 Chubby作为协同服务，HBase利用Zookeeper作为对应。</p>
-<h2><span id="hadoop-ecosystem中的关系">Hadoop EcoSystem中的关系</span></h2><p>HBase位于结构化存储层，Hadoop HDFS为HBase提供了高可靠性的底层存储支持，Hadoop MapReduce为HBase提供了高性能的计算能力，Zookeeper为HBase提供了稳定服务和failover机制。</p>
-<p>此外，Pig和Hive还为HBase提供了高层语言支持，使得在HBase上进行数据统计处理变的非常简单。 Sqoop则为HBase提供了方便的RDBMS数据导入功能，使得传统数据库数据向HBase中迁移变的非常方便。</p>
-<h2><span id="hbase系统架构">HBase系统架构</span></h2><ul>
-<li>Client。HBase Client使用HBase的RPC机制与HMaster和HRegionServer进行通信，对于管理类操作，Client与HMaster进行RPC；对于数据读写类操作，Client与HRegionServer进行RPC</li>
-<li>Zookeeper。Zookeeper中除了存储了META表的地址和HMaster的地址，HRegionServer也会把自己以Ephemeral方式注册到Zookeeper中，使得HMaster可以随时感知到各个HRegionServer的健康状态。</li>
-<li>HMaster。HMaster没有单点问题，HBase中可以启动多个HMaster，通过Zookeeper的Master Election机制保证总有一个Master运行，HMaster在功能上主要负责Table和Region的管理工作：<ul>
-<li>管理用户对Table的增、删、改、查操作</li>
-<li>管理HRegionServer的负载均衡，调整Region分布</li>
-<li>在Region Split后，负责新Region的分配</li>
-<li>在HRegionServer停机后，负责失效HRegionServer 上的Regions迁移</li>
-</ul>
-</li>
-<li>HRegionServer。HRegionServer主要负责响应用户I/O请求，向HDFS文件系统中读写数据，是HBase中最核心的模块。HRegionServer内部管理了一系列HRegion对象，每个HRegion对应了Table中的一个Region，HRegion中由多个HStore组成。每个HStore对应了Table中的一个Column Family的存储，可以看出每个Column Family其实就是一个集中的存储单元，因此最好将具备共同IO特性的column放在一个Column Family中，这样最高效。</li>
-</ul>
-<h2><span id="hbase适用场景">HBase适用场景</span></h2><ul>
-<li>数据模式是动态的或者可变的，且支持半结构化和非结构化的数据。</li>
-<li>数据库中的很多列都包含了很多空字段，在 HBase 中的空字段不会像在关系型数据库中占用空间。</li>
-<li>不需要复杂查询条件来查询数据，如点查，对事务性和表关联没有强需求。</li>
-<li>需要很高的吞吐量，瞬间写入量很大。</li>
-<li>数据有很多版本需要维护，HBase 利用时间戳来区分不同版本的数据。</li>
-<li>具有高可扩展性，能动态地扩展整个存储系统。</li>
-</ul>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://winway.github.io/2017/01/26/big-data-hbase/">Hadoop生态系统介绍-Hbase</a></li>
-<li><a href="https://www.daimajiaoliu.com/daima/56a0e7ed1bc8804" target="_blank" rel="noopener">一文读懂 HBase 主要特性与使用场景</a></li>
-<li><a href="https://juejin.cn/post/6844903699362349064" target="_blank" rel="noopener">HBase在滴滴出行的应用场景和最佳实践</a></li>
-<li><a href="https://cloud.tencent.com/developer/article/1042713" target="_blank" rel="noopener">基于HBase的大数据存储的应用场景分析</a></li>
-<li><a href="https://xie.infoq.cn/article/3f8918d3ef064b7b6b2382e1b" target="_blank" rel="noopener">大白话彻底搞懂 HBase Rowkey 设计和实现方式</a></li>
-<li><a href="https://juejin.cn/post/6844903873824423949" target="_blank" rel="noopener">一篇文章带你快速搞懂HBase RowKey设计</a></li>
-<li><a href="https://stackoverflow.com/questions/51374856/can-not-understand-why-hbase-not-a-in-cap" target="_blank" rel="noopener">Can not understand why Hbase not A in CAP</a></li>
-<li><a href="https://www.jianshu.com/p/a95126b42dfc" target="_blank" rel="noopener">HBase的CAP分析参考</a></li>
-<li><a href="https://zhuanlan.zhihu.com/p/136355574" target="_blank" rel="noopener">HBase可用性分析与高可用实践</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">hbase</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/12/bigdata-stack-hbase/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
-      <a class="extend prev" rel="prev" href="/page/7/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/6/">6</a><a class="page-number" href="/page/7/">7</a><span class="page-number current">8</span><a class="page-number" href="/page/9/">9</a><a class="page-number" href="/page/10/">10</a><span class="space">&hellip;</span><a class="page-number" href="/page/41/">41</a><a class="extend next" rel="next" href="/page/9/">Next &raquo;</a>
+      <a class="extend prev" rel="prev" href="/page/7/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/6/">6</a><a class="page-number" href="/page/7/">7</a><span class="page-number current">8</span><a class="page-number" href="/page/9/">9</a><a class="page-number" href="/page/10/">10</a><span class="space">&hellip;</span><a class="page-number" href="/page/42/">42</a><a class="extend next" rel="next" href="/page/9/">Next &raquo;</a>
     </nav>
   
 
@@ -852,11 +1021,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
+                <a href="javascript:void(0)" class="js-tag color5">hive</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hive</a>
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -876,11 +1045,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -892,10 +1061,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
@@ -904,11 +1069,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -916,11 +1081,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">备份</a>
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -932,19 +1093,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">备份</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hexo</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">github pages</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">tez</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">gc</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -964,11 +1125,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+                <a href="javascript:void(0)" class="js-tag color4">tez</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">gc</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -980,14 +1153,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
               </li>
              
@@ -996,11 +1161,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1032,11 +1201,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1044,11 +1213,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1116,11 +1285,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
               </li>
              
               <li class="article-tag-list-item">

@@ -156,6 +156,172 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-bigdata-stack-datalake" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/05/25/bigdata-stack-datalake/">大数据开发之路-数据湖</a>
+    </h1>
+  
+
+        
+        <a href="/2022/05/25/bigdata-stack-datalake/" class="archive-article-date">
+  	<time datetime="2022-05-25T07:33:47.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-25</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#数据湖-数据宇宙的未来架构科普篇">数据湖-数据宇宙的未来架构（科普篇）</a></li>
+<li><a href="#数据湖的本质">数据湖的本质</a></li>
+<li><a href="#数据湖和数据仓库区别在哪儿">数据湖和数据仓库区别在哪儿？</a></li>
+<li><a href="#为什么要把湖和仓糅到一起">为什么要把“湖”和“仓”糅到一起？</a></li>
+<li><a href="#到底什么才是真正的lake-house">到底什么才是真正的Lake House？</a></li>
+<li><a href="#湖仓一体只是开局智能湖仓才是终极">“湖仓一体”只是开局，智能湖仓才是终极</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<blockquote>
+<p>导引</p>
+<ol>
+<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
+<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
+<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
+<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
+<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
+<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
+<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
+<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
+<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
+<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
+<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
+<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
+</ol>
+</blockquote>
+<h2><span id="数据湖-数据宇宙的未来架构科普篇">数据湖-数据宇宙的未来架构（科普篇）</span></h2><p>数据库负责干事务处理相关的事，数据仓库负责干业务分析相关的事，还有新兴的HTAP数据库既干事务又干分析，都已经这么内卷了，还要数据湖来干个毛线？<br>说白了，还是企业在持续发展，企业的数据也不断堆积，虽然“含金量”最高的数据都存在数据库和数仓里，支撑着企业的运转。但是，企业希望把生产经营中的所有相关数据，历史的、实时的，在线的、离线的，内部的、外部的，结构化的、非结构化的，都能完整保存下来，方便“沙中淘金”。<br>数据库和数据仓库都干不了这活儿，怎么办呢？<br>挖个大坑，修个湖，把各种数据一滚脑灌进去囤起来，而且要持续灌，持续囤。这就是数据湖啦！<br><img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-73.png" alt=""></p>
+<h2><span id="数据湖的本质">数据湖的本质</span></h2><p>数据湖的本质，是由“数据存储架构+数据处理工具”组成的解决方案，而不是某个单一独立产品。</p>
+<ul>
+<li>数据存储架构，要有足够的扩展性和可靠性，要满足企业能把所有原始数据都“囤”起来，存得下、存得久。<br> 一般来讲，各大云厂商都喜欢用对象存储来做数据湖的存储底座，比如 Amazon Web Services（亚马逊云科技），修建“湖底”用的“砖头”，就是S3云对象存储。</li>
+<li>数据处理工具，则分为两大类<ul>
+<li>第一类工具，解决的问题是如何把数据“搬到”湖里，包括定义数据源、制定数据访问策略和安全策略，并移动数据、编制数据目录等等。<br>  如果没有这些数据管理/治理工具，元数据缺失，湖里的数据质量就没法保障，“泥石俱下”，各种数据倾泻堆积到湖里，最终好好的数据湖，慢慢就变成了数据沼泽。<br>  因此，在一个数据湖方案里，数据移动和管理的工具非常重要。比如，Amazon Web Services提供“Lake Formation”这个工具，帮助客户自动化地把各种数据源中的数据移动到湖里，同时还可以调用Amazon Glue来对数据进行ETL，编制数据目录，进一步提高湖里数据的质量。<br>  <img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-77.png" alt=""></li>
+<li>第二类工具，就是要从湖里的海量数据中“淘金”。<br>  数据并不是存进数据湖里就万事大吉，要对数据进行分析、挖掘、利用，比如要对湖里的数据进行查询，同时要把数据提供给机器学习、数据科学类的业务，便于“点石成金”。<br>  我们继续拿Amazon Web Services来举例子，基于Amazon Athena这个服务，就可以使用标准的SQL来对S3（数据湖）中的数据进行交互式查询。再比如使用Amazon SageMaker机器学习服务，导入数据湖中的数据进行模型训练，这些都是常规操作。<br>  <img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-79.png" alt=""></li>
+</ul>
+</li>
+</ul>
+<p>小结一下，数据湖不只是个“囤积”数据的“大水坑”，除了用存储技术构建的湖底座以外，还包含一系列的数据入湖、数据出湖、数据管理、数据应用工具集，共同组成了数据湖解决方案。</p>
+<h2><span id="数据湖和数据仓库区别在哪儿">数据湖和数据仓库区别在哪儿？</span></h2><ul>
+<li>从数据含金量来比，数据仓库里的数据价值密度更高一些，数据的抽取和Schema的设计，都有非常强的针对性，便于业务分析师迅速获取洞察结果，用与决策支持。而数据湖更有一种“兜底”的感觉，甭管当下有用没有/或者暂时没想好怎么用，先保存着、沉淀着，将来想用的时候，尽管翻牌子就是了，反正都原汁原味的留存了下来。<br><img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-83.png" alt=""></li>
+<li>而从产品形态看，数据仓库可以是独立的标准化产品，拿云上数仓来举例，Amazon Redshift，就是一款“数仓产品”。数据湖则是一种架构，通常是围绕对象存储为“湖底座”的大数据管理方案组合。比如，Amazon Web Services并没有哪个产品叫“数据湖”，而是以S3为基础，结合一系列数据管理工具，帮助客户构建云上“数据湖”<br><img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-84.png" alt=""></li>
+</ul>
+<p><img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-82.png" alt=""></p>
+<h2><span id="为什么要把湖和仓糅到一起">为什么要把“湖”和“仓”糅到一起？</span></h2><p>曾经，数据仓库擅长的BI、数据洞察离业务更近、价值更大，而数据湖里的数据，更多的是为了远景画饼。随着大数据和AI的上纲上线，原先的“画的饼”也变得炙手可热起来，为业务赋能，价值被重新定义。<br>而因为数仓和数据库的出发点不同、架构不同，企业在实际使用过程中，“性价比”差异很大。<br>数据湖起步成本很低，但随着数据体量增大，TCO成本会加速飙升，数仓则恰恰相反，前期建设开支很大。<br>总之，一个后期成本高，一个前期成本高，对于既想修湖、又想建仓的用户来说，仿佛玩了一个金钱游戏。<br><img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-86.png" alt=""><br>于是，人们就想，既然都是拿数据为业务服务，数据湖和数仓作为两大“数据集散地”，能不能彼此整合一下，让数据流动起来，少点重复建设呢？<br>比如，让“数仓”在进行数据分析的时候，可以直接访问数据湖里的数据（Amazon Redshift Spectrum是这么干的）。再比如，让数据湖在架构设计上，就“原生”支持数仓能力（DeltaLake是这么干）。<br>正是这些想法和需求，推动了数仓和数据湖的打通和融合，也就是当下炙手可热的概念：Lake House。</p>
+<h2><span id="到底什么才是真正的lake-house">到底什么才是真正的Lake House？</span></h2><p>Lake House，坊间通常称之为“湖仓一体”，而Amazon Web Services则叫做“智能湖仓”。<br>Lake House架构最重要的一点，是实现“湖里”和“仓里”的数据/元数据能够无缝打通，并且“自由”流动。<br>湖里的“新鲜”数据可以流到仓里，甚至可以直接被数仓使用，而仓里的“不新鲜”数据，也可以流到湖里，低成本长久保存，供未来的数据挖掘使用。<br>为了实现这个目标，Amazon Web Services推出了Redshift Spectrum，打通了数仓对数据湖的直接访问，能够高效查询S3数据湖当中的EB级数据。<br><img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-89.png" alt=""><br>“Spectrum”是智能湖仓的核心组件，被称为“Lake House引擎”，它可以在湖与仓之间架起数据流动的管道</p>
+<ul>
+<li>可以将数据湖中最近几个月的“热数据”摄取到数仓中；</li>
+<li>反过来，也可以轻松将大量冷门历史数据从数仓转移至成本更低廉的数据湖内，同时这些移到湖里的数据，仍然可以被Redshift数仓查询使用;</li>
+<li>处理数仓内的热数据与数据湖中的历史数据，生成丰富的数据集，全程无需执行任何数据移动操作；</li>
+<li>生成的新数据集可以插入到数仓中的表内，或者直接插入由数据湖托管的外部表中。</li>
+</ul>
+<p>做到这一步，基本上算是 get 到了Lake House的精髓，“湖仓一体”初见端倪。</p>
+<p>但是，在实际业务场景下，数据的移动和访问，不仅限于数仓和数据湖之间，搜索引擎服务、机器学习服务、大数据分析服务……，都涉及到数据在本地（本系统）和数据湖之间的移动，以及数据在不同服务之间的移动。<br><img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-92.png" alt=""><br>数据积累得越多，移动起来就越困难，这就是所谓的“数据重力”。<br>所以，Lake House不仅要把湖、仓打通，还要克服“数据重力”，让数据在这些服务之间按需来回移动：入湖、出湖、环湖……<br>把数据湖和数据仓库集成起来只是第一步，还要把湖、仓以及所有其他数据处理服务组成统一且连续的整体，这就是Amazon Web Services为何把自家的Lake House架构称为“智能湖仓”，而非“湖仓一体”。</p>
+<h2><span id="湖仓一体只是开局智能湖仓才是终极">“湖仓一体”只是开局，智能湖仓才是终极</span></h2><p>智能湖仓并非单一产品，它描述的是一种架构。<br>这套架构，以数据湖为中心，把数据湖作为中央存储库，再围绕数据湖建立专用“数据服务环”，环上的服务包括了数仓、机器学习、大数据处理、日志分析，甚至RDS和NOSQL服务等等。<br><img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-93.png" alt=""><br>大家“环湖而饲”，既可以直接操纵湖内数据，也可以从湖中摄取数据，还可以向湖中回注数据，同时环湖的服务彼此之间也可以轻松交换数据。<br>任何热门的数据处理服务，都在湖边建好了，任何对口的数据都能召之即来、挥之则去。依靠这种无缝集成和数据移动机制，用户就能从容地用对的工具从对的数据中，挖出干货！<br><img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-94.png" alt=""><br>上面这张图看着就更加明白一些，中间是湖，周边集成了全套的云上数据服务，然后还有Lake Formation、Glue、Athena以及前面重点提到的Redshift Spectrum这些工具，来实现数据湖的构建、数据的管理、安全策略以及数据的移动。</p>
+<p>如果我们再从数据获取到数据应用的完整流程来看，这些产品又是如何各司其职的呢？Amazon Web Services官方给出了智能湖仓的参考架构<br><img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-95.png" alt=""><br>这个六层架构，从数据源定义、数据摄取和入湖入仓，到湖仓打通与集成，再到数据出湖、数据处理和数据消费，一气呵成，各种云上数据服务无缝集成在一起。数据从各种源头“流入”到智能湖仓存储中，又按需流出，被处理、被消费。<br>在“智能湖仓”架构下，企业可以轻松汇集和保存海量业务数据，并随心所欲地调用各种数据服务，用于BI、可视化分析、搜索、建模、特征提取、流处理等等，未来新的数据源、新的分析方法，也可以快速应对。</p>
+<p>同时，数据湖的存储底座S3成本低廉并有近乎无限的扩展性，“湖边”大量的数据分析和处理的服务又是无长期成本的Serverless架构，企业“入坑”智能湖仓之后，完全没有后顾之忧。<br>不得不说，Amazon Web Services先知先觉，他们在“挖”数据湖的时候，就准备好了智能湖仓的图纸，用户的数据湖建成，智能湖仓竟然不知不觉也水到渠成了，没有翻云覆雨，不需要推倒重建。</p>
+<p>我们甚至可以认为，“智能湖仓”架构是比所谓“数据中台”更能落地和务实的“中台”，如果数据中台是个饼，那智能湖仓就是把饼“烹熟烤香”的锅~<br>一入“湖仓”美如画，安心“淘金”不拉胯！</p>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://www.smartcity.team/consultingskills/experience/shujukuyushujuhu/" target="_blank" rel="noopener">一文看懂：什么是数据库、数据湖、数据仓库、湖仓一体、智能湖仓？</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">数据湖</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2022/05/25/bigdata-stack-datalake/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-bigdata-stack-olap" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
@@ -940,222 +1106,9 @@
 
 
   
-    <article id="post-bigdata-stack-realdw" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/24/bigdata-stack-realdw/">大数据开发之路-实时数仓</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/24/bigdata-stack-realdw/" class="archive-article-date">
-  	<time datetime="2022-05-24T00:23:07.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-24</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#实时数仓-实时性需求催生的数仓架构">实时数仓-实时性需求催生的数仓架构</a></li>
-<li><a href="#定位">定位</a></li>
-<li><a href="#建设思路">建设思路</a></li>
-<li><a href="#经典架构">经典架构</a><ul>
-<li><a href="#lambda">lambda</a></li>
-<li><a href="#kappa">kappa</a></li>
-<li><a href="#lambda-or-kappa">lambda or kappa</a></li>
-</ul>
-</li>
-<li><a href="#业界常见落地方案">业界常见落地方案</a><ul>
-<li><a href="#方案-1kappa-架构">方案 1：Kappa 架构</a></li>
-<li><a href="#方案-2基于标准分层-流计算">方案 ２：基于标准分层 + 流计算</a></li>
-<li><a href="#方案-3标准分层体现-流计算-批量计算">方案 3：标准分层体现 + 流计算 + 批量计算</a></li>
-<li><a href="#方案-4标准分层体系-流计算-数据湖">方案 4：标准分层体系 + 流计算 + 数据湖</a></li>
-<li><a href="#方案-5基于全场景mpp数据库实现">方案 5：基于全场景MPP数据库实现</a></li>
-<li><a href="#具体选型建议">具体选型建议</a></li>
-</ul>
-</li>
-<li><a href="#分层">分层</a><ul>
-<li><a href="#ods层">ODS层</a></li>
-<li><a href="#dwd层">DWD层</a></li>
-<li><a href="#dws层">DWS层</a></li>
-<li><a href="#总结">总结</a></li>
-</ul>
-</li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引</p>
-<ol>
-<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
-<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
-<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
-<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
-</ol>
-</blockquote>
-<h2><span id="实时数仓-实时性需求催生的数仓架构">实时数仓-实时性需求催生的数仓架构</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/1460000023879891" alt=""></p>
-<h2><span id="定位">定位</span></h2><p>其实在很多情况下，我们对于实时数仓的定位可能是没有那么准确的。我们都知道，传统数仓一个非常重要的功能是用于记录历史，而实时数仓恰恰相反，它更重视处理当前的状态。<br>因此，我们创建实时数仓的目的就在于解决传统数据仓库由于时效性低而解决不了的问题。传统数仓可以解决的问题，我们不解决；如果问题本身就不适合用数仓解决的话，我们也不去解决。这是我们建设实时数仓的一些基本原则。<br>那么哪些场景是我们要解决的呢？</p>
-<ul>
-<li>实时OLAP分析</li>
-<li>实时数据看板</li>
-<li>实时特性，用户画像的建立</li>
-<li>实时业务监控，比如说核心业务指标的监控预警等等。</li>
-</ul>
-<p>实时数仓作为数仓的一种，他也包含面向主题、有集成性、相对稳定等的数据仓库本身的特性。不过与传统数仓不同的是，它只保留上一次批处理到当前的数据（一般只保留3天）。这样的话，我们就有两天完整的数据，在批处理还没来得及处理完昨天的数据的间隙中，数仓仍然可以提供较好的服务。</p>
-<h2><span id="建设思路">建设思路</span></h2><ul>
-<li>计算框架选型：storm/flink等实时计算框架，强烈推荐flink，其『批流合一』的特性及活跃的开源社区，有逐渐替代spark的趋势。随着Flink越来越成熟，从技术性能上以及框架设计优势上已经超越了Storm，从趋势来讲就像Spark替代MR一样，Storm也会慢慢被Flink替代。<br><img src="https://p0.meituan.net/travelcube/15d2026e63ec7bdafa9c25b30eba39b6225524.png" alt=""></li>
-<li>数据存储选型：首要考虑查询效率，其次是插入、更新等问题，可选择apache druid，不过在数据更新上存在缺陷，选型时注意频繁更新的数据建议不要采用该方案。当然存储这块需要具体问题具体分析，不同场景下hbase、redis等都是可选项。</li>
-<li>实时数仓分层：为更好的统一管理数据，实时数仓可采用离线数仓的数据模型进行分层处理，可以分为实时明细层写入druid等查询效率高的存储方便下游使用;轻度汇总层对数据进行汇总分析后供下游使用。</li>
-<li>数据流转方案：实时数仓的数据来源可以为kafka消息队列，这样可以做到队列中的数据即可以写入数据湖用于批量分析，也可以实时处理，下游可以写入数据集市供业务使。</li>
-</ul>
-<h2><span id="经典架构">经典架构</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/532288-20210126201104745-720054501.png" alt=""><br>数仓架构演进，从一开始的离线数仓，到实时数仓的Lambda架构，再到流批一体的Kappa架构，最终发展到多引擎混用。</p>
-<h3><span id="lambda">lambda</span></h3><p><img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d3a07aa1d6504043898c494557c113a5~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/ff4b774a7a67b8a3796e6eb5b074a22c.jpeg" alt=""><br>lamdba架构是一个比较经典的架构，在以前实时场景并不是很多，大部分的业务都以离线为主，在附加了实时场景之后，由于他们之间的时效性不同，导致其技术生态也不一样。lambda架构相当于在离线数仓的基础上附加了一条实时生产链路，在应用层面进行一次整合。双链路生产，相互独立。<br>不过这种架构也存在着一些问题，比如说加工逻辑、开发运维等都要进行double操作，成本高，开发维护麻烦。同时资源同样也是两个资源链路。<br>因此产生了kappa架构。</p>
-<h3><span id="kappa">kappa</span></h3><p><img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/460f472ab81d4c3089eb4fcaa3e450a8~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/73bd44a447ff642af1ed171b4cd98c94.jpeg" alt=""><br>kappa架构移除了离线数仓的部分，全部采用实时生成。从架构设计来讲，比较简单，生产统一，一套逻辑同时生产离线和实时数据。<br>在kappa架构上，我们可以将APP应用数据存储到OLAP引擎中，由实时OLAP引擎承担聚合分析运算，这样可以减轻实时计算部分的计算压力。这种可以称为kappa架构的一个变体。<br><img src="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f733b85210ab452385ad75f394736d73~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?" alt=""></p>
-<h3><span id="lambda-or-kappa">lambda or kappa</span></h3><p>在真实的场景中，很多时候并不是完全规范的 Lambda 架构或 Kappa 架构，可以是两者的混合，比如大部分实时指标使用 Kappa 架构完成计算，少量关键指标(比如金额相关)使用 Lambda 架构用批处理重新计算，增加一次校对过程。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/a8f690fb4b5227110d1e82ab6341495b.jpeg" alt=""><br>Kappa 架构并不是中间结果完全不落地，现在很多大数据系统都需要支持机器学习(离线训练)，所以实时中间结果需要落地对应的存储引擎供机器学习使用，另外有时候还需要对明细数据查询，这种场景也需要把实时明细层写出到对应的引擎中。</p>
-<h2><span id="业界常见落地方案">业界常见落地方案</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/532742f78021e13aad78624d3e0d0463e5d5ef.jpg" alt=""></p>
-<h3><span id="方案-1kappa-架构">方案 1：Kappa 架构</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/862e6d472b8f306b0e8079047c97ab8ef663d5.png" alt=""><br>首先咱们看下Kappa架构，Kappa架构将多源数据（用户日志，系统日志，BinLog日志）实时地发送到Kafka。<br>然后通过Flink集群，按照不同的业务构建不同的流式计算任务，对数据进行数据分析和处理，并将计算结果输出到MySQL/ElasticSearch/HBase/Druid/KUDU等对应的数据源中，最终提供应用进行数据查询或者多维分析。<br>这种方案的好处有二，方案简单；数据实时。不过有两个缺点：<br>一个是用户每产生一个新的报表需求，都需要开发一个Flink流式计算任务，数据开发的人力成本和时间成本都较高。<br>第二个是对于每天需要接入近百亿的数据平台，如果要分析近一个月的数据，则需要的Flink集群规模要求很大，且需要将很多计算的中间数据存储在内存中以便多流Join。</p>
-<h3><span id="方案-2基于标准分层-流计算">方案 ２：基于标准分层 + 流计算</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/59768b537d6fa48b42e24966a22d6c2df476ba.png" alt=""><br>为了解决方案1中将所有数据放在一个层出现的开发维护成本高等问题，于是出现了基于标准分层+流计算的方案。<br>接下来咱们看下这种方案，在传统数仓的分层标准上构建实时数仓，将数据分为ODS、DWD、DWS、ADS层。首先将各种来源的数据接入ODS贴源数据层，再对ODS层的数据使用Flink的实时计算进行过滤、清洗、转化、关联等操作，形成针对不同业务主题的DWD数据明细层，并将数据发送到Kafka集群。<br>之后在DWD基础上，再使用Flink实时计算进行轻度的汇总操作，形成一定程度上方便查询的DWS轻度汇总层。最后再面向业务需求，在DWS层基础上进一步对数据进行组织进入ADS数据应用层，业务在数据应用层的基础上支持用户画像、用户报表等业务场景。<br>这种方案的优点是：各层数据职责清晰。缺点是多个Flink集群维护起来复杂，并且过多的数据驻留在Flink集群内也会增大集群的负载，不支持upsert操作，同时Schema维护麻烦。</p>
-<h3><span id="方案-3标准分层体现-流计算-批量计算">方案 3：标准分层体现 + 流计算 + 批量计算</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/a6a730865d79dcf9f777138055e8a6914c8b69.png" alt=""><br>为了解决方案2不支持upsert和schema维护复杂等问题。我们在方案2的基础上加入基于HDFS加Spark离线的方案。也就是离线数仓和实时数仓并行流转的方案。<br>这种方案带来的优点是：既支持实时的OLAP查询，也支持离线的大规模数据分析。但是带来了问题这样的几个问题。<br>数据质量管理复杂：需要构建一套兼容离线数据和实时数据血缘关系的数据管理体系，本身就是一个复杂的工程问题。离线数据和实时数据Schema统一困难。架构不支持upsert。</p>
-<h3><span id="方案-4标准分层体系-流计算-数据湖">方案 4：标准分层体系 + 流计算 + 数据湖</span></h3><p>随着技术的发展，为了解决数据质量管理和upsert问题。出现了流批一体架构，这种架构基于数据湖三剑客 Delta Lake  / Hudi / Iceberg 实现 + Spark 实现。<br>我们以Iceberg为例介绍下这种方案的架构，从下图可以看到这方案和前面的方案2很相似，只是在数据存储层将Kafka换为了Iceberg。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/720ad8f44540ce14fb7893d954b8ce6a3d4e15.png" alt=""><br>它有这样的几个特点，其中第2、3点，尤为重要，需要特别关注下，这也是这个方案和其他方案的重要差别。</p>
-<ol>
-<li>在编程上将流计算和批计算统一到同一个SQL引擎上，基于同一个Flink SQL既可以进行流计算，也可以进行批计算。</li>
-<li>将流计算和批计算的存储进行了统一，也就是统一到Iceberg/HDFS上，这样数据的血缘关系和数据质量体系的建立也变得简单了。</li>
-<li>由于存储层统一，数据的Schema也自然统一起来了，这样相对流批单独两条计算逻辑来说，处理逻辑和元数据管理的逻辑都得到了统一。</li>
-<li>数据中间的各层（ODS、DWD、DWS、ADS）数据，都支持OLAP的实时查询。</li>
-</ol>
-<p>那么为什么 Iceberg 能承担起实时数仓的方案呢，主要原因是它解决了长久以来流批统一时的这些难题：</p>
-<ul>
-<li>同时支持流式写入和增量拉取。</li>
-<li>解决小文件多的问题。数据湖实现了相关合并小文件的接口，Spark / Flink上层引擎可以周期性地调用接口进行小文件合并。</li>
-<li>支持批量以及流式的 Upsert(Delete) 功能。批量Upsert / Delete功能主要用于离线数据修正。流式upsert场景前面介绍了，主要是流处理场景下经过窗口时间聚合之后有延迟数据到来的话会有更新的需求。这类需求是需要一个可以支持更新的存储系统的，而离线数仓做更新的话需要全量数据覆盖，这也是离线数仓做不到实时的关键原因之一，数据湖是需要解决掉这个问题的。</li>
-<li>同时 Iceberg 还支持比较完整的OLAP生态。比如支持Hive / Spark / Presto / Impala 等 OLAP 查询引擎，提供高效的多维聚合查询性能。</li>
-</ul>
-<h3><span id="方案-5基于全场景mpp数据库实现">方案 5：基于全场景MPP数据库实现</span></h3><p>前面的四种方案，是基于数仓方案的优化。方案仍然属于比较复杂的，如果有一个数据库既能满足海量数据的存储，也能实现快速分析，那岂不是很方便。这时候便出现了以StartRocks和ClickHouse为代表的全场景MPP数据库。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/25236472790bcf54d51976db63ac82f8e0e7b6.png" alt=""><br>基于StartRocks或者ClickHouse构建实时数仓。来看下具体的实现方式：</p>
-<ol>
-<li>将数据源上的实时数据直接写入消费服务。</li>
-<li>对于数据源为离线文件的情况有两种处理方式，一种是将文件转为流式数据写入Kafka，另外一种情况是直接将文件通过SQL导入ClickHouse集群。</li>
-<li>ClickHouse接入Kafka消息并将数据写入对应的原始表，基于原始表可以构建物化视图、Project等实现数据聚合和统计分析。</li>
-<li>应用服务基于ClickHouse数据对外提供BI、统计报表、告警规则等服务。</li>
-</ol>
-<h3><span id="具体选型建议">具体选型建议</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/442092b566f94527a7d97160102b056927008a.png" alt=""></p>
-<h2><span id="分层">分层</span></h2><h3><span id="ods层">ODS层</span></h3><p>ODS层存储的是原始数据，在kafka中进行存储，我们不会对数据有任何的处理，保持原始粒度的数据。</p>
-<h3><span id="dwd层">DWD层</span></h3><p>DWD层它的建设其实和离线数仓中DW层的建设基本一致。主要是为了解决一些原始数据中存在的噪点、数据不完整和数据格式不一致的问题，形成规范、统一的数据源。<br>尽可能做到和离线数仓一样的入仓方式(入什么仓，如何入仓)。比如说我们可以建设基于配置的入仓规则，实时和离线用同一套规则入仓。<br>DWD层主要的工作包括数据解析、业务整合、脏数据的清洗和模型规范化。<br>这里我们重点讲一下模型规范化，实时数仓和离线数仓不同的是，实时数仓他是7*24小时不间断运行的。如果需要更改表字段的话，会付出比离线更多的代价。因为要保证数据上游和下游的数据可以解析到新的表结构。还有就是我们存储使用的是kafka，kafka不像其他的数据库。它不能做结构化存储，同时也没有办法管理元数据。因此，我们建议在开始构建数仓前就做好数据的模型规范化。避免后续付出更多的代价来做数据治理。<br>同时，我们还可以针对数据本身做一些处理，为了应对一些生产环境中的常见问题，我们可以在数据上额外补充一些信息。</p>
-<ul>
-<li>唯一键和主键<br> 在数仓中我们针对日志进行处理，比如说我们通过binlog来处理MYSQL中的数据，MYSQL中存储的是一些业务数据，比如说订单数据，每一行订单数据可能会有多次改变，这些变化又通过一条条的binlog日志来体现。那这个时候我们就可以通过唯一键和主键来标记每条数据。其中唯一键用来标记唯一一条数据，这个可以解决数据重复的问题；主键用来标记唯一一行数据，这个可以利用kafka的分区来解决是数据乱序的问题。</li>
-<li>版本号和批次<br> 因为在数仓中，下游数据的处理逻辑是依赖于上游表的schame的，我们在计算过程中可能会遇到需要重新计算的问题或者说数据的表结构发生了变化的情况。这个时候我们就可以通过数据的版本和批次去分别解决。这里的版本号指的的是数据表结构的版本号，我们可以通过不同的版本号来判断表结构变化的问题。而批次指的是数据重导时的批次变化，可以通过更改数据的批次来保证即使数据的消费位置发生变化后也可以得到正确的结果。</li>
-</ul>
-<h3><span id="dws层">DWS层</span></h3><p>DWS层即汇总层。这一层的建设也是和离线数仓的建设方法一致。<br>这一层主要是对共性指标的统一加工，同时根据主题进行多维度的汇总等操作。可以使用Flink中丰富的时间窗口实现。</p>
-<h3><span id="总结">总结</span></h3><p>实时计算订阅业务数据消息队列，然后通过数据清洗、多数据源 join、流式数据与离线维度信息等的组合，将一些相同粒度的业务系统、维表中的维度属性全部关联到一起，增加数据易用性和复用性，得到最终的实时明细数据。这部分数据有两个分支，一部分直接落地到 ADS，供实时明细查询使用，一部分再发送到消息队列中，供下层计算使用。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/b87df1015e6b63598aa7b765e5f9664c.jpeg" alt=""><br>以数据域+业务域的理念建设公共汇总层，与离线数仓不同的是，这里汇总层分为轻度汇总层和高度汇总层，并同时产出，轻度汇总层写入 ADS，用于前端产品复杂的 olap 查询场景，满足自助分析和产出报表的需求;高度汇总层写入 Hbase，用于前端比较简单的 kv 查询场景，提升查询性能，比如实时大屏等。</p>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://juejin.cn/post/7011063529700589599" target="_blank" rel="noopener">如何建设实时数仓</a></li>
-<li><a href="https://www.51cto.com/article/617634.html" target="_blank" rel="noopener">看完了这篇实时数仓建设，才发现以前的都白看了（内有美团案例）</a></li>
-<li><a href="https://www.cnblogs.com/GO-NO-1/p/14332234.html" target="_blank" rel="noopener">数仓架构演进</a></li>
-<li><a href="https://www.51cto.com/article/707275.html" target="_blank" rel="noopener">实时数仓方案五花八门，实际落地如何选型和构建</a></li>
-<li><a href="https://tech.meituan.com/2021/08/26/data-warehouse-in-meituan-waimai.html" target="_blank" rel="noopener">美团外卖实时数仓建设实践</a></li>
-<li><a href="https://developer.aliyun.com/article/781534" target="_blank" rel="noopener">Flink + Iceberg 全场景实时数仓的建设实践</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">实时数仓</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/24/bigdata-stack-realdw/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
-      <a class="extend prev" rel="prev" href="/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><a class="page-number" href="/page/4/">4</a><span class="space">&hellip;</span><a class="page-number" href="/page/41/">41</a><a class="extend next" rel="next" href="/page/3/">Next &raquo;</a>
+      <a class="extend prev" rel="prev" href="/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="page-number current">2</span><a class="page-number" href="/page/3/">3</a><a class="page-number" href="/page/4/">4</a><span class="space">&hellip;</span><a class="page-number" href="/page/42/">42</a><a class="extend next" rel="next" href="/page/3/">Next &raquo;</a>
     </nav>
   
 
@@ -1289,11 +1242,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
+                <a href="javascript:void(0)" class="js-tag color5">hive</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hive</a>
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1313,11 +1266,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1329,10 +1282,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
@@ -1341,11 +1290,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1353,11 +1302,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">备份</a>
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1369,19 +1314,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">备份</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hexo</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">github pages</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">tez</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">gc</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1401,11 +1346,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+                <a href="javascript:void(0)" class="js-tag color4">tez</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">gc</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1417,14 +1374,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
               </li>
              
@@ -1433,11 +1382,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1469,11 +1422,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1481,11 +1434,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1553,11 +1506,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
               </li>
              
               <li class="article-tag-list-item">
