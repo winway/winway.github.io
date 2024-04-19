@@ -156,6 +156,338 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-flumeAction" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2019/09/13/flumeAction/">Flume实战总结</a>
+    </h1>
+  
+
+        
+        <a href="/2019/09/13/flumeAction/" class="archive-article-date">
+  	<time datetime="2019-09-13T07:32:31.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-09-13</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#前言">前言</a></li>
+<li><a href="#flume介绍">Flume介绍</a></li>
+<li><a href="#架构演进">架构演进</a></li>
+<li><a href="#kafka-topic覆盖问题">Kafka topic覆盖问题</a></li>
+<li><a href="#flume重复读取日志问题">Flume重复读取日志问题</a></li>
+<li><a href="#memory-channel重启丢数据问题">Memory Channel重启丢数据问题</a></li>
+<li><a href="#error-while-querying-external-table-containing-flume-stream">Error while querying external table containing Flume stream</a></li>
+<li><a href="#kafka-sinksource-生产消费大消息问题">Kafka Sink/Source 生产/消费大消息问题</a></li>
+<li><a href="#kafka-sink支持时间戳索引">Kafka Sink支持时间戳索引</a></li>
+<li><a href="#低版本kafkasource消费高版本kafka消息问题">低版本KafkaSource消费高版本Kafka消息问题</a></li>
+<li><a href="#多节点消费kafka负载均衡问题">多节点消费kafka负载均衡问题</a></li>
+<li><a href="#kafka-sink吞吐量优化">Kafka Sink吞吐量优化</a></li>
+<li><a href="#吞吐量优化">吞吐量优化</a></li>
+<li><a href="#flume监控">Flume监控</a></li>
+</ul>
+<!-- tocstop -->
+<p><em>Version：Flume 1.8.0</em></p>
+<h1><span id="前言">前言</span></h1><p>一直使用Flume进行日志收集，本文就使用Flume的过程中遇到的问题、知识点进行总结记录，不会涉及Flume的基本用法，读者需要对Flume有一定了解。</p>
+<h1><span id="flume介绍">Flume介绍</span></h1><p><a href="https://flume.apache.org/releases/content/1.8.0/FlumeUserGuide.html" target="_blank" rel="noopener">Flume</a>是Cloudera开发的一个高可用的，高可靠的，分布式的海量日志采集、聚合和传输的系统，Flume支持在日志系统中定制各类数据发送方，用于收集数据。数据源可定制、可扩展，数据存储系统可定制、可扩展。<br>Flume运行的核心是agent。它是一个完整的数据收集工具，含有三个核心组件，分别是source、channel、sink。Flume传输的数据的基本单位是event，如果是文本文件，通常是一行记录，这也是事务的基本单位。通过source、channel、sink，event可以从一个地方流向另一个地方。</p>
+<p><img src="https://flume.apache.org/_images/UserGuide_image02.png" alt=""></p>
+<p>Flume的数据流由事件(Event)贯穿始终。事件是Flume的基本数据单位，它携带日志数据（字节数组形式）并且携带有头信息，这些Event由Agent外部的Source，比如上图中的Web Server生成。当Source捕获事件后会进行特定的格式化，然后Source会把事件推入(单个或多个)Channel中。你可以把Channel看作是一个缓冲区，它将保存事件直到Sink处理完该事件。Sink负责持久化日志或者把事件推向另一个Source。不同类型的Source，Channel和Sink可以自由组合。组合方式基于用户设置的配置文件，非常灵活。比如：Channel可以把事件暂存在内存里，也可以持久化到本地硬盘上。Sink可以把日志写入HDFS, HBase，甚至是另外一个Source等等。<br>就这样，单纯通过配置，Flume就可以实现大多数日志收集、传输、存储的需求。</p>
+<h1><span id="架构演进">架构演进</span></h1><p>最初的日志收集架构如下图，很简单。应用服务器部署flume-agent，使用taildir source收集日志，并上报至汇聚节点flume-collector，flume-collector将日志统一写入HDFS。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913161017.png" alt=""></p>
+<p>随着业务的发展，日志规模和多样性都有所增加。</p>
+<ul>
+<li>fluem-agent增加了使用kafka source收集Kafka日志</li>
+<li>flume collector同时将日志写入HDFS和Kafka</li>
+</ul>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20190913-162321.png" alt=""></p>
+<p>在这个阶段，遇到了一个问题：HDFS的写入和Kafka的写入会相互影响。<br>主要原因在于：HdfsSink使用的Channel和KafkaSink使用的Channel共用了同一个Source，由于Source同步写两个Channel，当其中一个Channel由于Sink速度跟不上而满时，另一个的速度也会受到影响。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913162846.png" alt=""></p>
+<p>我们可以使用下面的架构解决该问题，但缺点是：一份日志会被flume agent读取两次。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913163601.png" alt=""></p>
+<p>最终，采用了如下架构解决该问题。flume-collector不再直接写HDFS，而是使用另外的flume-hdfs-sinker异步消费Kafka再写入HDFS。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913163815.png" alt=""></p>
+<h1><span id="kafka-topic覆盖问题">Kafka topic覆盖问题</span></h1><p>使用kafka source消费Kafka的A topic，同时使用kafka sink写入Kafka的B topic，但是kafka sink并没有如期写入B，而是写入了A。其实这个问题在Flume的<a href="https://flume.apache.org/releases/content/1.8.0/FlumeUserGuide.html" target="_blank" rel="noopener">文档</a>中写的很清楚。</p>
+<p>kafka sink有如下几个配置：当event header中含有“topic”字段时，kafka sink会优先使用该字段的value作为目的topic，而不是配置指定的topic。</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>kafka.topic</td>
+<td>default-flume-topic</td>
+<td>The topic in Kafka to which the messages will be published. If this parameter is configured, messages will be published to this topic. <strong>If the event header contains a “topic” field, the event will be published to that topic overriding the topic configured here.</strong> Arbitrary header substitution is supported, eg. %{header} is replaced with value of event header named “header”. (If using the substitution, it is recommended to set “auto.create.topics.enable” property of Kafka broker to true.)</td>
+</tr>
+<tr>
+<td>allowTopicOverride</td>
+<td>true</td>
+<td>When set, the sink will allow a message to be produced into a topic specified by the topicHeader property (if provided).</td>
+</tr>
+<tr>
+<td>topicHeader</td>
+<td>topic</td>
+<td>When set in conjunction with allowTopicOverride will produce a message into the value of the header named using the value of this property. <strong>Care should be taken when using in conjunction with the Kafka Source topicHeader property to avoid creating a loopback.</strong></td>
+</tr>
+</tbody>
+</table>
+<p>同时kafka source有如下几个配置：从Kafka读取的消息，event header默认会设置一个字段“topic”，存储源topic的名字。</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>setTopicHeader</td>
+<td>true</td>
+<td><strong>When set to true, stores the topic of the retrieved message into a header, defined by the topicHeader property.</strong></td>
+</tr>
+<tr>
+<td>topicHeader</td>
+<td>topic</td>
+<td>Defines the name of the header in which to store the name of the topic the message was received from, if the setTopicHeader property is set to true. <strong>Care should be taken if combining with the Kafka Sink topicHeader property so as to avoid sending the message back to the same topic in a loop.</strong></td>
+</tr>
+</tbody>
+</table>
+<p>所以，Flume的默认行为就是从哪个topic读，就写入哪个topic。知道了原因，这个问题就很好解决了。</p>
+<ul>
+<li>将Kafak source的setTopicHeader设置为false</li>
+<li>将Kafka sink的allowTopicOverride设置为false</li>
+</ul>
+<h1><span id="flume重复读取日志问题">Flume重复读取日志问题</span></h1><p>使用Flume的taildir source采集服务器日志写入HDFS，发现HDFS上的日志条数多于服务器上的日志。分析服务器上的Flume日志，发现了问题。<br>Flume使用inode识别文件，会在内存中记录inode和读取偏移的对应关系MAP&lt;inode，pos&gt;，并且这个map只增不减。当文件从磁盘删除后，inode就会被重用，会出现同一个inode对应不同的文件。<br>当Flume发现新文件产生时，会检查该文件的inode对应的pos。同一个inode第二次被使用时，如果当前文件小于已经删除的文件大小，pos被重置为0。<br>正常情况下日志输出如下，发现新文件后，因为其inode对应的pos大于文件大小（inode复用），重置该文件的读取偏移pos为0，开始读取。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913173504.png" alt=""></p>
+<p>重复读取日志的情况输出如下，inode为3147478的文件在15:00的时候生成，开始从pos 0读取；在16:00的时候pos被重置成了0，问题就出在这里。相当于这个文件被重复读取了一遍。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20190913-173820.png" alt=""></p>
+<p>查看对应位置的<a href="https://github.com/apache/flume/blob/release-1.8.0/flume-ng-sources/flume-taildir-source/src/main/java/org/apache/flume/source/taildir/ReliableTaildirEventReader.java#L256-L260" target="_blank" rel="noopener">源码</a>，发现在f.length() &lt; tf.getPos()时，会进入该重置pos的逻辑。f.length()表示当前文件的size，tf.getPos()表示该文件对应的inode的读取偏移，理论上这种情况只会出现在发现新文件时，由于新文件的size小，且新文件对应的inode以前使用过，所以重置pos是对的。但是这里重置就很奇怪，会导致读取不准确。除非在1和2之间，文件发生了变化，比如日志滚动，f.length获取的是新文件的size，tf指向的是滚动后的文件。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913174314.png" alt=""></p>
+<p>测试程序验证了这个猜测：在两个f.length之间删除文件并重建，f.length会输出新文件的size。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913174351.png" alt=""></p>
+<p><strong>所以根本原因是，在执行updateTailFiles的过程中（1和2之间），日志发生了滚动。</strong><br>google搜索，有人也遇到了同样的的问题：<a href="https://issues.apache.org/jira/browse/FLUME-3320" target="_blank" rel="noopener">https://issues.apache.org/jira/browse/FLUME-3320</a></p>
+<p>目前这个问题还没有好的解决方案：</p>
+<ol>
+<li>应用处理，日志去重。对于应用开发是个负担，且浪费计算资源</li>
+<li>等待flume修复该bug，目前flume最新版本还没有修复这个bug</li>
+<li>自行<a href="https://github.com/apache/flume/pull/297/files" target="_blank" rel="noopener">修复</a>，可以在f.length() &lt; tf.getPos()的同时再次判断f和tf的inode是否一致</li>
+</ol>
+<h1><span id="memory-channel重启丢数据问题">Memory Channel重启丢数据问题</span></h1><p>Flume 1.8在关闭各组件时是随机关闭的，例如先关闭sink再关闭source，这样势必导致部分数据丢失。详见[<a href="https://issues.apache.org/jira/browse/FLUME-2894" target="_blank" rel="noopener">FLUME-2894</a>]。<br><a href="https://flume.apache.org/releases/1.9.0.html" target="_blank" rel="noopener">Flume 1.9</a>改进为先关闭source组件，再关闭sink组件，最后关闭channel组件。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190914111907.png" alt=""></p>
+<p>但是在关闭sink组件时并没有判断memory channel中是否还有数据没有消费完，所以memory channel中的数据在重启时存在丢失风险。<br>解决方案：</p>
+<ol>
+<li><p>关闭进程之前，使用iptables禁掉source的数据接收端口或数据拉取端口，待memory channel中的数据全部消费完毕，再关闭进程。这个方法可以解决问题，但是操作比较麻烦。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">iptables -A INPUT -p tcp --dport 4141 -j REJECT</span><br><span class="line">关闭进程</span><br><span class="line">iptables -D INPUT 1</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>修改<a href="https://github.com/apache/flume/pull/296/files" target="_blank" rel="noopener">代码</a>，实现按照source、sink、channel的顺序关闭各组件，并且等待memory channel空之后再关闭sink。</p>
+</li>
+</ol>
+<h1><span id="error-while-querying-external-table-containing-flume-stream">Error while querying external table containing Flume stream</span></h1><p>使用Flume的HdfsSink往HDFS写文件时，会先写入以<code>.tmp</code>结尾的临时文件，待文件关闭时，重命名去掉<code>.tmp</code>后缀。<br>如果在此期间使用Hive查询该文件，就可能出现找不到文件的问题。可以通过设置<code>hdfs.inUsePrefix = .</code>避免该问题。</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>hdfs.inUseSuffix</td>
+<td>.tmp</td>
+<td>Suffix that is used for temporal files that flume actively writes into</td>
+</tr>
+<tr>
+<td>hdfs.inUsePrefix</td>
+<td>–</td>
+<td>Prefix that is used for temporal files that flume actively writes into</td>
+</tr>
+</tbody>
+</table>
+<p>详见：</p>
+<ul>
+<li><a href="https://stackoverflow.com/questions/32968450/hive-error-while-querying-external-table-containing-flume-stream" target="_blank" rel="noopener">https://stackoverflow.com/questions/32968450/hive-error-while-querying-external-table-containing-flume-stream</a></li>
+<li><a href="https://www.iteye.com/blog/liyonghui160com-2173163" target="_blank" rel="noopener">https://www.iteye.com/blog/liyonghui160com-2173163</a></li>
+</ul>
+<h1><span id="kafka-sinksource-生产消费大消息问题">Kafka Sink/Source 生产/消费大消息问题</span></h1><p>Kafka的消息有大小限制，默认1M，超过这个限制的消息在生产和消费的时候会报错。以下几个参数控制着可生产和消费的消息的大小：</p>
+<ul>
+<li>Broker side<br><code>replica.fetch.max.bytes</code> - this will allow for the replicas in the brokers to send messages within the cluster and make sure the messages are replicated correctly. If this is too small, then the message will never be replicated, and therefore, the consumer will never see the message because the message will never be committed (fully replicated).<br><code>message.max.bytes</code> - this is the largest size of the message that can be received by the broker from a producer.<br><code>max.message.bytes(per topic)</code> - this is the largest size of the message the broker will allow to be appended to the topic. This size is validated pre-compression. (Defaults to broker’s message.max.bytes.)</li>
+<li>Producer side<br><code>max.request.size</code> - The maximum size of a request in bytes. This is also effectively a cap on the maximum record size. Note that the server has its own cap on record size which may be different from this. This setting will limit the number of record batches the producer will send in a single request to avoid sending huge requests.</li>
+<li>Consumer side<br><code>max.partition.fetch.bytes(New Consumer)</code> - The maximum amount of data per-partition the server will return. The maximum total memory used for a request will be <code>#partitions * max.partition.fetch.bytes</code>. This size must be at least as large as the maximum message size the server allows or else it is possible for the producer to send messages larger than the consumer can fetch. If that happens, the consumer can get stuck trying to fetch a large message on a certain partition.<br><code>fetch.message.max.bytes(Old Consumer)</code> - The number of bytes of messages to attempt to fetch for each topic-partition in each fetch request. These bytes will be read into memory for each partition, so this helps control the memory used by the consumer. The fetch request size must be at least as large as the maximum message size the server allows or else it is possible for the producer to send messages larger than the consumer can fetch.</li>
+</ul>
+<p>对应的Flume配置为：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">agent.sinks.kafkasink.kafka.producer.max.request.size = 3145728  # 允许生产3M的消息</span><br><span class="line">agent.sources.kafkasource.kafka.consumer.max.partition.fetch.bytes = 3145728  # 允许消费3M的消息</span><br></pre></td></tr></table></figure></p>
+<p>通过配置上述的参数，可以调整Flume/Kafka允许生产和消费的消息大小限制，但是我们没办法强制要求数据源必须产生符合限制的消息。一旦数据源产生了超过Flume/Kafka所允许的消息大小的消息，Flume就会阻塞住，一直重试，影响后续消息的传输，所以可以在Flume中增加interceptor，对超过限制的消息提前进行处理。interceptor核心代码如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> Event <span class="title">intercept</span><span class="params">(Event event)</span> </span>&#123;</span><br><span class="line">    String body = <span class="keyword">new</span> String(event.getBody());</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (body.length() &gt; MAX_MESSAGE_SIZE) &#123;</span><br><span class="line">            logger.error(<span class="string">"Message size is too large "</span> + body.length() + <span class="string">" ! Skip it."</span>);</span><br><span class="line">            logger.error(<span class="string">"Show 2048 byte: "</span> + body.substring(<span class="number">0</span>, <span class="number">2048</span>));</span><br><span class="line"></span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">        logger.error(body);</span><br><span class="line">        logger.error(e.getStackTrace().toString(), e);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> event;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> List&lt;Event&gt; <span class="title">intercept</span><span class="params">(List&lt;Event&gt; events)</span> </span>&#123;</span><br><span class="line">    List&lt;Event&gt; interceptedEvents = <span class="keyword">new</span> ArrayList&lt;Event&gt;(events.size());</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (Event e : events) &#123;</span><br><span class="line">        Event interceptedEvent = intercept(e);</span><br><span class="line">        <span class="keyword">if</span> (interceptedEvent != <span class="keyword">null</span>) &#123;</span><br><span class="line">            interceptedEvents.add(interceptedEvent);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> interceptedEvents;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>详见：</p>
+<ul>
+<li><a href="https://cwiki.apache.org/confluence/display/KAFKA/FAQ#FAQ-Howtoconsumelargemessages" target="_blank" rel="noopener">https://cwiki.apache.org/confluence/display/KAFKA/FAQ#FAQ-Howtoconsumelargemessages</a>?</li>
+<li><a href="https://stackoverflow.com/questions/21020347/how-can-i-send-large-messages-with-kafka-over-15mb?answertab=votes#tab-top" target="_blank" rel="noopener">https://stackoverflow.com/questions/21020347/how-can-i-send-large-messages-with-kafka-over-15mb?answertab=votes#tab-top</a></li>
+<li><a href="https://www.jianshu.com/p/ad53fdf1c2c2" target="_blank" rel="noopener">https://www.jianshu.com/p/ad53fdf1c2c2</a></li>
+</ul>
+<h1><span id="kafka-sink支持时间戳索引">Kafka Sink支持时间戳索引</span></h1><p>Kafka从0.10.0开始增加了<a href="https://www.cnblogs.com/huxi2b/p/6050778.html" target="_blank" rel="noopener">时间戳索引</a>，可以根据时间查询对应的offset。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Look up the offsets for the given partitions by timestamp. The returned offset for each partition is the</span></span><br><span class="line"><span class="comment"> * earliest offset whose timestamp is greater than or equal to the given timestamp in the corresponding partition.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * This is a blocking call. The consumer does not have to be assigned the partitions.</span></span><br><span class="line"><span class="comment"> * If the message format version in a partition is before 0.10.0, i.e. the messages do not have timestamps, null</span></span><br><span class="line"><span class="comment"> * will be returned for that partition.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * Notice that this method may block indefinitely if the partition does not exist.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> timestampsToSearch the mapping from partition to the timestamp to look up.</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@return</span> a mapping from partition to the timestamp and offset of the first message with timestamp greater</span></span><br><span class="line"><span class="comment"> *         than or equal to the target timestamp. &#123;<span class="doctag">@code</span> null&#125; will be returned for the partition if there is no</span></span><br><span class="line"><span class="comment"> *         such message.</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@throws</span> IllegalArgumentException if the target timestamp is negative.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> Map&lt;TopicPartition, OffsetAndTimestamp&gt; <span class="title">offsetsForTimes</span><span class="params">(Map&lt;TopicPartition, Long&gt; timestampsToSearch)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">for</span> (Map.Entry&lt;TopicPartition, Long&gt; entry : timestampsToSearch.entrySet()) &#123;</span><br><span class="line">        <span class="comment">// we explicitly exclude the earliest and latest offset here so the timestamp in the returned</span></span><br><span class="line">        <span class="comment">// OffsetAndTimestamp is always positive.</span></span><br><span class="line">        <span class="keyword">if</span> (entry.getValue() &lt; <span class="number">0</span>)</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"The target time for partition "</span> + entry.getKey() + <span class="string">" is "</span> +</span><br><span class="line">                    entry.getValue() + <span class="string">". The target time cannot be negative."</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> fetcher.getOffsetsByTimes(timestampsToSearch, requestTimeoutMs);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>Flume1.8默认使用的Kafka版本是0.9.0，该版本还不支持时间戳索引。如果希望使用Kafka sink写入的消息支持根据时间查询offset，则需要使用0.10.0版本的Kafka重新编译Flume。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;kafka.version&gt;0.9.0.1&lt;/kafka.version&gt;</span><br></pre></td></tr></table></figure></p>
+<p>步骤如下：</p>
+<ol>
+<li><p>修改依赖的Kafka版本</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">&lt;!-- &lt;kafka.version&gt;0.9.0.1&lt;/kafka.version&gt; --&gt;</span><br><span class="line">&lt;kafka.version&gt;0.10.0.1&lt;/kafka.version&gt;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>编译Flume，参考：<br><a href="https://birdben.github.io/2016/08/26/Flume/Flume%E5%AD%A6%E4%B9%A0%EF%BC%88%E4%BA%94%EF%BC%89Flume%E7%BC%96%E8%AF%91%E5%AE%89%E8%A3%85/" target="_blank" rel="noopener">https://birdben.github.io/2016/08/26/Flume/Flume%E5%AD%A6%E4%B9%A0%EF%BC%88%E4%BA%94%EF%BC%89Flume%E7%BC%96%E8%AF%91%E5%AE%89%E8%A3%85/</a><br><a href="https://www.iteye.com/blog/cpjsjxy-2278031" target="_blank" rel="noopener">https://www.iteye.com/blog/cpjsjxy-2278031</a><br><a href="https://www.cnblogs.com/chenpi/p/7214745.html" target="_blank" rel="noopener">https://www.cnblogs.com/chenpi/p/7214745.html</a></p>
+</li>
+<li>替换Flume lib下Kafka的相关jar包</li>
+</ol>
+<h1><span id="低版本kafkasource消费高版本kafka消息问题">低版本KafkaSource消费高版本Kafka消息问题</span></h1><ul>
+<li>问题分析<br>Flume报错信息：<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20191220192637.png" alt=""></li>
+</ul>
+<p>Kafka报错信息：<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20191220192343.png" alt=""></p>
+<p>查看Kafka clients<a href="https://github.com/apache/kafka/blob/3e9d1c1411c5268de382f9dfcc95bdf66d0063a0/clients/src/main/java/org/apache/kafka/common/record/MemoryRecordsBuilder.java#L395~L426" target="_blank" rel="noopener">代码</a>，发现在headers不为空的时候，会触发这个报错，遂怀疑分区中写入了headers不为空的消息。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20191220193140.png" alt=""><br>通过消费指定分区，指定offset的消息，发现猜测正确！！该消息是应用使用Kafka clients 2.x写入的。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">import os</span><br><span class="line">import sys</span><br><span class="line">import time</span><br><span class="line">from kafka import KafkaConsumer</span><br><span class="line">from kafka import TopicPartition</span><br><span class="line"></span><br><span class="line">consumer = KafkaConsumer(group_id=&apos;winwaytest2&apos;,</span><br><span class="line">                         bootstrap_servers=[&apos;172.16.xx.xx&apos;],</span><br><span class="line">                         )</span><br><span class="line"></span><br><span class="line">consumer.assign([</span><br><span class="line">    TopicPartition(&apos;xxxxx&apos;, 0),</span><br><span class="line">    ])</span><br><span class="line"></span><br><span class="line">for message in consumer:</span><br><span class="line">    print message</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li><p>问题产生原因<br>应用使用Kafka clinets 2.x版本写入消息，Flume 1.8的KafkaSource使用的是Kafka clinets 0.10.0.1，导致无法消费。</p>
+</li>
+<li><p>解决方法</p>
+<ol>
+<li>升级Flume 1.8依赖的Kafka clients版本到2.x，不过不太可行，存在一些api兼容问题</li>
+<li>直接使用Flume 1.9</li>
+</ol>
+</li>
+</ul>
+<h1><span id="多节点消费kafka负载均衡问题">多节点消费kafka负载均衡问题</span></h1><p>多个Flume节点使用Kafka Source消费一批kafka topic的时候（配置同样的group id），发现节点负载不均匀，个别节点处理速度慢，导致对应的分区出现消费堆积问题。<br>引起该问题的原因是默认的分区分配策略导致的，默认的分区分配策略针对每个topic的分区以range的方式进行分配，无法保证每个节点分配到的总分区数量差不多。将分区分配策略由默认的<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">agent.sources.kafkasource1.kafka.consumer.partition.assignment.strategy = org.apache.kafka.clients.consumer.RangeAssignor</span><br></pre></td></tr></table></figure></p>
+<p>修改为<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">agent.sources.kafkasource1.kafka.consumer.partition.assignment.strategy = org.apache.kafka.clients.consumer.RoundRobinAssignor</span><br></pre></td></tr></table></figure></p>
+<p>或<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">agent.sources.kafkasource1.kafka.consumer.partition.assignment.strategy = org.apache.kafka.clients.consumer.StickyAssignor</span><br></pre></td></tr></table></figure></p>
+<p>可解决该问题。</p>
+<p>参考资料：</p>
+<ul>
+<li><a href="https://stackoverflow.com/questions/55533605/how-kafka-consumer-works-if-consumers-are-more-that-partitions" target="_blank" rel="noopener">https://stackoverflow.com/questions/55533605/how-kafka-consumer-works-if-consumers-are-more-that-partitions</a></li>
+<li><a href="https://www.jianshu.com/p/91277c38fda6" target="_blank" rel="noopener">https://www.jianshu.com/p/91277c38fda6</a></li>
+<li><a href="https://medium.com/@anyili0928/what-i-have-learned-from-kafka-partition-assignment-strategy-799fdf15d3ab" target="_blank" rel="noopener">https://medium.com/@anyili0928/what-i-have-learned-from-kafka-partition-assignment-strategy-799fdf15d3ab</a></li>
+<li><a href="https://generalthink.github.io/2019/06/06/kafka-consumer-partition-assign/" target="_blank" rel="noopener">https://generalthink.github.io/2019/06/06/kafka-consumer-partition-assign/</a></li>
+</ul>
+<h1><span id="kafka-sink吞吐量优化">Kafka Sink吞吐量优化</span></h1><ul>
+<li>相关参数</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Property</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Memory Channel</td>
+<td>capacity</td>
+<td>100</td>
+<td>The maximum number of events stored in the channel</td>
+</tr>
+<tr>
+<td>Memory Channel</td>
+<td>transactionCapacity</td>
+<td>100</td>
+<td>The maximum number of events the channel will take from a source or give to a sink per transaction</td>
+</tr>
+<tr>
+<td>Kafka Sink</td>
+<td>flumeBatchSize</td>
+<td>100</td>
+<td>How many messages to process in one batch. Larger batches improve throughput while adding latency</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>使用多个sink<br>定义多个KafkaSink消费同一个Channel</li>
+</ul>
+<p>参考：<a href="https://medium.com/data-collective/scaling-a-flume-agent-to-handle-120k-events-sec-11f70a428ca2" target="_blank" rel="noopener">https://medium.com/data-collective/scaling-a-flume-agent-to-handle-120k-events-sec-11f70a428ca2</a></p>
+<h1><span id="吞吐量优化">吞吐量优化</span></h1><p>多个source写入同一个channel或者多个sink消费同一个channel，都需要加锁。如下图，将内部结构由A改为B，减少channel的锁竞争。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20210515-145123.png" alt=""></p>
+<p>示例配置如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">#configure for consume log from kafka to hdfs</span><br><span class="line">agent.sources = s1 s2</span><br><span class="line">agent.channels = c1 c2</span><br><span class="line">agent.sinks = k1 k2</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">#Describe/configure the source</span><br><span class="line">agent.sources.s1.type = org.apache.flume.source.kafka.KafkaSource</span><br><span class="line">agent.sources.s1.channels = c1</span><br><span class="line"></span><br><span class="line">#Describe/configure the source</span><br><span class="line">agent.sources.s2.type = org.apache.flume.source.kafka.KafkaSource</span><br><span class="line">agent.sources.s2.channels = c2</span><br><span class="line"></span><br><span class="line">#configure for channels</span><br><span class="line">agent.channels.c1.type = memory</span><br><span class="line"></span><br><span class="line">#configure for channels</span><br><span class="line">agent.channels.c2.type = memory</span><br><span class="line"></span><br><span class="line">#configure for sinks</span><br><span class="line">agent.sinks.k1.type = hdfs</span><br><span class="line">agent.sinks.hdfssink1.channel = c1</span><br><span class="line"></span><br><span class="line">#configure for sinks</span><br><span class="line">agent.sinks.k2.type = hdfs</span><br><span class="line">agent.sinks.hdfssink2.channel = c2</span><br></pre></td></tr></table></figure></p>
+<h1><span id="flume监控">Flume监控</span></h1><p>Flume提供了以下几种监控机制：</p>
+<ul>
+<li><a href="https://flume.apache.org/releases/content/1.8.0/FlumeUserGuide.html#jmx-reporting" target="_blank" rel="noopener">JMX Reporting</a></li>
+<li><a href="https://flume.apache.org/releases/content/1.8.0/FlumeUserGuide.html#ganglia-reporting" target="_blank" rel="noopener">Ganglia Reporting</a></li>
+<li><a href="https://flume.apache.org/releases/content/1.8.0/FlumeUserGuide.html#json-reporting" target="_blank" rel="noopener">JSON Reporting</a></li>
+<li><a href="https://flume.apache.org/releases/content/1.8.0/FlumeUserGuide.html#custom-reporting" target="_blank" rel="noopener">Custom Reporting</a></li>
+</ul>
+<p>其中JSON Reporting比较简单、易用、灵活，可以直接发送HTTP请求获取Flume的运行状态信息，只需要在启动Flume时加上<code>-Dflume.monitoring.type=http -Dflume.monitoring.port=34545</code>参数，就可以使用HTTP获取metric信息。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]# curl 'http://127.0.0.1:34545/metrics' | python -m json.tool</span><br><span class="line">&#123;</span><br><span class="line">    "CHANNEL.channel1": &#123;</span><br><span class="line">        "ChannelCapacity": "2600000",</span><br><span class="line">        "ChannelFillPercentage": "0.0038461538461538464",</span><br><span class="line">        "ChannelSize": "100",</span><br><span class="line">        "EventPutAttemptCount": "11649320466",</span><br><span class="line">        "EventPutSuccessCount": "11649320466",</span><br><span class="line">        "EventTakeAttemptCount": "11649320572",</span><br><span class="line">        "EventTakeSuccessCount": "11649317405",</span><br><span class="line">        "StartTime": "1563766387062",</span><br><span class="line">        "StopTime": "0",</span><br><span class="line">        "Type": "CHANNEL"</span><br><span class="line">    &#125;,</span><br><span class="line">    "CHANNEL.channel2": &#123;</span><br><span class="line">        "ChannelCapacity": "6800000",</span><br><span class="line">        "ChannelFillPercentage": "0.06991176470588235",</span><br><span class="line">        "ChannelSize": "4754",</span><br><span class="line">        "EventPutAttemptCount": "97781696225",</span><br><span class="line">        "EventPutSuccessCount": "97781680954",</span><br><span class="line">        "EventTakeAttemptCount": "97781706696",</span><br><span class="line">        "EventTakeSuccessCount": "97781675100",</span><br><span class="line">        "StartTime": "1563766387063",</span><br><span class="line">        "StopTime": "0",</span><br><span class="line">        "Type": "CHANNEL"</span><br><span class="line">    &#125;,</span><br><span class="line">    "SINK.hdfssink": &#123;</span><br><span class="line">        "BatchCompleteCount": "1936406",</span><br><span class="line">        "BatchEmptyCount": "20",</span><br><span class="line">        "BatchUnderflowCount": "32",</span><br><span class="line">        "ConnectionClosedCount": "9506",</span><br><span class="line">        "ConnectionCreatedCount": "9508",</span><br><span class="line">        "ConnectionFailedCount": "0",</span><br><span class="line">        "EventDrainAttemptCount": "5809260313",</span><br><span class="line">        "EventDrainSuccessCount": "5809259087",</span><br><span class="line">        "StartTime": "1563766387067",</span><br><span class="line">        "StopTime": "0",</span><br><span class="line">        "Type": "SINK"</span><br><span class="line">    &#125;,</span><br><span class="line">    ……</span><br><span class="line">    ……</span><br></pre></td></tr></table></figure></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">flume</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2019/09/13/flumeAction/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-hiveProblems" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
@@ -436,98 +768,6 @@
 
 
   
-    <article id="post-sendmail" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2019/08/25/sendmail/">一个邮件发送脚本</a>
-    </h1>
-  
-
-        
-        <a href="/2019/08/25/sendmail/" class="archive-article-date">
-  	<time datetime="2019-08-25T10:08:57.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-08-25</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<!-- tocstop -->
-<p>工作中经常需要发送各种报表邮件，于是简单写了一个发送邮件的Python脚本。</p>
-<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#!/usr/bin/env python</span></span><br><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"><span class="comment"># @Date : 2019-03-03 16:35:03</span></span><br><span class="line"><span class="comment"># @Author : winway(winway1988@163.com)</span></span><br><span class="line"><span class="comment"># @Link : https://winway.github.io</span></span><br><span class="line"><span class="comment"># @Version : 0.1</span></span><br><span class="line"><span class="comment"># @Description : 这个家伙很懒，没有留下任何信息</span></span><br><span class="line"><span class="comment"># @History :</span></span><br><span class="line"><span class="comment"># @Other:</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"><span class="comment">#      ┏┛ ┻━━━━━┛ ┻┓</span></span><br><span class="line"><span class="comment">#      ┃　　　　　　 ┃</span></span><br><span class="line"><span class="comment">#      ┃　　　━　　　┃</span></span><br><span class="line"><span class="comment">#      ┃　┳┛　  ┗┳　┃</span></span><br><span class="line"><span class="comment">#      ┃　　　　　　 ┃</span></span><br><span class="line"><span class="comment">#      ┃　　　┻　　　┃</span></span><br><span class="line"><span class="comment">#      ┃　　　　　　 ┃</span></span><br><span class="line"><span class="comment">#      ┗━┓　　　┏━━━┛</span></span><br><span class="line"><span class="comment">#        ┃　　　┃   GOD BLESS!</span></span><br><span class="line"><span class="comment">#        ┃　　　┃    NO BUG！</span></span><br><span class="line"><span class="comment">#        ┃　　　┗━━━━━━━━━┓</span></span><br><span class="line"><span class="comment">#        ┃　　　　　　　    ┣┓</span></span><br><span class="line"><span class="comment">#        ┃　　　　         ┏┛</span></span><br><span class="line"><span class="comment">#        ┗━┓ ┓ ┏━━━┳ ┓ ┏━┛</span></span><br><span class="line"><span class="comment">#          ┃ ┫ ┫   ┃ ┫ ┫</span></span><br><span class="line"><span class="comment">#          ┗━┻━┛   ┗━┻━┛</span></span><br><span class="line"></span><br><span class="line"><span class="string">r"""</span></span><br><span class="line"><span class="string">邮件发送脚本</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">参数说明：</span></span><br><span class="line"><span class="string">-t &lt;TEXT|PLAIN|TABLE&gt;     发送模式</span></span><br><span class="line"><span class="string">-s subject                主题</span></span><br><span class="line"><span class="string">-c content                正文</span></span><br><span class="line"><span class="string">-i bodyheader             正文列标题，逗号分隔</span></span><br><span class="line"><span class="string">-f bodyFile               正文，文件形式</span></span><br><span class="line"><span class="string">-r receivers              收件人，逗号分隔</span></span><br><span class="line"><span class="string">-a attachment             附件</span></span><br><span class="line"><span class="string">-x ccreceivers            抄送人，逗号分隔</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">模式说明：</span></span><br><span class="line"><span class="string">TEXT模式</span></span><br><span class="line"><span class="string">    通过-c content指定邮件正文内容</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">PLAIN模式</span></span><br><span class="line"><span class="string">    通过-f bodyFile指定邮件正文内容</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">TABLE模式</span></span><br><span class="line"><span class="string">    通过-i bodyheader -f bodyFile指定邮件正文内容，格式为表格</span></span><br><span class="line"><span class="string">"""</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">import</span> sys</span><br><span class="line"><span class="keyword">import</span> getopt</span><br><span class="line"><span class="keyword">import</span> smtplib</span><br><span class="line"><span class="keyword">from</span> email.header <span class="keyword">import</span> Header</span><br><span class="line"><span class="keyword">from</span> email.mime.text <span class="keyword">import</span> MIMEText</span><br><span class="line"><span class="keyword">from</span> email.mime.multipart <span class="keyword">import</span> MIMEMultipart</span><br><span class="line"><span class="keyword">from</span> email.mime.application <span class="keyword">import</span> MIMEApplication</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">reload(sys)</span><br><span class="line">sys.setdefaultencoding(<span class="string">'utf8'</span>)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">MAILSERVER = <span class="string">'smtp.163.com'</span></span><br><span class="line">SENDER = <span class="string">'winway@163.com'</span></span><br><span class="line">PASSWORD = <span class="string">'123456'</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">usage</span><span class="params">()</span>:</span></span><br><span class="line">    print(<span class="string">"Usage: %s -t &lt;TEXT|PLAIN|TABLE&gt; -s subject -c content -i bodyheader -f bodyFile -r receivers -a attachment -x ccreceivers"</span> %</span><br><span class="line">          sys.argv[<span class="number">0</span>])</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sendmail</span><span class="params">(host, sender, pwd, receivers, ccReceivers, subject, mailbody, attachmentFile)</span>:</span></span><br><span class="line">    print(<span class="string">'send mail ...'</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 第三方 SMTP 服务</span></span><br><span class="line">    mail_host = host  <span class="comment"># 设置服务器</span></span><br><span class="line">    mail_user = sender  <span class="comment"># 用户名</span></span><br><span class="line">    mail_pass = pwd  <span class="comment"># 口令</span></span><br><span class="line"></span><br><span class="line">    theMail = MIMEMultipart()</span><br><span class="line"></span><br><span class="line">    theMail[<span class="string">'Subject'</span>] = Header(subject, <span class="string">'utf-8'</span>)</span><br><span class="line"></span><br><span class="line">    message = MIMEText(mailbody, <span class="string">'html'</span>, <span class="string">'utf-8'</span>)</span><br><span class="line">    theMail.attach(message)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> attachmentFile <span class="keyword">is</span> <span class="keyword">not</span> <span class="keyword">None</span>:</span><br><span class="line">        attachment = MIMEApplication(open(attachmentFile, <span class="string">'rb'</span>).read())</span><br><span class="line">        attachment.add_header(<span class="string">'Content-Disposition'</span>, <span class="string">'attachment'</span>,</span><br><span class="line">                              filename=os.path.basename(attachmentFile))</span><br><span class="line">        theMail.attach(attachment)</span><br><span class="line"></span><br><span class="line">    theMail[<span class="string">'From'</span>] = Header(SENDER, <span class="string">'utf-8'</span>)</span><br><span class="line">    theMail[<span class="string">'To'</span>] = <span class="string">','</span>.join(receivers)</span><br><span class="line">    <span class="keyword">if</span> ccReceivers:</span><br><span class="line">        theMail[<span class="string">'Cc'</span>] = Header(<span class="string">','</span>.join(ccReceivers), <span class="string">'utf-8'</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        smtpObj = smtplib.SMTP()</span><br><span class="line">        smtpObj.connect(mail_host, <span class="number">25</span>)  <span class="comment"># 25 为 SMTP 端口号</span></span><br><span class="line">        smtpObj.login(mail_user, mail_pass)</span><br><span class="line">        smtpObj.sendmail(sender, receivers + ccReceivers, theMail.as_string())</span><br><span class="line">        print(<span class="string">"邮件发送成功"</span>)</span><br><span class="line">    <span class="keyword">except</span> smtplib.SMTPException, e:</span><br><span class="line">        print(<span class="string">"Error: 无法发送邮件"</span>)</span><br><span class="line">        print(e)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">construct_body</span><span class="params">(type, bodyHeader, bodyFile)</span>:</span></span><br><span class="line">    <span class="keyword">if</span> type == <span class="string">'TABLE'</span>:</span><br><span class="line">        <span class="keyword">return</span> construct_table(bodyHeader, bodyFile)</span><br><span class="line">    <span class="keyword">elif</span> type == <span class="string">'PLAIN'</span>:</span><br><span class="line">        <span class="keyword">return</span> construct_plain(bodyFile)</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        print(<span class="string">"Error: 未知发送类型"</span>)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">construct_plain</span><span class="params">(bodyFile)</span>:</span></span><br><span class="line">    <span class="keyword">with</span> open(bodyFile, <span class="string">'r'</span>) <span class="keyword">as</span> f:</span><br><span class="line">        lines = f.readlines()</span><br><span class="line">        <span class="keyword">return</span> <span class="string">''</span>.join(lines)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">construct_table</span><span class="params">(bodyHeader, bodyFile)</span>:</span></span><br><span class="line">    table = <span class="string">'&lt;table border="1"&gt;'</span></span><br><span class="line"></span><br><span class="line">    table += <span class="string">'  &lt;tr&gt;'</span></span><br><span class="line">    <span class="keyword">for</span> h <span class="keyword">in</span> bodyHeader.split(<span class="string">','</span>):</span><br><span class="line">        table += <span class="string">'&lt;th&gt;%s&lt;/th&gt;'</span> % h</span><br><span class="line">    table += <span class="string">'  &lt;/tr&gt;'</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">with</span> open(bodyFile, <span class="string">'r'</span>) <span class="keyword">as</span> f:</span><br><span class="line">        <span class="keyword">for</span> l <span class="keyword">in</span> f:</span><br><span class="line">            table += <span class="string">'  &lt;tr&gt;'</span></span><br><span class="line">            <span class="keyword">for</span> c <span class="keyword">in</span> l.split(<span class="string">'\t'</span>):</span><br><span class="line">                table += <span class="string">'&lt;td&gt;%s&lt;/td&gt;'</span> % c</span><br><span class="line">            table += <span class="string">'  &lt;/tr&gt;'</span></span><br><span class="line"></span><br><span class="line">    table += <span class="string">'&lt;/table&gt;'</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> table</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line">    sendType = <span class="keyword">None</span></span><br><span class="line">    subject = <span class="keyword">None</span></span><br><span class="line">    content = <span class="keyword">None</span></span><br><span class="line">    bodyHeader = <span class="keyword">None</span></span><br><span class="line">    bodyFile = <span class="keyword">None</span></span><br><span class="line">    attachment = <span class="keyword">None</span></span><br><span class="line">    receivers = <span class="keyword">None</span></span><br><span class="line">    ccReceivers = <span class="keyword">None</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        opts, args = getopt.getopt(sys.argv[<span class="number">1</span>:], <span class="string">"t:s:c:i:f:a:r:x:h"</span>,</span><br><span class="line">                                   [<span class="string">"sendtype="</span>, <span class="string">"subject="</span>, <span class="string">"content="</span>, <span class="string">"bodyHeader="</span>, <span class="string">"attachment="</span>,</span><br><span class="line">                                    <span class="string">"bodyFile="</span>, <span class="string">"receivers="</span>, <span class="string">"ccreceivers="</span>, <span class="string">"help"</span>])</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> opt, arg <span class="keyword">in</span> opts:</span><br><span class="line">            <span class="keyword">if</span> opt <span class="keyword">in</span> (<span class="string">"-h"</span>, <span class="string">"--help"</span>):</span><br><span class="line">                usage()</span><br><span class="line">                sys.exit(<span class="number">1</span>)</span><br><span class="line">            <span class="keyword">elif</span> opt <span class="keyword">in</span> (<span class="string">"-t"</span>, <span class="string">"--sendtype"</span>):</span><br><span class="line">                sendType = arg</span><br><span class="line">            <span class="keyword">elif</span> opt <span class="keyword">in</span> (<span class="string">"-s"</span>, <span class="string">"--subject"</span>):</span><br><span class="line">                subject = arg</span><br><span class="line">            <span class="keyword">elif</span> opt <span class="keyword">in</span> (<span class="string">"-c"</span>, <span class="string">"--content"</span>):</span><br><span class="line">                content = arg</span><br><span class="line">            <span class="keyword">elif</span> opt <span class="keyword">in</span> (<span class="string">"-i"</span>, <span class="string">"--fileheader"</span>):</span><br><span class="line">                bodyHeader = arg</span><br><span class="line">            <span class="keyword">elif</span> opt <span class="keyword">in</span> (<span class="string">"-f"</span>, <span class="string">"--file"</span>):</span><br><span class="line">                bodyFile = arg</span><br><span class="line">            <span class="keyword">elif</span> opt <span class="keyword">in</span> (<span class="string">"-a"</span>, <span class="string">"--attachment"</span>):</span><br><span class="line">                attachment = arg</span><br><span class="line">            <span class="keyword">elif</span> opt <span class="keyword">in</span> (<span class="string">"-r"</span>, <span class="string">"--receivers"</span>):</span><br><span class="line">                receivers = arg</span><br><span class="line">            <span class="keyword">elif</span> opt <span class="keyword">in</span> (<span class="string">"-x"</span>, <span class="string">"--ccreceivers"</span>):</span><br><span class="line">                ccReceivers = arg</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                print(<span class="string">"%s ==&gt; %s"</span> % (opt, arg))</span><br><span class="line">    <span class="keyword">except</span> getopt.GetoptError:</span><br><span class="line">        print(<span class="string">"getopt error!"</span>)</span><br><span class="line">        usage()</span><br><span class="line">        sys.exit(<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> sendType <span class="keyword">is</span> <span class="keyword">None</span> <span class="keyword">or</span> subject <span class="keyword">is</span> <span class="keyword">None</span> <span class="keyword">or</span> receivers <span class="keyword">is</span> <span class="keyword">None</span>:</span><br><span class="line">        print(<span class="string">"sendType is None or subject is None or receivers is None"</span>)</span><br><span class="line">        usage()</span><br><span class="line">        sys.exit(<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">    receiverList = receivers.split(<span class="string">','</span>)</span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        ccReceiverList = ccReceivers.split(<span class="string">','</span>)</span><br><span class="line">    <span class="keyword">except</span> Exception:</span><br><span class="line">        ccReceiverList = []</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> sendType == <span class="string">'TEXT'</span>:</span><br><span class="line">        <span class="keyword">if</span> content <span class="keyword">is</span> <span class="keyword">None</span>:</span><br><span class="line">            print(<span class="string">"content == None"</span>)</span><br><span class="line">            usage()</span><br><span class="line">            sys.exit(<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">        sendmail(MAILSERVER, SENDER, PASSWORD,</span><br><span class="line">                 receiverList, ccReceiverList, subject, content, attachment)</span><br><span class="line">    <span class="keyword">elif</span> sendType == <span class="string">'PLAIN'</span>:</span><br><span class="line">        <span class="keyword">if</span> bodyFile <span class="keyword">is</span> <span class="keyword">None</span>:</span><br><span class="line">            print(<span class="string">"bodyFile is None"</span>)</span><br><span class="line">            usage()</span><br><span class="line">            sys.exit(<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">        sendmail(MAILSERVER, SENDER, PASSWORD,</span><br><span class="line">                 receiverList, ccReceiverList, subject, construct_body(sendType, <span class="keyword">None</span>, bodyFile), attachment)</span><br><span class="line">    <span class="keyword">elif</span> sendType == <span class="string">'TABLE'</span>:</span><br><span class="line">        <span class="keyword">if</span> bodyHeader <span class="keyword">is</span> <span class="keyword">None</span> <span class="keyword">or</span> bodyFile <span class="keyword">is</span> <span class="keyword">None</span>:</span><br><span class="line">            print(<span class="string">"bodyHeader is None or bodyFile is None"</span>)</span><br><span class="line">            usage()</span><br><span class="line">            sys.exit(<span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">        sendmail(MAILSERVER, SENDER, PASSWORD,</span><br><span class="line">                 receiverList, ccReceiverList, subject, construct_body(sendType, bodyHeader, bodyFile), attachment)</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        print(<span class="string">"unknown sendType"</span>)</span><br><span class="line">        usage()</span><br><span class="line">        sys.exit(<span class="number">1</span>)</span><br></pre></td></tr></table></figure>
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">python</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2019/08/25/sendmail/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/16/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/15/">15</a><a class="page-number" href="/page/16/">16</a><span class="page-number current">17</span><a class="page-number" href="/page/18/">18</a><a class="page-number" href="/page/19/">19</a><span class="space">&hellip;</span><a class="page-number" href="/page/42/">42</a><a class="extend next" rel="next" href="/page/18/">Next &raquo;</a>
@@ -644,6 +884,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">shell</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">监控</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
@@ -653,14 +901,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">shell</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">监控</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -688,11 +928,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">flume</a>
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">flume</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -716,19 +956,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">influxdb</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">grafana</a>
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -737,6 +969,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">proxy</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">influxdb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">grafana</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -752,15 +992,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">独立开发</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">tez</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">gc</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">独立开发</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -772,19 +1016,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">ranger</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -808,15 +1048,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">手机号</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -856,6 +1096,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">datax</a>
               </li>
              
@@ -864,15 +1108,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">kudu</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -880,15 +1116,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">presto</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">kylin</a>
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">presto</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -897,10 +1141,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -940,11 +1180,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">离线数仓</a>
+                <a href="javascript:void(0)" class="js-tag color1">doris</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">doris</a>
+                <a href="javascript:void(0)" class="js-tag color5">离线数仓</a>
               </li>
              
               <li class="article-tag-list-item">

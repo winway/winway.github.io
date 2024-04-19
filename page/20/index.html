@@ -156,6 +156,109 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-open-falcon-graph" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2018/04/22/open-falcon-graph/">open-falcon源码阅读之graph</a>
+    </h1>
+  
+
+        
+        <a href="/2018/04/22/open-falcon-graph/" class="archive-article-date">
+  	<time datetime="2018-04-22T14:34:17.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-04-22</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p><em>Version：0.2.0</em></p>
+<!-- toc -->
+<ul>
+<li><a href="#1-架构图">1. 架构图</a></li>
+<li><a href="#2-数据结构">2. 数据结构</a></li>
+<li><a href="#3-流程图">3. 流程图</a></li>
+<li><a href="#4-源码解析">4. 源码解析</a></li>
+</ul>
+<!-- tocstop -->
+<h1><span id="1-架构图">1. 架构图</span></h1><p>Graph接收transfer使用rpc调用上报的监控数据，在内存中维护，同时以rrd文件的形式落盘，供其他组件查询。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/open-falcon-graph-arch.png" alt=""></p>
+<h1><span id="2-数据结构">2. 数据结构</span></h1><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/open-falcon-graph-datastructure.png" alt=""></p>
+<h1><span id="3-流程图">3. 流程图</span></h1><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/open-falcon-graph-flow.png" alt=""></p>
+<h1><span id="4-源码解析">4. 源码解析</span></h1><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">"flag"</span></span><br><span class="line">	<span class="string">"fmt"</span></span><br><span class="line">	<span class="string">"github.com/gin-gonic/gin"</span></span><br><span class="line">	<span class="string">"log"</span></span><br><span class="line">	<span class="string">"os"</span></span><br><span class="line">	<span class="string">"os/signal"</span></span><br><span class="line">	<span class="string">"syscall"</span></span><br><span class="line"></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/graph/api"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/graph/cron"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/graph/g"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/graph/http"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/graph/index"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/graph/rrdtool"</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment">/*</span></span><br><span class="line"><span class="comment">注册信号处理，在接收到syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT信号时，</span></span><br><span class="line"><span class="comment">依次关闭http、rpc服务，rrd落盘</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">start_signal</span><span class="params">(pid <span class="keyword">int</span>, cfg *g.GlobalConfig)</span></span> &#123;</span><br><span class="line">	sigs := <span class="built_in">make</span>(<span class="keyword">chan</span> os.Signal, <span class="number">1</span>)</span><br><span class="line">	log.Println(pid, <span class="string">"register signal notify"</span>)</span><br><span class="line">	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)</span><br><span class="line"></span><br><span class="line">	<span class="keyword">for</span> &#123;</span><br><span class="line">		s := &lt;-sigs</span><br><span class="line">		log.Println(<span class="string">"recv"</span>, s)</span><br><span class="line"></span><br><span class="line">		<span class="keyword">switch</span> s &#123;</span><br><span class="line">		<span class="keyword">case</span> syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT:</span><br><span class="line">			log.Println(<span class="string">"graceful shut down"</span>)</span><br><span class="line">			<span class="keyword">if</span> cfg.Http.Enabled &#123;</span><br><span class="line">				http.Close_chan &lt;- <span class="number">1</span></span><br><span class="line">				&lt;-http.Close_done_chan</span><br><span class="line">			&#125;</span><br><span class="line">			log.Println(<span class="string">"http stop ok"</span>)</span><br><span class="line"></span><br><span class="line">			<span class="keyword">if</span> cfg.Rpc.Enabled &#123;</span><br><span class="line">				api.Close_chan &lt;- <span class="number">1</span></span><br><span class="line">				&lt;-api.Close_done_chan</span><br><span class="line">			&#125;</span><br><span class="line">			log.Println(<span class="string">"rpc stop ok"</span>)</span><br><span class="line"></span><br><span class="line">			rrdtool.Out_done_chan &lt;- <span class="number">1</span></span><br><span class="line">			rrdtool.FlushAll(<span class="literal">true</span>)  <span class="comment">// 全部刷新到文件</span></span><br><span class="line">			log.Println(<span class="string">"rrdtool stop ok"</span>)</span><br><span class="line"></span><br><span class="line">			log.Println(pid, <span class="string">"exit"</span>)</span><br><span class="line">			os.Exit(<span class="number">0</span>)</span><br><span class="line">		&#125;</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	cfg := flag.String(<span class="string">"c"</span>, <span class="string">"cfg.json"</span>, <span class="string">"specify config file"</span>)</span><br><span class="line">	version := flag.Bool(<span class="string">"v"</span>, <span class="literal">false</span>, <span class="string">"show version"</span>)</span><br><span class="line">	versionGit := flag.Bool(<span class="string">"vg"</span>, <span class="literal">false</span>, <span class="string">"show version and git commit log"</span>)</span><br><span class="line">	flag.Parse()  <span class="comment">// 参数解析</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> *version &#123;  <span class="comment">// 打印版本信息</span></span><br><span class="line">		fmt.Println(g.VERSION)</span><br><span class="line">		os.Exit(<span class="number">0</span>)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="keyword">if</span> *versionGit &#123;</span><br><span class="line">		fmt.Println(g.VERSION, g.COMMIT)</span><br><span class="line">		os.Exit(<span class="number">0</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// global config</span></span><br><span class="line">	g.ParseConfig(*cfg)  <span class="comment">// 加载配置文件到GlobalConfig ptr</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> g.Config().Debug &#123;  <span class="comment">// 设置日志级别log.SetLevel</span></span><br><span class="line">		g.InitLog(<span class="string">"debug"</span>)</span><br><span class="line">	&#125; <span class="keyword">else</span> &#123;</span><br><span class="line">		g.InitLog(<span class="string">"info"</span>)</span><br><span class="line">		gin.SetMode(gin.ReleaseMode)</span><br><span class="line">		<span class="comment">/*</span></span><br><span class="line"><span class="comment">		Gin is a web framework written in Go (Golang).</span></span><br><span class="line"><span class="comment">		It features a martini-like API with much better performance,</span></span><br><span class="line"><span class="comment">		up to 40 times faster thanks to httprouter.</span></span><br><span class="line"><span class="comment">		If you need performance and good productivity, you will love Gin.</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">		HttpRouter is a lightweight high performance HTTP request router</span></span><br><span class="line"><span class="comment">		(also called multiplexer or just mux for short) for Go.</span></span><br><span class="line"><span class="comment">		In contrast to the default mux of Go's net/http package,</span></span><br><span class="line"><span class="comment">		this router supports variables in the routing pattern and matches against the request method.</span></span><br><span class="line"><span class="comment">		It also scales better.The router is optimized for high performance and a small memory footprint.</span></span><br><span class="line"><span class="comment">		It scales well even with very long paths and a large number of routes.</span></span><br><span class="line"><span class="comment">		A compressing dynamic trie (radix tree) structure is used for efficient matching.</span></span><br><span class="line"><span class="comment">		 */</span></span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="comment">// init db</span></span><br><span class="line">	g.InitDB() <span class="comment">// 创建数据库连接DB *sql.DB，看是否能成功创建，初始化连接池dbConnMap</span></span><br><span class="line">	<span class="comment">// rrdtool before api for disable loopback connection</span></span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	开启net_task_worker goroutine监听net_task任务管道用于同其他graph传输监控数据</span></span><br><span class="line"><span class="comment">	开启ioworker goroutine监听io_task任务管道用于读写本地rrd文件</span></span><br><span class="line"><span class="comment">	开启syncdisk goroutine用于周期性刷新GraphItems缓存到rrd文件</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line">	rrdtool.Start()</span><br><span class="line">	<span class="comment">// start api</span></span><br><span class="line">	<span class="keyword">go</span> api.Start() <span class="comment">// 启动rpc服务，提供监控数据传输接口</span></span><br><span class="line">	<span class="comment">// start indexing</span></span><br><span class="line">	index.Start() <span class="comment">// 初始化索引功能模块</span></span><br><span class="line">	<span class="comment">// start http server</span></span><br><span class="line">	<span class="keyword">go</span> http.Start() <span class="comment">// 启动http服务，提供统计信息查询接口</span></span><br><span class="line">	<span class="keyword">go</span> cron.CleanCache() <span class="comment">// 开启GraphItems和historyCache清理goroutine</span></span><br><span class="line"></span><br><span class="line">	start_signal(os.Getpid(), g.Config()) <span class="comment">// 注册信号处理函数，关闭各个goroutine</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>详细代码注释请参考<a href="https://github.com/winway/falcon-plus-learn，持续更新中" target="_blank" rel="noopener">https://github.com/winway/falcon-plus-learn，持续更新中</a></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">open-falcon</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2018/04/22/open-falcon-graph/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-AsimplePlugin" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
@@ -369,107 +472,6 @@
 
 
   
-    <article id="post-open-falcon-judge" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/12/03/open-falcon-judge/">open-falcon源码阅读之judge</a>
-    </h1>
-  
-
-        
-        <a href="/2017/12/03/open-falcon-judge/" class="archive-article-date">
-  	<time datetime="2017-12-03T11:27:04.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-12-03</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p><em>Version：0.2.0</em></p>
-<!-- toc -->
-<ul>
-<li><a href="#1-架构图">1. 架构图</a></li>
-<li><a href="#2-流程图">2. 流程图</a></li>
-<li><a href="#3-源码解析">3. 源码解析</a></li>
-</ul>
-<!-- tocstop -->
-<h1><span id="1-架构图">1. 架构图</span></h1><p>Judge接收Transfer上报的metric，在内存中维护。在有metric到来时，根据配置的strategy和expression判断是否触发报警阈值。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/judge%20arch.png" alt=""><br>Judge将metric、strategy、expression、event在内存中维护，数据结构如下图所示。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/judge%20struct.png" alt=""><br>计算函数均实现了Function接口，根据配置的计算策略，返回对应的struct，然后统一调用compute方法。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/judge%20function%20interface.png" alt=""></p>
-<h1><span id="2-流程图">2. 流程图</span></h1><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/judge%20flow.png" alt=""></p>
-<h1><span id="3-源码解析">3. 源码解析</span></h1><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">"flag"</span></span><br><span class="line">	<span class="string">"fmt"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/judge/cron"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/judge/g"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/judge/http"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/judge/rpc"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/judge/store"</span></span><br><span class="line">	<span class="string">"os"</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	cfg := flag.String(<span class="string">"c"</span>, <span class="string">"cfg.json"</span>, <span class="string">"configuration file"</span>)</span><br><span class="line">	version := flag.Bool(<span class="string">"v"</span>, <span class="literal">false</span>, <span class="string">"show version"</span>)</span><br><span class="line">	flag.Parse()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> *version &#123;</span><br><span class="line">		fmt.Println(g.VERSION)</span><br><span class="line">		os.Exit(<span class="number">0</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	g.ParseConfig(*cfg) <span class="comment">// 加载配置文件到config *GlobalConfig</span></span><br><span class="line"></span><br><span class="line">	g.InitRedisConnPool() <span class="comment">// 初始化redis连接池</span></span><br><span class="line">	g.InitHbsClient() <span class="comment">// 初始化rpc客户端，用于连接hbs</span></span><br><span class="line"></span><br><span class="line">	store.InitHistoryBigMap() <span class="comment">// 创建HistoryBigMap，用于存放最近的metrics，用于报警判断</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">go</span> http.Start() <span class="comment">// 启动http server，在init中注册处理函数configCommonRoutes和configInfoRoutes</span></span><br><span class="line">	<span class="keyword">go</span> rpc.Start() <span class="comment">// 启动rpc server，接收数据并更新到HistoryBigMap，然后进行judge判断，报警事件写入redis</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">go</span> cron.SyncStrategies() <span class="comment">// 周期性从hbs下载strategy和expression的配置</span></span><br><span class="line">	<span class="keyword">go</span> cron.CleanStale() <span class="comment">// 周期性清理近7天没有新数据上报的key</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">select</span> &#123;&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<p>详细代码注释请参考<a href="https://github.com/winway/falcon-plus-learn，持续更新中" target="_blank" rel="noopener">https://github.com/winway/falcon-plus-learn，持续更新中</a></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">open-falcon</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/12/03/open-falcon-judge/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/19/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/18/">18</a><a class="page-number" href="/page/19/">19</a><span class="page-number current">20</span><a class="page-number" href="/page/21/">21</a><a class="page-number" href="/page/22/">22</a><span class="space">&hellip;</span><a class="page-number" href="/page/42/">42</a><a class="extend next" rel="next" href="/page/21/">Next &raquo;</a>
@@ -586,6 +588,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">shell</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">监控</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
@@ -595,14 +605,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">shell</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">监控</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -630,11 +632,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">flume</a>
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">flume</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -658,19 +660,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">golang</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">influxdb</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">grafana</a>
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -679,6 +673,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">proxy</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">influxdb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">grafana</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -694,15 +696,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">独立开发</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">tez</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">gc</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">独立开发</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -714,19 +720,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">ranger</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -750,15 +752,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">手机号</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -798,6 +800,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">datax</a>
               </li>
              
@@ -806,15 +812,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">kudu</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -822,15 +820,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">presto</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">kylin</a>
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">presto</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -839,10 +845,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -882,11 +884,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">离线数仓</a>
+                <a href="javascript:void(0)" class="js-tag color1">doris</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">doris</a>
+                <a href="javascript:void(0)" class="js-tag color5">离线数仓</a>
               </li>
              
               <li class="article-tag-list-item">
