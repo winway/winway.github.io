@@ -156,7 +156,7 @@
           <div id="js-content" class="content-ll">
             
   
-    <article id="post-bigdata-stack-mongo" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+    <article id="post-bigdata-stack-row-col" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
 
@@ -166,13 +166,13 @@
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/19/bigdata-stack-mongo/">大数据开发之路-mongodb</a>
+      <a class="article-title" href="/2022/05/20/bigdata-stack-row-col/">大数据开发之路-行存和列存</a>
     </h1>
   
 
         
-        <a href="/2022/05/19/bigdata-stack-mongo/" class="archive-article-date">
-  	<time datetime="2022-05-19T09:18:13.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-19</time>
+        <a href="/2022/05/20/bigdata-stack-row-col/" class="archive-article-date">
+  	<time datetime="2022-05-20T10:37:49.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-20</time>
 </a>
 
 
@@ -183,16 +183,16 @@
       
         <!-- toc -->
 <ul>
-<li><a href="#mongodb-最接近mysql的nosql数据库">mongodb-最接近“mysql”的nosql数据库</a></li>
-<li><a href="#关键特性">关键特性</a></li>
-<li><a href="#数据模型">数据模型</a></li>
-<li><a href="#关键技术">关键技术</a><ul>
-<li><a href="#wiredtiger存储引擎">WiredTiger存储引擎</a></li>
-<li><a href="#事务支持">事务支持</a></li>
-<li><a href="#mongodb集群">MongoDB集群</a></li>
+<li><a href="#行存和列存-大数据存取的选择">行存和列存-大数据存取的选择</a></li>
+<li><a href="#定义">定义</a></li>
+<li><a href="#行存-vs-列存">行存 Vs 列存</a><ul>
+<li><a href="#写入">写入</a></li>
+<li><a href="#读取">读取</a></li>
+<li><a href="#解析">解析</a></li>
+<li><a href="#总结">总结</a></li>
 </ul>
 </li>
-<li><a href="#应用场景">应用场景</a></li>
+<li><a href="#适用场景">适用场景</a></li>
 <li><a href="#参考资料">参考资料</a></li>
 </ul>
 <!-- tocstop -->
@@ -229,75 +229,107 @@
 <li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
 </ol>
 </blockquote>
-<h2><span id="mongodb-最接近mysql的nosql数据库">mongodb-最接近“mysql”的nosql数据库</span></h2><p>MongoDB是一个开源、高性能、无模式的文档数据库，当初的设计就是用于<strong>简化开发</strong>和<strong>方便扩展</strong>，是NoSQL数据库产品的一种，是最像关系型数据库（MySQL）的非关系型数据库。<br>它支持的数据结构非常松散，是一种类似于JSON的格式叫BSON，所以它既可以存比较复杂的数据类型，又相当的灵活。</p>
-<h2><span id="关键特性">关键特性</span></h2><ul>
-<li>面向文档存储，易于存储对象类型的数据<ul>
-<li>数据结构符合大部分程序语言，文件存储格式为BSON(一种JSON的扩展)</li>
-<li>可在文档内嵌入子文档（相当于传统数据库的嵌套表）</li>
-<li>动态增减文档或修改文档格式，模式自由</li>
-</ul>
-</li>
-<li>高性能<ul>
-<li>支持基于内存查询，减少磁盘 IO 交互</li>
-<li>支持使用嵌入数据，减少系统I/O负担，支持子文档查询</li>
-<li>使用高效的二进制数据存储，包括大型对象</li>
-</ul>
-</li>
-<li>多种查询类型支持，且支持数据聚合查询、文本检索、地址位置查询，支持复杂的 SQL 查询</li>
-<li>高可用、水平扩展，支持副本集与分片</li>
-<li>多种存储引擎：WiredTiger , In-Memory</li>
-</ul>
-<h2><span id="数据模型">数据模型</span></h2><p>和关系型数据库mysql很相似。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519172323.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519161438.png" alt=""></p>
-<h2><span id="关键技术">关键技术</span></h2><h3><span id="wiredtiger存储引擎">WiredTiger存储引擎</span></h3><ul>
-<li>WT的数据结构<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519172533.png" alt=""><br>WT的Cache采用Btree的方式组织，每个Btree节点为一个page。root page是btree的根节点，internal page是btree的中间索引节点，leaf page是存储数据的叶子节点；btree的数据以page为单位按需从磁盘加载或写入磁盘。</li>
-<li>为什么MongoDB使用了B树而不是B+树<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519172649.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519172712.png" alt=""><br>B+树只在叶子节点中储存数据，叶子节点之间有链表相连方便遍历和范围查询。B树在单个查询时性能优于B+树，在范围查询时需要遍历树，效率不如B+树直接遍历链表。<br>MySQL 作为关系型数据库，需要处理大量的范围查询和遍历，选用了B+树；而MongoDB 作为文档的数据库，更看重面向文档的简单查询，所以选择了查询单个文档性能较好的B树。</li>
-<li>WT的持久化<ul>
-<li>预写日志（WAL）： WT使用预写日志的机制，在数据更新时，先将数据更新写入到日志文件。日志的写入频率可以根据业务要求的可靠性等级配置，最严格的情况可以配置为集群中大部分节点都落盘后才将结果返回给客户端。</li>
-<li>检查点（checkpoint）： 在checkpoint操作开始时，WT提供指定时间点的数据库快照，并将快照中的所有数据以一致性方式写入到数据文件中。一旦checkpoint创建成功，WT保证数据文件和内存数据是一致的。当宕机重新启动时WT会先将数据恢复到最近的一次checkpoint的点，然后重放后续的操作日志来恢复数据。</li>
-</ul>
-</li>
-</ul>
-<h3><span id="事务支持">事务支持</span></h3><p>传统的观念认为NoSQL不支持或者只有部分支持事务，在MongoDB 4.0之前对事务的支持有限，但在MongoDB 4.0 引入了事务功能，支持多文档ACID特性。<br>事务实现原理：snapshot(事务快照) 、MVCC (多版本并发控制) 和redo log来实现事务。</p>
-<h3><span id="mongodb集群">MongoDB集群</span></h3><ul>
-<li><p>副本集<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519172947.png" alt=""></p>
+<h2><span id="行存和列存-大数据存取的选择">行存和列存-大数据存取的选择</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520202519.png" alt=""><br>目前大数据存储有两种方案可供选择：行存储（Row-Based）和列存储（Column-Based）。</p>
+<h2><span id="定义">定义</span></h2><p>我们常用的关系型数据库mysql，oracle等都是基于行存储，以最常用的mysql数据库innodb引擎为例。多个连续的行记录，组成一个data page（大小16k），然后按照B+树的结构进行组织存储。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520202548.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520202618.png" alt=""></p>
+<p>列式存储(column-based)是相对于传统关系型数据库的行式存储(Row-basedstorage)来说的。简单来说两者的区别就是如何组织表：</p>
 <ul>
-<li>Primary 主节点，一个副本集有且仅有一台服务器处于Primary状态，只有主节点才对外提供写服务。如果主节点挂掉，副本集将投票选出一个备节点成为新的主节点。</li>
-<li>Secondary 备用节点，副本集允许有多台Secondary，每个备用节点的数据与主节点的数据是完全同步的。备节点可以提供读服务。</li>
-<li>Arbiter 仲裁节点，该类节点可以不用单独存在，如果配置为仲裁节点，就主要负责在复本集中监控其他节点状态，投票选出主节点。如果没有仲裁节点，那么投票工作将由所有节点共同进行。</li>
+<li>Row-based storage storesatable in a sequence of rows.</li>
+<li>Column-based storage storesatable in a sequence of columns.</li>
 </ul>
-<p>官方推荐MongoDB副本节点在3~11个之间，奇数个副本节点。限制副本节点的数目是为了减少复制的成本，限制为奇数则是为了减少出现脑裂。</p>
-</li>
-<li><p>副本集的选举<br> 跟很多NoSQL数据库一样，MongoDB副本集采用的是Bully算法进行主节点选举。<br> 在以下场景副本集会开始进行选举：</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520202658.png" alt=""></p>
+<h2><span id="行存-vs-列存">行存 Vs 列存</span></h2><h3><span id="写入">写入</span></h3><ul>
+<li>行存储的写入是一次完成。如果这种写入建立在操作系统的文件系统上，可以保证写入过程的成功或者失败，数据的完整性因此可以确定。</li>
+<li>列存储由于需要把一行记录拆分成单列保存，写入次数明显比行存储多，再加上磁头需要在盘片上移动和定位花费的时间，实际时间消耗会更大。所以，行存储在写入上占有很大的优势。</li>
+<li>还有数据修改,这实际也是一次写入过程。不同的是，数据修改是对磁盘上的记录做删除标记。行存储是在指定位置写入一次，列存储是将磁盘定位到多个列上分别写入，这个过程仍是行存储的列数倍。所以，数据修改也是以行存储占优。</li>
+</ul>
+<h3><span id="读取">读取</span></h3><ul>
+<li>数据读取时，行存储通常将一行数据完全读出，如果只需要其中几列数据的情况，就会存在冗余列，出于缩短处理时间的考量，消除冗余列的过程通常是在内存中进行的。</li>
+<li>列存储每次读取的数据是集合的一段或者全部，如果读取多列时，就需要移动磁头，再次定位到下一列的位置继续读取。</li>
+</ul>
+<h3><span id="解析">解析</span></h3><ul>
+<li>由于列存储的每一列数据类型是同质的，不存在二义性问题。比如说某列数据类型为整型(int)，那么它的数据集合一定是整型数据。这种情况使数据解析变得十分容易。</li>
+<li>相比之下，行存储则要复杂得多，因为在一行记录中保存了多种类型的数据，数据解析需要在多种数据类型之间频繁转换，这个操作很消耗CPU，增加了解析的时间。所以，列存储的解析过程更有利于分析大数据。</li>
+<li>列存储由于每一列数据类型一致，更有利于压缩和检索。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520202826.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520202845.png" alt=""></li>
+</ul>
+<h3><span id="总结">总结</span></h3><table>
+<thead>
+<tr>
+<th>对比方面</th>
+<th>行存储</th>
+<th>列存储</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>存储方式</td>
+<td>按行存储</td>
+<td>按列存储，即每一列单独存放</td>
+</tr>
+<tr>
+<td>数据完整性</td>
+<td>提供数据完整性保证</td>
+<td>缺乏数据完整性保证</td>
+</tr>
+<tr>
+<td>写性能</td>
+<td>写入是一次完成，写入效率高</td>
+<td>把一行记录拆分成单列保存，写入次数明显比行存储多，写入效率低</td>
+</tr>
+<tr>
+<td>读性能</td>
+<td>读取少数几列时，需遍历其他无关列，IO开销较大；读取整行数据时，依次顺序读即可，性能高</td>
+<td>读取少数几列时，无需读取无关列，性能高；读取整行时，需分别读取所有列，并拼装成行，性能低</td>
+</tr>
+<tr>
+<td>索引</td>
+<td>没有索引的查询使用大量I/O。比如一般的数据库表都会建立索引，通过索引加快查询效率</td>
+<td>数据即索引</td>
+</tr>
+<tr>
+<td>数据压缩</td>
+<td>每行数据存储在一起，压缩比较低</td>
+<td>以列为单位存储数据，这使得类型相同的数据存放在一起，对压缩算法友好，压缩比较高</td>
+</tr>
+<tr>
+<td>典型代表</td>
+<td>Text File、 Sequence File等</td>
+<td>ORC、 Parquet、 Carbon Data等</td>
+</tr>
+<tr>
+<td>应用领域</td>
+<td>商业领域/互联网</td>
+<td>互联网</td>
+</tr>
+</tbody>
+</table>
 <ul>
-<li>初始化副本集时；</li>
-<li>备份节点无法和主节点通讯时(可能主节点宕机或网络原因)；</li>
-<li>Primary 手动降级。</li>
-</ul>
-<p>选举的大致原理是获取每个服务器节点的最后操作时间戳（oplog），选择最后操作时间戳最新(保证数据最新)的服务器节点作为主节点。</p>
-</li>
-<li><p>分片<br> 当MongoDB存储海量的数据时，一台机器不足以提供可接受的读写吞吐量。这时，我们就可以通过在多台机器上分割数据，使得数据库系统能存储和处理更多的数据。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519173422.png" alt=""><br> 分片集群由Shard、Mongos和Config server 3个组件构成。</p>
-<ul>
-<li>mongos：数据库集群请求的入口，起到路由作用，它负责把对应的数据请求转发到对应的shard服务器上。生产环境中需要多个mongos。</li>
-<li>config server：保存集群和分片的元数据，mongos启动时会加载配置服务器上的配置信息，以后如果配置服务器信息变化会通知到所有的mongos更新自己的状态。生产环境需要多个配置服务器并定期备份。</li>
-<li>shard server：实际存储数据的分片。生产环境为了保证高可用，每个Shard都要求是副本集。</li>
+<li>如果首要考虑是数据的完整性和可靠性，那么行存储是不二选择，列存储只有在增加磁盘并改进软件设计后才能接近这样的目标。</li>
+<li>如果以保存数据为主，行存储的写入性能比列存储高很多。</li>
+<li>在需要频繁读取单列集合数据的应用中，列存储是最合适的。</li>
+<li>如果每次读取多列，两个方案可酌情选择：<ul>
+<li>采用行存储时，设计中应考虑减少或避免冗余列；</li>
+<li>若采用列存储方案，为保证读写入效率，每列数据尽可能分别保存到不同的磁盘上，多个线程并行读写各自的数据，这样避免了磁盘竞用的同时也提高了处理效率。</li>
 </ul>
 </li>
+<li>无论选择哪种方案，将同内容数据聚凑在一起都是必须的，这是减少磁头在磁盘上的移动，提高数据读取时间的有效办法。</li>
 </ul>
+<h2><span id="适用场景">适用场景</span></h2><ul>
+<li><p>行存储的写入是一次性完成，消耗的时间比列存储少，并且能够保证数据的完整性，缺点是数据读取过程中会产生冗余数据，如果只有少量数据，此影响可以忽略；数量大可能会影响到数据的处理效率。</p>
 <ul>
-<li>分片策略<br>  分片支持单个集合的数据分散在多个分片上，目前主要有范围分片和hash分片两种数据分片策略。<br>  范围分片适合满足在一定范围内的查找，缺点是可能会导致数据分布不均，有热点数据；hash分片分布均匀，但是不能高效进行范围查询。</li>
+<li>所以，行存对于 OLTP 比较友好，一行记录的所有列连续存储，一次IO可以实现整行读取或者写入，实现数据库的ACID特性就比较简单。但在读取的时候会将整行数据全读出来，在一些分析场景下压力会有点大。</li>
 </ul>
-<h2><span id="应用场景">应用场景</span></h2><ul>
-<li>应用不需要事务和复杂join支持</li>
-<li>新应用，需求会变，数据模型无法确认，想快速迭代开发</li>
-<li>应用需要2000-3000以上的读写QPS（更高也可以）</li>
-<li>应用需要TB甚至PB级别数据存储</li>
-<li>应用发展迅速，需要能快速水平扩展</li>
-<li>应用需要大量的地理位置查询、文本查询</li>
-<li>应用需要存储的数据不丢失</li>
+</li>
+<li><p>列存储在写入效率、保证数据完整性上都不如行存储，它的优势是在读取过程，不会产生冗余数据，这对数据完整性要求不高的大数据处理领域，比如互联网，犹为重要。</p>
+<ul>
+<li>所以，列存则是对于 OLAP 非常友好，但在刷盘的时候压力可能会比较大，如果一个 table 有很多 column，写入性能可能会有点影响。</li>
+</ul>
+</li>
 </ul>
 <h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://juejin.cn/post/7027814425658654728" target="_blank" rel="noopener">MongoDB介绍</a></li>
-<li><a href="https://zhuanlan.zhihu.com/p/84834695" target="_blank" rel="noopener">MongoDB 介绍与应用详解</a></li>
+<li><a href="https://www.infoq.cn/article/bigdata-store-choose" target="_blank" rel="noopener">大数据存取的选择：行存储还是列存储？</a></li>
+<li><a href="https://blog.csdn.net/Xingxinxinxin/article/details/80939277" target="_blank" rel="noopener">行存储 VS 列存储</a></li>
+<li><a href="https://juejin.cn/post/7001508701706125320" target="_blank" rel="noopener">列式存储和行式存储有什么区别？</a></li>
+<li><a href="https://www.jianshu.com/p/7ee1f9703a41" target="_blank" rel="noopener">行存储、列存储、行列混存</a></li>
 </ul>
 
       
@@ -307,17 +339,6 @@
     <div class="article-info article-info-index">
       
       
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">mongodb</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
       
 	<div class="article-category tagcloud">
 		<i class="icon-book icon"></i>
@@ -333,7 +354,7 @@
 
       
         <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/19/bigdata-stack-mongo/">展开全文 >></a>
+          <a class="article-more-a" href="/2022/05/20/bigdata-stack-row-col/">展开全文 >></a>
         </p>
       
 
@@ -363,7 +384,7 @@
 
 
   
-    <article id="post-bigdata-stack-yarn" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+    <article id="post-bigdata-stack-cap" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
 
@@ -373,13 +394,13 @@
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/19/bigdata-stack-yarn/">大数据开发之路-yarn</a>
+      <a class="article-title" href="/2022/05/20/bigdata-stack-cap/">大数据开发之路-cap原则</a>
     </h1>
   
 
         
-        <a href="/2022/05/19/bigdata-stack-yarn/" class="archive-article-date">
-  	<time datetime="2022-05-19T03:15:39.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-19</time>
+        <a href="/2022/05/20/bigdata-stack-cap/" class="archive-article-date">
+  	<time datetime="2022-05-20T07:11:47.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-20</time>
 </a>
 
 
@@ -390,8 +411,24 @@
       
         <!-- toc -->
 <ul>
-<li><a href="#yarn-大数据生态体系的资源管理系统">yarn-大数据生态体系的资源管理系统</a></li>
-<li><a href="#yarn架构">YARN架构</a></li>
+<li><a href="#cap原则-分布式系统设计的指导思想">cap原则-分布式系统设计的指导思想</a></li>
+<li><a href="#什么是cap">什么是cap？</a><ul>
+<li><a href="#partition-tolerance-分区容忍性">Partition tolerance-分区容忍性</a></li>
+<li><a href="#consistency-一致性">Consistency-一致性</a></li>
+<li><a href="#availability-可用性">Availability-可用性</a></li>
+<li><a href="#consistency-和-availability-的矛盾">Consistency 和 Availability 的矛盾</a></li>
+</ul>
+</li>
+<li><a href="#提出-cap-是为了解决什么问题">提出 CAP 是为了解决什么问题？</a></li>
+<li><a href="#cap的权衡">CAP的权衡</a><ul>
+<li><a href="#ca-without-p">CA without P</a></li>
+<li><a href="#cp-without-a">CP without A</a></li>
+<li><a href="#ap-wihtout-c">AP wihtout C</a></li>
+<li><a href="#适合的才是最好的">适合的才是最好的</a></li>
+</ul>
+</li>
+<li><a href="#数据分片和数据副本的分布式系统是否都遵守-cap-定理">数据分片和数据副本的分布式系统是否都遵守 CAP 定理</a></li>
+<li><a href="#总结">总结</a></li>
 <li><a href="#参考资料">参考资料</a></li>
 </ul>
 <!-- tocstop -->
@@ -428,17 +465,54 @@
 <li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
 </ol>
 </blockquote>
-<h2><span id="yarn-大数据生态体系的资源管理系统">yarn-大数据生态体系的资源管理系统</span></h2><p>YARN是开源项目Hadoop的一个资源管理系统，最初设计是为了解决Hadoop中MapReduce计算框架中的资源管理问题，但是现在它已经是一个更加通用的资源管理系统，可以把MapReduce计算框架作为一个应用程序运行在YARN系统之上，通过YARN来管理资源。<br>如果你的应用程序也需要借助YARN的资源管理功能，你也可以实现YARN提供的编程API，将你的应用程序运行于YARN之上，将资源的分配与回收统一交给YARN去管理，可以大大简化资源管理功能的开发。<br>当前，也有很多应用程序已经可以构建于YARN之上，如Storm、Spark等计算框架。</p>
-<h2><span id="yarn架构">YARN架构</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519114315.png" alt=""></p>
+<h2><span id="cap原则-分布式系统设计的指导思想">cap原则-分布式系统设计的指导思想</span></h2><p><img src="http://www.hollischuang.com/wp-content/uploads/2015/12/Teorema-CAP-2.png" alt=""><br>大数据系统几乎都是分布式的，CAP 定理是分布式系统的基本定理，是理解分布式系统的起点。</p>
+<h2><span id="什么是cap">什么是cap？</span></h2><p>分布式系统有三个指标：</p>
 <ul>
-<li>YARN Client<br> YARN Client提交Application到RM，它会首先创建一个Application上下文件对象，并设置AM必需的资源请求信息，然后提交到RM。YARN Client也可以与RM通信，获取到一个已经提交并运行的Application的状态信息等</li>
-<li>ResourceManager（RM）<br> RM是YARN集群的Master，负责管理整个集群的资源和资源分配。RM作为集群资源的管理和调度的角色，如果存在单点故障，则整个集群的资源都无法使用。在2.4.0版本才新增了RM HA的特性，这样就增加了RM的可用性。</li>
-<li>NodeManager（NM）<br> NM是YARN集群的Slave，是集群中实际拥有计算资源的工作节点。我们提交Job以后，会将组成Job的多个Task调度到对应的NM上进行执行。Hadoop集群中，为了获得分布式计算中的Locality特性，会将DN和NM在同一个节点上运行，这样对应的HDFS上的Block可能就在本地，而无需在网络间进行数据的传输。</li>
-<li>Container<br> Container是YARN集群中资源的抽象，将NM上的资源进行量化，根据需要组装成一个个Container，然后服务于已授权资源的计算任务。计算任务在完成计算后，系统会回收资源，以供后续计算任务申请使用。Container包含两种资源：内存和CPU，后续Hadoop版本可能会增加硬盘、网络等资源。</li>
-<li>ApplicationMaster（AM）<br> AM主要管理和监控部署在YARN集群上的Application，以MapReduce为例，MapReduce Application是一个用来处理MapReduce计算的服务框架程序，为用户编写的MapReduce程序提供运行时支持。通常我们在编写的一个MapReduce程序可能包含多个Map Task或Reduce Task，而各个Task的运行管理与监控都是由这个MapReduce Application来负责，比如运行Task的资源申请，由AM向RM申请；启动/停止NM上某Task的对应的Container，由AM向NM请求来完成。</li>
+<li>Consistency-一致性</li>
+<li>Availability-可用性</li>
+<li>Partition tolerance-分区容忍性</li>
+</ul>
+<p>它们的第一个字母分别是 C、A、P。这三个指标不可能同时做到。这个结论就叫做 CAP 定理。</p>
+<h3><span id="partition-tolerance-分区容忍性">Partition tolerance-分区容忍性</span></h3><blockquote>
+<p>the system continues to operate despite arbitrary message loss or failure of part of the system。</p>
+</blockquote>
+<p>大多数分布式系统都分布在多个子网络。每个子网络就叫做一个区（partition）。分区容错的意思是，区间通信可能失败。比如，一台服务器放在中国，另一台服务器放在美国，这就是两个区，它们之间可能无法通信。<br><img src="https://www.wangbase.com/blogimg/asset/201807/bg2018071601.png" alt=""><br>上图中，G1 和 G2 是两台跨区的服务器。G1 向 G2 发送一条消息，G2 可能无法收到。系统设计的时候，必须考虑到这种情况。<br>一般来说，分区容错无法避免，因此可以认为 CAP 的 P 总是成立。CAP 定理告诉我们，剩下的 C 和 A 无法同时做到。</p>
+<h3><span id="consistency-一致性">Consistency-一致性</span></h3><blockquote>
+<p>all nodes see the same data at the same time。</p>
+</blockquote>
+<p>举例来说，某条记录是 v0，用户向 G1 发起一个写操作，将其改为 v1。接下来，用户的读操作就会得到 v1。这就叫一致性。<br>问题是，用户有可能向 G2 发起读操作，由于 G2 的值没有发生变化，因此返回的是 v0。G1 和 G2 读操作的结果不一致，这就不满足一致性了。<br>为了让 G2 也能变为 v1，就要在 G1 写操作的时候，让 G1 向 G2 发送一条消息，要求 G2 也改成 v1。这样的话，用户向 G2 发起读操作，也能得到 v1。</p>
+<h3><span id="availability-可用性">Availability-可用性</span></h3><blockquote>
+<p>Reads and writes always succeed。</p>
+</blockquote>
+<p>用户可以选择向 G1 或 G2 发起读操作。不管是哪台服务器，只要收到请求，就必须告诉用户，到底是 v0 还是 v1，否则就不满足可用性。</p>
+<h3><span id="consistency-和-availability-的矛盾">Consistency 和 Availability 的矛盾</span></h3><p>一致性和可用性，为什么不可能同时成立？答案很简单，因为可能通信失败（即出现分区容错）。<br>如果保证 G2 的一致性，那么 G1 必须在写操作时，锁定 G2 的读操作和写操作。只有数据同步后，才能重新开放读写。锁定期间，G2 不能读写，没有可用性。<br>如果保证 G2 的可用性，那么势必不能锁定 G2，所以一致性不成立。<br>综上所述，G2 无法同时做到一致性和可用性。系统设计时只能选择一个目标。如果追求一致性，那么无法保证所有节点的可用性；如果追求所有节点的可用性，那就没法做到一致性。</p>
+<p>而根据一致性和可用性的选择不同，开源的分布式系统往往又被分为 CP 系统和 AP 系统。<br>当一套系统在发生分区故障后，客户端的任何请求都被卡死或者超时，但是，系统的每个节点总是会返回一致的数据，则这套系统就是 CP 系统，经典的比如 Zookeeper。<br>如果一套系统发生分区故障后，客户端依然可以访问系统，但是获取的数据有的是新的数据，有的还是老数据，那么这套系统就是 AP 系统，经典的比如 Eureka。</p>
+<h2><span id="提出-cap-是为了解决什么问题">提出 CAP 是为了解决什么问题？</span></h2><p>CAP准确描述和定义了分布式系统设计中的trade-off问题，用于指导分布式系统的设计，避免系统不同模块之间因设计理念不统一而导致混乱。</p>
+<h2><span id="cap的权衡">CAP的权衡</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155025.png" alt=""><br>通过CAP理论及前面的证明，我们知道无法同时满足一致性、可用性和分区容错性这三个特性，那要舍弃哪个呢？我们分三种情况来阐述一下。</p>
+<h3><span id="ca-without-p">CA without P</span></h3><p>这种情况在分布式系统中几乎是不存在的。首先在分布式环境下，网络分区是一个自然的事实。因为分区是必然的，所以如果舍弃P，意味着要舍弃分布式系统。那也就没有必要再讨论CAP理论了。这也是为什么在前面的CAP证明中，我们以系统满足P为前提论述了无法同时满足C和A。<br>比如我们熟知的关系型数据库，如MySql和Oracle就是保证了可用性和数据一致性，但是他并不是个分布式系统。一旦关系型数据库要考虑主备同步、集群部署等就必须要把P也考虑进来。<br>其实，在CAP理论中。C，A，P三者并不是平等的，CAP之父在《Spanner，真时，CAP理论》一文中写到：</p>
+<blockquote>
+<p>如果说Spanner真有什么特别之处，那就是谷歌的广域网。Google通过建立私有网络以及强大的网络工程能力来保证P，在多年运营改进的基础上，在生产环境中可以最大程度的减少分区发生，从而实现高可用性。</p>
+</blockquote>
+<p>从Google的经验中可以得到的结论是，无法通过降低CA来提升P。要想提升系统的分区容错性，需要通过提升基础设施的稳定性来保障。<br>所以，对于一个分布式系统来说。P是一个基本要求，CAP三者中，只能在CA两者之间做权衡，并且要想尽办法提升P。</p>
+<h3><span id="cp-without-a">CP without A</span></h3><p>如果一个分布式系统不要求强的可用性，即容许系统停机或者长时间无响应的话，就可以在CAP三者中保障CP而舍弃A。<br>一个保证了CP而舍弃了A的分布式系统，一旦发生网络故障或者消息丢失等情况，就要牺牲用户的体验，等待所有数据全部一致了之后再让用户访问系统。<br>设计成CP的系统其实也不少，其中最典型的就是很多分布式数据库，他们都是设计成CP的。在发生极端情况时，优先保证数据的强一致性，代价就是舍弃系统的可用性。如Redis、HBase等，还有分布式系统中常用的Zookeeper也是在CAP三者之中选择优先保证CP的。<br>无论是像Redis、HBase这种分布式存储系统，还是像Zookeeper这种分布式协调组件。数据的一致性是他们最最基本的要求。一个连数据一致性都保证不了的分布式存储要他有何用？<br>ZooKeeper是个CP（一致性+分区容错性）的，即任何时刻对ZooKeeper的访问请求能得到一致的数据结果，同时系统对网络分割具备容错性。但是它不能保证每次服务请求的可用性，也就是在极端环境下，ZooKeeper可能会丢弃一些请求，消费者程序需要重新请求才能获得结果。ZooKeeper是分布式协调服务，它的职责是保证数据在其管辖下的所有服务之间保持同步、一致。所以就不难理解为什么ZooKeeper被设计成CP而不是AP特性的了。</p>
+<h3><span id="ap-wihtout-c">AP wihtout C</span></h3><p>要高可用并允许分区，则需放弃一致性。一旦网络问题发生，节点之间可能会失去联系。为了保证高可用，需要在用户访问时可以马上得到返回，则每个节点只能用本地数据提供服务，而这样会导致全局数据的不一致性。<br>这种舍弃强一致性而保证系统的分区容错性和可用性的场景和案例非常多。前面我们介绍可用性的时候说到过，很多系统在可用性方面会做很多事情来保证系统的全年可用性可以达到N个9，所以，对于很多业务系统来说，比如淘宝的购物，12306的买票。都是在可用性和一致性之间舍弃了一致性而选择可用性。<br>你在12306买票的时候肯定遇到过这种场景，当你购买的时候提示你是有票的（但是可能实际已经没票了），你也正常的去输入验证码，下单了。但是过了一会系统提示你下单失败，余票不足。这其实就是先在可用性方面保证系统可以正常的服务，然后在数据的一致性方面做了些牺牲，会影响一些用户体验，但是也不至于造成用户流程的严重阻塞。（这个例子并不好，讨论cap的前提是发生了p，如果没有发生p，那么ca都应该满足。12306的这个做法显然是为了减小服务端压力而在产品层面做的一个折中处理。）<br>但是，我们说很多网站牺牲了一致性，选择了可用性，这其实也不准确的。就比如上面的买票的例子，其实舍弃的只是强一致性。退而求其次保证了最终一致性。也就是说，虽然下单的瞬间，关于车票的库存可能存在数据不一致的情况，但是过了一段时间，还是要保证最终一致性的。<br>对于多数大型互联网应用的场景，主机众多、部署分散，而且现在的集群规模越来越大，所以节点故障、网络故障是常态，而且要保证服务可用性达到N个9，即保证P和A，舍弃C（退而求其次保证最终一致性）。虽然某些地方会影响客户体验，但没达到造成用户流程的严重程度。</p>
+<h3><span id="适合的才是最好的">适合的才是最好的</span></h3><p>上面介绍了CAP中如何权衡及取舍的典型案例。孰优孰略，没有定论，只能根据场景定夺，适合的才是最好的。</p>
+<ul>
+<li>对于涉及到钱财这样不能有一丝让步的场景，C必须保证。网络发生故障宁可停止服务，这是保证CP，舍弃A。比如前几年支付宝光缆被挖断的事件，在网络出现故障的时候，支付宝就在可用性和数据一致性之间选择了数据一致性，用户感受到的是支付宝系统长时间宕机，但是其实背后是无数的工程师在恢复数据，保证数据的一致性。</li>
+<li>对于其他场景，比较普遍的做法是选择可用性和分区容错性，舍弃强一致性，退而求其次使用最终一致性来保证数据的安全。这其实是分布式领域的另外一个理论——BASE理论。</li>
+</ul>
+<h2><span id="数据分片和数据副本的分布式系统是否都遵守-cap-定理">数据分片和数据副本的分布式系统是否都遵守 CAP 定理</span></h2><p>比如，我们有个分布式系统，由三个节点 a、b、c 组成。其中节点 a 存放了 A 表的数据，b 存放了 B 表的数据，c 存放了 C 表的数据。<br>如果有一个业务，它的意图是想往 A 表插入一条新数据，在 B 表删除一条已有数据，在 C 表更新一条老数据，这个分布式系统该怎么处理这种业务？<br>技术上我们对这种一个意图想做多件事的情况往往会包装成一个事务。当我们包装成一个事务以后，我们可能会通过先在 a 节点执行，然后去 b 节点执行，最后去 c 节点执行，等到都成功了，才会返回成功。<br>但是，发生了分区以后怎么办？当在 a、b 节点都成功了，到 c 发现发生了通信故障？<br>此时，根据 CAP 定理，你有两个选择，要么就直接返回一个部分成功的结果给客户端，要么直接卡死等客户端超时或者返回失败给客户端。当返回部分成功的时候，这就是选择了可用性（A），当卡死或者返回失败给客户端的时候，就是选择了一致性（C）。<br>可是，我们将请求包装成了事务，而事务是要求要么都成功，要么都失败……为了遵守这种要求，对于分布式只有分片的情况，迫于客观条件，只能选择C。所以分片的分布式系统，往往都是 CP 的系统。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155113.png" alt=""></p>
+<p>而当分布式系统是多个节点，每个节点存储了完整的一套数据，别的节点只是完整数据的备份的时候，即使事务只在一台机器上成功，当发生分区故障的时候，我们也是可以有充分的余地选择是单机事务的回退 or 就此认为写成功的。就此认为写成功，则可以认为选择了可用性。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155216.png" alt=""><br>单机事务的回退，就可以对外表现为选择了一致性。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220520155141.png" alt=""></p>
+<h2><span id="总结">总结</span></h2><p>总结一下，通俗的讲，当分布式系统出现故障时（可能是一个节点宕机了，这种情况应该很常见，或者网络故障导致部分节点失联），</p>
+<ul>
+<li>如果系统依然可以提供服务，哪怕数据有可能不是最新的（因为故障很可能会导致不同节点间数据同步中断/滞后），这就是AP；</li>
+<li>如果系统不再提供服务，直到确保系统内部数据同步完成，这就是CP。<br>采用不同理念设计出的分布式系统，具有不同的特性，适用不同的场景。</li>
 </ul>
 <h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://winway.github.io/2017/01/12/big-data-yarn/">Hadoop生态系统介绍-YARN</a></li>
+<li><a href="https://www.ruanyifeng.com/blog/2018/07/cap.html" target="_blank" rel="noopener">CAP 定理的含义</a></li>
+<li><a href="https://cloud.tencent.com/developer/article/1860632" target="_blank" rel="noopener">一文看懂｜分布式系统之CAP理论</a></li>
+<li><a href="http://www.hollischuang.com/archives/666" target="_blank" rel="noopener">分布式系统的CAP理论</a></li>
+<li><a href="https://stackoverflow.com/questions/51374856/can-not-understand-why-hbase-not-a-in-cap" target="_blank" rel="noopener">Can not understand why Hbase not A in CAP</a></li>
 </ul>
 
       
@@ -453,7 +527,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">yarn</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">cap</a>
         		</li>
       		
 		</ul>
@@ -474,7 +548,7 @@
 
       
         <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/19/bigdata-stack-yarn/">展开全文 >></a>
+          <a class="article-more-a" href="/2022/05/20/bigdata-stack-cap/">展开全文 >></a>
         </p>
       
 
@@ -504,7 +578,7 @@
 
 
   
-    <article id="post-bigdata-stack-kylin" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+    <article id="post-bigdata-stack-ranger" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
 
@@ -514,13 +588,13 @@
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/18/bigdata-stack-kylin/">大数据开发之路-kylin</a>
+      <a class="article-title" href="/2022/05/19/bigdata-stack-ranger/">大数据开发之路-ranger</a>
     </h1>
   
 
         
-        <a href="/2022/05/18/bigdata-stack-kylin/" class="archive-article-date">
-  	<time datetime="2022-05-18T09:04:35.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-18</time>
+        <a href="/2022/05/19/bigdata-stack-ranger/" class="archive-article-date">
+  	<time datetime="2022-05-19T09:18:23.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-19</time>
 </a>
 
 
@@ -531,10 +605,12 @@
       
         <!-- toc -->
 <ul>
-<li><a href="#kylin-molap引擎的扛把子">kylin-MOLAP引擎的“扛把子”</a></li>
-<li><a href="#特性">特性</a></li>
-<li><a href="#实现原理">实现原理</a></li>
+<li><a href="#ranger-大数据生态体系的统一权限控制系统">ranger-大数据生态体系的统一权限控制系统</a></li>
 <li><a href="#架构">架构</a></li>
+<li><a href="#鉴权流程">鉴权流程</a></li>
+<li><a href="#特性">特性</a></li>
+<li><a href="#ranger-vs-sentry">ranger vs sentry</a></li>
+<li><a href="#最佳实践">最佳实践</a></li>
 <li><a href="#参考资料">参考资料</a></li>
 </ul>
 <!-- tocstop -->
@@ -571,53 +647,59 @@
 <li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
 </ol>
 </blockquote>
-<h2><span id="kylin-molap引擎的扛把子">kylin-MOLAP引擎的“扛把子”</span></h2><p>Apache Kylin是一个开源的、分布式的分析型数据仓库，提供Hadoop/Spark 上的SQL查询接口及多维度分析(OLAP）能力以支持超大规模的数据，它能在亚秒内查询巨大的表。<br>Kylin重点解决的问题是针对大数据不同维度频繁查询问题，即如何对已经固化下来的定制查询进行亚秒级返回。<br>不同于“大规模并行处理”（Massive Parallel Processing，MPP）架构的Hive、Presto、clickhouse、doris等，Apache Kylin采用“预计算”的模式，用户只需要提前定义好查询维度，Kylin将帮助我们进行计算，并将结果存储到HBase中，为海量数据的查询和分析提供亚秒级返回，是一种典型的“空间换时间”的解决方案。</p>
-<p>Apache Kylin实现超大数据集上的亚秒级查询只需要三步：</p>
-<ol>
-<li>定义一个星形数据模型</li>
-<li>在定义的表上创建cube</li>
-<li>使用标准的SQL通过ODBC，JDBC和Restful API即可在亚秒内查询到结果</li>
-</ol>
+<blockquote>
+<p>关联阅读<br><a href="https://winway.github.io/2022/04/02/kerberos-ranger/">大数据生态认证、权限控制机制概述</a></p>
+</blockquote>
+<h2><span id="ranger-大数据生态体系的统一权限控制系统">ranger-大数据生态体系的统一权限控制系统</span></h2><p>Apache Ranger提供集中式的权限管理框架，可以对Hadoop生态中的HDFS、Hive和YARN等组件进行细粒度的权限访问控制，并且提供了Web UI方便管理员操作。</p>
+<h2><span id="架构">架构</span></h2><p><img src="https://help-static-aliyun-doc.aliyuncs.com/assets/img/zh-CN/5648917951/p80938.png" alt=""><br>Ranger主要由三个组件组成：</p>
+<ul>
+<li>Ranger Admin：您可以创建和更新安全访问策略，这些策略被存储在数据库中。各个组件的Plugin定期对这些策略进行轮询。</li>
+<li>Ranger Plugins：Plugin嵌入在各个集群组件的进程里，是一个轻量级的Java程序。例如，Ranger对Hive的组件，就被嵌入在Hiveserver2里。这些Plugin从Ranger Admin服务端拉取策略，并把它们存储在本地文件中。当接收到来自组件的用户请求时，对应组件的Plugin会拦截该请求，并根据安全策略对其进行评估。</li>
+<li>Ranger UserSync：Ranger提供了一个用户同步工具。您可以从Unix或者LDAP中拉取用户和用户组的信息。这些用户和用户组的信息被存储在Ranger Admin的数据库中，可以在定义策略时使用。</li>
+</ul>
+<h2><span id="鉴权流程">鉴权流程</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519175355.png" alt=""><br>Ranger鉴权本质上是通过读取安装plugin时生成的配置文件以及plugin自带的jar包，通过hook方式调用各个plugin服务达到权限管理。</p>
 <h2><span id="特性">特性</span></h2><ul>
-<li>SQL接口：Kylin主要的对外接口就是以SQL的形式提供的。SQL简单易用的特性极大地降低了Kylin的学习成本，不论是数据分析师还是Web开发程序员都能从中收益。</li>
-<li>支持海量数据集:不论是Hive、SparkSQL，还是Impala、Presto，都改变不了这样一个事实：查询时间随着数据量的增长而线性增长。而Apache Kylin使用预计算技术打破了这一点。Kylin在数据集规模上的局限性主要取决于维度的个数和基数，而不是数据集的大小，所以Kylin能更好地支持海量数据集的查询。</li>
-<li>亚秒级响应:同样受益于预计算技术，Kylin的查询速度非常快，因为复杂的连接、聚合等操作都在Cube的构建过程中已经完成了。</li>
-<li>水平扩展:Apache Kylin同样可以使用集群部署方式进行水平扩展。但部署多个节点只能提高Kylin处理查询的能力，而不能提升它的预计算能力。</li>
-<li>可视化集成:Apache Kylin提供了ODBC/JDBC接口和RESTful API，可以很方便地与Tableau等数据可视化工具集成。数据团队也可以在开放的API上进行二次开发。</li>
+<li>支持大数据生态常见组件， 如hdfs/yarn/hiveserver2/presto/hbase等</li>
+<li>支持从ldap获取用户和组信息，用来配置策略</li>
+<li>支持hive数据脱敏/数据行过滤/字段粒度权限控制</li>
+<li>支持审计日志</li>
 </ul>
-<h2><span id="实现原理">实现原理</span></h2><p>kylin 的核心思想是预计算。</p>
-<ul>
-<li><p>预计算<br>kylin 对多维分析可能用到的度量进行预计算，将高维复杂的聚合计算，多表连接等操作转换成预计算结果，将计算好的结果保存成 Cube，存储于 Hbase 中，供查询时直接访问。预计算过程需要很长时间，但是一旦结果计算出来，再次查询只是获取结果集合的过程，不需要额外再次浪费集群资源进行长时间查询，这种以空间换取时间的处理数据模式决定了 Kylin 拥有很好的快速查询、高并发能力。<br>Kylin 是一个 MOLAP(多维联机数据分析)系统，最常用的是将 Hive 中的数据进行预计算，利用 Hadoop 的 Mapreduce 或者 Spark 分布式计算框架来实现。Kylin 获取的数据表是星型数据结构的，目前建模时，只支持一张事实表，多张维度表，假设业务需求比较复杂，可以考虑在 Hive 中进行预处理生成一张宽表来处理。</p>
-</li>
-<li><p>cube<br>对于 Hive 中的维度表和事实表，根据我们指定的维度列来构建 cube,cube 是所有维度的组合，任一维度的组合称为 cuboid,即：cube 中包含所有的 cubeid。理论上来说，一个 N 维的 cube,会有 2 的 N 次方种维度组合(cuboid)。举例：假设一个 cube 包含 time、country、city、location 四个维度，那么就有 16 中 cuboid 组合。</p>
-</li>
+<h2><span id="ranger-vs-sentry">ranger vs sentry</span></h2><ul>
+<li><a href="https://datafoam.com/2021/11/10/sentry-to-ranger-a-concise-guide/" target="_blank" rel="noopener">One such major change for CDH users is the replacement of Sentry with Ranger for authorization and access control. </a></li>
+<li><a href="https://www.wtlizzz.com/Apache-Sentry-vs-Ranger/" target="_blank" rel="noopener">Apache Sentry 对比 Ranger，选择Sentry还是Ranger</a><br><img src="https://www.wtlizzz.com/images/pasted-112.png" alt=""></li>
+<li>综合来看，<strong>ranger功能、特性更丰富，更易用，架构更合理</strong><br><img src="https://blog.cloudera.com/wp-content/uploads/2021/11/1-Sentry-Ranger-Feature-1-1024x733.png" alt=""><br><img src="https://blog.cloudera.com/wp-content/uploads/2021/11/3-Sentry-Implementation-434x467.png" alt=""></li>
 </ul>
-<p>通过计算框架的计算将 OLAP 分析的 cube 数据存储在 Hbase 中，方便后期实现多维数据集的交互式快速查询。</p>
-<h2><span id="架构">架构</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519092659.png" alt=""></p>
-<ul>
-<li><p>组件</p>
-<ul>
-<li>REST Server:提供 Restful 接口，可以通过此接口来创建、构建、刷新、合并Cube 等相关操作。同时也可以通过 Restful 接口实现 SQL 查询。</li>
-<li>Query Engine:目前 Kylin 使用开源的 Calcite 框架来实现 SQL 解析，用户发出SQL 查询之后，可以通过 Query Engine 来将 SQL Query 语句转换成 SQL 语法树，也就是逻辑计划。</li>
-<li>Routing:负责将解析 SQL 生成的执行计划转换成 cube 缓存的查询，cube 是通过预计算缓存在 Hbase 中，这部分查询时可以在秒级甚至是毫秒级完成，除此之外，还有一些操作需要使用原始数据（存储在 HDFS 上）通过 Hive 查询，这部分查询的延迟比较高。</li>
-<li>Metadata:Kylin 中有大量的元数据信息，包括 cube 的定义、星型模型的定义、job 和执行 job 的输出信息、模型的维度信息等等。Kylin 的元数据存储在 Hbase 中，存储的格式是 Json 字符串。</li>
-<li>Cube Build Engine:立方体构建模块是所有模块的基础，主要负责 Kylin 预计算中创建 cube,创建的过程是首先通过 Hive 读取原始数据，然后通过 MR 或者 Spark 计算生成 Htable,最后将数据加载到 Hbase 表中。</li>
-</ul>
-</li>
-<li><p>构建过程<br>从图中可以看出，左侧为数据源，目前Kylin默认的数据源是Apache Hive，保存着待分析的用户数据。根据元数据的定义，构建引擎从数据源抽取数据，并构建Cube。数据以关系表的形式输入，并且必须符合星形模型。构建技术主要为MapReduce/Spark。构建后的Cube保存在右侧存储引擎中，目前Kylin默认的存储为Apache HBase。</p>
-<ul>
-<li>全量构建<br>就是每次构建都对Hive表进行全表构建。但是全量构建在实际环境中并不常用，因为大多数业务场景下，事实数据都在不断地增长中，所以最常使用的构建方式其实是增量构建。</li>
-<li>增量构建<br>可以使Cube每次只构建Hive表中新增部分的数据，而不是全部数据，因此大大降低了构建的成本。为了实现增量构建，Apache Kylin将Cube分为多个Segment，每个Segment用起始时间和结束时间来标识。</li>
-<li>流式构建<br>使用Kafka做为数据源，构建引擎定时从Kafka中拉取数据进行构建，这一设计与Spark-Streaming的微批次（Micro-Batch）思想非常像。</li>
-</ul>
-</li>
-<li><p>查询过程<br>完成构建后，用户可以从上方的查询系统发送SQL进行查询分析。Kylin提供了RESTful API、JDBC/ODBC接口供用户调用。无论从哪个接口进入，SQL最终都会来到REST服务层，再转交给查询引擎进行处理。查询引擎解析SQL，生成基于关系表的逻辑执行计划，然后将其转译为基于Cube的物理执行计划，最后查询预计算生成的Cube并产生结果。整个过程不会访问原始数据源。如果用户提交的查询语句未在Kylin中预先定义，Kylin会返回一个错误。</p>
-</li>
-</ul>
-<p>值得一提的是，Kylin对数据源、执行引擎和Cube存储三个核心模块提取出了抽象层，这意味着这三个模块可以被任意地扩展和替换。比如可以使用Spark替代MapReduce作为Cube的构建引擎，使用Cassandra替代HBase作为Cube计算后数据的存储等。</p>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://www.cnblogs.com/shun7man/p/12920429.html" target="_blank" rel="noopener">大数据基础—Kylin是什么？ </a></li>
-<li><a href="https://www.jianshu.com/p/abd5e90ab051" target="_blank" rel="noopener">一文读懂Apache Kylin</a></li>
+<h2><span id="最佳实践">最佳实践</span></h2><blockquote>
+<p><a href="https://blog.cloudera.com/best-practices-in-hdfs-authorization-with-apache-ranger/" target="_blank" rel="noopener">Best practices in HDFS authorization with Apache Ranger</a></p>
+</blockquote>
+<pre><code>Apache Ranger offers a federated authorization model for HDFS. Ranger plugin for HDFS checks for Ranger policies and if a policy exists, access is granted to user. If a policy doesn’t exist in Ranger, then Ranger would default to native permissions model in HDFS (POSIX or HDFS ACL). This federated model is applicable for HDFS and Yarn service in Ranger.
+The federated authorization model enables customers to safely implement Ranger in an existing cluster without affecting  jobs which rely on POSIX permissions. We recommend to enable  this option as the default model for all deployments.
+After Apache Ranger and Hadoop have been installed, we recommend administrators to implement the following steps:
+Change HDFS umask to 077
+Identify directory which can be managed by Ranger policies
+Identify directories which need to be managed by HDFS native permissions
+Enable Ranger policy to audit all records
+</code></pre><blockquote>
+<p><a href="https://pierrevillard.com/2018/08/14/discussion-around-ranger-policies-for-hdfs/" target="_blank" rel="noopener">Discussion around Ranger policies for HDFS</a></p>
+</blockquote>
+<pre><code>Now that you’re aware of that behavior, you probably want to look at this post with some best practices about Ranger and HDFS. The first thing I’d recommend is to change the default umask from 022 to 077 to ensure that, by default, a newly created file/directory can only be read by the owner unless a Ranger policy states otherwise.
+Then, you want to take care of some specific folders in HDFS such as the ones under /apps (folders used by Hive, HBase, Zeppelin, etc). The idea is to set chmod 000 on the folders so that HDFS ACLs do not apply and only Ranger policies are enforced. Let’s say you have /apps/hive/warehouse where all your Hive databases are stored. If you set chmod 000 on /apps/hive, then no one can go inside a subfolder of /apps/hive unless there is an “allow” policy in Ranger for that user.
+</code></pre><blockquote>
+<p><a href="http://www.24hgold.com/francais/article-compagnie-or-argent-best-practices-for-hive-authorization-using-apache-ranger-in-hdp-2-2.aspx?articleid=1363883" target="_blank" rel="noopener">Best Practices for Hive Authorization Using Apache Ranger in HDP 2.2</a></p>
+</blockquote>
+<pre><code>Scenario 1 - Data analysts accessing only Hiveserver2, with limited access to HDFS files
+    ensure the hive.server2.enable.doAs is set to &quot;false&quot;. What this means is that Hiveserver2 will run MR jobs in HDFS as &quot;hive&quot; user. Permissions in HDFS files related to Hive can be given only to &quot;hive&quot; users, and no analyst would be able to access HDFS files directly.
+Scenario 2 - Data analysts accessing both Hiveserver2, and HDFS files through Pig/MR jobs
+    ensure the hive.server2.enable.doAs is set to &quot;true&quot;. What this means is that Hiveserver2 will run MR jobs in HDFS as the original user.In Ranger, within HDFS, create permissions for files pertaining to hive tables
+Scenario 3 - Data analysts accessing Hive CLI
+    The best way to protect Hive CLI would be to enable permissions for HDFS files/folders mapped to the Hive database and tables. In order to secure metastore, it is also recommended to turn on storage-based authorization.
+</code></pre><h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://help.aliyun.com/document_detail/66410.html" target="_blank" rel="noopener">概述</a></li>
+<li><a href="https://datafoam.com/2021/11/10/sentry-to-ranger-a-concise-guide/" target="_blank" rel="noopener">One such major change for CDH users is the replacement of Sentry with Ranger for authorization and access control. </a></li>
+<li><a href="https://www.wtlizzz.com/Apache-Sentry-vs-Ranger/" target="_blank" rel="noopener">Apache Sentry 对比 Ranger，选择Sentry还是Ranger</a></li>
+<li><a href="https://blog.cloudera.com/best-practices-in-hdfs-authorization-with-apache-ranger/" target="_blank" rel="noopener">Best practices in HDFS authorization with Apache Ranger</a></li>
+<li><a href="http://www.24hgold.com/francais/article-compagnie-or-argent-best-practices-for-hive-authorization-using-apache-ranger-in-hdp-2-2.aspx?articleid=1363883" target="_blank" rel="noopener">Best Practices for Hive Authorization Using Apache Ranger in HDP 2.2</a></li>
+<li><a href="https://pierrevillard.com/2018/08/14/discussion-around-ranger-policies-for-hdfs/" target="_blank" rel="noopener">Discussion around Ranger policies for HDFS</a></li>
 </ul>
 
       
@@ -632,11 +714,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">olap</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">kylin</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">ranger</a>
         		</li>
       		
 		</ul>
@@ -657,7 +735,7 @@
 
       
         <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/18/bigdata-stack-kylin/">展开全文 >></a>
+          <a class="article-more-a" href="/2022/05/19/bigdata-stack-ranger/">展开全文 >></a>
         </p>
       
 
@@ -827,11 +905,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hive</a>
+                <a href="javascript:void(0)" class="js-tag color4">pig</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+                <a href="javascript:void(0)" class="js-tag color5">hive</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -855,11 +933,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
+                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">github</a>
+                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -867,19 +945,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -887,7 +953,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">proxy</a>
+                <a href="javascript:void(0)" class="js-tag color2">github</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -899,19 +973,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">proxy</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">备份</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">独立开发</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">tez</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">gc</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -923,7 +989,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+                <a href="javascript:void(0)" class="js-tag color4">tez</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">gc</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">独立开发</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -935,15 +1013,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -955,7 +1025,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -963,19 +1037,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -984,6 +1050,18 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1015,15 +1093,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1035,15 +1117,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">presto</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1079,11 +1157,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
+                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
              
               <li class="article-tag-list-item">

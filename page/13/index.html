@@ -156,7 +156,7 @@
           <div id="js-content" class="content-ll">
             
   
-    <article id="post-spark-small-file" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+    <article id="post-spark-metrics" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
 
@@ -166,13 +166,13 @@
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2022/01/16/spark-small-file/">Spark-sql生成小文件问题</a>
+      <a class="article-title" href="/2022/01/16/spark-metrics/">Spark任务性能监控</a>
     </h1>
   
 
         
-        <a href="/2022/01/16/spark-small-file/" class="archive-article-date">
-  	<time datetime="2022-01-16T01:49:11.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-01-16</time>
+        <a href="/2022/01/16/spark-metrics/" class="archive-article-date">
+  	<time datetime="2022-01-16T03:40:46.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-01-16</time>
 </a>
 
 
@@ -183,27 +183,28 @@
       
         <!-- toc -->
 <ul>
-<li><a href="#问题">问题</a></li>
-<li><a href="#spark2x处理小文件问题的两种方式">Spark2.x处理小文件问题的两种方式</a></li>
+<li><a href="#概述">概述</a></li>
+<li><a href="#核心步骤">核心步骤</a></li>
 </ul>
 <!-- tocstop -->
-<h2><span id="问题">问题</span></h2><p>大数据领域有一个经典的问题——小文件问题。<br>小文件过多不仅会对HDFS NameNode的内存造成压力，还会导致数据处理过程中因为任务数量不合理，导致资源浪费，影响效率。<br>在使用spark-sql处理数据时，也会遇到这个问题。</p>
-<h2><span id="spark2x处理小文件问题的两种方式">Spark2.x处理小文件问题的两种方式</span></h2><ul>
-<li>使用hint<br>通过在sql中指定COALESCE(n) hint，决定最终产生的文件数量<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ COALESCE(3) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION(3) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION(c) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION(3, c) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION_BY_RANGE(c) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REPARTITION_BY_RANGE(3, c) */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REBALANCE */</span> * <span class="keyword">FROM</span> t</span><br><span class="line"><span class="keyword">SELECT</span> <span class="comment">/*+ REBALANCE(c) */</span> * <span class="keyword">FROM</span> t</span><br></pre></td></tr></table></figure>
+<h2><span id="概述">概述</span></h2><ul>
+<li>通过spark metrics系统将spark应用的metrics信息吐出来，比如上报到graphite_exporter</li>
+<li>使用prometheus从graphite_exporter抓取metrics数据</li>
+<li>使用grafana配置监控图表</li>
+</ul>
+<h2><span id="核心步骤">核心步骤</span></h2><ul>
+<li>部署graphite_exporter<br>参考：<a href="https://www.cnblogs.com/caoweixiong/p/12736772.html" target="_blank" rel="noopener">https://www.cnblogs.com/caoweixiong/p/12736772.html</a></li>
+</ul>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> ./graphite_exporter --help</span><br><span class="line">usage: graphite_exporter [&lt;flags&gt;]</span><br><span class="line"></span><br><span class="line">Flags:</span><br><span class="line">  -h, --help                     Show context-sensitive help (also try --help-long and --help-man).</span><br><span class="line">      --web.listen-address=":9108"  </span><br><span class="line">                                 Address on which to expose metrics.</span><br><span class="line">      --web.telemetry-path="/metrics"  </span><br><span class="line">                                 Path under which to expose Prometheus metrics.</span><br><span class="line">      --graphite.listen-address=":9109"  </span><br><span class="line">                                 TCP and UDP address on which to accept samples.</span><br><span class="line">      --graphite.mapping-config=""  </span><br><span class="line">                                 Metric mapping configuration file name.</span><br><span class="line">      --graphite.sample-expiry=5m  </span><br><span class="line">                                 How long a sample is valid for.</span><br><span class="line">      --graphite.mapping-strict-match  </span><br><span class="line">                                 Only store metrics that match the mapping configuration.</span><br><span class="line">      --graphite.cache-size=1000  </span><br><span class="line">                                 Maximum size of your metric mapping cache. Relies on least recently used replacement policy if max size is reached.</span><br><span class="line">      --graphite.cache-type=lru  Metric mapping cache type. Valid options are "lru" and "random"</span><br><span class="line">      --debug.dump-fsm=""        The path to dump internal FSM generated for glob matching as Dot file.</span><br><span class="line">      --check-config             Check configuration and exit.</span><br><span class="line">      --web.config=""            [EXPERIMENTAL] Path to config yaml file that can enable TLS or authentication.</span><br><span class="line">      --log.level=info           Only log messages with the given severity or above. One of: [debug, info, warn, error]</span><br><span class="line">      --log.format=logfmt        Output format of log messages. One of: [logfmt, json]</span><br><span class="line">      --version                  Show application version.</span><br></pre></td></tr></table></figure>
+<ul>
+<li>开启spark应用的metrics上报<br>创建spark metrcis配置文件hdfs://emr-cluster/tmp/spark_app_metrics.properties<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"># Enable JvmSource for instance master, worker, driver and executor</span><br><span class="line">master.source.jvm.class=org.apache.spark.metrics.source.JvmSource</span><br><span class="line">worker.source.jvm.class=org.apache.spark.metrics.source.JvmSource</span><br><span class="line">driver.source.jvm.class=org.apache.spark.metrics.source.JvmSource</span><br><span class="line">executor.source.jvm.class=org.apache.spark.metrics.source.JvmSource</span><br><span class="line"># Sink to graphite</span><br><span class="line">*.sink.graphite.class=org.apache.spark.metrics.sink.GraphiteSink</span><br><span class="line">*.sink.graphite.protocol=tcp</span><br><span class="line">*.sink.graphite.host=172.16.32.1</span><br><span class="line">*.sink.graphite.port=9109</span><br><span class="line">*.sink.graphite.period=10</span><br><span class="line">*.sink.graphite.unit=seconds</span><br></pre></td></tr></table></figure>
 </li>
 </ul>
-<p><strong>这种方式使用代价太高，需要每个数据开发关注每个任务最终产生的文件个数。</strong><br><em>笔者遇到过使用REPARTITION(n)导致数据文件增大的情况，使用COALESCE(n)则不会，所以优先使用COALESCE(n)。参见<a href="https://stackoverflow.com/questions/54218006/why-does-the-repartition-method-increase-file-size-on-disk" target="_blank" rel="noopener">https://stackoverflow.com/questions/54218006/why-does-the-repartition-method-increase-file-size-on-disk</a></em></p>
+<p>spark作业增加以下参数，并重启<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">--files hdfs://emr-cluster/tmp/spark_app_metrics.properties</span><br><span class="line">--conf spark.metrics.conf=spark_app_metrics.properties</span><br></pre></td></tr></table></figure></p>
+<p>正常情况下，已经可以在<a href="http://172.16.32.1:9108/metrics" target="_blank" rel="noopener">http://172.16.32.1:9108/metrics</a>，看到metrics信息了<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br></pre></td><td class="code"><pre><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;PS-MarkSweep&quot;,qty=&quot;count&quot;&#125; 3</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;PS-MarkSweep&quot;,qty=&quot;time&quot;&#125; 241</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;PS-Scavenge&quot;,qty=&quot;count&quot;&#125; 1657</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;PS-Scavenge&quot;,qty=&quot;time&quot;&#125; 6368</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;direct&quot;,qty=&quot;capacity&quot;&#125; 1.172494e+06</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;direct&quot;,qty=&quot;count&quot;&#125; 26</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;direct&quot;,qty=&quot;used&quot;&#125; 1.172495e+06</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;heap&quot;,qty=&quot;committed&quot;&#125; 4.58227712e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;heap&quot;,qty=&quot;init&quot;&#125; 1.073741824e+09</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;heap&quot;,qty=&quot;max&quot;&#125; 9.54728448e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;heap&quot;,qty=&quot;usage&quot;&#125; 0.33</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;heap&quot;,qty=&quot;used&quot;&#125; 3.12703864e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;mapped&quot;,qty=&quot;capacity&quot;&#125; 0</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;mapped&quot;,qty=&quot;count&quot;&#125; 0</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;mapped&quot;,qty=&quot;used&quot;&#125; 0</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;non-heap&quot;,qty=&quot;committed&quot;&#125; 1.28335872e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;non-heap&quot;,qty=&quot;init&quot;&#125; 2.555904e+06</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;non-heap&quot;,qty=&quot;max&quot;&#125; -1</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;non-heap&quot;,qty=&quot;usage&quot;&#125; -1.09084536e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;non-heap&quot;,qty=&quot;used&quot;&#125; 1.09084536e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;total&quot;,qty=&quot;committed&quot;&#125; 5.86563584e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;total&quot;,qty=&quot;init&quot;&#125; 1.076297728e+09</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;total&quot;,qty=&quot;max&quot;&#125; 9.54728447e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;1&quot;,mem_type=&quot;total&quot;,qty=&quot;used&quot;&#125; 4.2184968e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;PS-MarkSweep&quot;,qty=&quot;count&quot;&#125; 48</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;PS-MarkSweep&quot;,qty=&quot;time&quot;&#125; 6688</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;PS-Scavenge&quot;,qty=&quot;count&quot;&#125; 7674</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;PS-Scavenge&quot;,qty=&quot;time&quot;&#125; 58417</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;direct&quot;,qty=&quot;capacity&quot;&#125; 738287</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;direct&quot;,qty=&quot;count&quot;&#125; 37</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;direct&quot;,qty=&quot;used&quot;&#125; 738288</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;heap&quot;,qty=&quot;committed&quot;&#125; 8.10549248e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;heap&quot;,qty=&quot;init&quot;&#125; 1.073741824e+09</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;heap&quot;,qty=&quot;max&quot;&#125; 9.54728448e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;heap&quot;,qty=&quot;usage&quot;&#125; 0.2</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;heap&quot;,qty=&quot;used&quot;&#125; 1.91051496e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;mapped&quot;,qty=&quot;capacity&quot;&#125; 0</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;mapped&quot;,qty=&quot;count&quot;&#125; 0</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;mapped&quot;,qty=&quot;used&quot;&#125; 0</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;non-heap&quot;,qty=&quot;committed&quot;&#125; 1.44859136e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;non-heap&quot;,qty=&quot;init&quot;&#125; 2.555904e+06</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;non-heap&quot;,qty=&quot;max&quot;&#125; -1</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;non-heap&quot;,qty=&quot;usage&quot;&#125; -1.4242188e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;non-heap&quot;,qty=&quot;used&quot;&#125; 1.4242188e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;total&quot;,qty=&quot;committed&quot;&#125; 9.55408384e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;total&quot;,qty=&quot;init&quot;&#125; 1.076297728e+09</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;total&quot;,qty=&quot;max&quot;&#125; 9.54728447e+08</span><br><span class="line">spark_app_jvm_memory_usage&#123;application=&quot;application_1637576367361_13513&quot;,executor_id=&quot;driver&quot;,mem_type=&quot;total&quot;,qty=&quot;used&quot;&#125; 3.33473376e+08</span><br></pre></td></tr></table></figure></p>
+<p><strong>注意：1.–files多个文件用逗号分隔；2.如果任务是使用的client模式，driver的监控数据无法上报</strong></p>
 <ul>
-<li>开启aqe特性<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">set</span> spark.sql.adaptive.enabled=<span class="literal">true</span>;</span><br><span class="line"><span class="keyword">set</span> spark.sql.adaptive.shuffle.targetPostShuffleInputSize=<span class="number">512000000</span>;</span><br><span class="line"><span class="keyword">set</span> spark.sql.adaptive.maxNumPostShufflePartitions=<span class="number">800</span>;</span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-<p><strong>该机制是通过控制stage中每个分区shuffle read的数据量大小，进而控制stage分区数量，来间接影响最终产生文件的个数（而不是像hive那样直接指定结果文件大小），所以对小文件问题有缓解，但是无法做到根本解决。</strong></p>
-<blockquote>
-<p>不管是Spark2.x，还是Spark3.x，都没能从根本上解决小文件问题。因为没有像hive那样的机制，启动单独的job根据设置的文件大小合并小文件。</p>
-</blockquote>
-<ul>
-<li>distribute by<br>对于使用动态分区的任务，使用distribute by。<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">insert</span> overwrite <span class="keyword">table</span> dm.dm_grw_retain_abtest_sd <span class="keyword">partition</span> (<span class="keyword">year</span>, <span class="keyword">month</span>, <span class="keyword">day</span>, retain_days)</span><br><span class="line"><span class="keyword">select</span> ……</span><br><span class="line"><span class="keyword">distribute</span> <span class="keyword">by</span> retain_days <span class="comment">-- 最终每个子分区一个文件</span></span><br><span class="line"><span class="keyword">distribute</span> <span class="keyword">by</span> retain_days, <span class="keyword">cast</span>(<span class="keyword">rand</span>()*<span class="number">7</span> <span class="keyword">as</span> <span class="built_in">int</span>) <span class="comment">-- 最终每个子分区7个文件</span></span><br></pre></td></tr></table></figure>
-</li>
+<li>配置prometheus和grafana<br>参考了以下几篇文章，大同小异。<br><a href="https://www.cnblogs.com/caoweixiong/p/12736772.html" target="_blank" rel="noopener">https://www.cnblogs.com/caoweixiong/p/12736772.html</a><br><a href="https://www.cnblogs.com/createweb/p/11430595.html" target="_blank" rel="noopener">https://www.cnblogs.com/createweb/p/11430595.html</a><br><a href="http://rokroskar.github.io/monitoring-spark-on-hadoop-with-prometheus-and-grafana.html" target="_blank" rel="noopener">http://rokroskar.github.io/monitoring-spark-on-hadoop-with-prometheus-and-grafana.html</a><br><a href="https://www.jianshu.com/p/274380bb0974" target="_blank" rel="noopener">https://www.jianshu.com/p/274380bb0974</a><br><a href="https://xie.infoq.cn/article/8185db2a25a88c9917b706754" target="_blank" rel="noopener">https://xie.infoq.cn/article/8185db2a25a88c9917b706754</a></li>
 </ul>
 
       
@@ -218,11 +219,11 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">spark</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">监控</a>
         		</li>
       		 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">小文件</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">spark</a>
         		</li>
       		
 		</ul>
@@ -243,7 +244,7 @@
 
       
         <p class="article-more-link">
-          <a class="article-more-a" href="/2022/01/16/spark-small-file/">展开全文 >></a>
+          <a class="article-more-a" href="/2022/01/16/spark-metrics/">展开全文 >></a>
         </p>
       
 
@@ -273,7 +274,7 @@
 
 
   
-    <article id="post-poo-intro-zh" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+    <article id="post-sparksql-cluster" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
 
@@ -283,13 +284,13 @@
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2021/12/10/poo-intro-zh/">《PooPoo-便便日记》功能介绍</a>
+      <a class="article-title" href="/2022/01/16/sparksql-cluster/">Spark-sql支持cluster模式</a>
     </h1>
   
 
         
-        <a href="/2021/12/10/poo-intro-zh/" class="archive-article-date">
-  	<time datetime="2021-12-10T02:30:56.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-12-10</time>
+        <a href="/2022/01/16/sparksql-cluster/" class="archive-article-date">
+  	<time datetime="2022-01-16T03:29:16.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-01-16</time>
 </a>
 
 
@@ -300,52 +301,16 @@
       
         <!-- toc -->
 <ul>
-<li><a href="#功能介绍">功能介绍</a><ul>
-<li><a href="#主界面">主界面</a></li>
-<li><a href="#便便中">便便中</a></li>
-<li><a href="#便便完成">便便完成</a></li>
-<li><a href="#便便记录手工录入">便便记录手工录入</a></li>
-<li><a href="#小贴士展示">小贴士展示</a></li>
-<li><a href="#设置页面">设置页面</a></li>
-</ul>
-</li>
+<li><a href="#问题">问题</a></li>
+<li><a href="#解决">解决</a></li>
 </ul>
 <!-- tocstop -->
-<p>这是一款有趣的记录、统计便便情况和专注排便的APP。<br><a href="https://play.google.com/store/apps/details?id=io.github.winway.android.ishit" target="_blank" rel="noopener">https://play.google.com/store/apps/details?id=io.github.winway.android.ishit</a></p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/ic_logo.png" alt=""></p>
-<h2><span id="功能介绍">功能介绍</span></h2><h3><span id="主界面">主界面</span></h3><p>信息展示。</p>
-<ul>
-<li>多类型视图<ul>
-<li>日历。按月展示每天的排便情况。每个点代表一次排便。</li>
-<li>柱状图。可以按照选择的时间跨度（近一周/近一个月/近半年）、粒度（日/周/月）展示统计结果（次数/时长/平均时长）。</li>
-<li>饼图。可以按照选择的时间跨度（近一周/近一个月/近半年）展示统计结果（形状/气味/颜色/感受/耗时）。</li>
-<li>列表。列表形式展示便便记录，包括时间、耗时、便便的状态等详细信息。</li>
-</ul>
-</li>
-<li>状态图标。统计近期排便的耗时和感受，生成一个汇总状态并以图标形式展示。</li>
-<li>分析报告。点击状态图标，弹出分析报告。统计近期的排便情况，生成一份分析报告，内容包含统计信息和建议。</li>
-<li>问候语。随机展示问候信息，类型包括排便状态提醒、节日问候、时间段问候、鸡汤等信息。</li>
-</ul>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/S40419-111853911.jpg" alt=""></p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/S40419-111917691.jpg" alt=""></p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/S40419-111923291.jpg" alt=""></p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/S40419-11193059.jpg" alt=""></p>
-<h3><span id="便便中">便便中</span></h3><p>点击主界面<strong>便便</strong>按钮，进入开始排便界面。该界面包括落水动画、弹幕和计时，以及声音和弹幕的开关。离开该界面，计时不会停止，可通过点击主界面<strong>便便</strong>按钮再次进入。</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/S40419-11195704.jpg" alt=""></p>
-<h3><span id="便便完成">便便完成</span></h3><p>点击<strong>计时器</strong>，打开完成排便界面。该界面可以选择便便的相关状态信息。</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/S40419-11200921.jpg" alt=""></p>
-<h3><span id="便便记录手工录入">便便记录手工录入</span></h3><p>点击主界面<strong>录入</strong>按钮，可以手工输入便便信息。</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/S40419-11202409.jpg" alt=""></p>
-<h3><span id="小贴士展示">小贴士展示</span></h3><p>展示与消化和助便相关的建议小贴士。</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/S40419-11193719.jpg" alt=""></p>
-<h3><span id="设置页面">设置页面</span></h3><p>设置界面。可以设置</p>
-<ol>
-<li>App语言（简体中文/英文）</li>
-<li>小贴士展示时长</li>
-<li>APP音效总开关</li>
-<li>历史记录导出CSV</li>
-</ol>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/S40419-11204393.jpg" alt=""></p>
+<h2><span id="问题">问题</span></h2><p>使用Spark-sql执行sql不支持cluster模式，导致driver只能启动在提交机器，进而占用提交机大量内存。</p>
+<blockquote>
+<p>Exception in thread “main” org.apache.spark.SparkException: Cluster deploy mode is not applicable to Spark SQL shell.</p>
+</blockquote>
+<h2><span id="解决">解决</span></h2><p>开发一个spark程序，功能是读取sql内容，并逐个执行。使用spark-submit提交执行时设置为cluster模式。代码如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> cn.winway.data;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> org.apache.spark.SparkConf;</span><br><span class="line"><span class="keyword">import</span> org.apache.spark.sql.SparkSession;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.util.ArrayList;</span><br><span class="line"><span class="keyword">import</span> java.util.HashMap;</span><br><span class="line"><span class="keyword">import</span> java.util.List;</span><br><span class="line"><span class="keyword">import</span> java.util.Map;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * * <span class="doctag">@Project</span>: spark_sql_executor</span></span><br><span class="line"><span class="comment"> * * <span class="doctag">@ClassName</span>: SparkSqlExecutor</span></span><br><span class="line"><span class="comment"> * * <span class="doctag">@Description</span>: spark-submit执行sql，使用cluster模式</span></span><br><span class="line"><span class="comment"> * * 参考资料</span></span><br><span class="line"><span class="comment"> * * https://blog.csdn.net/qq_16038125/article/details/86682466</span></span><br><span class="line"><span class="comment"> * * https://www.zhihu.com/question/454650801/answer/1836054040</span></span><br><span class="line"><span class="comment"> * * https://blog.csdn.net/zhiwenshow/article/details/107105339</span></span><br><span class="line"><span class="comment"> * * https://blog.csdn.net/qq_42567973/article/details/119568448</span></span><br><span class="line"><span class="comment"> * * <span class="doctag">@Author</span>: winway1988@163.com</span></span><br><span class="line"><span class="comment"> * * <span class="doctag">@Create</span>: 2022-01-11 16:58</span></span><br><span class="line"><span class="comment"> **/</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SparkSqlExecutor</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> HashMap&lt;String, String&gt; argsMap = <span class="keyword">new</span> HashMap&lt;&gt;();</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> String fileContent;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 参数解析</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">parseArgs</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        String argType = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (String arg : args) &#123;</span><br><span class="line">            System.out.println(<span class="string">"====&gt;&gt; arg: "</span> + arg);</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (<span class="string">"--hivevar"</span>.equals(arg) || <span class="string">"--hiveconf"</span>.equals(arg)) &#123;</span><br><span class="line">                argType = <span class="string">"ARG"</span>;</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (<span class="string">"-f"</span>.equals(arg)) &#123;</span><br><span class="line">                argType = <span class="string">"FILE"</span>;</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (<span class="string">"ARG"</span>.equals(argType)) &#123;</span><br><span class="line">                String[] argSplit = arg.split(<span class="string">"="</span>, <span class="number">2</span>);</span><br><span class="line">                argsMap.put(argSplit[<span class="number">0</span>], argSplit[<span class="number">1</span>]);</span><br><span class="line"></span><br><span class="line">                argType = <span class="keyword">null</span>;</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (<span class="string">"FILE"</span>.equals(argType)) &#123;</span><br><span class="line">                fileContent = arg;</span><br><span class="line"></span><br><span class="line">                argType = <span class="keyword">null</span>;</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> Exception(<span class="string">"Error args: "</span> + arg);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 删除注释</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">static</span> String <span class="title">deleteComment</span><span class="params">(String sqlFileContent)</span> </span>&#123;</span><br><span class="line">        StringBuilder sb = <span class="keyword">new</span> StringBuilder();</span><br><span class="line"></span><br><span class="line">        String[] sqlFileContentLine = sqlFileContent.split(<span class="string">"\n"</span>);</span><br><span class="line">        <span class="keyword">for</span> (String line : sqlFileContentLine) &#123;</span><br><span class="line">            sb.append(line.replaceAll(<span class="string">"^[ \t]*--.*$"</span>, <span class="string">""</span>).replaceAll(<span class="string">"--[^'\"]*$"</span>, <span class="string">""</span>));</span><br><span class="line">            sb.append(<span class="string">"\n"</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> sb.toString();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 替换变量</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">static</span> String <span class="title">substituteVar</span><span class="params">(String sqlFileContent)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">for</span> (Map.Entry&lt;String, String&gt; e : argsMap.entrySet()) &#123;</span><br><span class="line">            String varName = e.getKey();</span><br><span class="line">            String varValue = e.getValue();</span><br><span class="line"></span><br><span class="line">            sqlFileContent = sqlFileContent.replace(<span class="string">"$&#123;hivevar:"</span> + varName + <span class="string">"&#125;"</span>, varValue);</span><br><span class="line">            sqlFileContent = sqlFileContent.replace(<span class="string">"$&#123;hiveconf:"</span> + varName + <span class="string">"&#125;"</span>, varValue);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> sqlFileContent;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 根据指定分隔符分割sql，忽略在引号里面的分隔符</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> List&lt;String&gt; <span class="title">splitSql</span><span class="params">(String str, <span class="keyword">char</span> delimiter)</span> </span>&#123;</span><br><span class="line">        List&lt;String&gt; tokensList = <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br><span class="line">        <span class="keyword">boolean</span> inQuotes = <span class="keyword">false</span>;</span><br><span class="line">        <span class="keyword">boolean</span> inSingleQuotes = <span class="keyword">false</span>;</span><br><span class="line"></span><br><span class="line">        StringBuilder b = <span class="keyword">new</span> StringBuilder();</span><br><span class="line">        <span class="keyword">char</span>[] chars = str.toCharArray();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">int</span> idx = <span class="number">0</span>;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">char</span> c : chars) &#123; <span class="comment">// 逐个字符遍历</span></span><br><span class="line">            <span class="keyword">char</span> flag = <span class="number">0</span>;</span><br><span class="line">            <span class="keyword">if</span> (idx &gt; <span class="number">0</span>) &#123;</span><br><span class="line">                flag = chars[idx - <span class="number">1</span>]; <span class="comment">// 前一个字符</span></span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">if</span> (c == delimiter) &#123; <span class="comment">// 遇到分隔符</span></span><br><span class="line">                <span class="keyword">if</span> (inQuotes) &#123;</span><br><span class="line">                    b.append(c);</span><br><span class="line">                &#125; <span class="keyword">else</span> <span class="keyword">if</span> (inSingleQuotes) &#123;</span><br><span class="line">                    b.append(c);</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    tokensList.add(b.toString());</span><br><span class="line">                    b = <span class="keyword">new</span> StringBuilder();</span><br><span class="line">                &#125;</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (c == <span class="string">'\"'</span> &amp;&amp; <span class="string">'\\'</span> != flag &amp;&amp; !inSingleQuotes) &#123; <span class="comment">// 遇到双引号</span></span><br><span class="line">                inQuotes = !inQuotes;</span><br><span class="line">                b.append(c);</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (c == <span class="string">'\''</span> &amp;&amp; <span class="string">'\\'</span> != flag &amp;&amp; !inQuotes) &#123; <span class="comment">// 遇到单引号</span></span><br><span class="line">                inSingleQuotes = !inSingleQuotes;</span><br><span class="line">                b.append(c);</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                b.append(c);</span><br><span class="line">            &#125;</span><br><span class="line">            idx++;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        tokensList.add(b.toString());</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> tokensList;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        SparkConf sparkConf = <span class="keyword">new</span> SparkConf();</span><br><span class="line"></span><br><span class="line">        sparkConf.set(<span class="string">"spark.serializer"</span>, <span class="string">"org.apache.spark.serializer.KryoSerializer"</span>)</span><br><span class="line">                .set(<span class="string">"spark.sql.codegen"</span>, <span class="string">"true"</span>)</span><br><span class="line">                .set(<span class="string">"spark.rdd.compress"</span>, <span class="string">"true"</span>)</span><br><span class="line">                .set(<span class="string">"spark.sql.catalogImplementation"</span>, <span class="string">"hive"</span>)</span><br><span class="line">                .set(<span class="string">"hive.support.concurrency"</span>, <span class="string">"true"</span>);</span><br><span class="line"></span><br><span class="line">        SparkSession ss = SparkSession.builder()</span><br><span class="line">                .config(sparkConf)</span><br><span class="line">                .enableHiveSupport()</span><br><span class="line">                .getOrCreate();</span><br><span class="line"></span><br><span class="line">        parseArgs(args);</span><br><span class="line"></span><br><span class="line">        System.out.println(<span class="string">"====&gt;&gt; argsMap: "</span>);</span><br><span class="line">        System.out.println(argsMap);</span><br><span class="line">        System.out.println(<span class="string">"====&gt;&gt; fileContent: "</span>);</span><br><span class="line">        System.out.println(fileContent);</span><br><span class="line"></span><br><span class="line">        String sqlFileContent = deleteComment(fileContent);</span><br><span class="line"></span><br><span class="line">        System.out.println(<span class="string">"====&gt;&gt; sqlFileContent: "</span>);</span><br><span class="line">        System.out.println(sqlFileContent);</span><br><span class="line"></span><br><span class="line">        sqlFileContent = substituteVar(sqlFileContent);</span><br><span class="line"></span><br><span class="line">        System.out.println(<span class="string">"====&gt;&gt; sqlFileContent: "</span>);</span><br><span class="line">        System.out.println(sqlFileContent);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (String sql : splitSql(sqlFileContent, <span class="string">';'</span>)) &#123;</span><br><span class="line">            System.out.println(<span class="string">"====&gt;&gt; sql: "</span>);</span><br><span class="line">            System.out.println(sql.trim().length());</span><br><span class="line">            System.out.println(sql.trim());</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (sql.trim().length() &gt; <span class="number">0</span>) &#123;</span><br><span class="line">                ss.sql(sql.trim());</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        ss.stop();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>提交命令：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">spark-submit \</span><br><span class="line">    --class cn.winway.data.SparkSqlExecutor \</span><br><span class="line">    --master yarn \</span><br><span class="line">    --deploy-mode cluster \</span><br><span class="line">    --name "SparkSqlExecutor" \</span><br><span class="line">    --driver-cores 1  \</span><br><span class="line">    --driver-memory 1G \</span><br><span class="line">    --executor-cores 2  \</span><br><span class="line">    --executor-memory 2G \</span><br><span class="line">    --conf spark.executor.memoryOverhead=1G \</span><br><span class="line">    --conf spark.dynamicAllocation.enabled=true \</span><br><span class="line">    --conf spark.shuffle.service.enabled=true \</span><br><span class="line">    --conf spark.dynamicAllocation.minExecutors=10 \</span><br><span class="line">    --conf spark.dynamicAllocation.maxExecutors=400 \</span><br><span class="line">    --conf spark.dynamicAllocation.initialExecutors=10 \</span><br><span class="line">    --conf spark.sql.shuffle.partitions=500 \</span><br><span class="line">    --conf spark.sql.files.maxPartitionBytes=268435456 \</span><br><span class="line">    --conf spark.default.parallelism=500 \</span><br><span class="line">    --conf spark.sql.broadcastTimeout=900 \</span><br><span class="line">    --conf spark.ui.showConsoleProgress=true \</span><br><span class="line">    --conf spark.sql.hive.caseSensitiveInferenceMode=NEVER_INFER \</span><br><span class="line">    --conf spark.sql.adaptive.enabled=false \</span><br><span class="line">    --conf spark.debug.maxToStringFields=100 \</span><br><span class="line">    --conf spark.port.maxRetries=300 \</span><br><span class="line">    spark_sql_executor-1.0-SNAPSHOT.jar \</span><br><span class="line">    --hivevar etl_time="2022-01-11 11:11:11" \</span><br><span class="line">    --hivevar etl_date=2022-01-11 \</span><br><span class="line">    --hivevar rpt_date="2022-01-11" \</span><br><span class="line">    --hivevar year=2022 \</span><br><span class="line">    --hivevar month=2022-01 \</span><br><span class="line">    --hivevar hour="2022-01-11 11" \</span><br><span class="line">    -f "$(cat test.hql)"</span><br></pre></td></tr></table></figure></p>
 
       
 
@@ -359,7 +324,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">独立开发</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">spark</a>
         		</li>
       		
 		</ul>
@@ -371,7 +336,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="/categories/Android/" class="article-tag-list-link color3">Android</a>
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
         		</li>
       		
 		</ul>
@@ -380,7 +345,7 @@
 
       
         <p class="article-more-link">
-          <a class="article-more-a" href="/2021/12/10/poo-intro-zh/">展开全文 >></a>
+          <a class="article-more-a" href="/2022/01/16/sparksql-cluster/">展开全文 >></a>
         </p>
       
 
@@ -410,7 +375,7 @@
 
 
   
-    <article id="post-gate-recommend" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+    <article id="post-hs2-gc" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
 
@@ -420,13 +385,13 @@
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2021/11/12/gate-recommend/">🪜🪜🪜🪜推荐</a>
+      <a class="article-title" href="/2022/01/16/hs2-gc/">HiveServer2 gc问题引发的幽灵问题</a>
     </h1>
   
 
         
-        <a href="/2021/11/12/gate-recommend/" class="archive-article-date">
-  	<time datetime="2021-11-12T08:39:51.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-11-12</time>
+        <a href="/2022/01/16/hs2-gc/" class="archive-article-date">
+  	<time datetime="2022-01-16T02:24:09.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-01-16</time>
 </a>
 
 
@@ -436,9 +401,15 @@
     <div class="article-entry" itemprop="articleBody">
       
         <!-- toc -->
+<ul>
+<li><a href="#问题">问题</a></li>
+<li><a href="#排查">排查</a></li>
+</ul>
 <!-- tocstop -->
-<p><strong><em><a href="https://portal.shadowsocks.au/aff.php?aff=71233" target="_blank" rel="noopener">&gt;&gt;&gt; 🪜🪜🪜🪜 &lt;&lt;&lt;</a></em></strong></p>
-<p><img src="https://portal.shadowsocks.nz/assets/img/logo.png" alt=""></p>
+<h2><span id="问题">问题</span></h2><p>数仓批处理任务有很多是使用TEZ引擎执行的，TEZ经常偶发一个报错，但是找不到具体的报错信息，而且重试基本能成功。<br>提交客户端只能看到以下信息。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">07-01-2022 13:31:29 CST - FAILED: Execution Error, return code 1 from org.apache.hadoop.hive.ql.exec.tez.TezTask</span><br><span class="line">07-01-2022 13:31:29 CST - Error: org.apache.hive.service.cli.HiveSQLException: Error while processing statement: FAILED: Execution Error, return code 1 from org.apache.hadoop.hive.ql.exec.tez.TezTask</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.Operation.toSQLException(Operation.java:380)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.SQLOperation.runQuery(SQLOperation.java:257)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.SQLOperation.access$800(SQLOperation.java:91)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.SQLOperation$BackgroundWork$1.run(SQLOperation.java:348)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.security.AccessController.doPrivileged(Native Method)</span><br><span class="line">07-01-2022 13:31:29 CST -   at javax.security.auth.Subject.doAs(Subject.java:422)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hadoop.security.UserGroupInformation.doAs(UserGroupInformation.java:1734)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.SQLOperation$BackgroundWork.run(SQLOperation.java:362)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.util.concurrent.FutureTask.run(FutureTask.java:266)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.lang.Thread.run(Thread.java:748) (state=08S01,code=1)</span><br></pre></td></tr></table></figure></p>
+<p>以下是对应时间点HiveServer2的日志报错信息。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">2022-01-07T13:31:27,255 ERROR [Thread-308969] exec.Task: Failed to execute tez graph.</span><br><span class="line">org.apache.tez.dag.api.SessionNotRunning: TezSession has already shutdown. No cluster diagnostics found.</span><br><span class="line">        at org.apache.tez.client.TezClient.waitTillReady(TezClient.java:1019) ~[tez-api-0.9.2.jar:0.9.2]</span><br><span class="line">        at org.apache.tez.client.TezClient.waitTillReady(TezClient.java:988) ~[tez-api-0.9.2.jar:0.9.2]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezSessionState.startSessionAndContainers(TezSessionState.java:396) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezSessionState.openInternal(TezSessionState.java:323) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezSessionPoolManager$TezSessionPoolSession.openInternal(TezSessionPoolManager.java:703) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezSessionState.open(TezSessionState.java:196) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezTask.updateSession(TezTask.java:303) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezTask.execute(TezTask.java:168) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.Task.executeTask(Task.java:199) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.TaskRunner.runSequential(TaskRunner.java:100) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.TaskRunner.run(TaskRunner.java:79) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">2022-01-07T13:31:29,241 ERROR [HiveServer2-Background-Pool: Thread-397923] ql.Driver: FAILED: Execution Error, return code 1 from org.apache.hadoop.hive.ql.exec.tez.TezTask</span><br><span class="line">2022-01-07T13:31:29,241  INFO [HiveServer2-Background-Pool: Thread-403158] hive.metastore: Closed a connection to metastore, current connections: 15</span><br><span class="line">2022-01-07T13:31:29,242  INFO [HiveServer2-Background-Pool: Thread-397923] hive.metastore: Closed a connection to metastore, current connections: 14</span><br><span class="line">2022-01-07T13:31:29,242  INFO [HiveServer2-Background-Pool: Thread-397923] ql.Driver: Completed executing command(queryId=hadoop_20220107131226_b26d6e21-7b1f-460c-b383-15a8541f57d4); Time taken: 1135.311 seconds</span><br><span class="line">2022-01-07T13:31:29,243  INFO [HiveServer2-Background-Pool: Thread-403158] hive.metastore: Opened a connection to metastore, current connections: 15</span><br><span class="line">2022-01-07T13:31:29,243 ERROR [HiveServer2-Background-Pool: Thread-397923] operation.Operation: Error running hive query: </span><br><span class="line">org.apache.hive.service.cli.HiveSQLException: Error while processing statement: FAILED: Execution Error, return code 1 from org.apache.hadoop.hive.ql.exec.tez.TezTask</span><br><span class="line">        at org.apache.hive.service.cli.operation.Operation.toSQLException(Operation.java:380) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hive.service.cli.operation.SQLOperation.runQuery(SQLOperation.java:257) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hive.service.cli.operation.SQLOperation.access$800(SQLOperation.java:91) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hive.service.cli.operation.SQLOperation$BackgroundWork$1.run(SQLOperation.java:348) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at java.security.AccessController.doPrivileged(Native Method) ~[?:1.8.0_151]</span><br><span class="line">        at javax.security.auth.Subject.doAs(Subject.java:422) ~[?:1.8.0_151]</span><br><span class="line">        at org.apache.hadoop.security.UserGroupInformation.doAs(UserGroupInformation.java:1734) ~[hadoop-common-2.7.2.jar:?]</span><br><span class="line">        at org.apache.hive.service.cli.operation.SQLOperation$BackgroundWork.run(SQLOperation.java:362) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511) ~[?:1.8.0_151]</span><br><span class="line">        at java.util.concurrent.FutureTask.run(FutureTask.java:266) ~[?:1.8.0_151]</span><br><span class="line">        at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149) [?:1.8.0_151]</span><br><span class="line">        at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624) [?:1.8.0_151]</span><br><span class="line">        at java.lang.Thread.run(Thread.java:748) [?:1.8.0_151]</span><br></pre></td></tr></table></figure></p>
+<p>由于报错信息中没有关键信息，甚至找不到application id，很难直接判断出问题根源。<br>但是怀疑，这种没法稳定复现的问题，大概率是触发了某个未知的瓶颈点引起的。</p>
+<h2><span id="排查">排查</span></h2><p>仔细翻看HiveServer2的日志，注意到以下日志信息。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220116111408.png" alt=""><br>而且一般在出现报错的时间点附近，也会出现这种长时间pause的日志，遂怀疑是因为HiveServer2长时间gc导致服务无响应。<br>对HiveServer2 gc参数进行调整，增加了以下参数，果然这个报错的出现频率大大降低。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">-XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:+UseCMSInitiatingOccupancyOnly -XX:CMSInitiatingOccupancyFraction=68 -XX:+CMSClassUnloadingEnabled -XX:+CMSParallelRemarkEnabled -XX:+UseCMSCompactAtFullCollection -XX:CMSFullGCsBeforeCompaction=3</span><br></pre></td></tr></table></figure></p>
 
       
 
@@ -452,7 +423,15 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">proxy</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">hive</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">tez</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">gc</a>
         		</li>
       		
 		</ul>
@@ -464,7 +443,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="/categories/其他/" class="article-tag-list-link color3">其他</a>
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
         		</li>
       		
 		</ul>
@@ -473,7 +452,7 @@
 
       
         <p class="article-more-link">
-          <a class="article-more-a" href="/2021/11/12/gate-recommend/">展开全文 >></a>
+          <a class="article-more-a" href="/2022/01/16/hs2-gc/">展开全文 >></a>
         </p>
       
 
@@ -643,11 +622,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hive</a>
+                <a href="javascript:void(0)" class="js-tag color4">pig</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+                <a href="javascript:void(0)" class="js-tag color5">hive</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -671,11 +650,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
+                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">github</a>
+                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -683,19 +662,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -703,7 +670,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">proxy</a>
+                <a href="javascript:void(0)" class="js-tag color2">github</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -715,19 +690,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">proxy</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">备份</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">独立开发</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">tez</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">gc</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -739,7 +706,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+                <a href="javascript:void(0)" class="js-tag color4">tez</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">gc</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">独立开发</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -751,15 +730,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -771,7 +742,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -779,19 +754,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -800,6 +767,18 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -831,15 +810,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -851,15 +834,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">presto</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -895,11 +874,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
+                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
              
               <li class="article-tag-list-item">

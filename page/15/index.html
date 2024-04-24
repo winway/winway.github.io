@@ -156,7 +156,7 @@
           <div id="js-content" class="content-ll">
             
   
-    <article id="post-poo-intro-en" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+    <article id="post-kafkapb" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
 
@@ -166,13 +166,13 @@
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2021/04/19/poo-intro-en/">Feature Introduction of 《PooPoo-便便日记》</a>
+      <a class="article-title" href="/2021/09/04/kafkapb/">动态解析protobuf格式kafka消息</a>
     </h1>
   
 
         
-        <a href="/2021/04/19/poo-intro-en/" class="archive-article-date">
-  	<time datetime="2021-04-19T02:30:56.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-04-19</time>
+        <a href="/2021/09/04/kafkapb/" class="archive-article-date">
+  	<time datetime="2021-09-04T12:40:59.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-09-04</time>
 </a>
 
 
@@ -183,52 +183,18 @@
       
         <!-- toc -->
 <ul>
-<li><a href="#feature-introduction">Feature Introduction</a><ul>
-<li><a href="#main-page">Main Page</a></li>
-<li><a href="#pooping">Pooping</a></li>
-<li><a href="#poop-completion">Poop completion</a></li>
-<li><a href="#manual-recording">Manual recording</a></li>
-<li><a href="#tips-display">Tips display</a></li>
-<li><a href="#settings">Settings</a></li>
-</ul>
-</li>
+<li><a href="#背景">背景</a></li>
+<li><a href="#代码">代码</a></li>
+<li><a href="#参考资料">参考资料</a></li>
 </ul>
 <!-- tocstop -->
-<p>This is an interesting app for recording, statistics and focusing on pooping.<br><a href="https://play.google.com/store/apps/details?id=io.github.winway.android.ishit" target="_blank" rel="noopener">https://play.google.com/store/apps/details?id=io.github.winway.android.ishit</a></p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/ic_logo.png" alt=""></p>
-<h2><span id="feature-introduction">Feature Introduction</span></h2><h3><span id="main-page">Main Page</span></h3><p>Information display.</p>
-<ul>
-<li>Multiple types of views<ul>
-<li>Calendar. Displays daily poop by month. Each dot represents a poop.</li>
-<li>Bar chart. The statistical results (number of times/duration/average duration) can be displayed according to the selected time span (near week/near month/near half year) and granularity (day/week/month).</li>
-<li>Pie chart. The statistical results (shape/smell/color/feeling/time-consuming) can be displayed according to the selected time span (nearly one week/nearly one month/nearly half a year).</li>
-<li>List. The poop records are displayed in list form, including detailed information such as time, elapsed time, poop status, etc.</li>
+<h2><span id="背景">背景</span></h2><p>为了减少日志量，业务方直接将经过protobuf序列化的数据写入kafka，需要消费kafka并解析其中PB格式的消息。为了避免将业务方的PB对象集成到解析项目中（因为可能会有很多业务的PB对象），需要动态完成解析工作。</p>
+<h2><span id="代码">代码</span></h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> com.google.protobuf.*;</span><br><span class="line"><span class="keyword">import</span> com.google.protobuf.util.JsonFormat;</span><br><span class="line"><span class="keyword">import</span> org.apache.kafka.clients.consumer.ConsumerRecord;</span><br><span class="line"><span class="keyword">import</span> org.apache.kafka.clients.consumer.ConsumerRecords;</span><br><span class="line"><span class="keyword">import</span> org.apache.kafka.clients.consumer.KafkaConsumer;</span><br><span class="line"><span class="keyword">import</span> org.apache.kafka.common.serialization.ByteArrayDeserializer;</span><br><span class="line"><span class="keyword">import</span> org.apache.kafka.common.serialization.StringDeserializer;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.io.FileInputStream;</span><br><span class="line"><span class="keyword">import</span> java.io.IOException;</span><br><span class="line"><span class="keyword">import</span> java.nio.file.Path;</span><br><span class="line"><span class="keyword">import</span> java.nio.file.Paths;</span><br><span class="line"><span class="keyword">import</span> java.time.Duration;</span><br><span class="line"><span class="keyword">import</span> java.util.ArrayList;</span><br><span class="line"><span class="keyword">import</span> java.util.Arrays;</span><br><span class="line"><span class="keyword">import</span> java.util.List;</span><br><span class="line"><span class="keyword">import</span> java.util.Properties;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">TestKafkaPB</span> </span>&#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> DynamicMessage.<span class="function">Builder <span class="title">getBuilder</span><span class="params">(String protoFile, String targetClassName)</span> <span class="keyword">throws</span> InterruptedException, Descriptors.DescriptorValidationException, IOException </span>&#123;</span><br><span class="line">        System.out.println(<span class="string">"------generate descriptor------"</span>);</span><br><span class="line"></span><br><span class="line">        Path path = Paths.get(protoFile);</span><br><span class="line">        String dirName = path.getParent().toString();</span><br><span class="line">        String fileName = path.getFileName().toString();</span><br><span class="line">        String fileNameNoExt = fileName.split(<span class="string">"\\."</span>)[<span class="number">0</span>];</span><br><span class="line">        String descriptorFile = dirName + <span class="string">"/"</span> + fileNameNoExt + <span class="string">".description"</span>;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 生成descriptor文件</span></span><br><span class="line">        String protocCMD = String.format(<span class="string">"protoc --descriptor_set_out=%s %s --include_imports --proto_path %s"</span>, descriptorFile, protoFile, dirName);</span><br><span class="line">        System.out.println(protocCMD);</span><br><span class="line"></span><br><span class="line">        Process process = Runtime.getRuntime().exec(protocCMD);</span><br><span class="line">        process.waitFor();</span><br><span class="line">        <span class="keyword">int</span> exitValue = process.exitValue();</span><br><span class="line">        <span class="keyword">if</span> (exitValue != <span class="number">0</span>) &#123;</span><br><span class="line">            System.out.println(<span class="string">"protoc execute failed"</span>);</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        System.out.println(<span class="string">"------customer msg------"</span>);</span><br><span class="line">        Descriptors.Descriptor pbDescritpor = <span class="keyword">null</span>;</span><br><span class="line">        DescriptorProtos.FileDescriptorSet descriptorSet = DescriptorProtos.FileDescriptorSet.parseFrom(<span class="keyword">new</span> FileInputStream(descriptorFile));</span><br><span class="line"></span><br><span class="line">        List&lt;Descriptors.FileDescriptor&gt; dependencyFileDescriptorList = <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; descriptorSet.getFileCount() - <span class="number">1</span>; i++) &#123;</span><br><span class="line">            dependencyFileDescriptorList.add(Descriptors.FileDescriptor.buildFrom(descriptorSet.getFile(i), dependencyFileDescriptorList.toArray(<span class="keyword">new</span> Descriptors.FileDescriptor[i])));</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (DescriptorProtos.FileDescriptorProto fdp : descriptorSet.getFileList()) &#123;</span><br><span class="line">            Descriptors.FileDescriptor fileDescriptor = Descriptors.FileDescriptor.buildFrom(fdp, dependencyFileDescriptorList.toArray(<span class="keyword">new</span> Descriptors.FileDescriptor[<span class="number">0</span>]));</span><br><span class="line"></span><br><span class="line">            <span class="keyword">for</span> (Descriptors.Descriptor descriptor : fileDescriptor.getMessageTypes()) &#123;</span><br><span class="line">                String className = fdp.getOptions().getJavaPackage() + <span class="string">"."</span></span><br><span class="line">                        + fdp.getOptions().getJavaOuterClassname() + <span class="string">"$"</span></span><br><span class="line">                        + descriptor.getName();</span><br><span class="line">                System.out.println(descriptor.getFullName() + <span class="string">" -&gt; "</span> + className);</span><br><span class="line"></span><br><span class="line">                <span class="keyword">if</span> (descriptor.getName().equals(targetClassName)) &#123;</span><br><span class="line">                    System.out.println(targetClassName + <span class="string">" descriptor found"</span>);</span><br><span class="line">                    pbDescritpor = descriptor;</span><br><span class="line">                    <span class="keyword">break</span>;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (pbDescritpor != <span class="keyword">null</span>) &#123;</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (pbDescritpor == <span class="keyword">null</span>) &#123;</span><br><span class="line">            System.out.println(<span class="string">"No matched descriptor"</span>);</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> DynamicMessage.newBuilder(pbDescritpor);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> InterruptedException, IOException, Descriptors.DescriptorValidationException </span>&#123;</span><br><span class="line"></span><br><span class="line">        Properties kafkaParams = <span class="keyword">new</span> Properties();</span><br><span class="line">        kafkaParams.put(<span class="string">"bootstrap.servers"</span>, <span class="string">"192.168.101.31:9092"</span>);</span><br><span class="line">        kafkaParams.put(<span class="string">"group.id"</span>, <span class="string">"TestKafkaPB"</span>);</span><br><span class="line">        kafkaParams.put(<span class="string">"key.deserializer"</span>, StringDeserializer.class);</span><br><span class="line">        kafkaParams.put(<span class="string">"value.deserializer"</span>, ByteArrayDeserializer.class);</span><br><span class="line"></span><br><span class="line">        KafkaConsumer&lt;String, <span class="keyword">byte</span>[]&gt; consumer = <span class="keyword">new</span> KafkaConsumer&lt;String, <span class="keyword">byte</span>[]&gt;(kafkaParams);</span><br><span class="line">        consumer.subscribe(Arrays.asList(<span class="string">"ads-request-pageview"</span>));</span><br><span class="line"></span><br><span class="line">        DynamicMessage.Builder pbBuilder = getBuilder(<span class="string">"/tmp/my_message.proto"</span>, <span class="string">"MessageInfo"</span>);</span><br><span class="line"></span><br><span class="line">        ConsumerRecords&lt;String, <span class="keyword">byte</span>[]&gt; records = consumer.poll(Duration.ofMillis(<span class="number">1024</span>));</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (ConsumerRecord&lt;String, <span class="keyword">byte</span>[]&gt; record : records) &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                Message pbMessage = pbBuilder.mergeFrom(record.value()).build();</span><br><span class="line">                System.out.println(pbMessage);</span><br><span class="line"></span><br><span class="line">                String j = JsonFormat.printer().print(pbMessage);</span><br><span class="line">                System.out.println(j);</span><br><span class="line">            &#125; <span class="keyword">catch</span> (InvalidProtocolBufferException e) &#123;</span><br><span class="line">                e.printStackTrace();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://blog.csdn.net/lan_liang/article/details/6632127" target="_blank" rel="noopener">https://blog.csdn.net/lan_liang/article/details/6632127</a></li>
+<li><a href="https://www.codeleading.com/article/97581603821/" target="_blank" rel="noopener">https://www.codeleading.com/article/97581603821/</a></li>
+<li><a href="https://stackoverflow.com/questions/53413674/importing-descriptor-with-included-import" target="_blank" rel="noopener">https://stackoverflow.com/questions/53413674/importing-descriptor-with-included-import</a></li>
 </ul>
-</li>
-<li>Status icon. Statistics of recent poop time and feelings to generate a summary status and display it in the form of icons.</li>
-<li>Analysis report. Click the status icon to pop up the analysis report. Statistics of recent poop to generate an analysis report containing statistical information and suggestions.</li>
-<li>Greetings. Greeting messages are randomly displayed, including pooping status reminders, holiday greetings, time period greetings and other messages.</li>
-</ul>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/S40419-112255692.jpg" alt=""></p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/S40419-112301152.jpg" alt=""></p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/S40419-112306622.jpg" alt=""></p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/S40419-11231369.jpg" alt=""></p>
-<h3><span id="pooping">Pooping</span></h3><p>Click the <strong>Poop</strong> button on the main page to enter the start pooping page. The page includes falling water animation, barrage and timing, as well as sound and barrage switches. Leaving this page will not stop the timing. You can re-enter by clicking the <strong>Poop</strong> button.</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/S40419-11232542.jpg" alt=""></p>
-<h3><span id="poop-completion">Poop completion</span></h3><p>Click <strong>Timer</strong> to finish pooping and open the poop completion page. This page allows you to select poop-related status information.</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/S40419-11233242.jpg" alt=""></p>
-<h3><span id="manual-recording">Manual recording</span></h3><p>Click the <strong>Record</strong> button on the main page to manually record poop information.</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/S40419-11234386.jpg" alt=""></p>
-<h3><span id="tips-display">Tips display</span></h3><p>Displays suggested tips related to digestion and bowel movements.</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/S40419-11240204.jpg" alt=""></p>
-<h3><span id="settings">Settings</span></h3><p>Settings page. You can set</p>
-<ol>
-<li>App language (Simplified Chinese/English)</li>
-<li>Tips display duration</li>
-<li>APP sound switch</li>
-<li>Export history records to CSV</li>
-</ol>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/S40419-11240780.jpg" alt=""></p>
 
       
 
@@ -242,7 +208,11 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">独立开发</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">kafka</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">protobuf</a>
         		</li>
       		
 		</ul>
@@ -254,7 +224,7 @@
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="/categories/Android/" class="article-tag-list-link color3">Android</a>
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
         		</li>
       		
 		</ul>
@@ -263,7 +233,135 @@
 
       
         <p class="article-more-link">
-          <a class="article-more-a" href="/2021/04/19/poo-intro-en/">展开全文 >></a>
+          <a class="article-more-a" href="/2021/09/04/kafkapb/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-yarnapphang" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2021/05/15/yarnapphang/">YARN集群任务一直处于Accepted状态无法Running</a>
+    </h1>
+  
+
+        
+        <a href="/2021/05/15/yarnapphang/" class="archive-article-date">
+  	<time datetime="2021-05-15T07:13:02.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-05-15</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#yarn集群任务一直处于accepted状态无法runningtezyarnatseventflushtimeoutmillis引发的血案">YARN集群任务一直处于Accepted状态无法Running（tez.yarn.ats.event.flush.timeout.millis引发的血案）</a><ul>
+<li><a href="#问题">问题</a></li>
+<li><a href="#分析">分析</a></li>
+<li><a href="#解决">解决</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h1><span id="yarn集群任务一直处于accepted状态无法runningtezyarnatseventflushtimeoutmillis引发的血案">YARN集群任务一直处于Accepted状态无法Running（tez.yarn.ats.event.flush.timeout.millis引发的血案）</span></h1><h2><span id="问题">问题</span></h2><p>YARN集群有大量空闲资源，但是新提交的任务一直处于Accepted状态，始终无法Running。</p>
+<h2><span id="分析">分析</span></h2><p>查看Active RM的日志，如下图。怀疑AM的内存使用达到了限制。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/exceed_amlimit.png" alt=""></p>
+<p>继续查看YARN UI的信息。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/exceed_amlimit2.png" alt=""></p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/exceed_amlimit3.png" alt=""></p>
+<p><strong>原因基本确定，AM的内存使用超限了。</strong></p>
+<p><em>那么问题来了，为什么AM的内存使用会超限，甚至有一个用户申请的AM占用了大约2T的内存。</em><br>查看任务列表，发现大量如下状态的任务。任务已经结束，但是依然占用着AM的container不释放。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210515152956.png" alt=""></p>
+<h2><span id="解决">解决</span></h2><p><strong>所以，问题其实是“为什么TEZ任务结束了但是没有及时释放AM资源”</strong><br>通过查资料，发现跟tez使用YARN的timeline server有关。<br>YARN Timeline Server是一款更加通用的Job History Server。<br>Tez 使用 YARN Timeline 作为其应用历史存储。Tez 的大部分生命周期信息存储到这个历史存储，如</p>
+<ul>
+<li>DAG信息</li>
+<li>DAG提交计划，开始和结束时间</li>
+<li>DAG计数器</li>
+<li>DAG的最终状态和附加的诊断</li>
+<li>Vertex，任务和任务尝试信息-开始和结束时间计数器诊断</li>
+</ul>
+<p>使用上述信息，用户可以在 Tez DAG 运行时和完成后对其进行分析。</p>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210515155732.png" alt=""></p>
+<p>不释放AM的任务，不知什么原因，卡在了上报metrics/events到YARN的timeline server阶段，导致一直处于Running状态而不结束。</p>
+<p>下述参数可以解决tez任务AM不释放问题。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">Property Name: tez.yarn.ats.event.flush.timeout.millis</span><br><span class="line">Default Value: -1，建议值60000</span><br><span class="line">Description: Int value. Time, in milliseconds, to wait while flushing YARN ATS data during shutdown. Expert level setting.</span><br></pre></td></tr></table></figure></p>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://blog.csdn.net/fengwuwer/article/details/52956660" target="_blank" rel="noopener">https://blog.csdn.net/fengwuwer/article/details/52956660</a></li>
+<li><a href="https://blog.csdn.net/zpf_940810653842/article/details/106116874" target="_blank" rel="noopener">https://blog.csdn.net/zpf_940810653842/article/details/106116874</a></li>
+<li><a href="https://hadoop.apache.org/docs/current/hadoop-yarn/hadoop-yarn-site/TimelineServiceV2.html#Architecture" target="_blank" rel="noopener">https://hadoop.apache.org/docs/current/hadoop-yarn/hadoop-yarn-site/TimelineServiceV2.html#Architecture</a></li>
+<li><a href="https://tez.apache.org/releases/0.8.2/tez-api-javadocs/configs/TezConfiguration.html" target="_blank" rel="noopener">https://tez.apache.org/releases/0.8.2/tez-api-javadocs/configs/TezConfiguration.html</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">yarn</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">tez</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2021/05/15/yarnapphang/">展开全文 >></a>
         </p>
       
 
@@ -385,136 +483,6 @@
       
         <p class="article-more-link">
           <a class="article-more-a" href="/2021/03/30/orc-snappy-splittable/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-ishit-privacy-policy" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2021/01/27/ishit-privacy-policy/">《PooPoo-便便日记》App Privacy Policy</a>
-    </h1>
-  
-
-        
-        <a href="/2021/01/27/ishit-privacy-policy/" class="archive-article-date">
-  	<time datetime="2021-01-27T08:36:52.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-01-27</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<!-- tocstop -->
-<p><strong>Privacy Policy</strong></p>
-<p>winway built the PooPoo-便便日记 app as a Free app. This SERVICE is provided by winway at no cost and is intended for use as is.</p>
-<p>This page is used to inform visitors regarding my policies with the collection, use, and disclosure of Personal Information if anyone decided to use my Service.</p>
-<p>If you choose to use my Service, then you agree to the collection and use of information in relation to this policy. The Personal Information that I collect is used for providing and improving the Service. I will not use or share your information with anyone except as described in this Privacy Policy.</p>
-<p>The terms used in this Privacy Policy have the same meanings as in our Terms and Conditions, which are accessible at PooPoo-便便日记 unless otherwise defined in this Privacy Policy.</p>
-<p><strong>Information Collection and Use</strong></p>
-<p>For a better experience, while using our Service, I may require you to provide us with certain personally identifiable information. The information that I request will be retained on your device and is not collected by me in any way.</p>
-<p>The app does use third-party services that may collect information used to identify you.</p>
-<p>Link to the privacy policy of third-party service providers used by the app</p>
-<ul>
-<li><a href="https://www.google.com/policies/privacy/" target="_blank" rel="noopener">Google Play Services</a></li>
-<li><a href="https://support.google.com/admob/answer/6128543?hl=en" target="_blank" rel="noopener">AdMob</a></li>
-</ul>
-<p><strong>Log Data</strong></p>
-<p>I want to inform you that whenever you use my Service, in a case of an error in the app I collect data and information (through third-party products) on your phone called Log Data. This Log Data may include information such as your device Internet Protocol (“IP”) address, device name, operating system version, the configuration of the app when utilizing my Service, the time and date of your use of the Service, and other statistics.</p>
-<p><strong>Cookies</strong></p>
-<p>Cookies are files with a small amount of data that are commonly used as anonymous unique identifiers. These are sent to your browser from the websites that you visit and are stored on your device’s internal memory.</p>
-<p>This Service does not use these “cookies” explicitly. However, the app may use third-party code and libraries that use “cookies” to collect information and improve their services. You have the option to either accept or refuse these cookies and know when a cookie is being sent to your device. If you choose to refuse our cookies, you may not be able to use some portions of this Service.</p>
-<p><strong>Service Providers</strong></p>
-<p>I may employ third-party companies and individuals due to the following reasons:</p>
-<ul>
-<li>To facilitate our Service;</li>
-<li>To provide the Service on our behalf;</li>
-<li>To perform Service-related services; or</li>
-<li>To assist us in analyzing how our Service is used.</li>
-</ul>
-<p>I want to inform users of this Service that these third parties have access to their Personal Information. The reason is to perform the tasks assigned to them on our behalf. However, they are obligated not to disclose or use the information for any other purpose.</p>
-<p><strong>Security</strong></p>
-<p>I value your trust in providing us your Personal Information, thus we are striving to use commercially acceptable means of protecting it. But remember that no method of transmission over the internet, or method of electronic storage is 100% secure and reliable, and I cannot guarantee its absolute security.</p>
-<p><strong>Links to Other Sites</strong></p>
-<p>This Service may contain links to other sites. If you click on a third-party link, you will be directed to that site. Note that these external sites are not operated by me. Therefore, I strongly advise you to review the Privacy Policy of these websites. I have no control over and assume no responsibility for the content, privacy policies, or practices of any third-party sites or services.</p>
-<p><strong>Children’s Privacy</strong></p>
-<p>These Services do not address anyone under the age of 13. I do not knowingly collect personally identifiable information from children under 13 years of age. In the case I discover that a child under 13 has provided me with personal information, I immediately delete this from our servers. If you are a parent or guardian and you are aware that your child has provided us with personal information, please contact me so that I will be able to do the necessary actions.</p>
-<p><strong>Changes to This Privacy Policy</strong></p>
-<p>I may update our Privacy Policy from time to time. Thus, you are advised to review this page periodically for any changes. I will notify you of any changes by posting the new Privacy Policy on this page.</p>
-<p>This policy is effective as of 2024-01-27</p>
-<p><strong>Contact Us</strong></p>
-<p>If you have any questions or suggestions about my Privacy Policy, do not hesitate to contact me at <a href="mailto:winway1988@163.com" target="_blank" rel="noopener">winway1988@163.com</a>.</p>
-<p>This privacy policy page was created at <a href="https://privacypolicytemplate.net" target="_blank" rel="noopener">privacypolicytemplate.net</a> and modified/generated by <a href="https://app-privacy-policy-generator.nisrulz.com/" target="_blank" rel="noopener">App Privacy Policy Generator</a></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">独立开发</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Android/" class="article-tag-list-link color3">Android</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2021/01/27/ishit-privacy-policy/">展开全文 >></a>
         </p>
       
 
@@ -684,11 +652,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hive</a>
+                <a href="javascript:void(0)" class="js-tag color4">pig</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+                <a href="javascript:void(0)" class="js-tag color5">hive</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -712,11 +680,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
+                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">github</a>
+                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -724,19 +692,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -744,7 +700,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">proxy</a>
+                <a href="javascript:void(0)" class="js-tag color2">github</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -756,19 +720,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">proxy</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">备份</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">独立开发</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">tez</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">gc</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -780,7 +736,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+                <a href="javascript:void(0)" class="js-tag color4">tez</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">gc</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">独立开发</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -792,15 +760,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -812,7 +772,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -820,19 +784,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -841,6 +797,18 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -872,15 +840,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -892,15 +864,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">presto</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -936,11 +904,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
+                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
              
               <li class="article-tag-list-item">

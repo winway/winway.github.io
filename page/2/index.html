@@ -156,7 +156,7 @@
           <div id="js-content" class="content-ll">
             
   
-    <article id="post-bigdata-stack-realdw" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+    <article id="post-bigdata-stack-datalake" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
 
@@ -166,13 +166,13 @@
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/24/bigdata-stack-realdw/">大数据开发之路-实时数仓</a>
+      <a class="article-title" href="/2022/05/25/bigdata-stack-datalake/">大数据开发之路-数据湖</a>
     </h1>
   
 
         
-        <a href="/2022/05/24/bigdata-stack-realdw/" class="archive-article-date">
-  	<time datetime="2022-05-24T00:23:07.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-24</time>
+        <a href="/2022/05/25/bigdata-stack-datalake/" class="archive-article-date">
+  	<time datetime="2022-05-25T07:33:47.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-25</time>
 </a>
 
 
@@ -183,29 +183,207 @@
       
         <!-- toc -->
 <ul>
-<li><a href="#实时数仓-实时性需求催生的数仓架构">实时数仓-实时性需求催生的数仓架构</a></li>
-<li><a href="#定位">定位</a></li>
-<li><a href="#建设思路">建设思路</a></li>
-<li><a href="#经典架构">经典架构</a><ul>
-<li><a href="#lambda">lambda</a></li>
-<li><a href="#kappa">kappa</a></li>
-<li><a href="#lambda-or-kappa">lambda or kappa</a></li>
+<li><a href="#数据湖-数据宇宙的未来架构科普篇">数据湖-数据宇宙的未来架构（科普篇）</a></li>
+<li><a href="#数据湖的本质">数据湖的本质</a></li>
+<li><a href="#数据湖和数据仓库区别在哪儿">数据湖和数据仓库区别在哪儿？</a></li>
+<li><a href="#为什么要把湖和仓糅到一起">为什么要把“湖”和“仓”糅到一起？</a></li>
+<li><a href="#到底什么才是真正的lake-house">到底什么才是真正的Lake House？</a></li>
+<li><a href="#湖仓一体只是开局智能湖仓才是终极">“湖仓一体”只是开局，智能湖仓才是终极</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<blockquote>
+<p>导引</p>
+<ol>
+<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
+<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
+<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
+<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
+<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
+<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
+<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
+<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
+<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
+<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
+<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
+<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
+</ol>
+</blockquote>
+<h2><span id="数据湖-数据宇宙的未来架构科普篇">数据湖-数据宇宙的未来架构（科普篇）</span></h2><p>数据库负责干事务处理相关的事，数据仓库负责干业务分析相关的事，还有新兴的HTAP数据库既干事务又干分析，都已经这么内卷了，还要数据湖来干个毛线？<br>说白了，还是企业在持续发展，企业的数据也不断堆积，虽然“含金量”最高的数据都存在数据库和数仓里，支撑着企业的运转。但是，企业希望把生产经营中的所有相关数据，历史的、实时的，在线的、离线的，内部的、外部的，结构化的、非结构化的，都能完整保存下来，方便“沙中淘金”。<br>数据库和数据仓库都干不了这活儿，怎么办呢？<br>挖个大坑，修个湖，把各种数据一滚脑灌进去囤起来，而且要持续灌，持续囤。这就是数据湖啦！<br><img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-73.png" alt=""></p>
+<h2><span id="数据湖的本质">数据湖的本质</span></h2><p>数据湖的本质，是由“数据存储架构+数据处理工具”组成的解决方案，而不是某个单一独立产品。</p>
+<ul>
+<li>数据存储架构，要有足够的扩展性和可靠性，要满足企业能把所有原始数据都“囤”起来，存得下、存得久。<br> 一般来讲，各大云厂商都喜欢用对象存储来做数据湖的存储底座，比如 Amazon Web Services（亚马逊云科技），修建“湖底”用的“砖头”，就是S3云对象存储。</li>
+<li>数据处理工具，则分为两大类<ul>
+<li>第一类工具，解决的问题是如何把数据“搬到”湖里，包括定义数据源、制定数据访问策略和安全策略，并移动数据、编制数据目录等等。<br>  如果没有这些数据管理/治理工具，元数据缺失，湖里的数据质量就没法保障，“泥石俱下”，各种数据倾泻堆积到湖里，最终好好的数据湖，慢慢就变成了数据沼泽。<br>  因此，在一个数据湖方案里，数据移动和管理的工具非常重要。比如，Amazon Web Services提供“Lake Formation”这个工具，帮助客户自动化地把各种数据源中的数据移动到湖里，同时还可以调用Amazon Glue来对数据进行ETL，编制数据目录，进一步提高湖里数据的质量。<br>  <img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-77.png" alt=""></li>
+<li>第二类工具，就是要从湖里的海量数据中“淘金”。<br>  数据并不是存进数据湖里就万事大吉，要对数据进行分析、挖掘、利用，比如要对湖里的数据进行查询，同时要把数据提供给机器学习、数据科学类的业务，便于“点石成金”。<br>  我们继续拿Amazon Web Services来举例子，基于Amazon Athena这个服务，就可以使用标准的SQL来对S3（数据湖）中的数据进行交互式查询。再比如使用Amazon SageMaker机器学习服务，导入数据湖中的数据进行模型训练，这些都是常规操作。<br>  <img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-79.png" alt=""></li>
 </ul>
 </li>
-<li><a href="#业界常见落地方案">业界常见落地方案</a><ul>
-<li><a href="#方案-1kappa-架构">方案 1：Kappa 架构</a></li>
-<li><a href="#方案-2基于标准分层-流计算">方案 ２：基于标准分层 + 流计算</a></li>
-<li><a href="#方案-3标准分层体现-流计算-批量计算">方案 3：标准分层体现 + 流计算 + 批量计算</a></li>
-<li><a href="#方案-4标准分层体系-流计算-数据湖">方案 4：标准分层体系 + 流计算 + 数据湖</a></li>
-<li><a href="#方案-5基于全场景mpp数据库实现">方案 5：基于全场景MPP数据库实现</a></li>
-<li><a href="#具体选型建议">具体选型建议</a></li>
+</ul>
+<p>小结一下，数据湖不只是个“囤积”数据的“大水坑”，除了用存储技术构建的湖底座以外，还包含一系列的数据入湖、数据出湖、数据管理、数据应用工具集，共同组成了数据湖解决方案。</p>
+<h2><span id="数据湖和数据仓库区别在哪儿">数据湖和数据仓库区别在哪儿？</span></h2><ul>
+<li>从数据含金量来比，数据仓库里的数据价值密度更高一些，数据的抽取和Schema的设计，都有非常强的针对性，便于业务分析师迅速获取洞察结果，用与决策支持。而数据湖更有一种“兜底”的感觉，甭管当下有用没有/或者暂时没想好怎么用，先保存着、沉淀着，将来想用的时候，尽管翻牌子就是了，反正都原汁原味的留存了下来。<br><img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-83.png" alt=""></li>
+<li>而从产品形态看，数据仓库可以是独立的标准化产品，拿云上数仓来举例，Amazon Redshift，就是一款“数仓产品”。数据湖则是一种架构，通常是围绕对象存储为“湖底座”的大数据管理方案组合。比如，Amazon Web Services并没有哪个产品叫“数据湖”，而是以S3为基础，结合一系列数据管理工具，帮助客户构建云上“数据湖”<br><img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-84.png" alt=""></li>
+</ul>
+<p><img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-82.png" alt=""></p>
+<h2><span id="为什么要把湖和仓糅到一起">为什么要把“湖”和“仓”糅到一起？</span></h2><p>曾经，数据仓库擅长的BI、数据洞察离业务更近、价值更大，而数据湖里的数据，更多的是为了远景画饼。随着大数据和AI的上纲上线，原先的“画的饼”也变得炙手可热起来，为业务赋能，价值被重新定义。<br>而因为数仓和数据库的出发点不同、架构不同，企业在实际使用过程中，“性价比”差异很大。<br>数据湖起步成本很低，但随着数据体量增大，TCO成本会加速飙升，数仓则恰恰相反，前期建设开支很大。<br>总之，一个后期成本高，一个前期成本高，对于既想修湖、又想建仓的用户来说，仿佛玩了一个金钱游戏。<br><img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-86.png" alt=""><br>于是，人们就想，既然都是拿数据为业务服务，数据湖和数仓作为两大“数据集散地”，能不能彼此整合一下，让数据流动起来，少点重复建设呢？<br>比如，让“数仓”在进行数据分析的时候，可以直接访问数据湖里的数据（Amazon Redshift Spectrum是这么干的）。再比如，让数据湖在架构设计上，就“原生”支持数仓能力（DeltaLake是这么干）。<br>正是这些想法和需求，推动了数仓和数据湖的打通和融合，也就是当下炙手可热的概念：Lake House。</p>
+<h2><span id="到底什么才是真正的lake-house">到底什么才是真正的Lake House？</span></h2><p>Lake House，坊间通常称之为“湖仓一体”，而Amazon Web Services则叫做“智能湖仓”。<br>Lake House架构最重要的一点，是实现“湖里”和“仓里”的数据/元数据能够无缝打通，并且“自由”流动。<br>湖里的“新鲜”数据可以流到仓里，甚至可以直接被数仓使用，而仓里的“不新鲜”数据，也可以流到湖里，低成本长久保存，供未来的数据挖掘使用。<br>为了实现这个目标，Amazon Web Services推出了Redshift Spectrum，打通了数仓对数据湖的直接访问，能够高效查询S3数据湖当中的EB级数据。<br><img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-89.png" alt=""><br>“Spectrum”是智能湖仓的核心组件，被称为“Lake House引擎”，它可以在湖与仓之间架起数据流动的管道</p>
+<ul>
+<li>可以将数据湖中最近几个月的“热数据”摄取到数仓中；</li>
+<li>反过来，也可以轻松将大量冷门历史数据从数仓转移至成本更低廉的数据湖内，同时这些移到湖里的数据，仍然可以被Redshift数仓查询使用;</li>
+<li>处理数仓内的热数据与数据湖中的历史数据，生成丰富的数据集，全程无需执行任何数据移动操作；</li>
+<li>生成的新数据集可以插入到数仓中的表内，或者直接插入由数据湖托管的外部表中。</li>
+</ul>
+<p>做到这一步，基本上算是 get 到了Lake House的精髓，“湖仓一体”初见端倪。</p>
+<p>但是，在实际业务场景下，数据的移动和访问，不仅限于数仓和数据湖之间，搜索引擎服务、机器学习服务、大数据分析服务……，都涉及到数据在本地（本系统）和数据湖之间的移动，以及数据在不同服务之间的移动。<br><img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-92.png" alt=""><br>数据积累得越多，移动起来就越困难，这就是所谓的“数据重力”。<br>所以，Lake House不仅要把湖、仓打通，还要克服“数据重力”，让数据在这些服务之间按需来回移动：入湖、出湖、环湖……<br>把数据湖和数据仓库集成起来只是第一步，还要把湖、仓以及所有其他数据处理服务组成统一且连续的整体，这就是Amazon Web Services为何把自家的Lake House架构称为“智能湖仓”，而非“湖仓一体”。</p>
+<h2><span id="湖仓一体只是开局智能湖仓才是终极">“湖仓一体”只是开局，智能湖仓才是终极</span></h2><p>智能湖仓并非单一产品，它描述的是一种架构。<br>这套架构，以数据湖为中心，把数据湖作为中央存储库，再围绕数据湖建立专用“数据服务环”，环上的服务包括了数仓、机器学习、大数据处理、日志分析，甚至RDS和NOSQL服务等等。<br><img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-93.png" alt=""><br>大家“环湖而饲”，既可以直接操纵湖内数据，也可以从湖中摄取数据，还可以向湖中回注数据，同时环湖的服务彼此之间也可以轻松交换数据。<br>任何热门的数据处理服务，都在湖边建好了，任何对口的数据都能召之即来、挥之则去。依靠这种无缝集成和数据移动机制，用户就能从容地用对的工具从对的数据中，挖出干货！<br><img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-94.png" alt=""><br>上面这张图看着就更加明白一些，中间是湖，周边集成了全套的云上数据服务，然后还有Lake Formation、Glue、Athena以及前面重点提到的Redshift Spectrum这些工具，来实现数据湖的构建、数据的管理、安全策略以及数据的移动。</p>
+<p>如果我们再从数据获取到数据应用的完整流程来看，这些产品又是如何各司其职的呢？Amazon Web Services官方给出了智能湖仓的参考架构<br><img src="https://www.smartcity.team/wp-content/uploads/2021/08/640-95.png" alt=""><br>这个六层架构，从数据源定义、数据摄取和入湖入仓，到湖仓打通与集成，再到数据出湖、数据处理和数据消费，一气呵成，各种云上数据服务无缝集成在一起。数据从各种源头“流入”到智能湖仓存储中，又按需流出，被处理、被消费。<br>在“智能湖仓”架构下，企业可以轻松汇集和保存海量业务数据，并随心所欲地调用各种数据服务，用于BI、可视化分析、搜索、建模、特征提取、流处理等等，未来新的数据源、新的分析方法，也可以快速应对。</p>
+<p>同时，数据湖的存储底座S3成本低廉并有近乎无限的扩展性，“湖边”大量的数据分析和处理的服务又是无长期成本的Serverless架构，企业“入坑”智能湖仓之后，完全没有后顾之忧。<br>不得不说，Amazon Web Services先知先觉，他们在“挖”数据湖的时候，就准备好了智能湖仓的图纸，用户的数据湖建成，智能湖仓竟然不知不觉也水到渠成了，没有翻云覆雨，不需要推倒重建。</p>
+<p>我们甚至可以认为，“智能湖仓”架构是比所谓“数据中台”更能落地和务实的“中台”，如果数据中台是个饼，那智能湖仓就是把饼“烹熟烤香”的锅~<br>一入“湖仓”美如画，安心“淘金”不拉胯！</p>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://www.smartcity.team/consultingskills/experience/shujukuyushujuhu/" target="_blank" rel="noopener">一文看懂：什么是数据库、数据湖、数据仓库、湖仓一体、智能湖仓？</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">数据湖</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2022/05/25/bigdata-stack-datalake/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-bigdata-stack-olap" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/05/25/bigdata-stack-olap/">大数据开发之路-olap</a>
+    </h1>
+  
+
+        
+        <a href="/2022/05/25/bigdata-stack-olap/" class="archive-article-date">
+  	<time datetime="2022-05-25T00:49:34.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-25</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#olap-基于数仓的多维实时分析系统">olap-基于数仓的多维实时分析系统</a><ul>
+<li><a href="#mpp-与-hadoop是什么关系">MPP 与 Hadoop是什么关系？</a></li>
+<li><a href="#oltp与olap的区别">OLTP与OLAP的区别</a></li>
+<li><a href="#概念介绍olap和rolapmolapholap">概念介绍：OLAP和ROLAP,MOLAP,HOLAP</a></li>
+<li><a href="#浅谈rolap-molap和holap区别">浅谈ROLAP、MOLAP和HOLAP区别</a></li>
+<li><a href="#olap计算引擎怎么选">OLAP计算引擎怎么选？</a></li>
+<li><a href="#主流olap系统对比总结">主流OLAP系统对比总结</a></li>
+<li><a href="#常见开源olap技术架构对比">常见开源OLAP技术架构对比</a></li>
+<li><a href="#olap-技术选型-apache-kylin-apache-doris-clickhouse对比">OLAP 技术选型 Apache Kylin、Apache Doris、Clickhouse对比</a></li>
+<li><a href="#数仓olap技术">数仓OLAP技术</a></li>
 </ul>
 </li>
-<li><a href="#分层">分层</a><ul>
-<li><a href="#ods层">ODS层</a></li>
-<li><a href="#dwd层">DWD层</a></li>
-<li><a href="#dws层">DWS层</a></li>
-<li><a href="#总结">总结</a></li>
+<li><a href="#clickhouse">ClickHouse</a><ul>
+<li><a href="#极客星球clickhouse在数据智能公司的应用与实践">极客星球｜Clickhouse在数据智能公司的应用与实践</a></li>
+<li><a href="#clickhouse-在有赞的实践之路">ClickHouse 在有赞的实践之路</a></li>
+<li><a href="#百分点大数据技术团队clickhouse国家级项目最佳实践">百分点大数据技术团队：ClickHouse国家级项目最佳实践</a></li>
+<li><a href="#百分点大数据技术团队clickhouse-国家级项目性能优化实践">百分点大数据技术团队：ClickHouse 国家级项目性能优化实践</a></li>
+<li><a href="#clickhouse深度揭秘">ClickHouse深度揭秘</a></li>
+<li><a href="#clickhouse表引擎到底怎么选">ClickHouse表引擎到底怎么选</a></li>
+<li><a href="#clickhouse集群搭建一">ClickHouse集群搭建（一）</a></li>
+<li><a href="#clickhouse分布式集群搭建指南">ClickHouse分布式集群搭建指南</a></li>
+<li><a href="#clickhouse复制表-分布式表机制与使用方法">ClickHouse复制表、分布式表机制与使用方法</a></li>
+<li><a href="#distributed-vs-shard-vs-replicated">Distributed vs Shard vs Replicated</a></li>
+<li><a href="#深入理解clickhouse-本地表和分布式表">深入理解ClickHouse-本地表和分布式表</a></li>
+<li><a href="#clickhouse优化最佳实践易企秀">clickhouse优化最佳实践(易企秀)</a></li>
+<li><a href="#物化视图简介与clickhouse中的应用示例">物化视图简介与ClickHouse中的应用示例</a></li>
+</ul>
+</li>
+<li><a href="#doris">Doris</a><ul>
+<li><a href="#另辟蹊径建数仓美团外卖为什么选用doris精品干货">另辟蹊径建数仓，美团外卖为什么选用Doris（精品干货）</a></li>
+<li><a href="#doris在美团点评的应用">Doris在美团点评的应用</a></li>
+<li><a href="#apache-doris在京东广告的应用实践">Apache Doris在京东广告的应用实践</a></li>
+<li><a href="#doris在作业帮实时数仓中的应用实践">Doris在作业帮实时数仓中的应用实践</a></li>
+<li><a href="#apache-doris-incubating-原理与实践">Apache Doris (Incubating) 原理与实践</a></li>
+<li><a href="#实时olap都选clickhouse我们用doris明明也很香">实时OLAP都选Clickhouse？我们用Doris明明也很香</a></li>
 </ul>
 </li>
 <li><a href="#参考资料">参考资料</a></li>
@@ -244,65 +422,620 @@
 <li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
 </ol>
 </blockquote>
-<h2><span id="实时数仓-实时性需求催生的数仓架构">实时数仓-实时性需求催生的数仓架构</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/1460000023879891" alt=""></p>
-<h2><span id="定位">定位</span></h2><p>其实在很多情况下，我们对于实时数仓的定位可能是没有那么准确的。我们都知道，传统数仓一个非常重要的功能是用于记录历史，而实时数仓恰恰相反，它更重视处理当前的状态。<br>因此，我们创建实时数仓的目的就在于解决传统数据仓库由于时效性低而解决不了的问题。传统数仓可以解决的问题，我们不解决；如果问题本身就不适合用数仓解决的话，我们也不去解决。这是我们建设实时数仓的一些基本原则。<br>那么哪些场景是我们要解决的呢？</p>
-<ul>
-<li>实时OLAP分析</li>
-<li>实时数据看板</li>
-<li>实时特性，用户画像的建立</li>
-<li>实时业务监控，比如说核心业务指标的监控预警等等。</li>
-</ul>
-<p>实时数仓作为数仓的一种，他也包含面向主题、有集成性、相对稳定等的数据仓库本身的特性。不过与传统数仓不同的是，它只保留上一次批处理到当前的数据（一般只保留3天）。这样的话，我们就有两天完整的数据，在批处理还没来得及处理完昨天的数据的间隙中，数仓仍然可以提供较好的服务。</p>
-<h2><span id="建设思路">建设思路</span></h2><ul>
-<li>计算框架选型：storm/flink等实时计算框架，强烈推荐flink，其『批流合一』的特性及活跃的开源社区，有逐渐替代spark的趋势。随着Flink越来越成熟，从技术性能上以及框架设计优势上已经超越了Storm，从趋势来讲就像Spark替代MR一样，Storm也会慢慢被Flink替代。<br><img src="https://p0.meituan.net/travelcube/15d2026e63ec7bdafa9c25b30eba39b6225524.png" alt=""></li>
-<li>数据存储选型：首要考虑查询效率，其次是插入、更新等问题，可选择apache druid，不过在数据更新上存在缺陷，选型时注意频繁更新的数据建议不要采用该方案。当然存储这块需要具体问题具体分析，不同场景下hbase、redis等都是可选项。</li>
-<li>实时数仓分层：为更好的统一管理数据，实时数仓可采用离线数仓的数据模型进行分层处理，可以分为实时明细层写入druid等查询效率高的存储方便下游使用;轻度汇总层对数据进行汇总分析后供下游使用。</li>
-<li>数据流转方案：实时数仓的数据来源可以为kafka消息队列，这样可以做到队列中的数据即可以写入数据湖用于批量分析，也可以实时处理，下游可以写入数据集市供业务使。</li>
-</ul>
-<h2><span id="经典架构">经典架构</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/532288-20210126201104745-720054501.png" alt=""><br>数仓架构演进，从一开始的离线数仓，到实时数仓的Lambda架构，再到流批一体的Kappa架构，最终发展到多引擎混用。</p>
-<h3><span id="lambda">lambda</span></h3><p><img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d3a07aa1d6504043898c494557c113a5~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/ff4b774a7a67b8a3796e6eb5b074a22c.jpeg" alt=""><br>lamdba架构是一个比较经典的架构，在以前实时场景并不是很多，大部分的业务都以离线为主，在附加了实时场景之后，由于他们之间的时效性不同，导致其技术生态也不一样。lambda架构相当于在离线数仓的基础上附加了一条实时生产链路，在应用层面进行一次整合。双链路生产，相互独立。<br>不过这种架构也存在着一些问题，比如说加工逻辑、开发运维等都要进行double操作，成本高，开发维护麻烦。同时资源同样也是两个资源链路。<br>因此产生了kappa架构。</p>
-<h3><span id="kappa">kappa</span></h3><p><img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/460f472ab81d4c3089eb4fcaa3e450a8~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/73bd44a447ff642af1ed171b4cd98c94.jpeg" alt=""><br>kappa架构移除了离线数仓的部分，全部采用实时生成。从架构设计来讲，比较简单，生产统一，一套逻辑同时生产离线和实时数据。<br>在kappa架构上，我们可以将APP应用数据存储到OLAP引擎中，由实时OLAP引擎承担聚合分析运算，这样可以减轻实时计算部分的计算压力。这种可以称为kappa架构的一个变体。<br><img src="https://p9-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f733b85210ab452385ad75f394736d73~tplv-k3u1fbpfcp-zoom-in-crop-mark:1304:0:0:0.awebp?" alt=""></p>
-<h3><span id="lambda-or-kappa">lambda or kappa</span></h3><p>在真实的场景中，很多时候并不是完全规范的 Lambda 架构或 Kappa 架构，可以是两者的混合，比如大部分实时指标使用 Kappa 架构完成计算，少量关键指标(比如金额相关)使用 Lambda 架构用批处理重新计算，增加一次校对过程。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/a8f690fb4b5227110d1e82ab6341495b.jpeg" alt=""><br>Kappa 架构并不是中间结果完全不落地，现在很多大数据系统都需要支持机器学习(离线训练)，所以实时中间结果需要落地对应的存储引擎供机器学习使用，另外有时候还需要对明细数据查询，这种场景也需要把实时明细层写出到对应的引擎中。</p>
-<h2><span id="业界常见落地方案">业界常见落地方案</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/532742f78021e13aad78624d3e0d0463e5d5ef.jpg" alt=""></p>
-<h3><span id="方案-1kappa-架构">方案 1：Kappa 架构</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/862e6d472b8f306b0e8079047c97ab8ef663d5.png" alt=""><br>首先咱们看下Kappa架构，Kappa架构将多源数据（用户日志，系统日志，BinLog日志）实时地发送到Kafka。<br>然后通过Flink集群，按照不同的业务构建不同的流式计算任务，对数据进行数据分析和处理，并将计算结果输出到MySQL/ElasticSearch/HBase/Druid/KUDU等对应的数据源中，最终提供应用进行数据查询或者多维分析。<br>这种方案的好处有二，方案简单；数据实时。不过有两个缺点：<br>一个是用户每产生一个新的报表需求，都需要开发一个Flink流式计算任务，数据开发的人力成本和时间成本都较高。<br>第二个是对于每天需要接入近百亿的数据平台，如果要分析近一个月的数据，则需要的Flink集群规模要求很大，且需要将很多计算的中间数据存储在内存中以便多流Join。</p>
-<h3><span id="方案-2基于标准分层-流计算">方案 ２：基于标准分层 + 流计算</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/59768b537d6fa48b42e24966a22d6c2df476ba.png" alt=""><br>为了解决方案1中将所有数据放在一个层出现的开发维护成本高等问题，于是出现了基于标准分层+流计算的方案。<br>接下来咱们看下这种方案，在传统数仓的分层标准上构建实时数仓，将数据分为ODS、DWD、DWS、ADS层。首先将各种来源的数据接入ODS贴源数据层，再对ODS层的数据使用Flink的实时计算进行过滤、清洗、转化、关联等操作，形成针对不同业务主题的DWD数据明细层，并将数据发送到Kafka集群。<br>之后在DWD基础上，再使用Flink实时计算进行轻度的汇总操作，形成一定程度上方便查询的DWS轻度汇总层。最后再面向业务需求，在DWS层基础上进一步对数据进行组织进入ADS数据应用层，业务在数据应用层的基础上支持用户画像、用户报表等业务场景。<br>这种方案的优点是：各层数据职责清晰。缺点是多个Flink集群维护起来复杂，并且过多的数据驻留在Flink集群内也会增大集群的负载，不支持upsert操作，同时Schema维护麻烦。</p>
-<h3><span id="方案-3标准分层体现-流计算-批量计算">方案 3：标准分层体现 + 流计算 + 批量计算</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/a6a730865d79dcf9f777138055e8a6914c8b69.png" alt=""><br>为了解决方案2不支持upsert和schema维护复杂等问题。我们在方案2的基础上加入基于HDFS加Spark离线的方案。也就是离线数仓和实时数仓并行流转的方案。<br>这种方案带来的优点是：既支持实时的OLAP查询，也支持离线的大规模数据分析。但是带来了问题这样的几个问题。<br>数据质量管理复杂：需要构建一套兼容离线数据和实时数据血缘关系的数据管理体系，本身就是一个复杂的工程问题。离线数据和实时数据Schema统一困难。架构不支持upsert。</p>
-<h3><span id="方案-4标准分层体系-流计算-数据湖">方案 4：标准分层体系 + 流计算 + 数据湖</span></h3><p>随着技术的发展，为了解决数据质量管理和upsert问题。出现了流批一体架构，这种架构基于数据湖三剑客 Delta Lake  / Hudi / Iceberg 实现 + Spark 实现。<br>我们以Iceberg为例介绍下这种方案的架构，从下图可以看到这方案和前面的方案2很相似，只是在数据存储层将Kafka换为了Iceberg。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/720ad8f44540ce14fb7893d954b8ce6a3d4e15.png" alt=""><br>它有这样的几个特点，其中第2、3点，尤为重要，需要特别关注下，这也是这个方案和其他方案的重要差别。</p>
+<h2><span id="olap-基于数仓的多维实时分析系统">olap-基于数仓的多维实时分析系统</span></h2><p><a href="https://www.51cto.com/article/701725.html" target="_blank" rel="noopener">一篇带你了解OLTP vs. OLAP</a></p>
+<blockquote>
+<p>OLAP(On-line Analytical Processing，联机分析处理)是在基于数据仓库多维模型的基础上实现的面向分析的各类操作的集合。<br>1993年，E.F.Codd提出了OLAP概念，认为OLTP已不能满足终端用户对数据库查询分析的需要，OLAP的优势是基于数据仓库面向主题、集成的、保留历史及不可变更的数据存储，以及多维模型多视角多层次的数据组织形式，如果脱离了这两点，OLAP将不复存在，也就没有优势可言。<br>在实际的商业分析中，OLAP联机分析更多的是指对数据分析的一种解决方案。目前大数据业内非常流行的开源OLAP引擎有Hive、SparkSQL、FlinkSQL、Clickhouse、Elasticsearch、Druid、Kylin、Presto、Impala等，但是可以说目前没有一个引擎能在数据量，灵活程度和性能上做到完美，用户需要根据自己的需求进行选型。</p>
+</blockquote>
+<p><strong>本文在阅读了一些OLAP方面的资料之后，将关键信息整理、记录如下，算是OLAP的概述。</strong></p>
+<h3><span id="mpp-与-hadoop是什么关系">MPP 与 Hadoop是什么关系？</span></h3><p><a href="https://www.zhihu.com/question/22037987" target="_blank" rel="noopener">MPP 与 Hadoop是什么关系？</a></p>
+<blockquote>
+<p>综上所述，NUMA是一种体系结构，MPP是一种实时海量数据分析架构，而Hadoop是一个关于数据存储处理的项目群，其中的MapReduce是一种离线海量数据分析架构。</p>
 <ol>
-<li>在编程上将流计算和批计算统一到同一个SQL引擎上，基于同一个Flink SQL既可以进行流计算，也可以进行批计算。</li>
-<li>将流计算和批计算的存储进行了统一，也就是统一到Iceberg/HDFS上，这样数据的血缘关系和数据质量体系的建立也变得简单了。</li>
-<li>由于存储层统一，数据的Schema也自然统一起来了，这样相对流批单独两条计算逻辑来说，处理逻辑和元数据管理的逻辑都得到了统一。</li>
-<li>数据中间的各层（ODS、DWD、DWS、ADS）数据，都支持OLAP的实时查询。</li>
+<li>hadoop(hive)跟mpp的本质区别是什么，这个有的时候界限很模糊，比如说存储，如果我把ｍｐｐ的存储架在hdfs上，那存储模型就没有区别了，所以地下我打算还是用比较传统的认知来作区别。</li>
+<li>hive跟mpp的存储模型不一样，hive用的hdfs，而mpp需要自己做切分，自己做切分就带来动态调整的问题，hdfs的扩展是通过元数据来做的，他有中心节点用来存元数据，在加入新的节点的时候，只需要修改元数据就可以了，所以hdfs的扩展能力是受到管理元数据那台机器的性能限制的，一般来说可以到10k这个规模，再向上就不行了。但是mpp通常采用的是没有中心节点的存储模型，比如hash，你每次增加节点的时候，都需要rehash，这样当规模到了几百台的时候，扩展能力就下来了。当然，现在可以把存储架在hdfs上，这样在存储上就没有太大区别了。</li>
+<li>hive跟mpp的内存管理方式不大一样，mpp内存管理比较精细，他主要的想法是在每个机器上放个数据库，传统数据库的内存管理比较复杂，主要是内外存交互的东西，这样的架构决定了mpp在小数据量的时候，latency可以做的比较小，但是在大数据量的时候，throughput做不上去。而hive的内存管理非常粗放，他后来就是mapreduce的job，mr的job是没有太多精细的内存管理的，他就是拼了命地scan，完了顶多就是个spill，这样的架构导致throughput很大，但是latency很高，当你集群规模很大的时候，你一般会追求很大的throughput，当数据量很大的时候，如果你用mpp那种传统的内存管理的话，大批量的计算反而会慢，而且更加占资源，所以vertica这种一开始就考虑了列式存储就是这个道理。</li>
+<li>事务，你可以认为hive不支持传统意义上的那种高并发的事务，而mpp试图想要支持，一旦你要上分布式事务，基本上你的可扩展性就上不去了，至于为啥，陈皓有一篇文章写的不错，建议看下。hive的ddl是可以多个并发的，但是dml不行，而ddl他是通过传统的数据库去做的，所以这个也是个中心节点，dml不行的话，就决定了他可以在底层跑mr这么重粒度的东西，他跑的时候，会在整个表上面加一把大锁。</li>
+<li>failover机制，hive的failover就是mr的failover，job挂掉了重新换机器跑就完了，但是mpp如果采用传统架构的话，他的计算是要attach到数据节点上去的，如果你规模上去，那么fail的可能性就上去了，这样如果你每次计算都有台机器挂了，你一挂，别人就要等你，而不是换台机器继续跑，那么这个也限制了可扩展性，当然，如果mpp在底层用了统一的存储，完了计算也可以到处转移，再想个办法把中间状态记录下来，也可以扩展（这个实际上就是sparksql）</li>
 </ol>
-<p>那么为什么 Iceberg 能承担起实时数仓的方案呢，主要原因是它解决了长久以来流批统一时的这些难题：</p>
+</blockquote>
+<h3><span id="oltp与olap的区别">OLTP与OLAP的区别</span></h3><p><a href="https://blog.csdn.net/bitcarmanlee/article/details/51011515" target="_blank" rel="noopener">OLTP与OLAP的区别</a></p>
+<blockquote>
+<p>OLTP即联机事务处理，就是我们经常说的关系数据库，增删查改就是我们经常应用的东西，这是数据库的基础；TPCC(Transaction Processing Performance Council)属于此类。<br>OLAP即联机分析处理，是数据仓库的核心部心，所谓数据仓库是对于大量已经由OLTP形成的数据的一种分析型的数据库，用于处理商业智能、决策支持等重要的决策信息；数据仓库是在数据库应用到一定程序之后而对历史数据的加工与分析，读取较多，更新较少，TPCH属于此类。<br>随着大数据时代的到来，对于OLAP，列存储模式或者说nosql模式比传统意义的行存储模式可能更具优势。</p>
+</blockquote>
+<p><a href="https://www.51cto.com/article/701725.html" target="_blank" rel="noopener">一篇带你了解OLTP vs. OLAP</a></p>
+<blockquote>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/e82f333505ac4b047658865068339339660d70.png" alt=""></p>
+</blockquote>
+<p><a href="https://zhuanlan.zhihu.com/p/266402829" target="_blank" rel="noopener">常见开源OLAP技术架构对比</a></p>
+<blockquote>
+<p><img src="https://pic2.zhimg.com/80/v2-8e3be54f77bda1a1bf8561dab1127f35_720w.jpg" alt=""></p>
+</blockquote>
+<h3><span id="概念介绍olap和rolapmolapholap">概念介绍：OLAP和ROLAP,MOLAP,HOLAP</span></h3><p><a href="https://www.cnblogs.com/GeneralXU/archive/2011/03/01/1976492.html" target="_blank" rel="noopener">概念介绍：OLAP和ROLAP,MOLAP,HOLAP</a></p>
+<blockquote>
+<p>OLAP有多种实现方法，根据存储数据的方式不同可以分为ROLAP、MOLAP、HOLAP。<br>ROLAP表示基于关系数据库的OLAP实现（Relational OLAP）。以关系数据库为核心,以关系型结构进行多维数据的表示和存储。ROLAP将多维数据库的多维结构划分为两类表:一类是事实表,用来存储数据和维关键字;另一类是维表,即对每个维至少使用一个表来存放维的层次、成员类别等维的描述信息。维表和事实表通过主关键字和外关键字联系在一起,形成了”星型模式”。对于层次复杂的维,为避免冗余数据占用过大的存储空间,可以使用多个表来描述,这种星型模式的扩展称为”雪花模式”。特点是将细节数据保留在关系型数据库的事实表中，聚合后的数据也保存在关系型的数据库中。这种方式查询效率最低，不推荐使用。<br>MOLAP表示基于多维数据组织的OLAP实现（Multidimensional OLAP）。以多维数据组织方式为核心,也就是说,MOLAP使用多维数组存储数据。多维数据在存储中将形成”立方块（Cube）”的结构,在MOLAP 中对”立方块”的”旋转”、”切块”、”切片”是产生多维数据报表的主要技术。特点是将细节数据和聚合后的数据均保存在cube中，所以以空间换效率，查询时效率高，但生成cube时需要大量的时间和空间。<br>HOLAP表示基于混合数据组织的OLAP实现（Hybrid OLAP）。如低层是关系型的，高层是多维矩阵型的。这种方式具有更好的灵活性。特点是将细节数据保留在关系型数据库的事实表中，但是聚合后的数据保存在cube中,聚合时需要比ROLAP更多的时间,查询效率比ROLAP高，但低于MOLAP。</p>
+</blockquote>
+<h3><span id="浅谈rolap-molap和holap区别">浅谈ROLAP、MOLAP和HOLAP区别</span></h3><p><a href="https://blog.csdn.net/huanruiqi/article/details/51272789" target="_blank" rel="noopener">浅谈ROLAP、MOLAP和HOLAP区别</a></p>
+<blockquote>
+<p>ROLAP基于关系型数据库，它的OLAP引擎就是将用户的OLAP操作，如上钻下钻过滤合并等，转换成SQL语句提交到数据库中执行，并且提供聚集导航功能，根据用户操作的维度和度量将SQL查询定位到最粗粒度的事实表上去。<br>MOLAP事先将汇总数据计算好，存放在自己特定的多维数据库中，用户的OLAP操作可以直接映射到多维数据库的访问，不通过SQL访问。<br>ROLAP提供了更大的灵活度，MOLAP提供提供了更加快速的响应速度。但是带来的问题是，数据装载的效率非常低，因为其实就是将多维的数据预先填好，但是随着数据量过大维度成本越高，容易引起“数据爆炸”</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>描述</th>
+<th>细节数据存储位置</th>
+<th>聚合后的数据存储位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ROLAP(Relational OLAP)</td>
+<td>基于关系数据库的OLAP实现</td>
+<td>关系型数据库</td>
+<td>关系型数据库</td>
+</tr>
+<tr>
+<td>MOLAP(Multidimensional OLAP)</td>
+<td>基于多维数据组织的OLAP实现</td>
+<td>数据立方体</td>
+<td>数据立方体</td>
+</tr>
+<tr>
+<td>HOLAP(Hybrid OLAP)</td>
+<td>基于混合数据组织的OLAP实现</td>
+<td>关系型数据库</td>
+<td>数据立方体</td>
+</tr>
+</tbody>
+</table>
+<h3><span id="olap计算引擎怎么选">OLAP计算引擎怎么选？</span></h3><p><a href="https://cloud.tencent.com/developer/article/1757948" target="_blank" rel="noopener">OLAP计算引擎怎么选？</a></p>
+<blockquote>
+<p>Kylin 可以说是与市面上流行的RTOLAP走了一条完全不同的道路。Kylin在如何快速求得预计算结果，以及优化查询解析使得更多的查询能用上预计算结果方面在优化，后续Kylin的版本会优化预计算速度，使得Kylin可以变成一个近似实时的分析引擎。然而其缺点就是SQL支持方面可能在一定程度上会有所牺牲，存储开销也会比较大， 而像Presto，SparkSQL，Hawq等是着重于优化查询数据的过程环节，像一些其它的数据仓库一样，使用列存、压缩、并行查询等技术，优化查询。这种方案的好处就在于扩展性强、能适配更广泛的查询， 然而由于每次的聚合计算是 On Fly的，因此性能上相较Kylin还是有所不如。</p>
+</blockquote>
+<h3><span id="主流olap系统对比总结">主流OLAP系统对比总结</span></h3><p><a href="https://zhuanlan.zhihu.com/p/38767561" target="_blank" rel="noopener">主流OLAP系统对比总结</a></p>
+<blockquote>
+<p>在调研了市面上主流的开源OLAP引擎后发现，目前还没有一个系统能够满足各种场景的查询需求。其本质原因是，没有一个系统能同时在数据量、性能、和灵活性三个方面做到完美，每个系统在设计时都需要在这三者间做出取舍。<br><img src="https://pic2.zhimg.com/80/v2-12268959c89202c2c810c2df53a01271_720w.jpg" alt=""><br>MPP架构的系统（Presto/Impala/SparkSQL/Drill等）有很好的数据量和灵活性支持，但是对响应时间是没有保证的。当数据量和计算复杂度增加后，响应时间会变慢，从秒级到分钟级，甚至小时级都有可能。<br>MPP即大规模并行处理（Massively Parallel Processor ）。 在数据库非共享集群中，每个节点都有独立的磁盘存储系统和内存系统，业务数据根据数据库模型和应用特点划分到各个节点上，每台数据节点通过专用网络或者商业通用网络互相连接，彼此协同计算，作为整体提供数据 库服务。非共享数据库集群有完全的可伸缩性、高可用、高性能、优秀的性价比、资源共享等优势。<br>缺点：性能不稳定<br>搜索引擎架构的系统（Elasticsearch等）相对比MPP系统，在入库时将数据转换为倒排索引，采用Scatter-Gather计算模型，牺牲了灵活性换取很好的性能，在搜索类查询上能做到亚秒级响应。但是对于扫描聚合为主的查询，随着处理数据量的增加，响应时间也会退化到分钟级。<br>缺点：性能不稳定<br>预计算系统（Druid/Kylin等）则在入库时对数据进行预聚合，进一步牺牲灵活性换取性能，以实现对超大数据集的秒级响应。<br>缺点：不太灵活<br>MPP和搜索引擎系统无法满足超大数据集下的性能要求，因此很自然地会考虑预计算系统。而Druid主要面向的是实时Timeseries数据，我们虽然也有类似的场景，但主流的分析还是面向数仓中按天生产的结构化表，因此Kylin的MOLAP Cube方案是最适合作为大数据量时候的引擎。</p>
+</blockquote>
+<h3><span id="常见开源olap技术架构对比">常见开源OLAP技术架构对比</span></h3><p><a href="https://zhuanlan.zhihu.com/p/266402829" target="_blank" rel="noopener">常见开源OLAP技术架构对比</a></p>
+<blockquote>
+<p>MOLAP的典型代表是：Druid，Kylin，Doris，MOLAP一般会根据用户定义的数据维度、度量（也可以叫指标）在数据写入时生成预聚合数据；Query查询到来时，实际上查询的是预聚合的数据而不是原始明细数据，在查询模式相对固定的场景中，这种优化提速很明显。<br>MOLAP 的优点和缺点都来自于其数据预处理 ( pre-processing ) 环节。数据预处理，将原始数据按照指定的计算规则预先做聚合计算，这样避免了查询过程中出现大量的即时计算，提升了查询性能。<br>但是这样的预聚合处理，需要预先定义维度，会限制后期数据查询的灵活性；如果查询工作涉及新的指标，需要重新增加预处理流程，损失了灵活度，存储成本也很高；同时，这种方式不支持明细数据的查询，仅适用于聚合型查询（如：sum，avg，count）。<br>因此，MOLAP 适用于查询场景相对固定并且对查询性能要求非常高的场景。如广告主经常使用的广告投放报表分析。<br>ROLAP的典型代表是：Presto，Impala，GreenPlum，Clickhouse，Elasticsearch，Hive，Spark SQL，Flink SQL<br>数据写入时，ROLAP并未使用像MOLAP那样的预聚合技术；ROLAP收到Query请求时，会先解析Query，生成执行计划，扫描数据，执行关系型算子，在原始数据上做过滤(Where)、聚合(Sum, Avg, Count)、关联(Join)，分组（Group By)、排序（Order By）等，最后将计算结果返回给用户，整个过程都是即时计算，没有预先聚合好的数据可供优化查询速度，拼的都是资源和算力的大小。<br>ROLAP 不需要进行数据预处理 ( pre-processing )，因此查询灵活，可扩展性好。这类引擎使用 MPP 架构 ( 与Hadoop相似的大型并行处理架构，可以通过扩大并发来增加计算资源 )，可以高效处理大量数据。<br>但是当数据量较大或 query 较为复杂时，查询性能也无法像 MOLAP 那样稳定。所有计算都是即时触发 ( 没有预处理 )，因此会耗费更多的计算资源，带来潜在的重复计算。<br>因此，ROLAP 适用于对查询模式不固定、查询灵活性要求高的场景。如数据分析师常用的数据分析类产品，他们往往会对数据做各种预先不能确定的分析，所以需要更高的查询灵活性。</p>
+</blockquote>
+<blockquote>
+<p>并发能力与查询延迟对比<br>场景一：简单查询<br>简单查询指的是点查、简单聚合查询或者数据查询能够命中索引或物化视图（物化视图指的是物化的查询中间结果，如预聚合数据）。这样的查询经常出现在【在线数据服务】的企业应用中，如阿里生意参谋、腾讯的广点通、京东的广告业务等，它们共同的特点是对外服务、面向B端商业客户（通常是几十万的级别）；并发查询量(QPS)大；对响应时间要求高，一般是ms级别（可以想象一下，如果广告主查询页面投放数据，如果10s还没有结果，很伤害体验）；查询模式相对固定且简单。从下图可知，这种场景最合适的是Elasticsearch、Doris、Druid、Kylin这些。<br><img src="https://pic3.zhimg.com/80/v2-d4cae5babf2c6dc82abd31bb5222bdf6_720w.jpg" alt=""><br>场景二：复杂查询<br>复杂查询指的是复杂聚合查询、大批量数据SCAN、复杂的查询（如JOIN）。在ad-hoc场景中，经常会有这样的查询，往往用户不能预先知道要查询什么，更多的是探索式的。这里也根据QPS和查询耗时分几种情况，如下图所示，根据业务的需求来选择对应的引擎即可。有一点要提的是FlinkSQL和SparkSQL虽然也能完成类似需求，但是它们目前还不是开箱即用，需要做周边生态建设，这两种技术目前更多的应用场景还是在通过操作灵活的编程API来完成流式或离线的计算上。<br><img src="https://pic1.zhimg.com/80/v2-c242148fd3969c9900b80ccb7c436854_720w.jpg" alt=""></p>
+</blockquote>
+<blockquote>
+<p>执行模型对比<br><img src="https://pic2.zhimg.com/80/v2-0b8c06bfaaea592074587695bcfe30d1_720w.jpg" alt=""></p>
 <ul>
-<li>同时支持流式写入和增量拉取。</li>
-<li>解决小文件多的问题。数据湖实现了相关合并小文件的接口，Spark / Flink上层引擎可以周期性地调用接口进行小文件合并。</li>
-<li>支持批量以及流式的 Upsert(Delete) 功能。批量Upsert / Delete功能主要用于离线数据修正。流式upsert场景前面介绍了，主要是流处理场景下经过窗口时间聚合之后有延迟数据到来的话会有更新的需求。这类需求是需要一个可以支持更新的存储系统的，而离线数仓做更新的话需要全量数据覆盖，这也是离线数仓做不到实时的关键原因之一，数据湖是需要解决掉这个问题的。</li>
-<li>同时 Iceberg 还支持比较完整的OLAP生态。比如支持Hive / Spark / Presto / Impala 等 OLAP 查询引擎，提供高效的多维聚合查询性能。</li>
+<li>Scatter-Gather执行模型：相当于MapReduce中的一趟Map和Reduce，没有多轮的迭代，而且中间计算结果往往存储在内存中，通过网络直接交换。Elasticsearch、Druid、Kylin都是此模型。</li>
+<li>MapReduce：Hive是此模型</li>
+<li>MPP：MPP学名是大规模并行计算，其实很难给它一个准确的定义。如果说的宽泛一点，Presto、Impala、Doris、Clickhouse、Spark SQL、Flink SQL这些都算。有人说Spark SQL和Flink SQL属于DAG模型，我们思考后认为，DAG并不算一种单独的模型，它只是生成执行计划的一种方式。</li>
 </ul>
-<h3><span id="方案-5基于全场景mpp数据库实现">方案 5：基于全场景MPP数据库实现</span></h3><p>前面的四种方案，是基于数仓方案的优化。方案仍然属于比较复杂的，如果有一个数据库既能满足海量数据的存储，也能实现快速分析，那岂不是很方便。这时候便出现了以StartRocks和ClickHouse为代表的全场景MPP数据库。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/25236472790bcf54d51976db63ac82f8e0e7b6.png" alt=""><br>基于StartRocks或者ClickHouse构建实时数仓。来看下具体的实现方式：</p>
-<ol>
-<li>将数据源上的实时数据直接写入消费服务。</li>
-<li>对于数据源为离线文件的情况有两种处理方式，一种是将文件转为流式数据写入Kafka，另外一种情况是直接将文件通过SQL导入ClickHouse集群。</li>
-<li>ClickHouse接入Kafka消息并将数据写入对应的原始表，基于原始表可以构建物化视图、Project等实现数据聚合和统计分析。</li>
-<li>应用服务基于ClickHouse数据对外提供BI、统计报表、告警规则等服务。</li>
-</ol>
-<h3><span id="具体选型建议">具体选型建议</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/442092b566f94527a7d97160102b056927008a.png" alt=""></p>
-<h2><span id="分层">分层</span></h2><h3><span id="ods层">ODS层</span></h3><p>ODS层存储的是原始数据，在kafka中进行存储，我们不会对数据有任何的处理，保持原始粒度的数据。</p>
-<h3><span id="dwd层">DWD层</span></h3><p>DWD层它的建设其实和离线数仓中DW层的建设基本一致。主要是为了解决一些原始数据中存在的噪点、数据不完整和数据格式不一致的问题，形成规范、统一的数据源。<br>尽可能做到和离线数仓一样的入仓方式(入什么仓，如何入仓)。比如说我们可以建设基于配置的入仓规则，实时和离线用同一套规则入仓。<br>DWD层主要的工作包括数据解析、业务整合、脏数据的清洗和模型规范化。<br>这里我们重点讲一下模型规范化，实时数仓和离线数仓不同的是，实时数仓他是7*24小时不间断运行的。如果需要更改表字段的话，会付出比离线更多的代价。因为要保证数据上游和下游的数据可以解析到新的表结构。还有就是我们存储使用的是kafka，kafka不像其他的数据库。它不能做结构化存储，同时也没有办法管理元数据。因此，我们建议在开始构建数仓前就做好数据的模型规范化。避免后续付出更多的代价来做数据治理。<br>同时，我们还可以针对数据本身做一些处理，为了应对一些生产环境中的常见问题，我们可以在数据上额外补充一些信息。</p>
+</blockquote>
+<blockquote>
+<p>OLAP引擎的主要特点</p>
 <ul>
-<li>唯一键和主键<br> 在数仓中我们针对日志进行处理，比如说我们通过binlog来处理MYSQL中的数据，MYSQL中存储的是一些业务数据，比如说订单数据，每一行订单数据可能会有多次改变，这些变化又通过一条条的binlog日志来体现。那这个时候我们就可以通过唯一键和主键来标记每条数据。其中唯一键用来标记唯一一条数据，这个可以解决数据重复的问题；主键用来标记唯一一行数据，这个可以利用kafka的分区来解决是数据乱序的问题。</li>
-<li>版本号和批次<br> 因为在数仓中，下游数据的处理逻辑是依赖于上游表的schame的，我们在计算过程中可能会遇到需要重新计算的问题或者说数据的表结构发生了变化的情况。这个时候我们就可以通过数据的版本和批次去分别解决。这里的版本号指的的是数据表结构的版本号，我们可以通过不同的版本号来判断表结构变化的问题。而批次指的是数据重导时的批次变化，可以通过更改数据的批次来保证即使数据的消费位置发生变化后也可以得到正确的结果。</li>
+<li>Hive<br>Hive是一个分布式SQL on Hadoop方案，底层依赖MapReduce计算模型执行分布式计算。Hive擅长执行长时间运行的离线批处理，数据量越大，优势越明显。Hive在数据量大、数据驱动需求强烈的互联网大厂比较流行。近2年，随着clickhouse的逐渐流行，对于一些总数据量不超过百PB级别的互联网数据仓库需求，已经有多家公司改为了clickhouse的方案。clickhouse的优势是单个查询执行速度更快，不依赖hadoop，架构和运维更简单。</li>
+<li>Spark SQL、Flink SQL<br>在大部分场景下，Hive计算还是太慢了，别说不能满足那些要求高QPS、低查询延迟的的对外在线服务的需求，就连企业内部的产品、运营、数据分析师也会经常抱怨Hive执行ad-hoc查询太慢。这些痛点，推动了MPP内存迭代和DAG计算模型的诞生和发展，诸如Spark SQL、Flink SQL、Presto这些技术，目前在企业中也非常流行。Spark SQL、Flink SQL的执行速度更快，编程API丰富，同时支持流式计算与批处理，并且有流批统一的趋势，使大数据应用更简单。</li>
+<li>Clickhouse<br>ClickHouse从OLAP场景需求出发，定制开发了一套全新的高效列式存储引擎，并且实现了数据有序存储、主键索引、稀疏索引、数据Sharding、数据Partitioning、TTL、主备复制等丰富功能。以上功能共同为ClickHouse极速的分析性能奠定了基础。<br>ClickHouse部署架构简单，易用，不依赖Hadoop体系（HDFS+YARN）。它比较擅长的地方是对一个大数据量的单表进行聚合查询。Clickhouse用C++实现，底层实现具备向量化执行（Vectorized Execution）、减枝等优化能力，具备强劲的查询性能。目前在互联网企业均有广泛使用，比较适合内部BI报表型应用，可以提供低延迟（ms级别）的响应速度，也就是说单个查询非常快。但是Clickhouse也有它的局限性，在OLAP技术选型的时候，应该避免把它作为多表关联查询(JOIN)的引擎，也应该避免把它用在期望支撑高并发数据查询的场景，OLAP分析场景中，一般认为QPS达到1000+就算高并发，而不是像电商、抢红包等业务场景中，10W以上才算高并发，毕竟数据分析场景，数据海量，计算复杂，QPS能够达到1000已经非常不容易。例如Clickhouse，如果如数据量是TB级别，聚合计算稍复杂一点，单集群QPS一般达到100已经很困难了，所以它更适合企业内部BI报表应用，而不适合如数十万的广告主报表或者数百万的淘宝店主相关报表应用。Clickhouse的执行模型决定了它会尽全力来执行一个Query，而不是同时执行很多Query。</li>
+<li>Presto<br>Presto、Impala、GreenPlum均基于MPP架构，相比Elasticsearch、Druid、Kylin这样的简单Scatter-Gather模型，在支持的SQL计算上更加通用，更适合ad-hoc查询场景，然而这些通用系统往往比专用系统更难做性能优化，所以不太适合做对查询QPS(参考值QPS &gt; 1000)、延迟要求比较高(参考值search latency &lt; 500ms)的在线服务，更适合做公司内部的查询服务和加速Hive查询的服务。Presto还有一个优秀的特性是使用了ANSI标准SQL，并且支持超过30+的数据源Connector。这里我们给读者留下一个思考题：以Presto为代表的MPP模型与Hive为代表的MapReduce模型的性能差异比较大的原因是什么？</li>
+<li>Impala<br>Impala 是 Cloudera 在受到 Google 的 Dremel 启发下开发的实时交互SQL大数据查询工具，是CDH 平台首选的 PB 级大数据实时查询分析引擎。它拥有和Hadoop一样的可扩展性、它提供了类SQL（类Hsql）语法，在多用户场景下也能拥有较高的响应速度和吞吐量。它是由Java和C++实现的，Java提供的查询交互的接口和实现，C++实现了查询引擎部分，除此之外，Impala还能够共享Hive Metastore，甚至可以直接使用Hive的JDBC jar和beeline等直接对Impala进行查询、支持丰富的数据存储格式（Parquet、Avro等）。此外，Impala 没有再使用缓慢的 Hive+MapReduce 批处理，而是通过使用与商用并行关系数据库中类似的分布式查询引擎（由 Query Planner、Query Coordinator 和 Query Exec Engine 三部分组成），可以直接从 HDFS 或 HBase 中用 SELECT、JOIN 和统计函数查询数据，从而大大降低了延迟。Impala经常搭配存储引擎Kudu一起提供服务，这么做最大的优势是点查比较快，并且支持数据的Update和Delete。</li>
+<li>Doris<br>Doris是百度主导的，根据Google Mesa论文和Impala项目改写的一个大数据分析引擎，在百度、美团团、京东的广告分析等业务有广泛的应用。Doris的主要功能特性如下图所示：<br><img src="https://pic3.zhimg.com/80/v2-c2ab79b0e82fd973872be572745996a6_720w.jpg" alt=""><br><img src="https://pic1.zhimg.com/80/v2-b0d0baf3e3b7569dac6e81867a85ca6c_720w.jpg" alt=""></li>
+<li>Kylin<br>Kylin自身就是一个MOLAP系统，多维立方体（MOLAP Cube）的设计使得用户能够在Kylin里为百亿以上数据集定义数据模型并构建立方体进行数据的预聚合。<br>适合Kylin的场景包括：<br>用户数据存在于Hadoop HDFS中，利用Hive将HDFS文件数据以关系数据方式存取，数据量巨大，在500G以上<br>每天有数G甚至数十G的数据增量导入<br>有10个以内较为固定的分析维度<br>简单来说，Kylin中数据立方的思想就是以空间换时间，通过定义一系列的纬度，对每个纬度的组合进行预先计算并存储。有N个纬度，就会有2的N次种组合。所以最好控制好纬度的数量，因为存储量会随着纬度的增加爆炸式的增长，产生灾难性后果。</li>
 </ul>
-<h3><span id="dws层">DWS层</span></h3><p>DWS层即汇总层。这一层的建设也是和离线数仓的建设方法一致。<br>这一层主要是对共性指标的统一加工，同时根据主题进行多维度的汇总等操作。可以使用Flink中丰富的时间窗口实现。</p>
-<h3><span id="总结">总结</span></h3><p>实时计算订阅业务数据消息队列，然后通过数据清洗、多数据源 join、流式数据与离线维度信息等的组合，将一些相同粒度的业务系统、维表中的维度属性全部关联到一起，增加数据易用性和复用性，得到最终的实时明细数据。这部分数据有两个分支，一部分直接落地到 ADS，供实时明细查询使用，一部分再发送到消息队列中，供下层计算使用。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/b87df1015e6b63598aa7b765e5f9664c.jpeg" alt=""><br>以数据域+业务域的理念建设公共汇总层，与离线数仓不同的是，这里汇总层分为轻度汇总层和高度汇总层，并同时产出，轻度汇总层写入 ADS，用于前端产品复杂的 olap 查询场景，满足自助分析和产出报表的需求;高度汇总层写入 Hbase，用于前端比较简单的 kv 查询场景，提升查询性能，比如实时大屏等。</p>
+</blockquote>
+<h3><span id="olap-技术选型-apache-kylin-apache-doris-clickhouse对比">OLAP 技术选型 Apache Kylin、Apache Doris、Clickhouse对比</span></h3><p><a href="https://blog.csdn.net/qq_39945938/article/details/114013486" target="_blank" rel="noopener">OLAP 技术选型 Apache Kylin、Apache Doris、Clickhouse对比</a></p>
+<blockquote>
+<p>目前还没有一个系统能够满足各种场景的查询需求。其本质原因是，没有一个系统能同时在数据量、性能、和灵活性三个方面做到完美，每个系统在设计时都需要在这三者间做出取舍。<br>    Apache Kylin<br>    固定维度的聚合查询，并发量高，查询迅速响应（亚秒级-秒级），数量级支持TB-PB<br>    Apache Doris<br>    灵活的多维度查询，join表现比Clickhouse好，明细数据查询，数量级支持TP-PB，需要注意的是Doris是mysql语法，和hive等olap有一定差异，从hive切换到doris时有一定的切换成本<br>    Clickhouse<br>    大宽表，单表查询速度极佳，join表现差，明细数据查询</p>
+</blockquote>
+<h3><span id="数仓olap技术">数仓OLAP技术</span></h3><p><a href="https://www.cnblogs.com/tgzhu/p/14527652.html" target="_blank" rel="noopener">数仓OLAP技术</a><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/1004194-20210313110426292-668919815.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/1004194-20210313114023420-1170729164.png" alt=""></p>
+<h2><span id="clickhouse">ClickHouse</span></h2><h3><span id="极客星球clickhouse在数据智能公司的应用与实践">极客星球｜Clickhouse在数据智能公司的应用与实践</span></h3><p><a href="https://segmentfault.com/a/1190000040084019" target="_blank" rel="noopener">极客星球｜Clickhouse在数据智能公司的应用与实践</a></p>
+<blockquote>
+<p>目前在OLAP领域内使用比较多的系统主要有：Presto、Druid、Kylin、Doris和Clickhouse等其他。整个OLAP系统主要分为两大类型：预聚合和实时聚合，这两种类型都有各自的优缺点。<br>预聚合数据库特点：<br>1.查询速度比较快，由于已经预聚合部分数据，整体的数据集会相对减少；<br>2.数据经过预聚合会导致明细数据丢失，这也是一大问题；<br>3.数据需要预先聚合，查询灵活性比较低，也会导致维度膨胀整体数据量偏大。<br>实时聚合数据库特点：<br>1.存储所有明细数据，查询响应时间会稍微偏大；<br>2.不需要预聚合，查询灵活度比较高。<br>上述数据库Druid，Kylin属于预聚合类型，而Presto，Doris，Clickhouse属于实时聚合类型。</p>
+</blockquote>
+<h3><span id="clickhouse-在有赞的实践之路">ClickHouse 在有赞的实践之路</span></h3><p><a href="https://tech.youzan.com/clickhouse-zai-you-zan-de-shi-jian-zhi-lu/" target="_blank" rel="noopener">ClickHouse 在有赞的实践之路</a></p>
+<blockquote>
+<p>2.4 ClickHouse 应用场景<br>    用户行为分析，精细化运营分析: 日活，留存率分析，路径分析，有序漏斗转化率分 析，Session 分析等。<br>    实时日志分析，监控分析。<br>    实时数仓。</p>
+</blockquote>
+<h3><span id="百分点大数据技术团队clickhouse国家级项目最佳实践">百分点大数据技术团队：ClickHouse国家级项目最佳实践</span></h3><p><a href="https://www.jiqizhixin.com/articles/2020-05-06-5" target="_blank" rel="noopener">百分点大数据技术团队：ClickHouse国家级项目最佳实践</a></p>
+<h3><span id="百分点大数据技术团队clickhouse-国家级项目性能优化实践">百分点大数据技术团队：ClickHouse 国家级项目性能优化实践</span></h3><p><a href="https://xie.infoq.cn/article/a94b5102bd8a3ea47324e2564" target="_blank" rel="noopener">百分点大数据技术团队：ClickHouse 国家级项目性能优化实践</a></p>
+<h3><span id="clickhouse深度揭秘">ClickHouse深度揭秘</span></h3><p><a href="https://zhuanlan.zhihu.com/p/98135840" target="_blank" rel="noopener">ClickHouse深度揭秘</a></p>
+<blockquote>
+<p>ClickHouse从OLAP场景需求出发，定制开发了一套全新的高效列式存储引擎，并且实现了数据有序存储、主键索引、稀疏索引、数据Sharding、数据Partitioning、TTL、主备复制等丰富功能。以上功能共同为ClickHouse极速的分析性能奠定了基础。<br>ClickHouse在计算层做了非常细致的工作，竭尽所能榨干硬件能力，提升查询速度。它实现了单机多核并行、分布式计算、向量化执行与SIMD指令、代码生成等多种重要技术。</p>
+</blockquote>
+<h3><span id="clickhouse表引擎到底怎么选">ClickHouse表引擎到底怎么选</span></h3><p><a href="https://developer.aliyun.com/article/739801?spm=a2c4g.11186623.2.11.f0206bcfXsVZeH&amp;groupCode=cloudproduct" target="_blank" rel="noopener">ClickHouse表引擎到底怎么选</a></p>
+<h3><span id="clickhouse集群搭建一">ClickHouse集群搭建（一）</span></h3><p><a href="https://segmentfault.com/a/1190000038318776" target="_blank" rel="noopener">ClickHouse集群搭建（一）</a></p>
+<h3><span id="clickhouse分布式集群搭建指南">ClickHouse分布式集群搭建指南</span></h3><p><a href="https://segmentfault.com/a/1190000039171654" target="_blank" rel="noopener">ClickHouse分布式集群搭建指南</a></p>
+<h3><span id="clickhouse复制表-分布式表机制与使用方法">ClickHouse复制表、分布式表机制与使用方法</span></h3><p><a href="https://blog.csdn.net/nazeniwaresakini/article/details/105858390" target="_blank" rel="noopener">ClickHouse复制表、分布式表机制与使用方法</a></p>
+<blockquote>
+<p>ClickHouse依靠ReplicatedMergeTree引擎族与ZooKeeper实现了复制表机制，成为其高可用的基础。<br>另外，笔者也提到，ClickHouse像ElasticSearch一样具有数据分片（shard）的概念，这也是分布式存储的特点之一，即通过并行读写提高效率。ClickHouse依靠Distributed引擎实现了分布式表机制，在所有分片（本地表）上建立视图进行分布式查询，使用很方便。<br>在实际操作中，为了最大化性能与稳定性，分片和副本几乎总是一同使用。</p>
+</blockquote>
+<h3><span id="distributed-vs-shard-vs-replicated">Distributed vs Shard vs Replicated</span></h3><p><a href="https://github.com/ClickHouse/ClickHouse/issues/2161" target="_blank" rel="noopener">Distributed vs Shard vs Replicated</a></p>
+<blockquote>
+<p>In ClickHouse each shard work independently and process its part of data, inside each shard replication can work. And later to query all the shards at the same time and combine the final result - Distributed engine is used. So Distributed work as loadbalancer inside each shard, and can combine the data coming from different shards together to make the ‘common’ result.</p>
+</blockquote>
+<h3><span id="深入理解clickhouse-本地表和分布式表">深入理解ClickHouse-本地表和分布式表</span></h3><p><a href="https://blog.csdn.net/jiangshouzhuang/article/details/100762451" target="_blank" rel="noopener">深入理解ClickHouse-本地表和分布式表</a></p>
+<blockquote>
+<p>分布式表本身并不存储数据，只是提供了一个可以分布式访问数据的框架，查询分布式表的时候clickhouse会自动去查询对应的每个本地表中的数据<br>注意AS bank_replica，它表明了分布式表所对应的本地表（本地表是存储数据的）<br>可以配置Distributed表引擎中的最后一个参数来设置数据条目的分配方式<br>可以直接往分布式表中写数据，clickhouse会自动按照上一点所说的方式来分配数据和自平衡<br>也可以自己写算法，然后往本地表中写数据（当然这个就比较高级了）</p>
+</blockquote>
+<h3><span id="clickhouse优化最佳实践易企秀">clickhouse优化最佳实践(易企秀)</span></h3><p><a href="https://www.jianshu.com/p/a72a4782a102" target="_blank" rel="noopener">clickhouse优化最佳实践(易企秀)</a></p>
+<h3><span id="物化视图简介与clickhouse中的应用示例">物化视图简介与ClickHouse中的应用示例</span></h3><p><a href="https://blog.csdn.net/nazeniwaresakini/article/details/106232278" target="_blank" rel="noopener">物化视图简介与ClickHouse中的应用示例</a></p>
+<h2><span id="doris">Doris</span></h2><h3><span id="另辟蹊径建数仓美团外卖为什么选用doris精品干货">另辟蹊径建数仓，美团外卖为什么选用Doris（精品干货）</span></h3><p><a href="https://dbaplus.cn/news-73-3346-1.html" target="_blank" rel="noopener">另辟蹊径建数仓，美团外卖为什么选用Doris（精品干货）</a></p>
+<blockquote>
+<p>既然变化维的历史数据预计算成本巨大，最好的办法就是现用现算，但现用现算需要强大的并行计算能力。OLAP的实现有MOLAP、ROLAP、HOLAP三种形式，MOLAP以Cube为表现形式，但计算与管理成本较高。ROLAP需要强大的关系型DB引擎支撑。长期以来，由于传统关系型DBMS的数据处理能力有限，所以ROLAP模式受到很大的局限性。<br>随着分布式、并行化技术成熟应用，MPP引擎逐渐表现出强大的高吞吐、低时延计算能力，号称“亿级秒开”的引擎不在少数，ROLAP模式可以得到更好的延伸。单从业务实际应用考虑，性能在千万量级关联查询现场计算秒开的情况下，已经可以覆盖到很多应用场景，具备应用的可能性。例如：日数据量的ROLAP现场计算，周、月趋势的计算，以及明细数据的浏览都可以较好的应对。</p>
+</blockquote>
+<h3><span id="doris在美团点评的应用">Doris在美团点评的应用</span></h3><p><a href="https://www.dorisdb.com/zh-CN/blog/meituan2" target="_blank" rel="noopener">Doris在美团点评的应用</a></p>
+<h3><span id="apache-doris在京东广告的应用实践">Apache Doris在京东广告的应用实践</span></h3><p><a href="https://www.dorisdb.com/zh-CN/blog/jingdong" target="_blank" rel="noopener">Apache Doris在京东广告的应用实践</a></p>
+<h3><span id="doris在作业帮实时数仓中的应用实践">Doris在作业帮实时数仓中的应用实践</span></h3><p><a href="https://cloud.tencent.com/developer/news/701512" target="_blank" rel="noopener">Doris在作业帮实时数仓中的应用实践</a></p>
+<h3><span id="apache-doris-incubating-原理与实践">Apache Doris (Incubating) 原理与实践</span></h3><p><a href="https://www.infoq.cn/article/vxup94ub59ya*k0tnefe" target="_blank" rel="noopener">Apache Doris (Incubating) 原理与实践</a></p>
+<blockquote>
+<p>这里有一点点技巧，就是说要根据用户的一个就是读写的一个密集程度做分区。如果是一个读很密集的一个场景，那样的话我们建议用户尽量选择一个区分度很大的列，也就是基数很大的列，我们就可以把这个数据均匀地打散到整个集群里面去，用户查询的时候就可以把整个集群的资源可以用上，相当于没有数据倾斜。如果是写很密集的情况下，就建议用户选择一个区分度少一点的列。这个可以在用户建表的时候根据自己的一个业务场景去选择。可以指定数据放到 SSD 上或者 SATA 盘上，也支持根据 TTL 将冷数据从 SSD 迁移到 SATA 上，高效利用 SSD 提高查询性能</p>
+</blockquote>
+<h3><span id="实时olap都选clickhouse我们用doris明明也很香">实时OLAP都选Clickhouse？我们用Doris明明也很香</span></h3><p><a href="https://toutiao.io/posts/mqrygq9/preview" target="_blank" rel="noopener">实时OLAP都选Clickhouse？我们用Doris明明也很香</a></p>
+<blockquote>
+<p>AB实验的效果监控，业务上需要10分钟、30分钟、60分钟以及全天累计等四个时间段，同时需要根据渠道、平台和一二三级品类等维度进行下钻分析，观测的指标则包含曝光PV、UV、曝光SKU件次、点击PV、点击UV等基础指标，以及CTR等衍生指标。<br>在数据建模阶段，我们将曝光实时数据建立聚合模型，其中K空间包含日期字段、分钟粒度的时间字段、渠道、平台、一二三级品类等，V空间则包含上述的指标列，其中UV和PV进行HLL近似计算，而SKU件次则采用SUM函数，每到来一条记录则加1。由于AB实验数据都是以AB实验位作为过滤条件，因此将实验位字段设置为分桶字段，查询时能够快速定位tablet分片。值得注意的是，HLL的近似度在目前PV和UV的基数下，实际情况误差在0.8%左右，符合预期。</p>
+</blockquote>
 <h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://juejin.cn/post/7011063529700589599" target="_blank" rel="noopener">如何建设实时数仓</a></li>
-<li><a href="https://www.51cto.com/article/617634.html" target="_blank" rel="noopener">看完了这篇实时数仓建设，才发现以前的都白看了（内有美团案例）</a></li>
-<li><a href="https://www.cnblogs.com/GO-NO-1/p/14332234.html" target="_blank" rel="noopener">数仓架构演进</a></li>
-<li><a href="https://www.51cto.com/article/707275.html" target="_blank" rel="noopener">实时数仓方案五花八门，实际落地如何选型和构建</a></li>
-<li><a href="https://tech.meituan.com/2021/08/26/data-warehouse-in-meituan-waimai.html" target="_blank" rel="noopener">美团外卖实时数仓建设实践</a></li>
+<li><a href="https://www.51cto.com/article/701725.html" target="_blank" rel="noopener">一篇带你了解OLTP vs. OLAP</a></li>
+<li><a href="https://www.zhihu.com/question/22037987" target="_blank" rel="noopener">MPP 与 Hadoop是什么关系？</a></li>
+<li><a href="https://blog.csdn.net/bitcarmanlee/article/details/51011515" target="_blank" rel="noopener">OLTP与OLAP的区别</a></li>
+<li><a href="https://www.51cto.com/article/701725.html" target="_blank" rel="noopener">一篇带你了解OLTP vs. OLAP</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/266402829" target="_blank" rel="noopener">常见开源OLAP技术架构对比</a></li>
+<li><a href="https://www.cnblogs.com/GeneralXU/archive/2011/03/01/1976492.html" target="_blank" rel="noopener">概念介绍：OLAP和ROLAP,MOLAP,HOLAP</a></li>
+<li><a href="https://blog.csdn.net/huanruiqi/article/details/51272789" target="_blank" rel="noopener">浅谈ROLAP、MOLAP和HOLAP区别</a></li>
+<li><a href="https://cloud.tencent.com/developer/article/1757948" target="_blank" rel="noopener">OLAP计算引擎怎么选？</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/38767561" target="_blank" rel="noopener">主流OLAP系统对比总结</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/266402829" target="_blank" rel="noopener">常见开源OLAP技术架构对比</a></li>
+<li><a href="https://blog.csdn.net/qq_39945938/article/details/114013486" target="_blank" rel="noopener">OLAP 技术选型 Apache Kylin、Apache Doris、Clickhouse对比</a></li>
+<li><a href="https://www.cnblogs.com/tgzhu/p/14527652.html" target="_blank" rel="noopener">数仓OLAP技术</a></li>
+<li><a href="https://segmentfault.com/a/1190000040084019" target="_blank" rel="noopener">极客星球｜Clickhouse在数据智能公司的应用与实践</a></li>
+<li><a href="https://tech.youzan.com/clickhouse-zai-you-zan-de-shi-jian-zhi-lu/" target="_blank" rel="noopener">ClickHouse 在有赞的实践之路</a></li>
+<li><a href="https://www.jiqizhixin.com/articles/2020-05-06-5" target="_blank" rel="noopener">百分点大数据技术团队：ClickHouse国家级项目最佳实践</a></li>
+<li><a href="https://xie.infoq.cn/article/a94b5102bd8a3ea47324e2564" target="_blank" rel="noopener">百分点大数据技术团队：ClickHouse 国家级项目性能优化实践</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/98135840" target="_blank" rel="noopener">ClickHouse深度揭秘</a></li>
+<li><a href="https://developer.aliyun.com/article/739801?spm=a2c4g.11186623.2.11.f0206bcfXsVZeH&amp;groupCode=cloudproduct" target="_blank" rel="noopener">ClickHouse表引擎到底怎么选</a></li>
+<li><a href="https://segmentfault.com/a/1190000038318776" target="_blank" rel="noopener">ClickHouse集群搭建（一）</a></li>
+<li><a href="https://segmentfault.com/a/1190000039171654" target="_blank" rel="noopener">ClickHouse分布式集群搭建指南</a></li>
+<li><a href="https://blog.csdn.net/nazeniwaresakini/article/details/105858390" target="_blank" rel="noopener">ClickHouse复制表、分布式表机制与使用方法</a></li>
+<li><a href="https://github.com/ClickHouse/ClickHouse/issues/2161" target="_blank" rel="noopener">Distributed vs Shard vs Replicated</a></li>
+<li><a href="https://blog.csdn.net/jiangshouzhuang/article/details/100762451" target="_blank" rel="noopener">深入理解ClickHouse-本地表和分布式表</a></li>
+<li><a href="https://www.jianshu.com/p/a72a4782a102" target="_blank" rel="noopener">clickhouse优化最佳实践(易企秀)</a></li>
+<li><a href="https://blog.csdn.net/nazeniwaresakini/article/details/106232278" target="_blank" rel="noopener">物化视图简介与ClickHouse中的应用示例</a></li>
+<li><a href="https://dbaplus.cn/news-73-3346-1.html" target="_blank" rel="noopener">另辟蹊径建数仓，美团外卖为什么选用Doris（精品干货）</a></li>
+<li><a href="https://www.dorisdb.com/zh-CN/blog/meituan2" target="_blank" rel="noopener">Doris在美团点评的应用</a></li>
+<li><a href="https://www.dorisdb.com/zh-CN/blog/jingdong" target="_blank" rel="noopener">Apache Doris在京东广告的应用实践</a></li>
+<li><a href="https://cloud.tencent.com/developer/news/701512" target="_blank" rel="noopener">Doris在作业帮实时数仓中的应用实践</a></li>
+<li><a href="https://www.infoq.cn/article/vxup94ub59ya*k0tnefe" target="_blank" rel="noopener">Apache Doris (Incubating) 原理与实践</a></li>
+<li><a href="https://toutiao.io/posts/mqrygq9/preview" target="_blank" rel="noopener">实时OLAP都选Clickhouse？我们用Doris明明也很香</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">olap</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2022/05/25/bigdata-stack-olap/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-bigdata-stack-streambatch" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/05/24/bigdata-stack-streambatch/">大数据开发之路-流批一体</a>
+    </h1>
+  
+
+        
+        <a href="/2022/05/24/bigdata-stack-streambatch/" class="archive-article-date">
+  	<time datetime="2022-05-24T00:23:25.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-24</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#流批一体-实时数仓架构的百家争鸣">流批一体-实时数仓架构的百家争鸣</a></li>
+<li><a href="#对实时性的追求-一切的根源">对实时性的追求-一切的根源</a></li>
+<li><a href="#流计算与批计算的比较">流计算与批计算的比较</a></li>
+<li><a href="#lambda-经典实时数仓架构">lambda-经典实时数仓架构</a><ul>
+<li><a href="#lambda-架构">Lambda 架构</a></li>
+<li><a href="#lambda架构典型数据流程">Lambda架构典型数据流程</a></li>
+<li><a href="#lambda-架构存在的问题">Lambda 架构存在的问题</a></li>
+<li><a href="#lambda-架构核心痛点">Lambda 架构核心痛点</a></li>
+</ul>
+</li>
+<li><a href="#流批一体的初衷">流批一体的初衷</a></li>
+<li><a href="#流批一体的重点和难点">流批一体的重点和难点</a><ul>
+<li><a href="#数据处理">数据处理</a></li>
+<li><a href="#数据存储">数据存储</a></li>
+<li><a href="#阻力和动力">阻力和动力</a></li>
+</ul>
+</li>
+<li><a href="#不同层面的流批一体场景">不同层面的流批一体场景</a><ul>
+<li><a href="#数据接入层的流批一体">数据接入层的流批一体</a></li>
+<li><a href="#计算引擎层的流批一体">计算引擎层的流批一体</a></li>
+<li><a href="#存储层的流批一体">存储层的流批一体</a><ul>
+<li><a href="#消息队列">消息队列</a></li>
+<li><a href="#数据湖">数据湖</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#百花齐放的流批一体架构">百花齐放的流批一体架构</a><ul>
+<li><a href="#流批融合的-lambda-架构">流批融合的 Lambda 架构</a></li>
+<li><a href="#kappa架构">Kappa架构</a></li>
+<li><a href="#混合分析系统的-kappa-架构">混合分析系统的 Kappa 架构</a></li>
+<li><a href="#kappa">Kappa+</a></li>
+<li><a href="#lambda-plustablestore-blink-流批一体处理框架">Lambda plus：Tablestore + Blink 流批一体处理框架</a></li>
+<li><a href="#hologres的流批一体">Hologres的流批一体</a></li>
+<li><a href="#实时数据生产-实时分析引擎">实时数据生产 + 实时分析引擎</a></li>
+<li><a href="#lambdakappa">Lambda+Kappa</a></li>
+<li><a href="#flink-iceberg-近实时的数据湖分析系统">Flink + Iceberg 近实时的数据湖分析系统</a></li>
+<li><a href="#基于kappalambda混合架构的流批一体数仓">基于Kappa+Lambda混合架构的流批一体数仓</a></li>
+</ul>
+</li>
+<li><a href="#总结">总结</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<blockquote>
+<p>导引</p>
+<ol>
+<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
+<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
+<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
+<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
+<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
+<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
+<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
+<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
+<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
+<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
+<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
+<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
+</ol>
+</blockquote>
+<h2><span id="流批一体-实时数仓架构的百家争鸣">流批一体-实时数仓架构的百家争鸣</span></h2><p>当我提到“百家争鸣“这个词，就意味着目前实时数仓领域还没有出现一个能一统江湖的主流架构或技术方案。不同的企业/场景，会选择各异的架构和实现方案来满足不同标准的实时需求。<br>甚至，“实时数仓”这个词本身，还缺乏统一明确的定义。</p>
+<h2><span id="对实时性的追求-一切的根源">对实时性的追求-一切的根源</span></h2><blockquote>
+<p>数据实时或者天级接入hdfs，配置T+1的hive或spark计算任务处理数据，计算结果存储到hdfs，或导出到固定的外部存储，供业务方使用。</p>
+</blockquote>
+<p>这是传统的离线数仓的工作流程，一切都是那么和谐，直到领导提出要看当日/当时的数据。<br>随着网络、通信技术发展，“隔日达”的数据已不能满足客户的需求场景，他们更期待实时数据呈现，这样无论是在金融、证券交易还是零售、港口的实时监控预警等场景下，决策者都可以第一时间做出有利判断，提升效率减少损失。<br>大数据架构开始面临新的挑战：</p>
+<ul>
+<li>业务分析的数据范围横跨实时数据和历史数据，既需要低延迟的实时数据分析，也需要对 PB  级的历史数据进行探索性的数据分析；</li>
+<li>可靠性和可扩展性问题，用户可能会存储海量的历史数据，同时数据规模有持续增长的趋势，需要引入分布式存储系统来满足可靠性和可扩展性需求，同时保证成本可控；</li>
+<li>技术栈深，需要组合流式组件、存储系统、计算组件；</li>
+<li>可运维性要求高，复杂的大数据架构难以维护和管控；</li>
+</ul>
+<p>于是实时数仓、lambda、kappa、流批一体一串名词迸发出来。</p>
+<h2><span id="流计算与批计算的比较">流计算与批计算的比较</span></h2><table>
+<thead>
+<tr>
+<th>特性</th>
+<th>批计算</th>
+<th>流计算</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>数据范围</td>
+<td>有界数据</td>
+<td>无界数据</td>
+</tr>
+<tr>
+<td>任务执行</td>
+<td>分批执行、有终止</td>
+<td>全部执行、无终止</td>
+</tr>
+<tr>
+<td>更新周期</td>
+<td>小时级、天级</td>
+<td>秒级、分钟级</td>
+</tr>
+<tr>
+<td>数据场景</td>
+<td>数据量超大数据、无法以流的形式交付</td>
+<td>数据以流的形式交付</td>
+</tr>
+<tr>
+<td>资源消耗</td>
+<td>大</td>
+<td>小</td>
+</tr>
+<tr>
+<td>数据质量</td>
+<td>要求低</td>
+<td>要求高</td>
+</tr>
+<tr>
+<td>业务场景</td>
+<td>清算对账、报表生成、特征生成</td>
+<td>欺诈检测、实时风控、实时推荐</td>
+</tr>
+<tr>
+<td>关注点</td>
+<td>可扩展性、吞吐、容错</td>
+<td>可扩展性、延迟、容错、消息一致性、消息持久性</td>
+</tr>
+<tr>
+<td>处理语义</td>
+<td>仅有一次</td>
+<td>至少一次、至多一次、仅有一次</td>
+</tr>
+<tr>
+<td>代表引擎</td>
+<td>MR/SPARK</td>
+<td>Storm/Spark streaming/Flink/Kafka streaming</td>
+</tr>
+</tbody>
+</table>
+<h2><span id="lambda-经典实时数仓架构">lambda-经典实时数仓架构</span></h2><h3><span id="lambda-架构">Lambda 架构</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/778019f51b5e84d6cd6c9b41f77fce80.webp" alt=""><br>Lambda 架构是目前影响最深刻的大数据处理架构，它的核心思想是将不可变的数据以追加的方式并行写到批和流处理系统内，随后将相同的计算逻辑分别在流和批系统中实现，并且在查询阶段合并流和批的计算视图并展示给用户。<br>Lambda 有 Batch Layer（批处理）和 Speed Layer（流式处理）。然后通过将批和流的结果拼接在一起。Lambda 架构具备数据不可变性质避免人为引入错误问题、支持数据重跑、将复杂的流处理分离出来。而 Batch Layer 和 Speed Layer 由于需要满足不同的场景，往往会选择不同的组件。<br>Lambda架构的核心思想是将业务进行拆分，实时性要求高的业务走实时计算方案，实时性要求低的业务走离线计算方案，最后由数据服务层对全部数据进行分析汇总供下游使用。<br>Lambda的提出者 Nathan Marz 还假定了批处理相对简单不易出现错误，而流处理相对不太可靠，因此流处理器可以使用近似算法，快速产生对视图的近似更新，而批处理系统会采用较慢的精确算法，产生相同视图的校正版本。<br><img src="http://blog.itpub.net/ueditor/php/upload/image/20220126/1643166170284223.png" alt=""></p>
+<h3><span id="lambda架构典型数据流程">Lambda架构典型数据流程</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/640" alt=""></p>
+<ol>
+<li>所有的数据需要分别写入批处理层和流处理层；</li>
+<li>批处理层两个职责：(i)管理 master dataset (存储不可变、追加写的全量数据)，(ii)预计算batch view；</li>
+<li>服务层对 batch view 建立索引，以支持低延迟、ad-hoc 方式查询 view；</li>
+<li>流计算层作为速度层，对实时数据计算近似的 real-time view，作为高延迟batch view 的补偿快速视图；</li>
+<li>所有的查询需要合并 batch view 和 real-time view；</li>
+</ol>
+<p>Lambda 架构设计推广了在不可变的事件流上生成视图，并且可以在必要时重新处理事件的原则。该原则保证了系统随需求演进时，始终可以创建相应的新视图出来，切实可行地满足了不断变化的历史数据和实时数据分析需求。</p>
+<h3><span id="lambda-架构存在的问题">Lambda 架构存在的问题</span></h3><p><img src="https://p1.meituan.net/travelcube/99dd755cb5a447dc1a547d782a997db1751042.png" alt=""><br>Lambda 架构非常复杂，在数据写入、存储、对接计算组件以及展示层都有复杂的子课题需要优化：</p>
+<ol>
+<li>写入层上，Lambda 没有对数据写入进行抽象，而是将双写流批系统的一致性问题反推给了写入数据的上层应用；</li>
+<li>存储上，以 HDFS 为代表的master dataset 不支持数据更新，持续更新的数据源只能以定期拷贝全量 snapshot 到 HDFS 的方式保持数据更新，数据延迟和成本比较大；</li>
+<li>计算逻辑需要分别在流批框架中实现和运行，而在类似 Storm 的流计算框架和Hadoop MR 的批处理框架做 job 开发、调试、问题调查都是比较复杂的；</li>
+<li>结果视图需要支持低延迟的查询分析，通常还需要将数据派生到列存分析系统，并保证成本可控。</li>
+</ol>
+<h3><span id="lambda-架构核心痛点">Lambda 架构核心痛点</span></h3><ul>
+<li>一种逻辑两套代码，开发成本高，数据不一致风险高</li>
+<li>两套架构各自独立，组件多，链路冗余</li>
+<li>数据散布在多个系统中，互相访问困难，数据治理困难</li>
+</ul>
+<p>以前天猫整体的数据架构使用的是 Lambda 架构，数据分析需求基于流、批两套计算引擎产出，这种分离的架构不仅会带来两套开发成本，也导致数据逻辑和口径难以对齐。另外，产品搭建数据报表的时候，过程繁琐，容易出现问题。这些痛点促使天猫大数据团队开始调研流批一体的技术方案。<br><img src="https://static001.infoq.cn/resource/image/e4/e5/e48d0487b689961d1562a36caeeaede5.png" alt=""></p>
+<h2><span id="流批一体的初衷">流批一体的初衷</span></h2><blockquote>
+<p>流批一体是一种架构思想，这种思想说的是同一个业务，使用同一个sql逻辑，既可以满足流处理计算同时也可以满足批处理任务的计算。</p>
+</blockquote>
+<p><img src="https://intranetproxy.alipay.com/skylark/lark/0/2020/png/225557/1589264651099-137127ec-1b87-4530-9b77-9fede11fa554.png#align=left&amp;display=inline&amp;height=449&amp;margin=%5Bobject%20Object%5D&amp;name=image.png&amp;originHeight=449&amp;originWidth=846&amp;size=338371&amp;status=done&amp;style=none&amp;width=846" alt=""><br>以上就是绝大部分公司所使用的大数据架构，也有很多公司是根据业务场景选择了其中一部分架构，这样既有实时又有离线的大数据完整架构就搭建出来，看起来很完美，能实际解决问题，但是仔细想想，里面藏了很多坑，越往后做越举步维艰，那么问题在哪呢？<br>首先是基于离线存储的Hive，其次是提供点查询能力的HBase、Cassandra、然后是MPP架构号称能面向HTAP的Greenplum、以及最新兴起的用于做快速分析的Clickhouse等等都是基于解决方案而面世的存储产品。<br>但以上的每个存储产品都是一个数据的孤岛，比如为了解决点查询的问题，数据需要在HBase里面存储一份；为了解决列存的快速分析，数据需要在Druid或者Clickhouse里面存一份；为了解决离线计算又需要在Hive里面存储一份，这样带来的问题就是：<br>1）冗余存储<br>数据将会存储在多个系统中，增加冗余存粗。<br>2）高维护成本<br>每个系统的数据格式不一致，数据需要做转换，增加维护成本，尤其是当业务到达一定量级时，维护成本剧增。<br>3）高学习成本<br>多个系统之前需要完全打通，不同的产品有不同的开发方式，尤其是针对新人来说，需要投入更多的精力去学习多种系统，增加学习成本。<br>面对这样一个无比冗余无比复杂的系统，我们应该怎么去解决这些问题呢？我们可以对Lambda架构做一个简化。其实业务的本质就是将数据源做一个实时处理或者离线处理（批处理），从业务场景出发，我们希望不管是实时数据还是离线数据，都能统一存储在一个存储系统里面，而且这个存储还必须要满足各种各样的业务需求。这样听起来很玄乎，感觉这个产品需要支持各种各种的场景，非常复杂。但是如果我们能把架构做成这样，将会非常完美，这样就从本质上解决了流批统一的计算问题，一套SQL既能做流计算又能做批计算，再深挖其底层原理，还解决了存储问题，流数据和批数据都统一存储在同一个产品。</p>
+<p>让开发人员能够用同一套接口实现大数据的流计算和批计算。即开发一套代码，使用一款（也可能是多款，不过一般少见）计算引擎，通过选择不同数据源，既能处理实时流数据又能处理有界的批数据，达到以下目的：<br> 1.减少学习成本，避免多套开发流程<br> 2.降低架构复杂性，避免冗余链路和数据产出口径不一致<br> 3.减少资源消耗<br> 4.提升价值产出效率</p>
+<h2><span id="流批一体的重点和难点">流批一体的重点和难点</span></h2><h3><span id="数据处理">数据处理</span></h3><p>首先讲数据处理架构，Flink已经是实时计算行业事实上的标准。能够将业务开发实时化，只是Flink的一个起点，Flink最终的目的肯定是为了给用户提供彻底的实时离线一体化体验。其实很多用户不仅需要实时的数据统计，为了确认运营或产品的策略效果，用户同时还需要和历史（昨天，甚至是去年的同期）数据比较。而从用户的角度来看，原有的流、批独立方案存在一些痛点：</p>
+<ul>
+<li>第一，就是一套代码，需要维护两遍，不仅语法不通，处理数据的思路也不同，很容易出错。</li>
+<li>第二，就是数据处理链路冗余，事实上从第二天开始，数据就跟离线没什么不同了，而实时的资源通常又很贵，所以资源是会产生浪费的。</li>
+<li>第三，就是数据口径不同，道理也很简单，架构不同，就是很容易出错。</li>
+</ul>
+<p>Flink应对的方式，就是一套引擎，多种方式。</p>
+<ul>
+<li>首先是SDK层，如Table/SQL，用户的业务逻辑只要开发一遍，就可以同时在流和批的两种场景下使用。</li>
+<li>其次是执行引擎，提供了统一的DAG，用来描述数据处理流程Data Processing Pipeline。这个很关键，在业务逻辑执行前，都会先转化为DAG图，再转化成在分布式环境下执行的Task，以同时支持两种Shuffle方式。</li>
+</ul>
+<h3><span id="数据存储">数据存储</span></h3><p>数据库的选型，即OLAP怎么搞，也是实时数仓另外一个关心的架构问题。过去海量数据的存储与计算，都是数仓技术需要考虑的问题，但随着技术的发展，不同形态的数据库技术发展蓬勃，比如ES、MongoDB、HBase、Kudu等出现，存储对于数据仓库技术而言，已经不再是非常难以解决的问题了，那么我们目前关心的，就是数据库能否支持数据的高速写入，以及能否实现高并发低延迟的查询响应。<br>为了能够更好的理解这个问题，我们把问题抽象成如下几个部分：</p>
+<ul>
+<li>第一，高并发特性，目前的实时数据已经不再是给高管、运营看数的工具，随着数据运营深入人心，外部的商家等人群，都有访问实时数据的诉求，那么这时候高并发就是必须要考虑的问题。</li>
+<li>第二，响应速度，大促变的越来越频繁，同时移动端看数据的需求也变得越来越多，甚至算法也开始要实时的数据源，大家都希望能够看到毫秒级的变化，也就是刷新一下页面数据就会变，那么数据库的响应速度，就显得非常重要了。</li>
+<li>第三，处理时延，还是大促，我们需要考虑流量峰值下的数据处理能力，至少延迟不能增加太高。同时，实时数仓通常会带来资源的错峰计算，但其实随着云原生的普及，资源混布成为常态，这个特性已经带不来更多的收益了。</li>
+</ul>
+<p>综上，其实我们需要考虑的是一种能够统筹OLTP和OLAP的数据库，以分布式事务和水平弹性扩展为主要卖点的产品。或者，我们可以把此类框架称之为“数据湖”产品，因为我们的目标都是为了实时的处理和分析数据。TiDB，或者是阿里的Hologres、ADB，都在朝着这条路去走。</p>
+<h3><span id="阻力和动力">阻力和动力</span></h3><ul>
+<li>从技术层面来看，流计算和批计算从计算方式、支撑模块、资源调度策略到流程规划等都存在差异，不管是批流一体还是流批一体，都有不少技术问题要解决。目前很多厂商的数据业务还是选择将流和批分开来做，流用 Flink、批用 Spark。这就导致前面说的大前提无法满足，在核心场景落地流批一体更加无从谈起。</li>
+<li>从业务层面来看，如果企业有非常重的历史包袱或者在流批一体架构下不能取得足够多业务价值，那它也不会有足够的动力去做流批一体的改造和落地。</li>
+</ul>
+<h2><span id="不同层面的流批一体场景">不同层面的流批一体场景</span></h2><p>大数据架构的各个环节，都面临着流批一体的问题，如：</p>
+<ul>
+<li>数据接入层流批一体：离线与实时是否使用统一数据采集方式；如统一通过 CDC 或者 OGG 将数据实时捕获推送到 kafka，批与流再从 kafka 中消费数据，载入明细层。</li>
+<li>计算逻辑层流批一体：流与批处理是否使用统一 SQL 语法或者 ETL 组件，再通过底层分别适配流与批计算引擎。</li>
+<li>计算引擎层流批一体：流与批使用同一套计算引擎，从根本上避免同一个处理逻辑流批两套代码问题。</li>
+<li>存储层流批一体：离线与实时数据是否统一分层、统一存储；如离线与实时数据经过 ETL 处理之后根据统一分层（ODS、DMD、DMS）持久化到同一个数据存储中。</li>
+</ul>
+<h3><span id="数据接入层的流批一体">数据接入层的流批一体</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/e4aa3cd2d6324d72b3bb756eb6700170.jpeg" alt=""><br>在大数据场景下经常需要数据同步或者数据集成，也就是将数据库中的数据同步到大数据的数仓或者其他存储中。上图中的左边是传统的经典数据集成的模式之一，全量的同步和增量的同步实际上是两套技术，需要定期将全量同步的数据跟增量同步数据做 merge，不断的迭代来把数据库的数据同步到数据仓库中。<br>基于 Flink 流批一体，整个数据集成的架构将不同。因为 Flink SQL 也支持数据库（像 MySQL 和 PG）的 CDC 语义，所以可以用 Flink SQL 一键同步数据库的数据到 Hive、ClickHouse、TiDB 等开源的数据库或开源的 KV 存储中。在 Flink 流批一体架构的基础上，Flink 的 connector 也是流批混合的，它可以先读取数据库全量数据同步到数仓中，然后自动切换到增量模式，通过 CDC 读 Binlog 进行增量和全量的同步，Flink 内部都可以自动的去协调好，这是流批一体的价值。</p>
+<h3><span id="计算引擎层的流批一体">计算引擎层的流批一体</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/33e8e90a0dc54343b6851f4548a3a0a3.jpeg" alt=""><br>目前主流数仓架构都是一套典型的离线数仓和一套新的实时数仓，但这两套技术栈是分开的。在离线数仓里，还是习惯用 Hive 或者 Spark，在实时数仓中用 Flink 加 Kafka。有三个问题需要解决：两套开发流程，成本高；数据链路冗余，两套链路将数据相关的操作做了两遍；数据口径的一致性难以保证，因为它是由两套引擎算出来的。<br>2020 年，Flink 在流批一体上走出了坚实的一步，可以抽象的总结为 Flink 1.10 和 1.11 这两个大的版本，主要是完成 SQL 层的流批一体化和实现生产可用性。实现了统一的流批一体的 SQL 和 Table 的表达能力，以及统一的 Query Processor，统一的 Runtime。在1.12 版本中，对 DataStream API 进行了流批一体化。在 DataStream 原生的流的算子上增加批的算子，也就是说 DataStream 也可以有两种执行模式，批模式和流模式里面也可以混合批算子和流算子。在1.13 的版本中，实现 DataStream 流批一体化的算子，整个的计算框架和 SQL 一样，完全都是流批一体化的计算能力。这样一来，原来 Flink 中的 DataSet 这套老的 API 就可以去掉，完全实现真正的流批一体的架构。<br>用流批一体架构来解决，以上难题将极大降低。</p>
+<ul>
+<li>首先，Flink 是一套 Flink SQL 开发，不存在两套开发成本。一个开发团队，一套技术栈，就可以做所有的离线和实时业务统计的问题。</li>
+<li>第二，数据链路也不存在冗余，明细层的计算一次即可，不需要离线再算一遍。</li>
+<li>第三，数据口径天然一致。无论是离线的流程，还是实时的流程，都是一套引擎，一套 SQL，一套 UDF，一套开发人员，所以它天然是一致的，不存在实时和离线数据口径不一致的问题。</li>
+</ul>
+<h3><span id="存储层的流批一体">存储层的流批一体</span></h3><h4><span id="消息队列">消息队列</span></h4><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/736748-20211122100707204-331992627.png" alt=""><br>首先在计算层，Pulsar Broker 不保存任何状态数据、不做任何数据存储，称之为服务层。<br>其次，Pulsar 拥有一个专门为消息和流设计的存储引擎 BookKeeper，称之为数据层。<br>如果要支持更多的 Producer 和 Consumer，可扩充上面无状态的 Broker 层；如果要支持更多的数据存储，可单独扩充底层存储层。<br>这种分层的架构为做批流融合打好了基础。因为它原生分成了两层，可以根据用户的使用场景和批流的不同访问模式，来提供两套不同的 API。</p>
+<ul>
+<li>如果是实时数据的访问，可以通过上层 Broker 提供的 Consumer 接口；</li>
+<li>如果是历史数据的访问，可以跳过 Broker，用存储层的 reader 接口，直接访问底层存储层。</li>
+</ul>
+<h4><span id="数据湖">数据湖</span></h4><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/552f4b64b92a457c85160bb9abf6de80.jpeg" alt=""><br>Hive 元数据的管理是瓶颈，Hive 不支持数据的实时更新。Hive 没有办法实时或者准实时化地提供数仓能力。现在比较新的数据湖架构，可以解决更具扩展性的元数据的问题，而且数据湖的存储支持数据的更新，是一个流批一体的存储。数据湖存储与 Flink 结合，就可以将实时离线一体化的数仓架构演变成实时离线一体化的数据湖架构。</p>
+<h2><span id="百花齐放的流批一体架构">百花齐放的流批一体架构</span></h2><blockquote>
+<p>不同程度/层面的流批一体，诞生不同的实时数仓架构</p>
+</blockquote>
+<h3><span id="流批融合的-lambda-架构">流批融合的 Lambda 架构</span></h3><blockquote>
+<p>计算引擎层流批一体</p>
+</blockquote>
+<p>针对Lambda 架构存在的问题3-计算逻辑需要分别在流批框架中实现和运行的问题，不少计算引擎已经开始往流批统一的方向去发展，例如 Spark 和 Flink，从而简化lambda 架构中的计算部分。实现流批统一通常需要支持：</p>
+<ol>
+<li>以相同的处理引擎来处理实时事件和历史回放事件；</li>
+<li>支持 exactly once 语义，保证有无故障情况下计算结果完全相同；</li>
+<li>支持以事件发生时间而不是处理时间进行窗口化。</li>
+</ol>
+<h3><span id="kappa架构">Kappa架构</span></h3><blockquote>
+<p>接入/存储/计算引擎/展示层流批一体</p>
+</blockquote>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220524164641.png" alt=""><br>LinkedIn的前首席工程师杰伊·克雷普斯（Jay Kreps）曾针对Lambda架构提出过一个改进观点： 改进Lambda架构中的Speed Layer，使它既能够进行实时数据处理，同时也有能力在业务逻辑更新的情况下重新处理以前处理过的历史数据。这种以流处理为核心来建设数据系统，Kreps 称之为「Kappa 架构」。<br>不同于 Lambda 同时计算流计算和批计算并合并视图，Kappa 只会通过流计算一条的数据链路计算并产生视图。Kappa 同样采用了重新处理事件的原则，对于历史数据分析类的需求，Kappa 要求数据的长期存储能够以有序 log 流的方式重新流入流计算引擎，重新产生历史数据的视图。<br>Kappa 和 Lambda 都是希腊字母符号。这套架构远比 Lambda 架构简单。就是把原先批处理，改成流处理。它没有了 Lambda 架构中的 Batch Layer、Speed Layer、以及 Serve Layer。<br>当流任务发生了代码变动或者需要对上游进行回溯计算时，只需要保持原来的Job N不动，然后再启动一个作业Job N+1，指定历史数据的offset进行计算并写入到一张新的N+1表中，当Job N+1的计算进度赶上Job的进度后，可以将原来的Job N任务替换成Job N+1，下游的业务程序只需要根据Job N+1生成的表进行分析或者展示。这样就可以将离线链路层去掉，减少客户额外开发及维护代码的工作量，同时统一了业务的计算口径。<br><img src="http://blog.itpub.net/ueditor/php/upload/image/20220126/1643166171619205.png" alt=""></p>
+<p><strong>Kappa 架构存在的问题</strong><br><img src="https://p0.meituan.net/travelcube/b56fa6bad760f1dcd3a889df4c570508795045.png" alt=""></p>
+<ul>
+<li>Kappa 方案通过精简链路解决了Lambda 架构存在的问题1-数据写入和Lambda 架构存在的问题3-计算逻辑复杂，但它依然没有解决存储和展示的问题，特别是在存储上，使用类似 kafka 的消息队列存储长期日志数据，数据无法压缩，存储成本很大，绕过方案是使用支持数据分层存储的消息系统（如 Pulsar，支持将历史消息存储到云上存储系统），但是分层存储的历史日志数据仅能用于 Kappa backfill 作业，数据的利用率依然很低。</li>
+<li>遗留离线数仓的迁移问题，要将成千上万的 ETL 作业迁往流处理系统，其工作量之大、成本之大、风险之大</li>
+<li>数据丢失的问题，流处理平台，数据丢失问题相对于批处理，更容易出现。而且，要进行对数非常困难</li>
+</ul>
+<p><strong>Lambda 和 Kappa 的场景区别</strong></p>
+<ul>
+<li>Kappa 不是 Lambda 的替代架构，而是其简化版本，Kappa 放弃了对批处理的支持，更擅长业务本身为 append-only 数据写入场景的分析需求，例如各种时序数据场景，天然存在时间窗口的概念，流式计算直接满足其实时计算和历史补偿任务需求；</li>
+<li>Lambda 直接支持批处理，因此更适合对历史数据有很多 ad hoc 查询的需求的场景，比如数据分析师需要按任意条件组合对历史数据进行探索性的分析，并且有一定的实时性需求，期望尽快得到分析结果，批处理可以更直接高效地满足这些需求。</li>
+</ul>
+<h3><span id="混合分析系统的-kappa-架构">混合分析系统的 Kappa 架构</span></h3><blockquote>
+<p>接入/存储/计算引擎/展示层流批一体</p>
+</blockquote>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220524164740.png" alt=""><br>Lambda 和 Kappa 架构都还有展示层的困难点，结果视图如何支持 ad-hoc 查询分析，一个解决方案是在 Kappa 基础上衍生数据分析流程，在基于使用Kafka + Flink 构建 Kappa 流计算数据架构，针对Kappa 架构分析能力不足的问题，再利用 Kafka 对接组合 ElasticSearch 实时分析引擎，部分弥补其数据分析能力。但是 ElasticSearch 也只适合对合理数据量级的热数据进行索引，无法覆盖所有批处理相关的分析需求，这种混合架构某种意义上属于 Kappa 和 Lambda 间的折中方案。</p>
+<h3><span id="kappa">Kappa+</span></h3><blockquote>
+<p>接入/存储/计算引擎/展示层流批一体</p>
+</blockquote>
+<p>Kappa+是 Uber 提出的流式数据处理架构，它的核心思想是让流计算框架直读 HDFS类的数仓数据，一并实现实时计算和历史数据 backfill 计算，不需要为 backfill 作业长期保存日志或者把数据拷贝回消息队列。<br>Kappa+ 将数据任务分为无状态任务和时间窗口任务，无状态任务比较简单，根据吞吐速度合理并发扫描全量数据即可，时间窗口任务的原理是将数仓数据按照时间粒度进行分区存储，窗口任务按时间序一次计算一个 partition 的数据，partition 内乱序并发，所有分区文件全部读取完毕后，所有 source 才进入下个 partition 消费并更新 watermark。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220524164816.png" alt=""><br>事实上，Uber 开发了Apache hudi 框架来存储数仓数据，hudi 支持更新、删除已有 parquet 数据，也支持增量消费数据更新部分，从而系统性解决了Lambda 架构存在的问题2存储的问题。上图是完整的Uber 大数据处理平台，其中 Hadoop -&gt; Spark -&gt; Analytical data user 涵盖了Kappa+ 数据处理架构。</p>
+<h3><span id="lambda-plustablestore-blink-流批一体处理框架">Lambda plus：Tablestore + Blink 流批一体处理框架</span></h3><blockquote>
+<p>接入/存储/计算引擎/展示层流批一体</p>
+</blockquote>
+<p>Lambda plus 是基于 Tablestore 和 Blink 打造的云上存在可以复用、简化的大数据架构模式。</p>
+<ul>
+<li>表格存储（Tablestore）是阿里云自研的 NoSQL 多模型数据库，提供 PB 级结构化数据存储、千万 TPS 以及毫秒级延迟的服务能力，表格存储提供了通道服务（TunnelService）支持用户以按序、流式地方式消费写入表格存储的存量数据和实时数据，同时表格存储还提供了多元索引功能，支持用户对结果视图进行实时查询和分析。</li>
+<li>Blink 是阿里云在 Apache Flink 基础上深度改进的实时计算平台，Blink 旨在将流处理和批处理统一，实现了全新的 Flink SQL 技术栈，在功能上，Blink 支持现在标准 SQL 几乎所有的语法和语义，在性能上，Blink 也比社区Flink更加强大。</li>
+</ul>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220524164851.png" alt=""><br>在 TableStore + Blink 的云上 Lambda 架构中，用户可以同时使用表格存储作为master dataset 和 batch&amp;stream view，批处理引擎直读表格存储产生 batch view，同时流计算引擎通过 Tunnel Service 流式处理实时数据，持续生成 stream view。<br>具体组件分解：</p>
+<ul>
+<li>Lambda batch 层：<br> Tablestore 直接作为 master dataset，支持用户直读，配合 Tablestore 多元索引，用户的线上服务直读、ad-hoc 查询 master dataset 并将结果返回给用户；Blink 批处理任务向 Tablestore 下推 SQL 的查询条件，直读 Tablestore master dataset，计算 batch view，并将 batch view 重新写回 Tablestore；</li>
+<li>Streaming 层：<br> Blink 流处理任务通过表格存储 TunnelService API 直读 master dataset 中的实时数据，持续产生 stream view；Kappa 架构的 backfill任务，可以通过建立全量类型数据通道，流式消费 master dataset 的存量数据，从新计算；</li>
+<li>Serving 层：<br> 为存储 batch view 和 stream view 的 Tablestore 结果表建立全局二级索引和多元索引，业务可以低延迟、ad-hoc方式查询；</li>
+</ul>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220524164925.png" alt=""><br>针对上述 Lambda 架构1-4的技术问题，Lambda plus 的解决思路：</p>
+<ul>
+<li>针对数据写入的问题，Lambda plus 数据只需要写入表格存储，Blink 流计算框架通过通道服务 API 直读表格存储的实时数据，不需要用户双写队列或者自己实现数据同步；</li>
+<li>存储上，Lambda plus 直接使用表格存储作为 master dataset，表格存储支持用户 tp 系统低延迟读写更新，同时也提供了索引功能 ad-hoc 查询分析，数据利用率高，容量型表格存储实例也可以保证数据存储成本可控；</li>
+<li>计算上，Lambda plus 利用 Blink 流批一体计算引擎，统一流批代码；</li>
+<li>展示层，表格存储提供了多元索引和全局二级索引功能，用户可以根据解决视图的查询需求和存储体量，合理选择索引方式。</li>
+</ul>
+<p>总结，表格存储实现了 batch view、master dataset 直接查询、stream view 的功能全集，Blink 实现流批统一，Tablestore 加 Blink 的 Lambda plus 模式可以明显简化 Lambda 架构的组件数量，降低搭建和运维难度，拓展用户数据价值。</p>
+<h3><span id="hologres的流批一体">Hologres的流批一体</span></h3><blockquote>
+<p>接入/存储/计算引擎/展示层流批一体</p>
+</blockquote>
+<p><img src="https://pic2.zhimg.com/80/v2-f23038dd58af93f17f5c96c096e39a39_1440w.png" alt=""><br>Hologres的架构从下往上看，最底层是统一的存储系统，可以是阿里云统一的Pangu、业务的HDFS或者OSS、S3等，存储上面是计算层，提供类似MPP架构计算服务，再往上是FE层，根据查询信息将Plan分发到各个计算节点，再往上就是PostgreSQL生态的对接，只要有JDBC/ODBC Driver就能对Hologres做查询。<br>Hologres的架构是完全存储计算分离，计算完全部署在K8s上，存储可以使用共享存储，可以根据业务需求选择HDFS或者云上的OSS，这样用户就能根据业务需求对资源做弹性扩缩容，完美解决资源不够带来的并发问题。<br><img src="https://pic1.zhimg.com/80/v2-ceb35faba8cdec07f40bae5f139f4124_1440w.png" alt=""><br>数据实时写入至Flink，经由Flink做实时预处理，比如实时ETL或者实时训练，把处理的结果直接写入Hologres，Hologres提供维表关联点查、结果缓存、复杂实时交互、离线查询和联邦查询等，这样整个业务系统只需要通过Hologres来做唯一的数据入口，在线系统可以通过PostgreSQL生态在Hologres中访问数据，无需对接其他系统，这样也能解决之前传统架构的各种查询、存储问题。</p>
+<h3><span id="实时数据生产-实时分析引擎">实时数据生产 + 实时分析引擎</span></h3><blockquote>
+<p>接入层流批一体</p>
+</blockquote>
+<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/7ac39d700ee97541157fa06f8a0ebdfa.webp" alt=""><br>上图是美团实时数仓架构设计，数据从日志统一采集到消息队列，再到数据流的 ETL 过程，作为基础数据流的建设是统一的。<br>之后对于日志类实时特征，实时大屏类应用走实时流计算。对于 Binlog 类业务分析走实时 OLAP 批处理。<br>美团实时数仓架构主要是将一些在实时处理面临的难点，由实时 OLAP 处理。实时处理面临的几个难点：</p>
+<ul>
+<li>业务的多状态性：业务过程从开始到结束是不断变化的，比如从下单-&gt;支付-&gt;配送，业务库是在原始基础上进行变更的，Binlog 会产生很多变化的日志。而业务分析更加关注最终状态，由此产生数据回撤计算的问题，例如 10 点下单，13 点取消，但希望在 10 点减掉取消单。</li>
+<li>业务集成：业务分析数据一般无法通过单一主体表达，往往是很多表进行关联，才能得到想要的信息，在实时流中进行数据的合流对齐，往往需要较大的缓存处理且复杂。</li>
+<li>分析是批量的，处理过程是流式的：对单一数据，无法形成分析，因此分析对象一定是批量的，而数据加工是逐条的。</li>
+</ul>
+<h3><span id="lambdakappa">Lambda+Kappa</span></h3><blockquote>
+<p>计算引擎/展示层流批一体</p>
+</blockquote>
+<p><img src="https://static001.infoq.cn/resource/image/e4/e5/e48d0487b689961d1562a36caeeaede5.png" alt=""><br><img src="https://static001.infoq.cn/resource/image/d3/70/d321545b9130c108b4bef5b5214b6070.png" alt=""><br>从上图可以看出，阿里的实时数仓架构是同时 Lambda 与 Kappa 结合：</p>
+<ul>
+<li>数据集成没有使用流批一体，分别通过实时采集、数据同步方式实现流与批数据采集</li>
+<li>ETL 逻辑流批一体，实现用户只写一套代码，平台自动翻译成 Flink Batch 任务和 Flink Stream 任务</li>
+<li>同时写到一张 Holo 表，完成计算层表达的统一</li>
+<li>存储层流与批是分开存储，但可以实现流批存储透明化，查询逻辑完全一致。</li>
+</ul>
+<h3><span id="flink-iceberg-近实时的数据湖分析系统">Flink + Iceberg 近实时的数据湖分析系统</span></h3><blockquote>
+<p>接入/计算引擎/存储层流批一体</p>
+</blockquote>
+<p>Iceberg 既支持读写分离，又支持并发读、增量读、小文件合并，还可以支持秒级到分钟级的延迟，基于这些优势我们尝试采用 Iceberg 这些功能来构建基于 Flink 的实时全链路批流一体化的实时数仓架构。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/c26781c7d09b48ac8816787c3dcd4ced.png" alt=""><br>Iceberg 底层依赖的存储是像 HDFS 或 S3 这样的廉价存储，而且 Iceberg 是支持 parquet、orc、Avro 这样的列式存储。有列式存储的支持，就可以对 OLAP 分析进行基本的优化，在中间层直接进行计算。例如谓词下推最基本的 OLAP 优化策略，基于 Iceberg snapshot 的 Streaming reader 功能，可以把离线任务天级别到小时级别的延迟大大的降低，改造成一个近实时的数据湖分析系统。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/40fe6572a1c3424e83f36756e558641d.png" alt=""><br>在中间处理层，可以用 presto 进行一些简单的查询，因为 Iceberg 支持 Streaming read，所以在系统的中间层也可以直接接入 Flink，直接在中间层用 Flink 做一些批处理或者流式计算的任务，把中间结果做进一步计算后输出到下游。</p>
+<p>替换 Kafka 的优劣势<br>总的来说，Iceberg 替换 Kafka 的优势主要包括：</p>
+<ul>
+<li>实现存储层的流批统一</li>
+<li>中间层支持 OLAP 分析</li>
+<li>完美支持高效回溯</li>
+<li>存储成本降低</li>
+</ul>
+<p>当然，也存在一定的缺陷，如：</p>
+<ul>
+<li>数据延迟从实时变成近实时</li>
+<li>对接其他数据系统需要额外开发工作</li>
+</ul>
+<h3><span id="基于kappalambda混合架构的流批一体数仓">基于Kappa+Lambda混合架构的流批一体数仓</span></h3><blockquote>
+<p>接入/计算引擎层流批一体</p>
+</blockquote>
+<p><img src="http://blog.itpub.net/ueditor/php/upload/image/20220126/1643166172292464.png" alt=""><br>在数栈平台先选择创建实时采集和数据同步任务将业务库数据采集到Kafka和Iceberg，即数仓的ODS层。<br>实时数仓和离线数仓从ODS到DWD层数据清洗和数据打宽的处理逻辑是一样的，表定义结构也是保持一致的，所以这一步只需要实现一套Flink SQL数栈平台会自动翻译成Flink Stream和Flink Batch任务即可用于实时数仓又可以用于离线数仓。<br>实时数仓和离线数仓DWS层分别存放分时图买卖点信息和日K、周K等数据，两边处理逻辑不同所以在这一层需要根据业务开发两套SQL, Stream Flink SQL对接实时数仓DWD层数据实时计算分时图买卖点，Batch Flink SQL对接离线数仓DWD层数据周期调度计算日K、周K等买卖点数据。<br>应用层服务直接从DWS层获取买卖点数据进行展示。<br>通过实例我们可以看到数栈选择了Iceberg作为流批一体的存储层，原因如下：</p>
+<ol>
+<li>Iceberg存储的是原始数据，数据结构可以多样化；</li>
+<li>Iceberg支持多种计算模型，是一个通用化设计的Table Format，完美地解耦了计算引擎和底下的存储系统；</li>
+<li>Iceberg底层存储支持灵活，一般用 S3、OSS、HDFS 这种廉价的分布式文件系统，采用特定的文件格式和缓存就可以对应场景的数据分析需求；</li>
+<li>Iceberg项目背后的社区资源非常丰富，在国内外已经有不少大公司将海量的数据跑在Iceberg上；</li>
+<li>Iceberg保存全量数据，当流计算任务有重跑历史数据的需求时可从Iceberg读取数据然后无缝切换到Kafka即可。</li>
+</ol>
+<h2><span id="总结">总结</span></h2><p>实时化已经是大趋势，尽管实时不能完全代替离线场景，但常规的业务模式全部实时化，还是没有问题的。<br>离线数仓不会淘汰，成熟/稳定/完善，对于一些针对大量历史数据的复杂分析场景更有优势。<br>实时数仓还再蓬勃发展阶段，不同的企业/场景催生不同的架构，还没有一种成熟/稳定/全面的架构可以一统江湖。</p>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://mp.weixin.qq.com/s/waoNAf7bFKgkyHbCMIMy_Q" target="_blank" rel="noopener">大数据架构如何做到流批一体？</a></li>
+<li><a href="https://www.cnblogs.com/029zz010buct/p/15587077.html" target="_blank" rel="noopener">当我们谈论批流一体，我们在谈论什么？</a></li>
+<li><a href="https://www.infoq.cn/article/ykkzj6ijzdrzdlls83kg" target="_blank" rel="noopener">为什么阿里云要做流批一体？</a></li>
+<li><a href="https://developer.aliyun.com/article/760202" target="_blank" rel="noopener">数据仓库、数据湖、流批一体，终于有大神讲清楚了！</a></li>
+<li><a href="https://www.jianshu.com/p/ed8b2f2284c1" target="_blank" rel="noopener">探索流批一体结构下的实时数仓</a></li>
+<li><a href="https://jishuin.proginn.com/p/763bfbd62b49" target="_blank" rel="noopener">几种实时数仓架构设计思路</a></li>
+<li><a href="http://blog.itpub.net/69995740/viewspace-2854047/" target="_blank" rel="noopener">流批一体技术框架探索及在袋鼠云数栈中的实践</a></li>
+<li><a href="https://developer.aliyun.com/article/752406" target="_blank" rel="noopener">从Lambda架构到Kappa架构再到？浅谈未来数仓架构设计~</a></li>
+<li><a href="https://docherish.com/post/da-shu-ju-chang-yong-de-jia-gou-lambda-he-kappa/" target="_blank" rel="noopener">大数据常用的架构——Lambda和Kappa</a></li>
 <li><a href="https://developer.aliyun.com/article/781534" target="_blank" rel="noopener">Flink + Iceberg 全场景实时数仓的建设实践</a></li>
 </ul>
 
@@ -320,428 +1053,9 @@
         		<li class="article-tag-list-item">
         			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">实时数仓</a>
         		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
+      		 
         		<li class="article-tag-list-item">
-        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/24/bigdata-stack-realdw/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-bigdata-stack-dw" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/24/bigdata-stack-dw/">大数据开发之路-离线数仓</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/24/bigdata-stack-dw/" class="archive-article-date">
-  	<time datetime="2022-05-24T00:23:01.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-24</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#离线数仓-大数据系统的重量级应用">离线数仓-大数据系统的重量级应用</a></li>
-<li><a href="#架构介绍">架构介绍</a><ul>
-<li><a href="#传统数仓架构">传统数仓架构</a></li>
-<li><a href="#大数据数仓架构">大数据数仓架构</a></li>
-</ul>
-</li>
-<li><a href="#建设思想">建设思想</a></li>
-<li><a href="#规范建设">规范建设</a><ul>
-<li><a href="#流程规范">流程规范</a></li>
-<li><a href="#开发规范">开发规范</a></li>
-<li><a href="#编码规范">编码规范</a></li>
-<li><a href="#上线规范">上线规范</a></li>
-<li><a href="#下线规范">下线规范</a></li>
-<li><a href="#模型设计规范">模型设计规范</a><ul>
-<li><a href="#分层规范">分层规范</a></li>
-<li><a href="#数据域划分规范">数据域划分规范</a></li>
-<li><a href="#公共层模型设计规范">公共层模型设计规范</a></li>
-</ul>
-</li>
-<li><a href="#指标规范">指标规范</a></li>
-</ul>
-</li>
-<li><a href="#元数据建设">元数据建设</a></li>
-<li><a href="#治理体系建设">治理体系建设</a></li>
-<li><a href="#配套工具建设">配套工具建设</a><ul>
-<li><a href="#指标管理工具">指标管理工具</a></li>
-<li><a href="#元数据管理系统">元数据管理系统</a></li>
-<li><a href="#数据质量监控工具">数据质量监控工具</a></li>
-<li><a href="#生命周期管理工具">生命周期管理工具</a></li>
-<li><a href="#成本管理工具">成本管理工具</a></li>
-<li><a href="#知识库">知识库</a></li>
-<li><a href="#数据服务">数据服务</a></li>
-</ul>
-</li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引</p>
-<ol>
-<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
-<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
-<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
-<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
-</ol>
-</blockquote>
-<blockquote>
-<p>关联阅读<br><a href="https://winway.github.io/2022/05/09/dwModeling/">数仓建模浅谈</a></p>
-</blockquote>
-<h2><span id="离线数仓-大数据系统的重量级应用">离线数仓-大数据系统的重量级应用</span></h2><p>数据仓库概念诞生于1990年，由Inmon提出。截至今天，离线数仓已是十分成熟的一种技术，有主流、现成的架构方案可以采用，市面上的离线数仓架构也基本上大同小异。<br>因此，本文不再过多介绍架构方面的知识，而是重点介绍离线数仓的建设，如规范制定/数据治理等，即如何养成一个好用的离线数仓。</p>
-<h2><span id="架构介绍">架构介绍</span></h2><h3><span id="传统数仓架构">传统数仓架构</span></h3><p><img src="https://s1.51cto.com/oss/202005/28/44a58c9280d11e50ff6cba64c8cfa483.jpeg" alt=""><br>这是比较传统的一种方式，结构或半结构化数据通过离线ETL定期加载到离线数仓，之后通过计算引擎取得结果，供前端使用。<br>这里的离线数仓+计算引擎，通常是使用大型商业数据库来承担，例如Oracle、DB2、Teradata等。</p>
-<h3><span id="大数据数仓架构">大数据数仓架构</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/532288-20210126201125249-1962605607.png" alt=""><br>随着数据规模的不断增大，传统数仓方式难以承载海量数据。随着大数据技术的普及，开始采用大数据技术来承载存储与计算任务。当然，也可以使用传统数据库集群或MPP架构数据库来完成。例如Hadoop+Hive/Spark、Oracle RAC、GreenPlum等。<br>离线数仓一般会涉及到数据采集/存储/计算/查询/管理等环节的众多组件，可以参考《<a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/#%E4%B8%80-%E7%86%9F%E6%82%89%E5%A4%A7%E6%95%B0%E6%8D%AE%E7%9B%B8%E5%85%B3%E7%BB%84%E4%BB%B6%E7%9A%84%E5%8E%9F%E7%90%86-%E7%89%B9%E7%82%B9%E5%92%8C%E4%BD%BF%E7%94%A8%E5%9C%BA%E6%99%AF">大数据开发之路-概述</a>》</p>
-<h2><span id="建设思想">建设思想</span></h2><p>要想建设一个好用的数仓，先要知道数仓一般会面临哪些问题，如数据组织混乱、数据冗余、找数困难、指标口径混乱、数据不一致、数据质量无保证、烟囱开发、性能差、无SLA等。<br>这些问题的产生主要是因为缺乏统一的流程规范和辅助工具支撑，导致随着时间的推移和人员的更替，问题越积越多，越来越难用和维护。<br>所以，我的建设思想可以总结为三步：</p>
-<ol>
-<li>规范建设。先制定各种规范，保证数仓的建设是有据可依的；</li>
-<li>元数据建设。收集各种信息，了解数仓状态，驱动治理；</li>
-<li>治理体系建设。有了规范，了解了状态，就可以有的放矢，制定治理目标和方案，针对不好的地方进行改造。</li>
-</ol>
-<p>另外，数仓建设是一个循序渐进的过程，不可能一蹴而就。因为</p>
-<ul>
-<li>新业务源源不断，数仓的开发工作也就不能停止；</li>
-<li>旧业务可能会变化，涉及到模型的上线/下线/合并等，也需要长期维护。</li>
-</ul>
-<p>所以，对于数仓开发人员来说，这是一项长期的工作。</p>
-<h2><span id="规范建设">规范建设</span></h2><blockquote>
-<p>无规矩不成方圆，数仓规范包括但不限于下述内容，规范需要不断地补充完善。</p>
-</blockquote>
-<h3><span id="流程规范">流程规范</span></h3><p>形成业务方/产品、分析师、开发公认的一套流程，核心环节应包括：需求评审、数据来源、口径定义、验收</p>
-<h3><span id="开发规范">开发规范</span></h3><ul>
-<li>任务命名/注释</li>
-<li>表命名</li>
-<li>表分区格式</li>
-<li>表存储格式，默认orc</li>
-<li>表生命周期</li>
-<li>清洗约定，通用字段名统一、字段类型统一、null值处理、常见格式/单位统一</li>
-</ul>
-<h3><span id="编码规范">编码规范</span></h3><ul>
-<li>大小写统一</li>
-<li>表、字段注释</li>
-<li>显式参数注释</li>
-<li>统一风格，缩进、换行</li>
-<li>禁用select *</li>
-<li>join类型一致</li>
-</ul>
-<h3><span id="上线规范">上线规范</span></h3><ul>
-<li>交叉code review，重点是基本规范和模型的设计</li>
-<li>上线前测试，包括准确性测试（空值、量级、数据分布）、性能测试。这一步很重要却经常被人忽略。据统计，在数据质量事件中60%以上，是由于数据开发修改代码引发的。</li>
-<li>配置监控，包括失败监控、SLA监控</li>
-</ul>
-<h3><span id="下线规范">下线规范</span></h3><ul>
-<li>使用方检查，确认是否仍在使用（依赖于完善的血缘关系）</li>
-<li>下线通知</li>
-<li>任务下线</li>
-<li>代码归档</li>
-<li>表备份（rename）一定期限</li>
-</ul>
-<h3><span id="模型设计规范">模型设计规范</span></h3><h4><span id="分层规范">分层规范</span></h4><ul>
-<li>分层好处<br> <img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220509174443.png" alt=""><ul>
-<li>清晰数据结构：每一个数据分层都有它的作用域和职责，在使用表的时候能更方便地定位和理解</li>
-<li>减少重复开发：规范数据分层，开发一些通用的中间层数据，能够减少极大的重复计算</li>
-<li>统一数据口径：通过数据分层，提供统一的数据出口，统一对外输出的数据口径</li>
-<li>复杂问题简单化：将一个复杂的任务分解成多个步骤来完成，每一层解决特定的问题</li>
-</ul>
-</li>
-<li>分层考虑因素<ul>
-<li>数据粒度：明细、汇总（保留的维度较多）、高度汇总（保留的维度较少）</li>
-<li>通用程度：可复用数据、个性化数据</li>
-</ul>
-</li>
-<li>分层原则<ul>
-<li>从对应用的支持来讲，我们希望越靠上层次，越对应用友好</li>
-<li>从能力范围来讲，我们希望80%需求由20%的表来支持</li>
-<li>从数据聚合程度来讲，我们希望，越上层数据的聚合程度越高</li>
-</ul>
-</li>
-<li>常见分层<ul>
-<li>数据运营层：ODS（Operational Data Store）</li>
-<li>数据仓库层：DW（Data Warehouse）</li>
-<li>数据应用层：APP（Application）</li>
-<li>维表层：DIM（Dimension）<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220509174526.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220509174800.png" alt=""></li>
-</ul>
-</li>
-</ul>
-<h4><span id="数据域划分规范">数据域划分规范</span></h4><ul>
-<li>划分好处：便于理解、沟通、交流；便于组织；便于管理，数仓开发人员按照数据域垂直拆分，专人专域。</li>
-<li>划分依据：业务过程。好的主题域划分，是相对稳定，尽可能地覆盖绝⼤多数的表。</li>
-<li>关键环节：词根池的生成和维护，表名、指标名的关键部分由词根池中的词组成。</li>
-</ul>
-<h4><span id="公共层模型设计规范">公共层模型设计规范</span></h4><ul>
-<li>好处：统一、标准、共享、复用</li>
-<li>建设对象：dim、dwd、dws</li>
-<li>建设流程：公共层模型的扩充和变更需要评审、对外通知</li>
-<li>设计理念：维度建模<ul>
-<li>模型灵活性：通过封装属性，抽象出一致性维度，任何业务迭代在数据层面只涉及维度的调整，大大降低对核心模型的冲击和“烟囱式”的数据建设问题。避免需求变更和业务迭代对核心模型带来的冲击，让RD深陷无休止的需求迭代中。</li>
-<li>数据一致性：在业务上，划分严格的数据域和业务过程，在主题建设层面，将业务划分的数据域作为我们的主题，并基于业务过程进行维度建模，将业务逻辑下沉到主题层，将属于该业务过程的指标口径封装在对应业务过程下的衍生事实中。消除因模型冗余、跨层引用等问题带来的数据一致性问题。</li>
-</ul>
-</li>
-<li>设计原则：高内聚、低耦合；核心、扩展模型分开；公共处理逻辑下沉；成本、性能平衡；幂等；口径一致；命名规范</li>
-<li>dim设计规范：唯一主键；主键统一，如user_id；维度属性丰富；维表组合、拆分，考虑相关性、时效性、数据量</li>
-<li>dwd设计规范：业务过程明确；粒度明确、统一；单位统一；严禁反向依赖；时间分区；维度退化；数据域单一；常用度量冗余</li>
-<li>dms设计规范：划分主题域；粒度统一；单位统一；严禁反向依赖；避免模型穿透；不建议跨数据域；面向基础维度汇总（app面向高度汇总、个性化）；通用事务性指标、存量类指标（app面向业务自定义的复合型指标和非通用指标）</li>
-<li>模型优劣衡量标准：<br> <img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_6df0d78e-1f79-11ec-ae4e-00163e068ecd.png" alt=""><ul>
-<li>如何衡量完善度<ul>
-<li>DWD层完善度：衡量DWD层是否完善，最好看ODS层有多少表被DWS/ADS/DM层引⽤。因为DWD以上的层引⽤的越多，就说明越多的任务是基于原始数据进⾏深度聚合计算的，明细数据没有积累，⽆法被复⽤， 数据清洗、格式化、集成存在重复开发。<br>跨层引⽤率：ODS层直接被DWS/ADS/DM层引⽤的表，占所有ODS层表（仅统计活跃表）⽐例。跨层引⽤率越低越好，在数据中台模型设计规范中，要求不允许出现跨层引⽤，ODS层数据只能被DWD引⽤。</li>
-<li>DWS/ADS/DM层完善度：考核汇总数据的完善度，主要看汇总数据能直接满⾜多少查询需求（也就是⽤汇总层数据的查询⽐例衡量）。如果汇总数据⽆法满⾜需求，使⽤数据的⼈就必须使⽤明细数据，甚⾄是原始数据。<br>汇总数据查询⽐例：DWS/ADS/DM层的查询占所有查询的⽐例。<br>要明确的是，这个跟跨层引⽤率不同，汇总查询⽐例不可能做到100%，但值越⾼，说明上层的数据建设越完善，对于使⽤数据的⼈来说，查询速度和成本会减少，⽤起来会更爽。</li>
-</ul>
-</li>
-<li>如何衡量复⽤度<br>模型设计的核⼼是追求模型的复⽤和共享，⼀个⽐较差的模型设计，⾃下⽽上是⼀条线。⽽⼀个理想的模型设计，它应该是交织的发散型结构。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_6e173802-1f79-11ec-ae4e-00163e068ecd.png" alt=""><br>模型引⽤系数：⼀个模型被读取，直接产出下游模型的平均数量。⽤模型引⽤系数作为指标，衡量数据中台模型设计的复⽤度。引⽤系数越⾼，说明数仓的复⽤性越好。<br>⽐如⼀张DWD层表被5张DWS层表引⽤，这张DWD层表的引⽤系数就是5，如果把所有DWD层表（有下游表的）引⽤系数取平均值，则为DWD层表平均模型引⽤系数，⼀般低于2⽐较差，3以上相对⽐较好（经验值）。</li>
-<li>如何衡量规范度<br>⼀个规范的表命名应该包括主题域、分层、表是全量快照，还是增量等信息。<br>除此之外，如果在表A中⽤⼾ID的命名是UserID，在表B中⽤⼾ID命名是ID，就会对使⽤者造成困扰，这到底是不是⼀个东西。所以我们要求相同的字段在不同的模型中，它的命名必须是⼀致的。</li>
-</ul>
-</li>
-<li>模型命名规则：表的命名进⾏规范化统⼀，表的名称中最好能够携带表的主题域、业务过程、分层以及分区信息</li>
-<li>历史模型改造流程，参见《<a href="https://winway.github.io/2022/05/09/dwModeling/#%E5%BB%BA%E6%A8%A1%E5%AE%9E%E6%88%98%E4%BB%8E%E7%83%9F%E5%9B%B1%E5%88%B0%E5%85%B1%E4%BA%AB">数仓建模浅谈</a>》<ol>
-<li>接管ODS层，控制源头</li>
-<li>划分主题域，构建总线矩阵</li>
-<li>构建一致性维度</li>
-<li>事实表整合</li>
-<li>ETL开发</li>
-<li>应用迁移</li>
-</ol>
-</li>
-</ul>
-<h3><span id="指标规范">指标规范</span></h3><ul>
-<li>目标：建立指标字典，保证全局口径定义、数据来源和计算逻辑一致性；相同聚合粒度的指标，在数仓里尽量只计算加工一次，避免重复建设</li>
-<li>指标常见问题：<ol>
-<li>相同指标名称，口径不一致</li>
-<li>相同口径，指标名称不一致</li>
-<li>不同限定词，描述相同事实过程的两个指标，相同事实部分口径不一致</li>
-<li>指标口径描述不清楚</li>
-<li>指标口径描述错误</li>
-<li>指标命名难于理解</li>
-<li>指标数据来源和计算逻辑不清晰</li>
-</ol>
-</li>
-<li>核心思想：<ul>
-<li>⾯向主题域管理，指标中的主题域与数仓中的概念是⼀致的</li>
-<li>拆分原⼦指标和派⽣指标，统计周期、统计粒度、业务限定、原⼦指标，组成派⽣指标，所以原⼦指标可以定义为不能够按照上述规则进⼀步拆分的指标。</li>
-<li>指标命名规范，做到易懂/统一，重点要能体现主题/业务过程/维度限定/业务限定/时间周期</li>
-<li>分等级管理<ul>
-<li>⼀级指标：数据中台直接产出，核⼼指标（提供给公司⾼层看的）、原⼦指标以及跨部⻔的派⽣指标。要确保指标按时、保证质量产出；</li>
-<li>⼆级指标：基于中台提供的原⼦指标，业务部⻔创建的派⽣指标。允许业务⽅⾃⼰创建。</li>
-</ul>
-</li>
-</ul>
-</li>
-<li><p>指标分类</p>
-<ul>
-<li>原子指标<br>基于某一业务过程下的度量，是业务定义中不可再拆分的指标，具有明确的业务含义<br>例：活跃人数、支付金额、购买用户数</li>
-<li>衍生指标<br>对原子指标在业务统计范围中圈定，统计范围包括维度、各类日期和业务修饰词根<br>例：活跃男用户人数、7日支付金额</li>
-<li><p>复合指标<br>是由衍生指标或原子指标复合而成，分为三类：</p>
-<ul>
-<li>比率类：衡量业务过程的效果，如点击率、转化率、功能留存率、活跃留存率等；</li>
-<li>均分类：均值、中位数及其他各类分位数；</li>
-<li>占比类：部分占整体的比例，采用百分比的形式；</li>
-</ul>
-<p>例：活跃男用户人数占比、复购率</p>
-</li>
-</ul>
-</li>
-<li>构成指标词根分类：<ul>
-<li>基础指标词根：用于表示原子指标、衍生指标的对象度量，通用，如cnt ,user_cnt, amt, pv, uv</li>
-<li>维度限定词根：某个维度的修饰词，通用，如男、女</li>
-<li>业务修饰词根：用于描述和修饰实体对象、业务过程等，属于业务域</li>
-<li>日期修饰词根：用于描述和限定日期长度，通用</li>
-<li>复合比率词根：用于对复合指标的比率内容的描述，通用，如click_rate, rebuy_rate</li>
-<li>复合均分词根：用于对复合指标进行聚合限定，包括均值、分位数等，通用，如avg</li>
-<li>复合占比词根：用于对复合指标进行占比类的描述，通用，如ratio</li>
-</ul>
-</li>
-<li>指标命名规则：<ul>
-<li>对于原⼦指标，指标名称适合⽤“动作+度量”的命名⽅式（⽐如注册⽤⼾数、购买⽤⼾数），标识的命名⽤英⽂简写或者汉语拼⾳缩写⽐较好。</li>
-<li>对于派⽣指标，指标名称应该严格遵循“时间周期+统计粒度+修饰词+原⼦指标”的命名⽅式，标识命名要⽤“修饰词_原⼦指标_时间周期”的⽅式。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_7827a930-1f79-11ec-ae4e-00163e068ecd.png" alt=""></li>
-</ul>
-</li>
-</ul>
-<h2><span id="元数据建设">元数据建设</span></h2><p>采集维护元数据信息，用于驱动治理。具体采集哪些信息以及采集的手段都是多种多样的，可根据自身情况决定。</p>
-<p>采集信息包括：</p>
-<ul>
-<li>库/表信息</li>
-<li>分区信息</li>
-<li>血缘关系</li>
-<li>访问记录</li>
-<li>任务运行状态，成功/失败，消耗时间/资源</li>
-<li>占用存储</li>
-</ul>
-<p>采集方式：</p>
-<ul>
-<li>metastore元数据</li>
-<li>解析sql引用</li>
-<li>调度系统运行记录</li>
-<li>yarn web ui</li>
-</ul>
-<h2><span id="治理体系建设">治理体系建设</span></h2><blockquote>
-<p>做数据治理，需要奉⾏“效果可量化”的原则，否则这个治理做到什么程度，很难衡量。</p>
-</blockquote>
-<p>依据规范，对采集到的元数据进行加工，制定评估量化体系，产生可量化的指标，如归一化的具体分值，指导每个数仓开发进行数仓的规范化改造。</p>
-<p>参与量化的因素可包括：</p>
-<ul>
-<li>编码规范合规率</li>
-<li>注释完善率</li>
-<li>命名合规率</li>
-<li>跨层依赖率</li>
-<li>链路过长率</li>
-<li>模型引用率（烟囱开发）</li>
-<li>dqc通过率/覆盖率</li>
-<li>sla达标率/覆盖率</li>
-<li>无效计算/存储占比（访问热度）</li>
-<li>异常计算/存储占比（数据倾斜/时间超长/占资源超多/小文件/数据未压缩等）</li>
-</ul>
-<p>有了评估体系，就可以对数仓整体以及数据开发进行评分排名，对好的案例进行分享，坏的案例进行督促，使数仓逐渐向好的方向进化。<br>同时还可以对治理效果进行统计，如节省了多少资源/SLA提高了多少百分点，作为数仓治理的可量化产出成果。</p>
-<h2><span id="配套工具建设">配套工具建设</span></h2><p>最后，好用的配套工具不仅可以使我们建设数仓事半功倍，还可以帮助我们建设更好的数仓。</p>
-<h3><span id="指标管理工具">指标管理工具</span></h3><p>必须要有⼀个专⻔负责指标管理的⼈或者⼩组，经过评审的符合规范的指标口径通过专人录入指标管理系统，作为唯一官方口径出口。<br>指标管理系统中的指标，向下可以和物理的表或字段建立直接或间接关联；向上可以和使用该指标的平台、应用建立关联。</p>
-<h3><span id="元数据管理系统">元数据管理系统</span></h3><p>提供元数据的采集/存储/展示/获取工具和接口。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_7f95710c-1f79-11ec-ae4e-00163e068ecd.png" alt=""><br>元数据一般可划为三类：数据字典、数据⾎缘和数据特征。</p>
-<ul>
-<li>数据字典描述的是数据的结构信息，如<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_7c6dcf2e-1f79-11ec-ae4e-00163e068ecd.png" alt=""></li>
-<li>数据⾎缘是指⼀个表是直接通过哪些表加⼯⽽来，描述上下游关系。<br>数据⾎缘⼀般会帮我们做影响分析和故障溯源 。 ⽐如说有⼀天，⽼板看到某个指标的数据违反常识，需要去排查这个指标计算是否正确， ⾸先需要找到这个指标所在的表，然后顺着这个表的上游表逐个去排查校验数据，才能找到异常数据的根源。<br>⾎缘采集，⼀般可以通过三种⽅式：<ol>
-<li>通过静态解析SQL，获得输⼊表和输出表；</li>
-<li>通过实时抓取正在执⾏的SQL，解析执⾏计划，获取输⼊表和输出表；</li>
-<li>通过任务调度⽇志解析的⽅式，获取执⾏后的SQL输⼊表和输出表。</li>
-</ol>
-</li>
-<li>数据特征主要是指数据的属性信息，如<br> <img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_7ca811d4-1f79-11ec-ae4e-00163e068ecd.png" alt=""></li>
-</ul>
-<h3><span id="数据质量监控工具">数据质量监控工具</span></h3><blockquote>
-<p>“发现晚，排查慢，修复时间长”是令数据开发头疼的问题，做好数据质量监控，能最大限度解决“发现晚，排查慢”的问题。</p>
-</blockquote>
-<p>核心功能：数据异常点发现；SLA监控预警。</p>
-<p>在数据加⼯任务中，对产出表按照业务规则，设计⼀些校验逻辑，确保数据的完整性、⼀致性和准确性，这是提升数据质量最⾏之有效的⽅法。</p>
-<p>对任务DAG中每个表增加稽核校验规则之后，当其中任何⼀个节点产出的数据出现异常时，我们能够第⼀时间发现，并⽴即修复，做到早发现、早修复。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_66c232a0-1f79-11ec-ae4e-00163e068ecd.png" alt=""></p>
-<p>数据质量也可以作为一个因素，加入到评估体系中。</p>
-<h3><span id="生命周期管理工具">生命周期管理工具</span></h3><p>可以根据表的生命周期配置进行数据清理或存储迁移（冷热数据机制，如阿里的oss可以选择普通/低频/归档等存储策略）操作，也可以针对没有引用的表或低热度表进行提醒/处理。</p>
-<p>⼀般原始数据和明细数据，会保留完整的历史数据。⽽在汇总层、集市层或者应⽤层，考虑到存储成本，数据建议按照⽣命周期来管理，通常保留⼏天的快照或者分区。如果存在⼤表没有设置⽣命周期，就会浪费存储资源。</p>
-<h3><span id="成本管理工具">成本管理工具</span></h3><p>量化不同业务的成本，发现数据应⽤价值很低，成本却很⾼的报表/应用。</p>
-<ul>
-<li><p>数据成本如何计算？<br> <img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_5e493088-1f79-11ec-ae4e-00163e068ecd.png" alt=""><br> 要对上图中财务分析报表核算成本，这个报表上游链路中涉及到a，b，c，3个任务，A，B，C，D， E，F， 6张表，那么：这张报表的成本=3个任务加⼯消耗的计算资源成本+6张表消耗的存储资源的成本。<br> 另外，需要注意的是，如果⼀个表被多个下游应⽤复⽤，那这个表的存储资源成本以及产出任务消耗的成本，需要分摊给多个应⽤。</p>
-</li>
-<li><p>价值如何计算？<br> <img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_5ebb0dd4-1f79-11ec-ae4e-00163e068ecd.png" alt=""></p>
-<ul>
-<li>如果末端数据是⼀张应⽤层的表，它对接的是⼀个数据报表，那衡量这个数据的价值，主要是看报表的使⽤范围和使⽤频率。在计算使⽤范围时，通常⽤周活来评估，同时还要考虑不同管理级别的⼈权重，对于⽼板，他⼀个⼈的权重可以相当于1000个普通员⼯。之所以这样设计，是考虑到管理级别越⾼，做出的商业决策影响就越⼤，⾃然这个价值也就越⼤。使⽤频率⼀般使⽤单个⽤⼾每周查看报表的次数来衡量，次数越⾼，说明报表价值越⼤。</li>
-<li>如果末端数据对接的不是⼀个数据报表，⽽是⾯向特定场景的数据应⽤（⽐如供应链分析决策系统，它⾯向的⼈群主要是供应链部⻔）。衡量这类产品的价值，主要考虑⽬标⼈群的覆盖率和直接业务价值产出。什么是直接业务价值产出呢？在供应链决策系统中，就是通过系统⾃动⽣成的采购订单占所有采购订单的⽐例。</li>
-<li>除此之外，末端数据，可能还是⼀张集市层的表，它主要⽤于提供给分析师做探索式查询。这类表的价值主要看它被哪些分析师使⽤，使⽤频率如何。同样，在使⽤范围评估时，要对分析师按照级别进⾏加权。</li>
-</ul>
-</li>
-</ul>
-<h3><span id="知识库">知识库</span></h3><p>日常任务失败/超时等异常问题自动/手动录入知识库，由开发人员进行登记解释，用于知识记录/分享</p>
-<h3><span id="数据服务">数据服务</span></h3><p>统一对外数据提供接口，提高数据获取效率和复用率，并且方便数据权限管控和审计记录。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_5570d3b2-1f79-11ec-ae4e-00163e068ecd.png" alt=""></p>
-<p>服务接⼝⼀⽅⾯对应⽤开发屏蔽了底层数据存储，使⽤统⼀标准的API接⼝查询数据，提⾼了数据接⼊的速度。另⼀⽅⾯，对于数据开发，提⾼了数据应⽤的管理效率，建⽴了表到应⽤的链路关系，解决“上线容易，下线难”的窘境。</p>
-<p>数据服务核心功能：</p>
-<ul>
-<li>屏蔽异构数据源：数据服务必须要能够⽀撑类型丰富的查询引擎，满⾜不同场景下数据的查询需求，常⻅的 有MySQL、HBase、Greenplum、Redis、Elasticsearch等。</li>
-<li>数据⽹关：要实现包括权限、监控、流控、⽇志在内的⼀系列管控能⼒，哪个应⽤的哪个⻚⾯访问了哪个模型，要做到实时跟踪，如果有⼀些模型⻓时间没有被访问，应该予以下线。使⽤数据的每个应⽤都应该通过accesskey和secretkey实现⾝份认证和接⼝权限的管理。另外，访问⽇志可以⽅便在访问出现问题时，加快排查速度。</li>
-<li>逻辑模型：从⽤⼾的视⻆出发，屏蔽底层的模型设计的实现，⾯向⽤⼾提供逻辑模型。什么是逻辑模型呢？熟悉数据库的同学应该知道，数据库中有⼀个视图的概念，视图本⾝并没有真实的数据，⼀个视图可以关联⼀张或者多张表，每次在查询的时候，动态地将不同表的查询结果聚合成视图的查询结果。逻辑模型可以类⽐视图，它可以帮助应⽤开发者屏蔽底层的数据物理实现，实现相同粒度的数据构造⼀个逻辑模型，简化了数据接⼊/变更的复杂度。</li>
-<li>性能和稳定性：由于数据服务侵⼊到⽤⼾的访问链路，所以对服务的可⽤性和性能都有很⾼的要求，数据服务必须是⽆状态的，可以做到横向扩展。</li>
-</ul>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210927_5a4d255c-1f79-11ec-ae4e-00163e068ecd.png" alt=""></p>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://www.51cto.com/article/617634.html" target="_blank" rel="noopener">看完了这篇实时数仓建设，才发现以前的都白看了（内有美团案例）</a></li>
-<li><a href="https://www.cnblogs.com/GO-NO-1/p/14332234.html" target="_blank" rel="noopener">数仓架构演进</a></li>
-<li><a href="https://mp.weixin.qq.com/s/xkuqAQd7N7j7Blj2Y4xQ4g" target="_blank" rel="noopener">网易严选数仓任务治理实践</a></li>
-<li><a href="https://www.modb.pro/db/116930" target="_blank" rel="noopener">元数据中⼼的关键⽬标和技术实现⽅案</a></li>
-<li><a href="https://www.modb.pro/db/116928" target="_blank" rel="noopener">如何统⼀管理纷繁杂乱的数据指标？</a></li>
-<li><a href="https://www.modb.pro/db/116926" target="_blank" rel="noopener">数据模型⽆法复⽤，归根结底还是设计问题</a></li>
-<li><a href="https://www.modb.pro/db/116924" target="_blank" rel="noopener">今天的数据怎么又不对？！</a></li>
-<li><a href="https://www.modb.pro/db/116932" target="_blank" rel="noopener">数据中台到底怎么建设呢？</a></li>
-<li><a href="https://www.modb.pro/db/116923" target="_blank" rel="noopener">交付速度和质量问题解决了，⽼板说还得“省”</a></li>
-<li><a href="https://www.modb.pro/db/116921" target="_blank" rel="noopener">（⼀）数据服务到底解决了什么问题？</a></li>
-<li><a href="https://www.modb.pro/db/116922" target="_blank" rel="noopener">（二）数据服务难道就是对外提供个API吗？</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">离线数仓</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">流批一体</a>
         		</li>
       		
 		</ul>
@@ -762,176 +1076,7 @@
 
       
         <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/24/bigdata-stack-dw/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-bigdata-stack-csfl" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/21/bigdata-stack-csfl/">大数据开发之路-存算分离</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/21/bigdata-stack-csfl/" class="archive-article-date">
-  	<time datetime="2022-05-21T01:53:42.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-21</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#存算分离-让大数据获得真正的弹性">存算分离-让大数据获得真正的弹性</a></li>
-<li><a href="#最早的存算分离">最早的存算分离</a></li>
-<li><a href="#存算耦合的时代">存算耦合的时代</a></li>
-<li><a href="#存算分离的契机">存算分离的契机</a><ul>
-<li><a href="#数据本地化的必要性">数据本地化的必要性</a></li>
-<li><a href="#存算耦合导致的问题">存算耦合导致的问题</a></li>
-</ul>
-</li>
-<li><a href="#存算分离的好处">存算分离的好处</a></li>
-<li><a href="#存算分离的应用场景">存算分离的应用场景</a><ul>
-<li><a href="#数据库">数据库</a></li>
-<li><a href="#消息队列">消息队列</a></li>
-<li><a href="#大数据">大数据</a></li>
-</ul>
-</li>
-<li><a href="#总结">总结</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引</p>
-<ol>
-<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
-<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
-<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
-<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
-</ol>
-</blockquote>
-<h2><span id="存算分离-让大数据获得真正的弹性">存算分离-让大数据获得真正的弹性</span></h2><p><img src="https://img-blog.csdn.net/20180110155913446" alt=""><br>计算是由CPU和内存组成的算力单元，存储是持久化数据的存放单元。<br>分布式环境下，计算和存储可以耦合在一起部署，也可以分开部署，时代不同，潮流不同。</p>
-<h2><span id="最早的存算分离">最早的存算分离</span></h2><p>二十年前，大规模存储一般使用的是专有硬件设备方案（NAS），通过特殊的高性能通讯硬件给其他应用提供访问接入。这种方案不太容易扩展，而且价格昂贵，无法满足互联网高速的超大规模数据存储需求。<br>可见存算分离并不是什么新的架构，早在20年前就存在，为什么直到今天才成为潮流？</p>
-<h2><span id="存算耦合的时代">存算耦合的时代</span></h2><p>让我们回到 2001 年，Google 的 GFS 开创了先河，第一次用普通的 x86 机器和普通硬盘搭建了大规模存储。当时的 HDD 的吞吐量大概在 50MB/s，通过接入多个硬盘的方式可以提高单机吞吐量到 1GB/s 。但<strong>当时的主流网络只有 100Mb，通过网络远程访问数据实在是太慢了</strong>。为了解决数据的快速访问，Google 创造性地提出来了计算和存储耦合的架构，在同一个集群中实现计算和存储功能，并<strong>将计算的代码移动到数据所在的地方，而不是将数据传输到计算节点</strong>，有效解决了分散在各个弱连接的存储节点间的海量数据访问的困难。后来者 Hadoop 等也是完全照搬了这个架构，<strong>数据本地化</strong>是其中一个非常重要的特性来保证整体的性能。还做了很多优化来进一步降低机器间、机柜间的网络带宽消耗。</p>
-<h2><span id="存算分离的契机">存算分离的契机</span></h2><h3><span id="数据本地化的必要性">数据本地化的必要性</span></h3><p>经过 10 年的发展，网络的性能发生了巨大的变化，从之前主流 100Mb 到 10Gb，增长了100倍，而同时期的 HDD 硬盘的性能基本没有太大变化，倒是单盘的容量增大了很多。由于各种社交网络应用对网络的带宽要求很高，加上核心交换机和 SDN 的强力支撑，不少公司实施了点对点的 10Gb 网络架构（任意两个机器之间都有 10Gb 带宽保障）。另外，各种高效的压缩算法和列存储格式也进一步减少了 IO 数据量，将<strong>大数据的瓶颈逐渐由 IO 变成了 CPU</strong>。在数据本地化优化得很好的大数据计算集群中，大量网络带宽是闲置的。<br>2013 年 Facebook 就做了一个这方面的研究，看在关闭 Hadoop 的数据本地化优化的情况下，对性能究竟有多少影响。实测表明，对计算任务的整体影响在 2%以内，对数据的本地读优化已经不那么重要了。</p>
-<h3><span id="存算耦合导致的问题">存算耦合导致的问题</span></h3><p>存储和计算耦合在一个集群中，带来了一些其它问题：</p>
-<ul>
-<li>在不同的应用或者发展时期，需要不同的存储空间和计算能力配比，使得机器的选型会比较复杂和纠结；</li>
-<li>当存储空间或计算资源不足时，只能同时对两者进行扩容，导致扩容的经济效率比较低（另一种扩容的资源被浪费了）；</li>
-<li>在云计算场景下，不能实现真正的弹性计算，因为计算集群中也有数据，关闭闲置的计算集群会丢失数据。</li>
-</ul>
-<h2><span id="存算分离的好处">存算分离的好处</span></h2><ul>
-<li>解耦计算和存储负载，系统负载均衡调度更加灵活<br> 在存储和计算耦合的架构中，我们很难在存储负载和计算负载之间达成比较好的平衡，原因在于这两种负载对计算机资源的诉求不同。</li>
-<li>系统的资源利用率提高了，节约成本。</li>
-<li>系统更加的健壮<br> 计算可以认为是无状态的，同时计算本身是比较复杂的，这也意味着存在bug的概率比较高，一般而言，存储的逻辑比较简单，因此出现问题的概率也比较小，因此这种架构下，如果计算层出现问题，可以很方便的进行故障恢复。</li>
-<li>系统的弹性比较好，尤其是计算层。<br> 在 AWS 等公有云上，基于网络的块存储逐步取代了单机的本地存储，使得公有云上的计算和存储耦合架构更加不合理（数据本地化并不是真实的，DataNode 内的本地读其实在物理层也是远程读）。针对公有云设计的大数据分析服务 Databricks 一开始就是采用了计算和存储分离的架构（直接使用 S3 作为存储），给产品带来了非常大的灵活性，按需创建和自动弹性伸缩的 Spark 集群是一大卖点（还能最大限度使用 Spot 节点来大大降低计算成本），非常受客户欢迎。</li>
-</ul>
-<h2><span id="存算分离的应用场景">存算分离的应用场景</span></h2><h3><span id="数据库">数据库</span></h3><p>以传统的主从结构的数据库系统为例，主库接收数据变更，从库读取binlog，通过重放binlog以实现数据复制。在这种架构下，当主库负载较大的时候，由于复制的是binlog，需要走完相关事务，所以主从复制就会变得很慢。当主库数据量比较大的时候，我们增加从库的速度也会变慢，同时数据库备份也会变慢，我们的扩容成本也随之增加。因此我们也逐渐开始接受走计算和存储分离的道路，让所有的节点都共享一个存储。也许我们对这样的场景习以为常，其实这就是典型的计算和存储分离设计，现在很多的数据库都在逐渐向“计算和存储分离”靠拢，包括现在的PolarDB、OceanBase ，TiDB等等。所以“计算和存储分离”应该是未来数据库的主要发展方向。</p>
-<h3><span id="消息队列">消息队列</span></h3><p>消息队列不论是Kafka还是RocketMQ其设计思想都是利用本地机器的磁盘来进行保存消息队列，这样其实是有一定的弊端的。首先容量有限，本地空间毕竟容量有限很容易造成消息堆积，会导致我们要追溯一些历史数据的时候就会导致无法查询，然后在扩容的时候只能扩容新节点，扩展成本也比较高。针对这些问题ApachePulsar出现了。<br>在Pulsar的架构中，数据计算和数据存储是单独的两个结构。数据计算也就是Broker，其作用和Kafka的Broker类似，用于负载均衡，处理consumer和producer等，如果业务上consumer和producer特别的多，我们可以单独扩展这一层。数据存储也就是Bookie，pulsar使用了Apache Bookkeeper存储系统，并没有过多的关心存储细节。这样做的好处就是，只需要关心计算层的细节和逻辑，存储部分采用成熟的方案和系统。<br>其实Kafka也在向这些方面靠拢，比如也在讨论是否支持分层存储，但是是否会实现存储节点的单独设置也不一定，但“计算和存储分离”的方向应该是消息队列未来发展的主要方向。</p>
-<h3><span id="大数据">大数据</span></h3><p>传统的大数据架构中，数据计算和存储的资源都是共用的，比如CDH的集群配置，每个节点既是YARN计算节点又是HDFS存储节点，其实这种设计也是源于Google的GFS。在Hadoop面世之初，网络带宽很低，为了减少大数据量的网络传输，Hadoop采用了尽量使用节点本地存储的设计，这就形成了计算和存储耦合的架构。<br>近年来CPU算力和网络速度增速远快于存储，数据中心有足够的带宽来传输数据，随着数据量的增长，多副本的设计和考虑也造成了成本的飙升，计算和存储绑定的设计实用性开始变差。随着Spark和Flink等框架逐渐代替MapReduce，批处理和流处理同时共存，也改变了旧有的业务模型，这些都需要新的大数据架构去适配。计算和存储分离的大数据架构开始进入视野。<br>现在很多新的大数据引擎都支持计算存储分离，可以通过外部存储引用的方式进行数据对接，而不是通过ETL加载到本地。Hadoop生态圈也开始拥抱计算与存储分离，Hadoop除了HDFS之外还支持S3，用户可以在私有云或者是公有云上运行Hadoop计算集群，连接共享存储和云存储。<br>这样做的好处也是显而易见的，首先是可以实现计算和存储资源的单独扩容，然后原本分散的数据实现集中存储，打造统一数据湖。更重要的一点，可以真正实现大数据混合云，数据存储保留在本地，机器学习等计算资源部署在公有云，既考虑了安全性，又实现了计算的敏捷。计算存储的分离，也可以方便实现软件版本的灵活管理，存储部分求稳，要保持软件版本的稳定，计算部分求快，可以通过数据沙盒和容器技术，实现不同算力模型的快速交付，各部分独立升级互不影响。这样我们就可以，构建以企业数据湖为核心的稳态数据资源服务，构建以数据计算为核心的敏态数据能力服务，在实现数据治理的基础上实现数据运营。<br><img src="https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4aedb6b3aee543eaad249fb5b68fe757~tplv-k3u1fbpfcp-watermark.image" alt=""></p>
-<h2><span id="总结">总结</span></h2><p>因为网络的高速发展，以及大数据计算框架对 IO 的优化，使得数据本地化已经不再重要。存储计算分离架构可以让大数据集群充分利用资源，可弹性拓展，更灵活，更符合云计算的特性。基于网络的共享存储替代架构落后的 HDFS，为云上的大数据提供完全弹性的存储解决方案，让云上的大数据获得真正的弹性。存储和计算分离的架构才是未来。</p>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://juicefs.com/blog/cn/posts/why-disaggregated-compute-and-storage-is-future/" target="_blank" rel="noopener">为什么说存储和计算分离的架构才是未来？</a></li>
-<li><a href="https://www.huaweicloud.com/zhishi/edits-15756229.html" target="_blank" rel="noopener">存算分离架构有哪些好处？为什么说存算分离架构才是未来？</a></li>
-<li><a href="http://blog.itpub.net/31547898/viewspace-2857399/" target="_blank" rel="noopener">解构成为架构潮流的“存算分离”</a></li>
-<li><a href="https://aijishu.com/a/1060000000219143" target="_blank" rel="noopener">浅谈分布式数据库的计算和存储分离</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">存算分离</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/21/bigdata-stack-csfl/">展开全文 >></a>
+          <a class="article-more-a" href="/2022/05/24/bigdata-stack-streambatch/">展开全文 >></a>
         </p>
       
 
@@ -1101,11 +1246,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hive</a>
+                <a href="javascript:void(0)" class="js-tag color4">pig</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+                <a href="javascript:void(0)" class="js-tag color5">hive</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1129,11 +1274,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
+                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">github</a>
+                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1141,19 +1286,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1161,7 +1294,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">proxy</a>
+                <a href="javascript:void(0)" class="js-tag color2">github</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1173,19 +1314,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">proxy</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">备份</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">独立开发</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">tez</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">gc</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1197,7 +1330,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+                <a href="javascript:void(0)" class="js-tag color4">tez</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">gc</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">独立开发</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1209,15 +1354,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1229,7 +1366,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1237,19 +1378,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1258,6 +1391,18 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1289,15 +1434,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1309,15 +1458,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">presto</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1353,11 +1498,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
+                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
              
               <li class="article-tag-list-item">

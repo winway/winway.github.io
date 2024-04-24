@@ -156,7 +156,7 @@
           <div id="js-content" class="content-ll">
             
   
-    <article id="post-bigdata-stack-doris" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+    <article id="post-bigdata-stack-mongo" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
 
@@ -166,13 +166,13 @@
         
   
     <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/18/bigdata-stack-doris/">大数据开发之路-doris</a>
+      <a class="article-title" href="/2022/05/19/bigdata-stack-mongo/">大数据开发之路-mongodb</a>
     </h1>
   
 
         
-        <a href="/2022/05/18/bigdata-stack-doris/" class="archive-article-date">
-  	<time datetime="2022-05-18T09:04:29.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-18</time>
+        <a href="/2022/05/19/bigdata-stack-mongo/" class="archive-article-date">
+  	<time datetime="2022-05-19T09:18:13.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-19</time>
 </a>
 
 
@@ -183,28 +183,16 @@
       
         <!-- toc -->
 <ul>
-<li><a href="#doris-olap分析数据库的国产之光">doris-OLAP分析数据库的国产之光</a></li>
-<li><a href="#特性">特性</a></li>
-<li><a href="#mpp数据库比较">MPP数据库比较</a></li>
-<li><a href="#适用场景">适用场景</a></li>
-<li><a href="#关键技术">关键技术</a><ul>
-<li><a href="#架构">架构</a></li>
-<li><a href="#数据分布">数据分布</a></li>
-<li><a href="#mysql-兼容性">MySQL 兼容性</a></li>
-<li><a href="#查询计划">查询计划</a></li>
+<li><a href="#mongodb-最接近mysql的nosql数据库">mongodb-最接近“mysql”的nosql数据库</a></li>
+<li><a href="#关键特性">关键特性</a></li>
 <li><a href="#数据模型">数据模型</a></li>
-<li><a href="#数据组织">数据组织</a></li>
-<li><a href="#前缀索引">前缀索引</a></li>
-<li><a href="#schema-change">Schema Change</a></li>
-<li><a href="#向量化执行">向量化执行</a></li>
-<li><a href="#物化视图-rollup">物化视图-ROLLUP</a></li>
-<li><a href="#两层区分与分级存储">两层区分与分级存储</a></li>
-<li><a href="#join">join</a></li>
-<li><a href="#doris-on-elasticsearch">Doris on Elasticsearch</a></li>
-<li><a href="#kafka-routine-load">Kafka routine load</a></li>
-<li><a href="#odbc-external-table-of-doris">ODBC External Table Of Doris</a></li>
+<li><a href="#关键技术">关键技术</a><ul>
+<li><a href="#wiredtiger存储引擎">WiredTiger存储引擎</a></li>
+<li><a href="#事务支持">事务支持</a></li>
+<li><a href="#mongodb集群">MongoDB集群</a></li>
 </ul>
 </li>
+<li><a href="#应用场景">应用场景</a></li>
 <li><a href="#参考资料">参考资料</a></li>
 </ul>
 <!-- tocstop -->
@@ -241,721 +229,75 @@
 <li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
 </ol>
 </blockquote>
-<h2><span id="doris-olap分析数据库的国产之光">doris-OLAP分析数据库的国产之光</span></h2><p><img src="https://img-blog.csdnimg.cn/img_convert/c119b20f8e0f64995aa540dcf5ea83e5.png" alt=""><br>Doris是基于MPP架构的OLAP引擎，以较低的成本提供在大数据集上的高性能分析和报表查询功能。</p>
-<p><img src="https://p5.toutiaoimg.com/origin/pgc-image/ef27352d1ffc48778045d20c4f82a756?from=pc" alt=""><br>Doris主要整合了Google Mesa（数据模型）、Apache Impala（MPP Query Engine）和Apache ORCFile （存储格式，编码和压缩）的技术。</p>
-<ul>
-<li>Mesa是一种高度可扩展的分析数据存储系统，用于存储与Google的互联网广告业务有关的关键测量数据。Mesa旨在满足一系列复杂且具有挑战性的用户和系统需求，包括接近实时的数据提取和查询能力，以及针对大数据和查询量的高可用性，可靠性，容错性和可伸缩性。</li>
-<li>Impala是为Hadoop数据处理环境从头开始构建的现代开源MPP SQL引擎。</li>
-<li>ORCFile采用列式存储，只访问查询涉及的列，能大量降低系统I/O；列数据相对来说比较类似，压缩比更高；每一列由一个线程来处理，更有利于查询的并发处理；</li>
-<li>Mesa可以满足我们许多存储的需求，但是Mesa本身不提供SQL查询引擎。Impala是一个非常好的MPP SQL查询引擎，但是缺少完美的分布式存储引擎。因此选择了这三种技术的组合。</li>
-</ul>
-<h2><span id="特性">特性</span></h2><ul>
-<li>MPP架构的关系型分析数据库，主要用于多维分析和报表查询，同时支持明细和聚合查询</li>
-<li>性能卓越<ul>
-<li>PB 级别大数据集，秒级/毫秒级查询</li>
-<li>TPC-H/TPC-DS性能领先，性价比高。TPC-C是针对OLTP的测试，TPC-H和TPC-DS则是针对OLAP的测试，在新兴的HATP数据库则TPC-C、TPC-H和TPC-DS都需要进行测试验证，不过大部分数据库目前对TPC-DS的99个SQL查询支持尚不完善。</li>
-<li>同时支持高并发点查询和高吞吐的Ad-hoc查询，高并发查询100台机器可达10w QPS</li>
-<li>同时支持离线批量导入和实时数据导入，流式导入单节点50MB/s，小批量导入毫秒延迟</li>
+<h2><span id="mongodb-最接近mysql的nosql数据库">mongodb-最接近“mysql”的nosql数据库</span></h2><p>MongoDB是一个开源、高性能、无模式的文档数据库，当初的设计就是用于<strong>简化开发</strong>和<strong>方便扩展</strong>，是NoSQL数据库产品的一种，是最像关系型数据库（MySQL）的非关系型数据库。<br>它支持的数据结构非常松散，是一种类似于JSON的格式叫BSON，所以它既可以存比较复杂的数据类型，又相当的灵活。</p>
+<h2><span id="关键特性">关键特性</span></h2><ul>
+<li>面向文档存储，易于存储对象类型的数据<ul>
+<li>数据结构符合大部分程序语言，文件存储格式为BSON(一种JSON的扩展)</li>
+<li>可在文档内嵌入子文档（相当于传统数据库的嵌套表）</li>
+<li>动态增减文档或修改文档格式，模式自由</li>
 </ul>
 </li>
-<li>简单易用<ul>
-<li>高度兼容Mysql协议</li>
-<li>高度集成，不依赖于外部存储系统</li>
-<li>支持在线表结构变更</li>
-<li>支持Rollup Table和Rollup Table的智能查询路由</li>
-<li>支持较好的多表Join策略和灵活的表达式查询</li>
-<li>支持Range和Hash二级分区</li>
-<li>副本自动均衡</li>
-</ul>
-</li>
-<li>扩展性强<ul>
-<li>架构优雅，单集群可水平扩展至200台以上</li>
-</ul>
-</li>
-<li>高可用性<ul>
-<li>多副本，元数据高可用</li>
-</ul>
-</li>
-</ul>
-<h2><span id="mpp数据库比较">MPP数据库比较</span></h2><p><img src="https://p1.meituan.net/travelcube/b52422404cc6565bcc2ca4964bd3b812179592.png" alt=""></p>
-<h2><span id="适用场景">适用场景</span></h2><ul>
-<li>数仓查询加速<ul>
-<li>应用Doris解决传统数仓查询效率低下的困境，PB级别数据低至毫秒/秒级查询耗时，海量数据无缝应用，极大幅度加速数据决策效率。</li>
-</ul>
-</li>
-<li>实时数仓构建<ul>
-<li>Doris支持流式数据高效导入、业务指标实时聚合，保证业务数据得以实时洞察，并可以减少数据处理链路、统一数据流向，简化大数据平台架构。</li>
-</ul>
-</li>
-<li>多源联邦查询<ul>
-<li>通过Doris构建跨多个数据源的统一查询入口，实现实时数据和离线数据的联邦分析，满足数据分析人员更多元化的查询需求。</li>
-</ul>
-</li>
-<li>交互式数据分析<ul>
-<li>基于Doris和BI可视化工具构建交互式数据分析应用，对海量数据进行自助探查和多维度分析，实现对业务的深层探索和快速决策</li>
-</ul>
-</li>
-</ul>
-<h2><span id="关键技术">关键技术</span></h2><h3><span id="架构">架构</span></h3><p><img src="https://static001.infoq.cn/resource/image/5c/cb/5ceb4f6a7c02087c30ec2db1426d33cb.png" alt=""><br>Doris 的架构很简洁，只设 FE(Frontend)、BE(Backend)两种角色、两个进程，不依赖于外部组件，方便部署和运维。FE,BE 都可线性扩展。</p>
-<ul>
-<li>以数据存储的角度观之，FE 存储、维护集群元数据；BE 存储物理数据。</li>
-<li>以查询处理的角度观之, FE 节点接收、解析查询请求，规划查询计划，调度查询执行，返回查询结果；BE 节点依据 FE 生成的物理计划，分布式地执行查询。</li>
-</ul>
-<p>FE 主要有三个角色，一个是leader，一个是follower，还有一个observer。</p>
-<ul>
-<li>leader跟follower，主要是用来达到元数据的高可用，保证单节点宕机的情况下，元数据能够实时地在线恢复，而不影响整个服务。</li>
-<li>observer 只是用来扩展查询节点，就是说如果在发现集群压力非常大的情况下，需要去扩展整个查询的能力，那么可以加observer的节点。observer不参与任何的写入，只参与读取。</li>
-</ul>
-<p>数据的可靠性由 BE 保证，BE 会对整个数据存储多副本或者是三副本。副本数可根据需求动态调整。</p>
-<p><img src="https://static001.infoq.cn/resource/image/35/e8/3530685b109151bf2d353897b78f5ae8.png" alt=""><br>元数据层面，Doris 采用 Paxos 协议以及 Memory + Checkpoint + Journal的机制来确保元数据的高性能及高可靠。元数据的每次更新，都首先写入到磁盘的日志文件中，然后再写到内存中，最后定期checkpoint到本地磁盘上。相当于是一个纯内存的结构，也就是说所有的元数据都会缓存在内存之中，从而保证FE在宕机后能够快速恢复元数据，而且不丢失元数据。Leader、follower 和 observer 它们三个构成一个可靠的服务。</p>
-<h3><span id="数据分布">数据分布</span></h3><p><img src="https://img-blog.csdnimg.cn/img_convert/d5fe3623dfef76befaee8a13d2016da0.png" alt=""><br>从表的角度来看数据结构，用户的一张 Table 会拆成多个 Tablet，Tablet 会存成多副本，存储在不同的 BE 中，从而保证数据的高可用和高可靠。<br>数据主要都是存储在 BE 里面，BE 节点上物理数据的可靠性通过多副本来实现，默认是 3 副本，副本数可配置且可随时动态调整,满足不同可用性级别的业务需求。FE 调度 BE 上副本的分布与补齐。如果说用户对可用性要求不高，而对资源的消耗比较敏感的话，我们可以在建表的时候选择建两副本或者一副本。</p>
-<h3><span id="mysql-兼容性">MySQL 兼容性</span></h3><p><img src="https://static001.infoq.cn/resource/image/a8/11/a807f8420a7d47d713e99e004daf7111.png" alt=""><br>Doris 和用户交互兼容 MySQL 的协议。</p>
-<h3><span id="查询计划">查询计划</span></h3><ul>
-<li>分布式逻辑查询计划<br><img src="https://static001.infoq.cn/resource/image/13/ed/13b093cf4cf96ece2ed0e4d70f0d26ed.png" alt=""><br>借鉴了 Impala 的查询引擎，把它改造了一下引入到 Doris 里面形成一个分布式的查询引擎。Impala 是一个完全的 P2P 的结构，每个节点都缓存元数据，对于一个高性能的报表分析来说，它有可能会面临着元数据落后的问题。Doris把它查询规划所有的部分，都放到了一个 FE 里面，即在这个图中所看到的整个的逻辑规划，都会由 FE 来完成。FE 来根据用户的查询生成一个完整的逻辑规划，然后这个逻辑规划最后生成一个分布式的逻辑规划，会发给整个集群去执行。</li>
-<li>分布式物理查询计划<br><img src="https://static001.infoq.cn/resource/image/ca/5f/cada7ce15079b21de05b22157093405f.png" alt=""><br>查询会生成几个算子，主要有扫描的算子，聚合的算子，还有 Join 的算子，最后再排序。右边就相当于对整个算子的一个实际物理划分。这个规划图中单个方框我们称之为一个 Fragment， Fragment 由单个 BE 节点执行，Fragment 之间的数据交换通过 RPC 来完成。整个物理规划执行完之后，由 FE 把数据收集起来反馈给用户。返回用户的方式就是前面提到过的通过一个 MySQL 的协议。<br>Doris 是有工具可以让你去看一下物理规划，可以分析出这个物理规划的性能可能在哪里不够好，可能稍微改一下查询它的规划就会更契合整个建表的结构，以及整个查询引擎的处理方式。</li>
-</ul>
-<h3><span id="数据模型">数据模型</span></h3><p><img src="https://static001.infoq.cn/resource/image/4a/36/4aef1f0ff404789642eb85c777dd9436.png" alt=""><br>Mesa的merge策略，引入了cumulative compaction和base compaction的概念。 Mesa中将包含了一定版本的数据称为deltas, 表示为[V1, V2]，刚实时写入的小deltas， 称之为singleton deltas，然后每到一定的版本数，图中是10，就通过cumulative compaction将10个singleton deltas合并为1个cumulative deltas，最终每天会通过base compaction将所有一定周期的内的deltas都合并为base deltas。 所以查询时只需要查询1个base deltas， 1个cumulative deltas和少数singleton deltas即可。</p>
-<p><img src="https://static001.infoq.cn/resource/image/1e/45/1e7f30383bf66329154bad263a605e45.png" alt=""><br>Doris把导入分成了三级，上边是一个 Base，也就是最早导入的数据的合并，然后中间是一个增量的部分，最后是每一次导入就生成的一个单独的版本。然后这个单独的版本会逐渐的合并到一个更高的增量的版本，增量的版本再合并成一个 Base 的版本。分几级的目的其实就是想尽量把小文件合并成一个中等规模的文件，然后再把中等规模的文件合并成一个大文件，这样会减少一个大文件直接跟一个小文件合并的读写放大量。因为大文件大量的读取其实是划不来的，所以 Doris 采用一个分级的策略去做整个的合并。</p>
-<p>同时这样做还有一个好处就是新来的导入，不会影响正在进行的查询。因为我现在的导入只有在整个批次完成的时候查询（也就是我们前面所讲的 FE 的元数据）才能感知到，这样它可以做到一个比较好的读写分离，用户在查询历史数据不会受到新来导入的影响。</p>
-<p>Doris保证整个导入的原子性，就是说一个单批次的导入要么生效，要么不生效。即使是一个批次，导入多张表，也是同样。比如这几张表是一个关联表，你想一次把它们全部导入，这样我们也保证整个一个批次的导入对这几张表要么同时生效，要么同时不生效。</p>
-<ul>
-<li>Aggregate模型（聚合模型）<br>数据在导入的时候会有一次合并，因为我们要聚合。<br><img src="https://static001.infoq.cn/resource/image/f7/b1/f7e368cb485e6b61509d855f1a0dbfb1.png" alt=""><br>如上图，左边的三列是一个 Key，我们叫做维度列；右边的两列相当于是一个 Value 列，也就是指标列。这个图是一个典型的广告报表的样子，展示的是一个用户按地域消费的情况。<br>按维度列去聚合数据，如果前面的三列数据相同我们会把这些数据合并（compaction）起来。也就相当于在数据库里面存储的其实是一个合并之后的结果，这个结果对于统计分析来说是很有效果的。比如一天的数据可能有一千条，我们聚合成一条，相当于整个的 I/O 节省一千倍，效果非常明显。</li>
-<li>Uniq模型（唯一主键）<br>在整个历史数据导入的时候，我们保证 Key 的唯一，不聚合。主要面向留存分析或者订单分析的场景，他们需要一个 Unique Key 的约束去保证整个数据不丢不重。<br>该模型本质上是聚合模型的一个特例，也是一种简化的表结构表示方式。</li>
-<li>Duplicate模型（冗余模型）<br>导入之后把这个数据全部放在数据库里面，我们不再做提前的聚合，也不单独保证唯一性，只做一个排序。对于有些日志分析它不太在意数据多几条或者少几条，可能只关心排序，这个时候可能重复 Key 的模型会更加有效果。<br><img src="https://p5.toutiaoimg.com/origin/pgc-image/b242bc76439b447081a995dc9096d9e1?from=pc" alt=""></li>
-</ul>
-<h3><span id="数据组织">数据组织</span></h3><p><img src="https://static001.infoq.cn/resource/image/aa/30/aa5ef73679fd952540dbcb237b15dc30.png" alt=""><br>Doris 作为一个数据库，主要是一个列存的数据库。可以只访问查询涉及的列，大量降低 I/O，达到一个比较好的 I/O 效果。同时因为按列存储，数据类型一致，方便压缩。<br>除了简单的压缩之外，还有很重要的一个特点就是对数据会排序（数据模型KEY指定的列）。多数分析型数据库都只会去建一个稀疏索引，这个时候把数据排一下序，然后按一个一千行或者一万行，甚至是十万行的维度去建一个稀疏的索引，效果是非常明显的。<br>Doris 存储引擎对于排序列，会存储 min/max/sum 等智能索引技术，将数据集扫描范围尽可能地缩小，减少磁盘 I/O，提升查询性能。比如说这一列排过序了，然后我在这一列的十万行所组成的一个粒度上面，给它加一个 min/max，然后这样查询的时候，它就可以快速去过滤这个十万行，这会大大地减少整个数据的扫描量，从而减少 I/O。</p>
-<h3><span id="前缀索引">前缀索引</span></h3><p>前缀索引，即在排序的基础上，实现的一种根据给定前缀列，快速查询数据的索引方式。<br>Doris 的数据存储在类似 SSTable（一种有序的数据结构，可以按照指定的列进行排序存储）的数据结构中。在这种数据结构上，以排序列作为条件进行查找，会非常的高效。<br>Doris中将一行数据的前 36 个字节 作为这行数据的前缀索引。当遇到 VARCHAR 类型时，前缀索引会直接截断。<br>以下表结构的前缀索引为 user_id(8Byte) + age(8Bytes) + message(prefix 20 Bytes)</p>
-<table>
-<thead>
-<tr>
-<th>ColumnName</th>
-<th>Type</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>user_id</td>
-<td>bigint</td>
-</tr>
-<tr>
-<td>age</td>
-<td>int</td>
-</tr>
-<tr>
-<td>message</td>
-<td>varchar(100)</td>
-</tr>
-<tr>
-<td>max_dwell_time</td>
-<td>datetime</td>
-</tr>
-<tr>
-<td>min_dwell_time</td>
-<td>datetime</td>
-</tr>
-</tbody>
-</table>
-<p>当我们的查询条件，是前缀索引的前缀时，可以极大的加快查询速度。比如在第一个例子中，我们执行如下查询：<br><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> * <span class="keyword">FROM</span> <span class="keyword">table</span> <span class="keyword">WHERE</span> user_id=<span class="number">1829239</span> <span class="keyword">and</span> age=<span class="number">20</span>；</span><br></pre></td></tr></table></figure></p>
-<p>该查询的效率会远高于如下查询：<br><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SELECT</span> * <span class="keyword">FROM</span> <span class="keyword">table</span> <span class="keyword">WHERE</span> age=<span class="number">20</span>；</span><br></pre></td></tr></table></figure></p>
-<p>所以在建表时，正确的选择列顺序，能够极大地提高查询效率。</p>
-<h3><span id="schema-change">Schema Change</span></h3><p>Doris中目前进行schema change的方式有三种，sorted schema change，direct schema change, linked schema change。</p>
-<ul>
-<li><p>linked schema change: 无需转换数据，直接完成。新摄入的数据都按照新的Schema处理，对于旧数据，新加列的值直接用对应数据类型的默认值填充。例如加列操作。</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> site_visit <span class="keyword">ADD</span> <span class="keyword">COLUMN</span> click <span class="built_in">bigint</span> <span class="keyword">SUM</span> <span class="keyword">default</span> ‘<span class="number">0</span>’;</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>sorted schema change: 改变了列的排序方式，需对数据进行重新排序。例如删除排序列中的一列, 字段重排序。</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> site_visit <span class="keyword">DROP</span> <span class="keyword">COLUMN</span> city;</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>direct schema change: 就是重刷全量数据，成本最高，和kylin的做法类似。例如修改列的类型。</p>
-<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">ALTER</span> <span class="keyword">TABLE</span> site_visit <span class="keyword">MODIFY</span> <span class="keyword">COLUMN</span> username <span class="built_in">varchar</span>(<span class="number">64</span>);</span><br></pre></td></tr></table></figure>
-</li>
-</ul>
-<h3><span id="向量化执行">向量化执行</span></h3><p><img src="https://static001.infoq.cn/resource/image/14/19/142be1d5e532c74e06aa98dfeceeaa19.png" alt=""><br>这是列存数据库特有的一个优化技巧，可以达到减少 CPU 的消耗，提升整个 CPU 的利用率。向量化执行的方式可以提高 3 到 4 倍的性能</p>
-<h3><span id="物化视图-rollup">物化视图-ROLLUP</span></h3><p><img src="https://static001.infoq.cn/resource/image/af/34/af23adeaf32b581d25d94ba41b2fee34.png" alt=""><br>以这个图为例，左下角是原始数据，右边是把这个数据重新排序，因为改变排序就会相应地去改变整个数据的前缀索引的方式，这样的话就可以去换维度进行分析了，可以更好地去满足整个查询的需求。<br>如果说经常只按一个维度进行组合分析，我可以只选它其中部分列，把它聚合，达到一个更好的聚合效果。这样的方式就可以满足不同的统计分析的需求，以及不同的多维分析的需求（右下角）。<br>物化视图，核心是空间换时间，跟原来的表是一个绑定的形式。但是在导入的时候会保证它跟原始表一定是一个原子生效的过程，查询的时候会自动去判断它满不满足物化视图，满足的话就会自动落在它的上面，用户不需要修改任何的查询。用户所需要做的是发现业务可能换一个表的结构，会更好地满足整个查询需求，那么去建一个物化视图就行了，物化视图发起之后后续所有的操作，从导入到查询，用户都不需要再关心。</p>
-<h3><span id="两层区分与分级存储">两层区分与分级存储</span></h3><p>Doris支持两级分区存储, 第一层为RANGE分区(partition), 第二层为HASH分桶(bucket)。<br><img src="https://static001.infoq.cn/resource/image/e8/cb/e896716a5ac8a1a3a2e95ecded48c5cb.png" alt=""></p>
-<ul>
-<li>第一层分区<br>第一层分区是一个逻辑分区，比较常见的是按时间分区，把历史的数据按天/月/年作一个分区，不同区间的数据会落在不同分区里面。这样如果你经常只看最新的数据，那历史的数据在查询的时候，就会自动过滤掉。这样减少了大量历史数据不必要的重复 BE/CE，节省了大量的 I/O 和 CPU 开销。<br>时间分区还有一个作用就是可以把冷热的数据区分开，方便新旧数据分离，使用不同的存储介质。</li>
-<li>第二层分区<br>第二层分区是一个物理分区，而这种分区的作用主要就是把数据打散到整个集群里面去。假如说有 20 台机器所构成的一个集群，然后要把 20 台机器的性能全部给用上，可以去指定第二层分区，根据哈希分区的方式把这个数据打散到整个集群里面，这样的话查询的时候就可以用上整个分布式集群的性能。<br>这里有一点点技巧，要根据用户的读写的密集程度做分区。如果是一个读很密集的一个场景，那样的话我们建议用户尽量选择一个区分度很大的列，也就是基数很大的列，我们就可以把这个数据均匀地打散到整个集群里面去，用户查询的时候就可以把整个集群的资源可以用上，相当于没有数据倾斜。如果是写很密集的情况下，就建议用户选择一个区分度少一点的列。</li>
-</ul>
-<h3><span id="join">join</span></h3><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/modb_20210904_f71a05a2-0d2d-11ec-ac89-38f9d3cd240d.png" alt=""></p>
-<ul>
-<li>BroadCast Join<br> 它要求把右表全量的数据都发送到左表上，即每一个参与 Join 的节点，它都拥有右表全量的数据，也就是 T(R)。<br> 它适用的场景是比较通用的，同时能够支持 Hash Join 和 Nest loop Join，它的网络开销 N * T(R)。</li>
-<li>Shuffle Join<br> 当进行 Hash Join 时候，可以通过 Join 列计算对应的 Hash 值，并进行 Hash 分桶。<br> 它的网络开销则是：T（R） + T（N），但它只能支持 Hash Join，因为它是根据 Join 的条件也去做计算分桶的。</li>
-<li>Bucket Shuffle Join<br> Doris 的表数据本身是通过 Hash 计算分桶的，所以就可以利用表本身的分桶列的性质来进行 Join 数据的 Shuffle。假如两张表需要做 Join，并且 Join 列是左表的分桶列，那么左表的数据其实可以不用去移动右表通过左表的数据分桶发送数据就可以完成 Join 的计算。<br> 它的网络开销则是：T（R）相当于只 Shuffle 右表的数据就可以了。</li>
-<li>Colocation<br> 它与Bucket Shuffle Join相似，相当于在数据导入的时候，根据预设的 Join 列的场景已经做好了数据的 Shuffle。那么实际查询的时候就可以直接进行 Join 计算而不需要考虑数据的 Shuffle 问题了。</li>
-</ul>
-<h3><span id="doris-on-elasticsearch">Doris on Elasticsearch</span></h3><p><img src="https://static001.infoq.cn/resource/image/b6/3b/b6a5e9a5cf77da594b05c0ba391c8d3b.png" alt=""><br>Doris 只是一个稀疏索引，对于大规模点查询来说，随机的 I/O 会比较严重，所以支持 Elasticsearch，用到它的倒排索引，去丰富整个 Doris 的生态。<br><img src="https://static001.infoq.cn/resource/image/a9/c5/a9089cfb327093a5e5caf84d4fab02c5.png" alt=""></p>
-<h3><span id="kafka-routine-load">Kafka routine load</span></h3><p><img src="https://static001.infoq.cn/resource/image/b9/0e/b9a519bb569e14c39fe85650d31e930e.png" alt=""><br>Doris 内嵌了一个例行机制，可以在 Doris 里建一个例行的任务，帮你去订阅 Kafka 的变更，帮你把数据灌到 Doris 里面去，不需要外层业务方自己去写外层脚本去追踪 Kafka 的变化。</p>
-<h3><span id="odbc-external-table-of-doris">ODBC External Table Of Doris</span></h3><p>ODBC External Table Of Doris 提供了Doris通过数据库访问的标准接口(ODBC)来访问外部表，外部表省去了繁琐的数据导入工作，让Doris可以具有了访问各式数据库的能力，并借助Doris本身的OLAP的能力来解决外部表的数据分析问题：</p>
-<ul>
-<li>支持各种数据源接入Doris</li>
-<li>支持Doris与各种数据源中的表联合查询，进行更加复杂的分析操作</li>
-<li>通过insert into将Doris执行的查询结果写入外部的数据源</li>
-</ul>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://www.infoq.cn/article/vxup94ub59ya*k0tnefe" target="_blank" rel="noopener">Apache Doris (Incubating) 原理与实践</a></li>
-<li><a href="https://tech.meituan.com/2020/04/09/doris-in-meituan-waimai.html" target="_blank" rel="noopener">Apache Doris在美团外卖数仓中的应用实践</a></li>
-<li><a href="https://www.modb.pro/db/225426" target="_blank" rel="noopener">Doris系列1-Doris介绍</a></li>
-<li><a href="https://zhuanlan.zhihu.com/p/400642016" target="_blank" rel="noopener">Apache doris架构及组件介绍</a></li>
-<li><a href="https://uikid.com/12/01/doris%E4%B8%80%E6%96%87%E4%BA%86%E8%A7%A3/" target="_blank" rel="noopener">Doris一文了解</a></li>
-<li><a href="https://www.jianshu.com/p/702a44d512c6" target="_blank" rel="noopener">Apache doris 排序键及ShortKey Index</a></li>
-<li><a href="https://www.modb.pro/db/105847" target="_blank" rel="noopener">最佳实践｜Apache Doris Join 实现与调优实践</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">olap</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">doris</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/18/bigdata-stack-doris/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-bigdata-stack-clickhouse" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/17/bigdata-stack-clickhouse/">大数据开发之路-clickhouse</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/17/bigdata-stack-clickhouse/" class="archive-article-date">
-  	<time datetime="2022-05-17T12:13:29.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-17</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#clickhouse-olap分析数据库的异域猛禽">clickhouse-OLAP分析数据库的异域猛禽</a></li>
-<li><a href="#olap技术概述">OLAP技术概述</a><ul>
-<li><a href="#oltp-vs-olap">OLTP vs OLAP</a></li>
-<li><a href="#olap场景特点">OLAP场景特点</a></li>
-<li><a href="#olap分类">OLAP分类</a></li>
-<li><a href="#主流olap系统比较">主流OLAP系统比较</a></li>
-</ul>
-</li>
-<li><a href="#clickhouse特性介绍">ClickHouse特性介绍</a><ul>
-<li><a href="#简介">简介</a></li>
-<li><a href="#列式存储">列式存储</a></li>
-<li><a href="#分区">分区</a></li>
-<li><a href="#主键索引">主键索引</a></li>
-<li><a href="#跳数索引">跳数索引</a></li>
-<li><a href="#向量化引擎">向量化引擎</a></li>
-<li><a href="#动态代码生成">动态代码生成</a></li>
-<li><a href="#多核并行">多核并行</a></li>
-<li><a href="#分布式计算">分布式计算</a></li>
-<li><a href="#表引擎megretree">表引擎MegreTree</a></li>
-<li><a href="#复制表replicated-table">复制表Replicated Table</a></li>
-<li><a href="#集群cluster">集群Cluster</a></li>
-<li><a href="#分布式表distributed-table">分布式表Distributed Table</a></li>
-<li><a href="#物化视图">物化视图</a></li>
-</ul>
-</li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引</p>
-<ol>
-<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
-<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
-<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
-<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
-</ol>
-</blockquote>
-<h2><span id="clickhouse-olap分析数据库的异域猛禽">clickhouse-OLAP分析数据库的异域猛禽</span></h2><p>clickhouse是一个用于联机分析(OLAP)的列式数据库管理系统(DBMS)。</p>
-<h2><span id="olap技术概述">OLAP技术概述</span></h2><h3><span id="oltp-vs-olap">OLTP vs OLAP</span></h3><pre><code>联机事务处理OLTP（On-Line Transaction Processing）
-    主要是事务处理，如数据库记录的增删改。比如用户的一笔充值记录，就是一个典型的事务。
-
-联机分析处理OLAP（On-Line Analytical Processing）
-    数仓的主要应用，支持复杂的分析操作。典型的应用就是复杂、动态的报表系统。
-</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904201708.png" alt=""></p>
-<h3><span id="olap场景特点">OLAP场景特点</span></h3><pre><code>数据规模巨大
-
-实时性要求不高
-
-并发不高（一般面向内部或toB，而非toC）
-
-无需事务，数据一致性要求低
-
-数据批量写入，且数据不更新或少更新：历史数据往往作为存档，不会再做更新、删除操作
-
-读多于写：数据一次性写入后，分析师需要尝试从各个角度对数据做挖掘、分析
-
-大宽表，读大量行少量列，按照维度列聚合成一个小的结果集
-
-查询灵活多变：分析维度灵活，预先建模技术适用场景有限
-</code></pre><h3><span id="olap分类">OLAP分类</span></h3><pre><code>1.MOLAP（Multi-Dimensional OLAP）
-   OLAP最初的形态，基于多维数组的存储模型，特点是对数据进行预计算，以空间换时间，但生成cube需要大量时间和空间。
-
-   MOLAP 的优点和缺点都来自于其数据预处理环节。数据预处理，将原始数据按照指定的计算规则预先做聚合计算，这样避免了查询过程中出现大量的即时计算，提升了查询性能。但是这样的预聚合处理，需要预先定义维度，会限制后期数据查询的灵活性，存储成本也很高；同时，这种方式不支持明细数据的查询，仅适用于聚合型查询（如：sum，avg，count）。
-
-   因此，MOLAP适用于查询场景相对固定并且对查询性能要求非常高的场景。如广告主经常使用的广告投放报表分析。
-
-   代表技术有Kylin、Druid
-
-2.ROLAP（Relational OLAP）
-   基于关系模型进行存储数据（事实表、维度表），不需要预计算，按需即时查询。
-
-   ROLAP收到Query请求时，会先解析Query，生成执行计划，扫描数据，执行关系型算子（过滤(Where)、聚合(Sum, Avg, Count)、关联(Join)，分组（Group By)、排序（Order By）等），最后将结果返回给用户，整个过程都是即时计算，没有预先聚合好的数据，拼的就是资源和算力。但是当数据量较大或 query 较为复杂时，查询性能无法像 MOLAP 那样稳定。所有计算都是即时触发 ( 没有预处理 )，因此会耗费更多的计算资源，带来潜在的重复计算。
-
-   因此，ROLAP适用于对查询模式不固定、查询灵活性要求高的场景。如数据分析师常用的数据分析类产品，他们往往会对数据做各种预先不能确定的分析，所以需要更高的查询灵活性。
-
-   代表技术栈有Presto、Impala、Clickhouse等
-</code></pre><h3><span id="主流olap系统比较">主流OLAP系统比较</span></h3><pre><code>目前还没有一个系统能够满足各种场景的查询需求。其本质原因是，没有一个系统能同时在数据量、性能、和灵活性三个方面做到完美，每个系统在设计时都需要在这三者间做出取舍。
-</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202146.png" alt=""></p>
-<pre><code>Apache Kylin
-固定维度的聚合查询，并发量高，查询迅速响应（亚秒级~秒级），数量级支持TB-PB
-
-ClickHouse
-大宽表，单表查询速度极佳，join表现差，支持明细数据查询，数量级支持TP-PB
-
-Apache Doris
-灵活的多维度查询，join表现比ClickHouse好，支持明细数据查询，数量级支持TP-PB，mysql语法，易运维
-</code></pre><h2><span id="clickhouse特性介绍">ClickHouse特性介绍</span></h2><h3><span id="简介">简介</span></h3><pre><code>ClickHouse是一个用于在线分析处理（OLAP）的列式数据库管理系统（DBMS）。是由俄罗斯的Yandex公司为了Yandex Metrica网络分析服务而开发。它支持分析实时更新的数据，以高性能著称。
-
-特性：
-    PB级数据处理能力
-    列式数据存储
-    优秀的数据压缩
-    向量化引擎
-    多核并行处理
-    多服务器分布式处理
-    支持实时数据更新
-    高吞吐写入
-    SQL支持（部分语句有差异）
-    近似计算
-    少依赖，上手容易
-</code></pre><h3><span id="列式存储">列式存储</span></h3><pre><code>列存模式下，只需要读取参与计算的列即可，极大的降低了IO cost，加速了查询。
-同一列中的数据属于同一类型，压缩效果显著。列存往往有着高达十倍甚至更高的压缩比，节省了大量的存储空间，降低了存储成本。
-自由的压缩算法选择。不同列的数据具有不同的数据类型，适用的压缩算法也就不尽相同。可以针对不同列类型，选择最合适的压缩算法。
-更高的压缩比意味着更小的data size，从磁盘中读取相应数据耗时更短；同等大小的内存能够存放更多数据，系统cache效果更好。
-</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202353.png" alt=""></p>
-<h3><span id="分区">分区</span></h3><pre><code>PARTITION BY toYYYYMMDD(ts)
-PARTITION BY toStartOfHour(ts)
-
-数据分区在ClickHouse中主要有两方面应用：
-
-    在partition key上进行分区裁剪，只查询必要的数据。
-    对partition进行TTL管理，淘汰过期的分区数据。
-
-每个分区在文件系统中都是以目录的形式存在。
-常用时间字段作为分区字段，数据量大的表可以按照小时分区，数据量小的表可以在按照天分区或者月分区，查询时，使用分区字段作为Where条件，可以有效的过滤掉大量非结果集数据。
-</code></pre><h3><span id="主键索引">主键索引</span></h3><pre><code>ORDER BY (CounterID, Date)  -- 排序键，排序键用于在数据片段中进行排序
-PRIMARY KEY (CounterID, Date) -- 主键，主键用于在索引文件中进行标记的写入
-
-ClickHouse将每列数据按照index granularity（默认8192行）进行划分，每个index granularity的开头第一行被称为一个mark行。主键索引存储该mark行对应的primary key的值。
-
-对于where条件中含有primary key的查询，查询时通过对主键索引进行二分查找，定位到对应的 mrk 标记文件，进而找到对应的 bin 文件的偏移量，最终扫描得到相应的数据，避免了全表扫描，从而加速查询。 值得注意的是，ClickHouse 的主键与 MySQL 等数据库不同，主键不是唯一的。
-</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202440.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202520.png" alt=""></p>
-<h3><span id="跳数索引">跳数索引</span></h3><pre><code>ClickHouse支持对任意列创建任意数量的跳数索引（二级索引）。其中被索引的value可以是任意的合法SQL Expression，并不仅仅局限于对column value本身进行索引。
-
-目前支持的索引类型包括：
-    minmax: 以index granularity为单位，存储指定表达式计算后的min、max值；在等值和范围查询中能够帮助快速跳过不满足要求的块，减少IO。
-    set(max_rows)：以index granularity为单位，存储指定表达式的distinct value集合，用于快速判断等值查询是否命中该块，减少IO。
-    ngrambf_v1(n, size_of_bloom_filter_in_bytes, number_of_hash_functions, random_seed)：将string进行ngram分词后，构建bloom filter，能够优化等值、like、in等查询条件。
-    tokenbf_v1(size_of_bloom_filter_in_bytes, number_of_hash_functions, random_seed)： 与ngrambf_v1类似，区别是不使用ngram进行分词，而是通过标点符号进行词语分割。
-    bloom_filter([false_positive])：对指定列构建bloom filter，用于加速等值、like、in等查询条件的执行。
-</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202609.png" alt=""></p>
-<h3><span id="向量化引擎">向量化引擎</span></h3><pre><code>ClickHouse实现了向量执行引擎（Vectorized execution engine），对内存中的列式数据，一个batch调用一次SIMD（Single Instruction, Multiple Data，即单条指令操作多条数据）指令（而非每一行调用一次），不仅减少了函数调用次数、降低了cache miss，而且可以充分发挥SIMD指令的并行能力，大幅缩短了计算耗时。
-
-向量执行引擎，通常能够带来数倍的性能提升。
-</code></pre><h3><span id="动态代码生成">动态代码生成</span></h3><pre><code>在经典的数据库实现中，通常对表达式计算采用火山模型(将整个 SQL 构建成一个 Operator 树)。为了连接不同算子（如HashJoin、Scan、IndexScan、Aggregation等），operator之间采用统一的接口（如open/next/close），在每个算子内部都实现了父类的这些虚函数。在分析场景中单条SQL要处理数据通常高达数亿行，虚函数的调用开销不再可以忽略不计。另外，在每个算子内部都要考虑多种变量，比如列类型、列的size、列的个数等，存在着大量的if-else分支判断导致CPU分支预测失效。
-
-ClickHouse实现了Expression级别的runtime codegen，动态地根据当前SQL直接生成代码，然后编译执行。不仅消除了大量的虚函数调用（即图中多个function pointer的调用），而且由于在运行时表达式的参数类型、个数等都是已知的，也消除了不必要的if-else分支判断。
-</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202656.png" alt=""></p>
-<h3><span id="多核并行">多核并行</span></h3><pre><code>ClickHouse将数据划分为多个partition，每个partition再进一步划分为多个index granularity，然后通过多个CPU核心分别处理其中的一部分来实现并行数据处理。
-
-在这种设计下，单条Query就能利用整机所有CPU。极致的并行处理能力，极大的降低了查询延时。
-</code></pre><h3><span id="分布式计算">分布式计算</span></h3><pre><code>除了优秀的单机并行处理能力，ClickHouse还提供了可线性拓展的分布式计算能力。ClickHouse会自动将查询拆解为多个task下发到集群中，然后进行多机并行处理，最后把结果汇聚到一起。
-
-在存在多副本的情况下，ClickHouse还提供了多种query下发策略。
-</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202746.png" alt=""></p>
-<h3><span id="表引擎megretree">表引擎MegreTree</span></h3><pre><code>MergeTree 和 LSM 结构类似，数据按照主键排序，每次写入数据分区形成一个个的 Parts 文件，Parts 内部有序。
-
-ClickHouse在数据导入时全部是顺序append写，写入后数据段不可更改，在后台compaction时也是多个段merge sort后顺序写回磁盘。顺序写的特性，充分利用了磁盘的吞吐能力，即便在HDD上也有着优异的写入性能。
-
-官方公开benchmark测试显示能够达到50MB-200MB/s的写入吞吐能力，按照每行100Byte估算，大约相当于50W-200W条/s的写入速度。
-</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202818.png" alt=""></p>
-<pre><code>ReplacingMergeTree: 会根据主键进行去重，但是这是后台合并时才会去重，无法控制合并时机，尽管可以用 OPTIMIZE … FINAL 语句来强制合并执行，但是由于性能原因一般不会使用。
-
-CollapsingMergeTree: 异步的删除（折叠）这些除了特定列 Sign 有 1 和 -1 的值以外，其余所有字段的值都相等的成对的行。没有成对的行会被保留。
-
-VersionedCollapsingMergeTree: 类似于 CollapsingMergeTree, 多了 Version 列，支持多线程乱序插入的场景，相比之下, CollapsingMergeTree 只允许严格连续插入。
-
-AggregatingMergeTree: 做增量数据的聚合统计，包括物化视图的数据聚。
-
-ReplicatedXXXMergeTree: 使得以上 MergeTree 家族拥有副本机制，保证高可用，用于生产环境。
-</code></pre><h3><span id="复制表replicated-table">复制表Replicated Table</span></h3><pre><code>简单理解就是相同的数据备份。
-
-先写入一个副本，再通过内部端口将数据复制到其他实例上去，同时更新ZK集群上记录的信息。
-
-在ClickHouse中通过复制表，我们实现保障了数据可靠性外，也通过多副本的方式，增加了ClickHouse查询的并发能力。
-</code></pre><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202917.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904202935.png" alt=""></p>
-<h3><span id="集群cluster">集群Cluster</span></h3><p>分片<br>一个分片本身就是ClickHouse一个实例节点，分片的本质就是为了提高查询效率，将一份全量的数据分成多份（片），从而降低单节点的数据扫描数量，提高查询性能。</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203009.png" alt=""></p>
-<p>ClickHouse的分布式是一个有意思的设计方式，多个节点部署完成后，节点与节点之间并没有联系。通过ClickHouse集群的配置文件来形成集群。配置中包含集群的节点信息，复制节点，分片节点，同构成一个Cluster。</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203045.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203032.png" alt=""></p>
-<p>这样就形成了一个有意思的现象。我们可以抽象为：”集群定义节点和节点的关系，节点不知道集群”。</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203112.png" alt=""></p>
-<h3><span id="分布式表distributed-table">分布式表Distributed Table</span></h3><p>ClickHouse分布式表的本质并不是一张表，而是一些本地物理表（分片）的分布式视图（集群配置），本身并不存储数据。<br>Distributed表引擎的定位就好比是一个中间件，能自动的将SQL查询路由到每个分片。</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203138.png" alt=""></p>
-<p>在分布式表上执行查询的流程简图如下所示。<br>发出查询后，分布式表引擎将我们的查询请求发送到所有分片进行查询，最终汇总到同一个实例上返回给用户。</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203201.png" alt=""></p>
-<p>（1） 写本地表<br>数据写入时，可以由客户端控制数据分布，直接写入集群中ClickHouse实例的本地表。也可以通过LB组件（如LVS，Nginx）进行控制。</p>
-<p>（2） 写分布式表<br>数据写入时，先写入集群中的分布式表下的节点临时目录，再由分布式表将Insert语句分发到集群各个节点上执行，分布式表不存储实际数据。</p>
-<p>推荐的数据写入方式：本地表写入。</p>
-<h3><span id="物化视图">物化视图</span></h3><p>物化视图是查询结果集的一份持久化存储。产生物化视图的过程就叫做“物化”（materialization）。广义地讲，物化视图是数据库中的预计算逻辑+显式缓存，典型的空间换时间思路。所以用得好的话，它可以避免对基础表的频繁查询并复用结果，从而显著提升查询的性能。</p>
-<p>物化视图会计算当前批次的数据汇总一次，然后根据维度自动merge聚合统计的指标，但是不会跨节点和分区</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203240.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20210904203252.png" alt=""></p>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://www.51cto.com/article/701725.html" target="_blank" rel="noopener">一篇带你了解OLTP vs. OLAP</a></li>
-<li><a href="https://www.zhihu.com/question/22037987" target="_blank" rel="noopener">MPP 与 Hadoop是什么关系？</a></li>
-<li><a href="https://blog.csdn.net/bitcarmanlee/article/details/51011515" target="_blank" rel="noopener">OLTP与OLAP的区别</a></li>
-<li><a href="https://www.51cto.com/article/701725.html" target="_blank" rel="noopener">一篇带你了解OLTP vs. OLAP</a></li>
-<li><a href="https://zhuanlan.zhihu.com/p/266402829" target="_blank" rel="noopener">常见开源OLAP技术架构对比</a></li>
-<li><a href="https://www.cnblogs.com/GeneralXU/archive/2011/03/01/1976492.html" target="_blank" rel="noopener">概念介绍：OLAP和ROLAP,MOLAP,HOLAP</a></li>
-<li><a href="https://blog.csdn.net/huanruiqi/article/details/51272789" target="_blank" rel="noopener">浅谈ROLAP、MOLAP和HOLAP区别</a></li>
-<li><a href="https://cloud.tencent.com/developer/article/1757948" target="_blank" rel="noopener">OLAP计算引擎怎么选？</a></li>
-<li><a href="https://zhuanlan.zhihu.com/p/38767561" target="_blank" rel="noopener">主流OLAP系统对比总结</a></li>
-<li><a href="https://zhuanlan.zhihu.com/p/266402829" target="_blank" rel="noopener">常见开源OLAP技术架构对比</a></li>
-<li><a href="https://blog.csdn.net/qq_39945938/article/details/114013486" target="_blank" rel="noopener">OLAP 技术选型 Apache Kylin、Apache Doris、Clickhouse对比</a></li>
-<li><a href="https://www.cnblogs.com/tgzhu/p/14527652.html" target="_blank" rel="noopener">数仓OLAP技术</a></li>
-<li><a href="https://segmentfault.com/a/1190000040084019" target="_blank" rel="noopener">极客星球｜Clickhouse在数据智能公司的应用与实践</a></li>
-<li><a href="https://tech.youzan.com/clickhouse-zai-you-zan-de-shi-jian-zhi-lu/" target="_blank" rel="noopener">ClickHouse 在有赞的实践之路</a></li>
-<li><a href="https://www.jiqizhixin.com/articles/2020-05-06-5" target="_blank" rel="noopener">百分点大数据技术团队：ClickHouse国家级项目最佳实践</a></li>
-<li><a href="https://xie.infoq.cn/article/a94b5102bd8a3ea47324e2564" target="_blank" rel="noopener">百分点大数据技术团队：ClickHouse 国家级项目性能优化实践</a></li>
-<li><a href="https://zhuanlan.zhihu.com/p/98135840" target="_blank" rel="noopener">ClickHouse深度揭秘</a></li>
-<li><a href="https://developer.aliyun.com/article/739801?spm=a2c4g.11186623.2.11.f0206bcfXsVZeH&amp;groupCode=cloudproduct" target="_blank" rel="noopener">ClickHouse表引擎到底怎么选</a></li>
-<li><a href="https://segmentfault.com/a/1190000038318776" target="_blank" rel="noopener">ClickHouse集群搭建（一）</a></li>
-<li><a href="https://segmentfault.com/a/1190000039171654" target="_blank" rel="noopener">ClickHouse分布式集群搭建指南</a></li>
-<li><a href="https://blog.csdn.net/nazeniwaresakini/article/details/105858390" target="_blank" rel="noopener">ClickHouse复制表、分布式表机制与使用方法</a></li>
-<li><a href="https://github.com/ClickHouse/ClickHouse/issues/2161" target="_blank" rel="noopener">Distributed vs Shard vs Replicated</a></li>
-<li><a href="https://blog.csdn.net/jiangshouzhuang/article/details/100762451" target="_blank" rel="noopener">深入理解ClickHouse-本地表和分布式表</a></li>
-<li><a href="https://www.jianshu.com/p/a72a4782a102" target="_blank" rel="noopener">clickhouse优化最佳实践(易企秀)</a></li>
-<li><a href="https://blog.csdn.net/nazeniwaresakini/article/details/106232278" target="_blank" rel="noopener">物化视图简介与ClickHouse中的应用示例</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">olap</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">clickhouse</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/17/bigdata-stack-clickhouse/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-bigdata-stack-presto" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2022/05/17/bigdata-stack-presto/">大数据开发之路-presto</a>
-    </h1>
-  
-
-        
-        <a href="/2022/05/17/bigdata-stack-presto/" class="archive-article-date">
-  	<time datetime="2022-05-17T04:01:41.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-17</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#presto-基于mpp架构的分布式sql交互式查询引擎">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
-<li><a href="#架构">架构</a></li>
-<li><a href="#查询模型">查询模型</a></li>
-<li><a href="#优点">优点</a></li>
-<li><a href="#缺点">缺点</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<blockquote>
-<p>导引</p>
-<ol>
-<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
-<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
-<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
-<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
-<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
-<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
-<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
-<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
-<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
-<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
-<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
-</ol>
-</blockquote>
-<h2><span id="presto-基于mpp架构的分布式sql交互式查询引擎">presto-基于MPP架构的分布式SQL交互式查询引擎</span></h2><p><img src="http://armsword.com/img/2017/12/5.jpg" alt=""></p>
-<p>Presto 是在 Hadoop 上运行的分布式系统，使用与经典大规模并行处理 (MPP) 数据库管理系统相似的架构。它有一个协调器节点，与多个工作节点同步工作。用户将其 SQL 查询提交给协调器，由其使用自定义查询和执行引擎进行解析、计划并将分布式查询计划安排到工作节点之间。它设计用于支持标准 ANSI SQL 语义，包括复杂查询、聚合、联接、左/右外联接、子查询、开窗函数、不重复计数和近似百分位数。<br>查询编译之后，Presto 将请求拆分到工作节点之间的多个阶段中。所有处理都在内存中进行，并以流水线方式经过网络中的不同阶段，从而避免不必要的 I/O 开销。添加更多工作节点可提高并行能力，并加快处理速度。<br>为了使 Presto 可扩展到任何数据源，它的设计采用了存储抽象化，以便于轻松地构建可插入的连接器。因此，Presto 拥有大量连接器，既可用于非关系数据源，例如 Hadoop 分布式文件系统 (HDFS)、Amazon S3、Cassandra、MongoDB 和 HBase，又可用于关系源，例如 MySQL、PostgreSQL、Amazon Redshift、Microsoft SQL Server 和 Teradata。数据在其存储位置接受查询，无需将其移动到独立的分析系统中。</p>
-<h2><span id="架构">架构</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220517222119.png" alt=""></p>
-<p>Presto查询引擎是一个Master-Slave的架构，由一个Coordinator节点，一个Discovery Server节点，多个Worker节点组成，Discovery Server通常内嵌于Coordinator节点中。Coordinator负责解析SQL语句，生成执行计划，分发执行任务给Worker节点执行。Worker节点负责实际执行查询任务。Worker节点启动后向Discovery Server服务注册，Coordinator从Discovery Server获得可以正常工作的Worker节点。如果配置了Hive Connector，需要配置一个Hive MetaStore服务为Presto提供Hive元信息，Worker节点与HDFS交互读取数据。</p>
-<p><img src="http://armsword.com/img/2017/12/3.jpg" alt=""><br>整体查询流程为：</p>
-<ul>
-<li>Client使用HTTP协议发送一个query请求。</li>
-<li>通过Discovery Server发现可用的Server。</li>
-<li>Coordinator构建查询计划（Connector插件提供Metadata）</li>
-<li>Coordinator向workers发送任务</li>
-<li>Worker通过Connector插件读取数据</li>
-<li>Worker在内存里执行任务（Worker是纯内存型计算引擎）</li>
-<li>Worker将数据返回给Coordinator，之后再Response Client</li>
-</ul>
-<h2><span id="查询模型">查询模型</span></h2><p>一个查询分解为多个stage，每个 stage拆分多个task，每个task处理一个或多个split ，一个task被分解为一个或多个Driver</p>
-<ul>
-<li>Statement语句：其实就是输入的SQL</li>
-<li>Query：根据SQL语句生成查询执行计划，进而生成可以执行的查询（Query），一个查询执行由Stage、Task、Driver、Split、Operator和DataSource组成</li>
-<li>Stage执行查询阶段：Stage之间是树状的结构 ，RootStage 将结果返回给coordinator ，SourceStage接收coordinator数据 其他stage都有上下游 stage分为四种 single(root)、Fixed、source、coordinator_only（DML or DDL）</li>
-<li>Exchange：两个stage数据的交换通过Exchange 两种Exchange ；Output Buffer （生产数据的stage通过此传给下游stage）Exchange Client （下游消费）；如果stage 是source 直接通过connector 读数据，则该stage通过Operator与connector交互</li>
-<li>stage：并不会被执行，只是对执行计划进行管理</li>
-<li>Task：实际运行在worker上的</li>
-<li>Driver：一个Driver处理一个split</li>
-<li>Operator：一个operator代表对一个split的一种操作 operator每次只会读取一个page对象</li>
-<li>Split：一个分片就是一个大的数据集中的一个小的子集</li>
-<li>Page：presto中处理的最小数据单元 一个page包含多个block对象，每个block对象是个字节数组</li>
-</ul>
-<p><img src="https://img-blog.csdnimg.cn/20190218084238638.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80MzU5MjE5NA==,size_16,color_FFFFFF,t_70" alt=""><br>当Coordinator收到一个Query，SQL通过Anltr解析为AST（抽象语法树），然后通过Connector获取原始数据的Metadata信息，这里会有一些优化，比如缓存Metadata信息等，根据Metadata信息生成逻辑计划，然后会依次生成分发计划和执行计划，在执行计划里需要去Discovery里获取可用的node列表，然后根据一定的策略，将这些计划分发到指定的Worker机器上，Worker机器再分别执行。</p>
-<ul>
-<li>coordinator接到SQL后，通过SQL语法解析器把SQL语法解析变成一个抽象的语法树AST（与Hive一样，使用Antlr解析SQL语法），只是进行语法解析如果有错误此环节暴露</li>
-<li>语法符合SQL语法，会经过一个逻辑查询计划器组件，通过connector 查询metadata中schema 列名 列类型等，将之与抽象语法数对应起来，生成一个物理的语法树节点 如果有类型错误会在此步报错</li>
-<li>如果通过，会得到一个逻辑的查询计划，将其分发到分布式的逻辑计划器里，进行分布式解析，最后转化为一个个task</li>
-<li>在每个task里面，会将位置信息解析出来，交给执行的plan，由plan将task分给worker执行</li>
-</ul>
-<p><img src="http://armsword.com/img/2017/12/5.jpg" alt=""><br>MR每个操作要么需要写磁盘，要么需要等待前一个stage全部完成才开始执行，而Presto将SQL转换为多个stage，每个stage又由多个tasks执行，每个tasks又将分为多个split。所有的task是并行的方式进行运行，stage之间数据是以pipeline形式流式的执行，数据之间的传输也是通过网络以Memory-to-Memory的形式进行，没有磁盘io操作。这也是Presto性能比Hive快很多倍的决定性原因。</p>
-<h2><span id="优点">优点</span></h2><ul>
-<li>支持ansi sql</li>
-<li>多数据源，容易扩展，支持混合数据源查询</li>
 <li>高性能<ul>
-<li>完全基于内存的并行计算，查询的平均性能是hive的10倍，一般查询秒级返回</li>
-<li>流水线，查询结果可以流式输出<ul>
-<li>节点内部流水线计算，依次遍历所有Operator，尝试从上一个Operator取一个Page对象，如果取得的Page不为空，交给下一个Operator执行<br><img src="https://awps-assets.meituan.net/mit-x/blog-images-bundle-2014/0f08334c.png" alt=""></li>
-<li>节点间流水线计算，ExchangeOperator为每一个Split启动一个HttpPageBufferClient对象，主动向上一个Stage的Worker节点拉数据，数据的最小单位也是一个Page对象，取到数据后放入Pages队列中<br><img src="https://awps-assets.meituan.net/mit-x/blog-images-bundle-2014/653070b9.png" alt=""></li>
+<li>支持基于内存查询，减少磁盘 IO 交互</li>
+<li>支持使用嵌入数据，减少系统I/O负担，支持子文档查询</li>
+<li>使用高效的二进制数据存储，包括大型对象</li>
+</ul>
+</li>
+<li>多种查询类型支持，且支持数据聚合查询、文本检索、地址位置查询，支持复杂的 SQL 查询</li>
+<li>高可用、水平扩展，支持副本集与分片</li>
+<li>多种存储引擎：WiredTiger , In-Memory</li>
+</ul>
+<h2><span id="数据模型">数据模型</span></h2><p>和关系型数据库mysql很相似。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519172323.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519161438.png" alt=""></p>
+<h2><span id="关键技术">关键技术</span></h2><h3><span id="wiredtiger存储引擎">WiredTiger存储引擎</span></h3><ul>
+<li>WT的数据结构<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519172533.png" alt=""><br>WT的Cache采用Btree的方式组织，每个Btree节点为一个page。root page是btree的根节点，internal page是btree的中间索引节点，leaf page是存储数据的叶子节点；btree的数据以page为单位按需从磁盘加载或写入磁盘。</li>
+<li>为什么MongoDB使用了B树而不是B+树<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519172649.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519172712.png" alt=""><br>B+树只在叶子节点中储存数据，叶子节点之间有链表相连方便遍历和范围查询。B树在单个查询时性能优于B+树，在范围查询时需要遍历树，效率不如B+树直接遍历链表。<br>MySQL 作为关系型数据库，需要处理大量的范围查询和遍历，选用了B+树；而MongoDB 作为文档的数据库，更看重面向文档的简单查询，所以选择了查询单个文档性能较好的B树。</li>
+<li>WT的持久化<ul>
+<li>预写日志（WAL）： WT使用预写日志的机制，在数据更新时，先将数据更新写入到日志文件。日志的写入频率可以根据业务要求的可靠性等级配置，最严格的情况可以配置为集群中大部分节点都落盘后才将结果返回给客户端。</li>
+<li>检查点（checkpoint）： 在checkpoint操作开始时，WT提供指定时间点的数据库快照，并将快照中的所有数据以一致性方式写入到数据文件中。一旦checkpoint创建成功，WT保证数据文件和内存数据是一致的。当宕机重新启动时WT会先将数据恢复到最近的一次checkpoint的点，然后重放后续的操作日志来恢复数据。</li>
 </ul>
 </li>
 </ul>
+<h3><span id="事务支持">事务支持</span></h3><p>传统的观念认为NoSQL不支持或者只有部分支持事务，在MongoDB 4.0之前对事务的支持有限，但在MongoDB 4.0 引入了事务功能，支持多文档ACID特性。<br>事务实现原理：snapshot(事务快照) 、MVCC (多版本并发控制) 和redo log来实现事务。</p>
+<h3><span id="mongodb集群">MongoDB集群</span></h3><ul>
+<li><p>副本集<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519172947.png" alt=""></p>
+<ul>
+<li>Primary 主节点，一个副本集有且仅有一台服务器处于Primary状态，只有主节点才对外提供写服务。如果主节点挂掉，副本集将投票选出一个备节点成为新的主节点。</li>
+<li>Secondary 备用节点，副本集允许有多台Secondary，每个备用节点的数据与主节点的数据是完全同步的。备节点可以提供读服务。</li>
+<li>Arbiter 仲裁节点，该类节点可以不用单独存在，如果配置为仲裁节点，就主要负责在复本集中监控其他节点状态，投票选出主节点。如果没有仲裁节点，那么投票工作将由所有节点共同进行。</li>
+</ul>
+<p>官方推荐MongoDB副本节点在3~11个之间，奇数个副本节点。限制副本节点的数目是为了减少复制的成本，限制为奇数则是为了减少出现脑裂。</p>
 </li>
-<li>本地化计算，Presto在选择Source任务计算节点的时候，对于每一个Split，按下面的策略选择一些minCandidates:<ul>
-<li>优先选择与Split同一个Host的Worker节点</li>
-<li>如果节点不够，优先选择与Split同一个Rack的Worker节点</li>
-<li>如果节点还不够，随机选择其他Rack的节点</li>
+<li><p>副本集的选举<br> 跟很多NoSQL数据库一样，MongoDB副本集采用的是Bully算法进行主节点选举。<br> 在以下场景副本集会开始进行选举：</p>
+<ul>
+<li>初始化副本集时；</li>
+<li>备份节点无法和主节点通讯时(可能主节点宕机或网络原因)；</li>
+<li>Primary 手动降级。</li>
+</ul>
+<p>选举的大致原理是获取每个服务器节点的最后操作时间戳（oplog），选择最后操作时间戳最新(保证数据最新)的服务器节点作为主节点。</p>
+</li>
+<li><p>分片<br> 当MongoDB存储海量的数据时，一台机器不足以提供可接受的读写吞吐量。这时，我们就可以通过在多台机器上分割数据，使得数据库系统能存储和处理更多的数据。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519173422.png" alt=""><br> 分片集群由Shard、Mongos和Config server 3个组件构成。</p>
+<ul>
+<li>mongos：数据库集群请求的入口，起到路由作用，它负责把对应的数据请求转发到对应的shard服务器上。生产环境中需要多个mongos。</li>
+<li>config server：保存集群和分片的元数据，mongos启动时会加载配置服务器上的配置信息，以后如果配置服务器信息变化会通知到所有的mongos更新自己的状态。生产环境需要多个配置服务器并定期备份。</li>
+<li>shard server：实际存储数据的分片。生产环境为了保证高可用，每个Shard都要求是副本集。</li>
 </ul>
 </li>
-<li>动态编译执行计划<ul>
-<li>循环展开最常用来降低循环开销，为具有多个功能单元的处理器提供指令级并行。也有利于指令流水线的调度</li>
 </ul>
-</li>
-<li>小心使用内存和数据结构<ul>
-<li>使用Slice进行内存操作，Slice使用Unsafe#copyMemory实现了高效的内存拷贝</li>
+<ul>
+<li>分片策略<br>  分片支持单个集合的数据分散在多个分片上，目前主要有范围分片和hash分片两种数据分片策略。<br>  范围分片适合满足在一定范围内的查找，缺点是可能会导致数据分布不均，有热点数据；hash分片分布均匀，但是不能高效进行范围查询。</li>
 </ul>
-</li>
-<li>类BlinkDB的近似查询<ul>
-<li>引入了一些近似查询函数approx_avg、approx_distinct、approx_percentile，加快avg、count distinct、percentile等聚合函数的查询速度</li>
-</ul>
-</li>
-<li>GC控制<ul>
-<li>增加一个线程在代码缓存达到70%以上时进行显式GC，使得已经加载的Class从perm中移除，避免JIT无法正常工作的BUG</li>
-</ul>
-</li>
-</ul>
-<h2><span id="缺点">缺点</span></h2><ul>
-<li>不适合多个大表的join操作<ul>
-<li>比如多表join需要很大的内存，由于Presto是纯内存计算，所以当内存不够时，Presto并不会将结果dump到磁盘上，所以查询也就失败了。所以，一些大的查询还是适合使用hive来执行。</li>
-</ul>
-</li>
-<li>容错性差<ul>
-<li>Coordinator存在单点问题</li>
-<li>当一个Query分发到多个Worker去执行时，当有一个Worker因为各种原因查询失败，那么Master会感知到，整个Query也就查询失败了，而Presto并没有重试机制，所以需要用户方实现重试机制</li>
-</ul>
-</li>
-<li>性能退化<ul>
-<li>这个并不能说其是一个缺点，而是MPP架构潜在的一个问题。假如我们访问的是Hive数据源，如果其中一台Worke由于load问题，数据处理很慢，那么整个查询都会受到影响，因为下游需要等待上游结果。</li>
-</ul>
-</li>
+<h2><span id="应用场景">应用场景</span></h2><ul>
+<li>应用不需要事务和复杂join支持</li>
+<li>新应用，需求会变，数据模型无法确认，想快速迭代开发</li>
+<li>应用需要2000-3000以上的读写QPS（更高也可以）</li>
+<li>应用需要TB甚至PB级别数据存储</li>
+<li>应用发展迅速，需要能快速水平扩展</li>
+<li>应用需要大量的地理位置查询、文本查询</li>
+<li>应用需要存储的数据不丢失</li>
 </ul>
 <h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://aws.amazon.com/cn/big-data/what-is-presto/" target="_blank" rel="noopener">Presto (PrestoDB) 简介</a></li>
-<li><a href="https://www.jianshu.com/p/938d2a3a055c" target="_blank" rel="noopener">presto简介</a></li>
-<li><a href="https://blog.csdn.net/weixin_43592194/article/details/87596695" target="_blank" rel="noopener">presto是什么？</a></li>
-<li><a href="https://tech.meituan.com/2014/06/16/presto.html" target="_blank" rel="noopener">Presto实现原理和美团的使用实践</a></li>
-<li><a href="http://armsword.com/2017/12/05/presto/" target="_blank" rel="noopener">分布式SQL查询引擎Presto原理介绍</a></li>
+<li><a href="https://juejin.cn/post/7027814425658654728" target="_blank" rel="noopener">MongoDB介绍</a></li>
+<li><a href="https://zhuanlan.zhihu.com/p/84834695" target="_blank" rel="noopener">MongoDB 介绍与应用详解</a></li>
 </ul>
 
       
@@ -970,11 +312,7 @@ ReplicatedXXXMergeTree: 使得以上 MergeTree 家族拥有副本机制，保证
 		<ul class="article-tag-list">
 			 
         		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">olap</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">presto</a>
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">mongodb</a>
         		</li>
       		
 		</ul>
@@ -995,7 +333,331 @@ ReplicatedXXXMergeTree: 使得以上 MergeTree 家族拥有副本机制，保证
 
       
         <p class="article-more-link">
-          <a class="article-more-a" href="/2022/05/17/bigdata-stack-presto/">展开全文 >></a>
+          <a class="article-more-a" href="/2022/05/19/bigdata-stack-mongo/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-bigdata-stack-yarn" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/05/19/bigdata-stack-yarn/">大数据开发之路-yarn</a>
+    </h1>
+  
+
+        
+        <a href="/2022/05/19/bigdata-stack-yarn/" class="archive-article-date">
+  	<time datetime="2022-05-19T03:15:39.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-19</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#yarn-大数据生态体系的资源管理系统">yarn-大数据生态体系的资源管理系统</a></li>
+<li><a href="#yarn架构">YARN架构</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<blockquote>
+<p>导引</p>
+<ol>
+<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
+<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
+<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
+<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
+<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
+<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
+<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
+<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
+<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
+<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
+<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
+<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
+</ol>
+</blockquote>
+<h2><span id="yarn-大数据生态体系的资源管理系统">yarn-大数据生态体系的资源管理系统</span></h2><p>YARN是开源项目Hadoop的一个资源管理系统，最初设计是为了解决Hadoop中MapReduce计算框架中的资源管理问题，但是现在它已经是一个更加通用的资源管理系统，可以把MapReduce计算框架作为一个应用程序运行在YARN系统之上，通过YARN来管理资源。<br>如果你的应用程序也需要借助YARN的资源管理功能，你也可以实现YARN提供的编程API，将你的应用程序运行于YARN之上，将资源的分配与回收统一交给YARN去管理，可以大大简化资源管理功能的开发。<br>当前，也有很多应用程序已经可以构建于YARN之上，如Storm、Spark等计算框架。</p>
+<h2><span id="yarn架构">YARN架构</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519114315.png" alt=""></p>
+<ul>
+<li>YARN Client<br> YARN Client提交Application到RM，它会首先创建一个Application上下文件对象，并设置AM必需的资源请求信息，然后提交到RM。YARN Client也可以与RM通信，获取到一个已经提交并运行的Application的状态信息等</li>
+<li>ResourceManager（RM）<br> RM是YARN集群的Master，负责管理整个集群的资源和资源分配。RM作为集群资源的管理和调度的角色，如果存在单点故障，则整个集群的资源都无法使用。在2.4.0版本才新增了RM HA的特性，这样就增加了RM的可用性。</li>
+<li>NodeManager（NM）<br> NM是YARN集群的Slave，是集群中实际拥有计算资源的工作节点。我们提交Job以后，会将组成Job的多个Task调度到对应的NM上进行执行。Hadoop集群中，为了获得分布式计算中的Locality特性，会将DN和NM在同一个节点上运行，这样对应的HDFS上的Block可能就在本地，而无需在网络间进行数据的传输。</li>
+<li>Container<br> Container是YARN集群中资源的抽象，将NM上的资源进行量化，根据需要组装成一个个Container，然后服务于已授权资源的计算任务。计算任务在完成计算后，系统会回收资源，以供后续计算任务申请使用。Container包含两种资源：内存和CPU，后续Hadoop版本可能会增加硬盘、网络等资源。</li>
+<li>ApplicationMaster（AM）<br> AM主要管理和监控部署在YARN集群上的Application，以MapReduce为例，MapReduce Application是一个用来处理MapReduce计算的服务框架程序，为用户编写的MapReduce程序提供运行时支持。通常我们在编写的一个MapReduce程序可能包含多个Map Task或Reduce Task，而各个Task的运行管理与监控都是由这个MapReduce Application来负责，比如运行Task的资源申请，由AM向RM申请；启动/停止NM上某Task的对应的Container，由AM向NM请求来完成。</li>
+</ul>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://winway.github.io/2017/01/12/big-data-yarn/">Hadoop生态系统介绍-YARN</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">yarn</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2022/05/19/bigdata-stack-yarn/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-bigdata-stack-kylin" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/05/18/bigdata-stack-kylin/">大数据开发之路-kylin</a>
+    </h1>
+  
+
+        
+        <a href="/2022/05/18/bigdata-stack-kylin/" class="archive-article-date">
+  	<time datetime="2022-05-18T09:04:35.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-05-18</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#kylin-molap引擎的扛把子">kylin-MOLAP引擎的“扛把子”</a></li>
+<li><a href="#特性">特性</a></li>
+<li><a href="#实现原理">实现原理</a></li>
+<li><a href="#架构">架构</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<blockquote>
+<p>导引</p>
+<ol>
+<li><a href="https://winway.github.io/2022/05/02/bigdata-stack-intro/">大数据开发之路-概述</a></li>
+<li><a href="https://winway.github.io/2022/05/03/bigdata-stack-flume/">flume-高度定制化的日志采集传输系统</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-sqoop/">sqoop-rdbms和hadoop之间的数据同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-datax/">datax-多种异构数据源间的高效数据同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/11/bigdata-stack-canal/">canal-基于MySQL binlog的增量同步工具</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hdfs/">hdfs-大数据生态系统的存储基石</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-hbase/">hbase-基于hdfs的支持实时随机读写的列式数据库</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kudu/">kudu-介于hdfs和hbase之间的“锋卫摇摆人”</a></li>
+<li><a href="https://winway.github.io/2022/05/12/bigdata-stack-kafka/">kafka-出色的分布式高性能发布/订阅消息队列系统</a></li>
+<li><a href="https://winway.github.io/2022/05/16/bigdata-stack-hive/">hive-基于Hadoop的数据仓库工具</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-ss/">spark streaming-分布式流式计算引擎</a></li>
+<li><a href="https://winway.github.io/2022/05/13/bigdata-stack-batchtune/">离线任务优化-数据开发的看家本领</a></li>
+<li><a href="https://winway.github.io/2022/05/14/bigdata-stack-streamtune/">实时任务优化-数据开发的看家本领</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-presto/">presto-基于MPP架构的分布式SQL交互式查询引擎</a></li>
+<li><a href="https://winway.github.io/2022/05/17/bigdata-stack-clickhouse/">clickhouse-OLAP分析数据库的异域猛禽</a></li>
+<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-doris/">doris-OLAP分析数据库的国产之光</a></li>
+<li><a href="https://winway.github.io/2022/05/18/bigdata-stack-kylin/">kylin-MOLAP引擎的“扛把子”</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-mongo/">mongodb-最接近“mysql”的nosql数据库</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-yarn/">yarn-大数据生态体系的资源管理系统</a></li>
+<li><a href="https://winway.github.io/2022/05/19/bigdata-stack-ranger/">ranger-大数据生态体系的统一权限控制系统</a></li>
+<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-cap/">cap原则-分布式系统设计的指导思想</a></li>
+<li><a href="https://winway.github.io/2022/05/20/bigdata-stack-row-col/">行存和列存-大数据存取的选择</a></li>
+<li><a href="https://winway.github.io/2022/05/21/bigdata-stack-csfl/">存算分离-让大数据获得真正的弹性</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-dw/">离线数仓-大数据系统的重量级应用</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-realdw/">实时数仓-实时性需求催生的数仓架构</a></li>
+<li><a href="https://winway.github.io/2022/05/24/bigdata-stack-streambatch/">流批一体-实时数仓架构的百家争鸣</a></li>
+<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-olap/">olap-基于数仓的多维实时分析系统</a></li>
+<li><a href="https://winway.github.io/2022/05/25/bigdata-stack-datalake/">数据湖-数据宇宙的未来架构（科普篇）</a></li>
+</ol>
+</blockquote>
+<h2><span id="kylin-molap引擎的扛把子">kylin-MOLAP引擎的“扛把子”</span></h2><p>Apache Kylin是一个开源的、分布式的分析型数据仓库，提供Hadoop/Spark 上的SQL查询接口及多维度分析(OLAP）能力以支持超大规模的数据，它能在亚秒内查询巨大的表。<br>Kylin重点解决的问题是针对大数据不同维度频繁查询问题，即如何对已经固化下来的定制查询进行亚秒级返回。<br>不同于“大规模并行处理”（Massive Parallel Processing，MPP）架构的Hive、Presto、clickhouse、doris等，Apache Kylin采用“预计算”的模式，用户只需要提前定义好查询维度，Kylin将帮助我们进行计算，并将结果存储到HBase中，为海量数据的查询和分析提供亚秒级返回，是一种典型的“空间换时间”的解决方案。</p>
+<p>Apache Kylin实现超大数据集上的亚秒级查询只需要三步：</p>
+<ol>
+<li>定义一个星形数据模型</li>
+<li>在定义的表上创建cube</li>
+<li>使用标准的SQL通过ODBC，JDBC和Restful API即可在亚秒内查询到结果</li>
+</ol>
+<h2><span id="特性">特性</span></h2><ul>
+<li>SQL接口：Kylin主要的对外接口就是以SQL的形式提供的。SQL简单易用的特性极大地降低了Kylin的学习成本，不论是数据分析师还是Web开发程序员都能从中收益。</li>
+<li>支持海量数据集:不论是Hive、SparkSQL，还是Impala、Presto，都改变不了这样一个事实：查询时间随着数据量的增长而线性增长。而Apache Kylin使用预计算技术打破了这一点。Kylin在数据集规模上的局限性主要取决于维度的个数和基数，而不是数据集的大小，所以Kylin能更好地支持海量数据集的查询。</li>
+<li>亚秒级响应:同样受益于预计算技术，Kylin的查询速度非常快，因为复杂的连接、聚合等操作都在Cube的构建过程中已经完成了。</li>
+<li>水平扩展:Apache Kylin同样可以使用集群部署方式进行水平扩展。但部署多个节点只能提高Kylin处理查询的能力，而不能提升它的预计算能力。</li>
+<li>可视化集成:Apache Kylin提供了ODBC/JDBC接口和RESTful API，可以很方便地与Tableau等数据可视化工具集成。数据团队也可以在开放的API上进行二次开发。</li>
+</ul>
+<h2><span id="实现原理">实现原理</span></h2><p>kylin 的核心思想是预计算。</p>
+<ul>
+<li><p>预计算<br>kylin 对多维分析可能用到的度量进行预计算，将高维复杂的聚合计算，多表连接等操作转换成预计算结果，将计算好的结果保存成 Cube，存储于 Hbase 中，供查询时直接访问。预计算过程需要很长时间，但是一旦结果计算出来，再次查询只是获取结果集合的过程，不需要额外再次浪费集群资源进行长时间查询，这种以空间换取时间的处理数据模式决定了 Kylin 拥有很好的快速查询、高并发能力。<br>Kylin 是一个 MOLAP(多维联机数据分析)系统，最常用的是将 Hive 中的数据进行预计算，利用 Hadoop 的 Mapreduce 或者 Spark 分布式计算框架来实现。Kylin 获取的数据表是星型数据结构的，目前建模时，只支持一张事实表，多张维度表，假设业务需求比较复杂，可以考虑在 Hive 中进行预处理生成一张宽表来处理。</p>
+</li>
+<li><p>cube<br>对于 Hive 中的维度表和事实表，根据我们指定的维度列来构建 cube,cube 是所有维度的组合，任一维度的组合称为 cuboid,即：cube 中包含所有的 cubeid。理论上来说，一个 N 维的 cube,会有 2 的 N 次方种维度组合(cuboid)。举例：假设一个 cube 包含 time、country、city、location 四个维度，那么就有 16 中 cuboid 组合。</p>
+</li>
+</ul>
+<p>通过计算框架的计算将 OLAP 分析的 cube 数据存储在 Hbase 中，方便后期实现多维数据集的交互式快速查询。</p>
+<h2><span id="架构">架构</span></h2><p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220519092659.png" alt=""></p>
+<ul>
+<li><p>组件</p>
+<ul>
+<li>REST Server:提供 Restful 接口，可以通过此接口来创建、构建、刷新、合并Cube 等相关操作。同时也可以通过 Restful 接口实现 SQL 查询。</li>
+<li>Query Engine:目前 Kylin 使用开源的 Calcite 框架来实现 SQL 解析，用户发出SQL 查询之后，可以通过 Query Engine 来将 SQL Query 语句转换成 SQL 语法树，也就是逻辑计划。</li>
+<li>Routing:负责将解析 SQL 生成的执行计划转换成 cube 缓存的查询，cube 是通过预计算缓存在 Hbase 中，这部分查询时可以在秒级甚至是毫秒级完成，除此之外，还有一些操作需要使用原始数据（存储在 HDFS 上）通过 Hive 查询，这部分查询的延迟比较高。</li>
+<li>Metadata:Kylin 中有大量的元数据信息，包括 cube 的定义、星型模型的定义、job 和执行 job 的输出信息、模型的维度信息等等。Kylin 的元数据存储在 Hbase 中，存储的格式是 Json 字符串。</li>
+<li>Cube Build Engine:立方体构建模块是所有模块的基础，主要负责 Kylin 预计算中创建 cube,创建的过程是首先通过 Hive 读取原始数据，然后通过 MR 或者 Spark 计算生成 Htable,最后将数据加载到 Hbase 表中。</li>
+</ul>
+</li>
+<li><p>构建过程<br>从图中可以看出，左侧为数据源，目前Kylin默认的数据源是Apache Hive，保存着待分析的用户数据。根据元数据的定义，构建引擎从数据源抽取数据，并构建Cube。数据以关系表的形式输入，并且必须符合星形模型。构建技术主要为MapReduce/Spark。构建后的Cube保存在右侧存储引擎中，目前Kylin默认的存储为Apache HBase。</p>
+<ul>
+<li>全量构建<br>就是每次构建都对Hive表进行全表构建。但是全量构建在实际环境中并不常用，因为大多数业务场景下，事实数据都在不断地增长中，所以最常使用的构建方式其实是增量构建。</li>
+<li>增量构建<br>可以使Cube每次只构建Hive表中新增部分的数据，而不是全部数据，因此大大降低了构建的成本。为了实现增量构建，Apache Kylin将Cube分为多个Segment，每个Segment用起始时间和结束时间来标识。</li>
+<li>流式构建<br>使用Kafka做为数据源，构建引擎定时从Kafka中拉取数据进行构建，这一设计与Spark-Streaming的微批次（Micro-Batch）思想非常像。</li>
+</ul>
+</li>
+<li><p>查询过程<br>完成构建后，用户可以从上方的查询系统发送SQL进行查询分析。Kylin提供了RESTful API、JDBC/ODBC接口供用户调用。无论从哪个接口进入，SQL最终都会来到REST服务层，再转交给查询引擎进行处理。查询引擎解析SQL，生成基于关系表的逻辑执行计划，然后将其转译为基于Cube的物理执行计划，最后查询预计算生成的Cube并产生结果。整个过程不会访问原始数据源。如果用户提交的查询语句未在Kylin中预先定义，Kylin会返回一个错误。</p>
+</li>
+</ul>
+<p>值得一提的是，Kylin对数据源、执行引擎和Cube存储三个核心模块提取出了抽象层，这意味着这三个模块可以被任意地扩展和替换。比如可以使用Spark替代MapReduce作为Cube的构建引擎，使用Cassandra替代HBase作为Cube计算后数据的存储等。</p>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://www.cnblogs.com/shun7man/p/12920429.html" target="_blank" rel="noopener">大数据基础—Kylin是什么？ </a></li>
+<li><a href="https://www.jianshu.com/p/abd5e90ab051" target="_blank" rel="noopener">一文读懂Apache Kylin</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">olap</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">kylin</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据开发之路/" class="article-tag-list-link color3">大数据开发之路</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2022/05/18/bigdata-stack-kylin/">展开全文 >></a>
         </p>
       
 
@@ -1165,11 +827,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hive</a>
+                <a href="javascript:void(0)" class="js-tag color4">pig</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+                <a href="javascript:void(0)" class="js-tag color5">hive</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1193,11 +855,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
+                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">github</a>
+                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1205,19 +867,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1225,7 +875,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">proxy</a>
+                <a href="javascript:void(0)" class="js-tag color2">github</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1237,19 +895,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">proxy</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">备份</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">独立开发</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">tez</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">gc</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1261,7 +911,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+                <a href="javascript:void(0)" class="js-tag color4">tez</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">gc</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">独立开发</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1273,15 +935,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1293,7 +947,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1301,19 +959,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1322,6 +972,18 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1353,15 +1015,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1373,15 +1039,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">presto</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1417,11 +1079,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
+                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">TCPCopy</a>
+                <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
               </li>
              
               <li class="article-tag-list-item">
