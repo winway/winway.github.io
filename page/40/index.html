@@ -156,6 +156,136 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-a-simple-Linux-app-monitor-framework-1" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2013/07/01/a-simple-Linux-app-monitor-framework-1/">一个简易的服务器监控框架(1)</a>
+    </h1>
+  
+
+        
+        <a href="/2013/07/01/a-simple-Linux-app-monitor-framework-1/" class="archive-article-date">
+  	<time datetime="2013-07-01T13:14:09.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-07-01</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>花了两天时间写了个监控服务器各项指标的框架，主要功能包括：根据设置产生各指标项的数据报表，并可以根据阈值的设定产生警告信息。<br><a href="https://github.com/winway/a-simple-monitor-framework/tree/v1.0" target="_blank" rel="noopener">https://github.com/winway/a-simple-monitor-framework/tree/v1.0</a></p>
+<!-- toc -->
+<ul>
+<li><a href="#1-简介">1. 简介</a></li>
+<li><a href="#2-配置">2. 配置</a></li>
+<li><a href="#3-数据存储">3. 数据存储</a></li>
+<li><a href="#4-展示">4. 展示</a></li>
+<li><a href="#5-使用">5. 使用</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="1-简介">1. 简介</span></h2><p>主要功能包括：根据设置产生各指标项的数据报表，并可以根据阈值的设定产生警告信息。程序包括以下文件和文件夹：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">$ ls -l</span><br><span class="line">总计 88</span><br><span class="line">-rwxrw-r-- 1 winway winway 277 06-27 19:30 analyse.sh</span><br><span class="line">-rwxrw-r-- 1 winway winway 122 06-29 10:18 config.sh</span><br><span class="line">drwxrwxr-x 5 winway winway 4096 07-01 20:08 data</span><br><span class="line">drwxrwxr-x 2 winway winway 4096 07-01 20:08 display</span><br><span class="line">-rwxrw-r-- 1 winway winway 148 06-28 09:39 display.sh</span><br><span class="line">drwxrwxr-x 5 winway winway 4096 07-01 20:07 etc</span><br><span class="line">-rwxrw-r-- 1 winway winway 471 06-28 09:33 format.sh</span><br><span class="line">-rwxrw-r-- 1 winway winway 253 06-27 19:28 monitor.sh</span><br><span class="line">-rw-rw-r-- 1 winway winway 3036 06-29 15:19 raw2html.py</span><br><span class="line">-rw-rw-r-- 1 winway winway 2107 06-29 13:44 raw_analyse.py</span><br><span class="line">-rwxrw-r-- 1 winway winway 849 06-29 10:24 snatch.sh</span><br></pre></td></tr></table></figure></p>
+<ul>
+<li>monitor.sh<br>主程序，会依次调用snatch.sh、analyse.sh、format.sh、display.sh</li>
+<li>snatch.sh<br>数据采集，基于mussh（不了解的可以参考下这里）实现，周期性抓取各服务器上感兴趣的数据项，存储到data文件夹中</li>
+<li>analyse.sh<br>数据分析，根据etc文件夹中的阈值配置文件，产生需要告警的条目，主要工作由raw_analyse.py完成</li>
+<li>format.sh<br>数据格式化，将原始的纯文本数据格式化为html格式，主要工作由raw2html.py完成</li>
+<li>display.sh<br>数据展示，更新display文件夹下的软连接，指向最新的html文件</li>
+<li>config.sh<br>一些变量的定义</li>
+</ul>
+<h2><span id="2-配置">2. 配置</span></h2><p>配置文件结构如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">etc/</span><br><span class="line">|-- lst.d</span><br><span class="line">| `-- database.lst</span><br><span class="line">|-- monitor.conf</span><br><span class="line">|-- sh.d</span><br><span class="line">| `-- database.sh</span><br><span class="line">`-- thv.d</span><br><span class="line">`-- database.thv</span><br></pre></td></tr></table></figure></p>
+<p>其中monitor.conf是主配置文件<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> cat monitor.conf</span><br><span class="line"><span class="meta">#</span> 类型 IP列表文件 检查脚本文件 阈值文件</span><br><span class="line">database database.lst database.sh database.thv</span><br></pre></td></tr></table></figure></p>
+<p>类型是指服务器的角色，如数据库服务器，web服务器等；IP列表文件是对应这一角色的服务器的ip集合，格式为<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> 归属地 用户@IP</span><br><span class="line">哈尔滨 root@x.x.x.x</span><br><span class="line">哈尔滨 root@x.x.x.x</span><br></pre></td></tr></table></figure></p>
+<p>这里“<a href="mailto:root@x.x.x.x" target="_blank" rel="noopener">root@x.x.x.x</a>”的格式是为了mussh执行起来方便而这么写的。<br>检查脚本文件是获取这个服务器数据应该执行的脚本。在目标机器上执行这个脚本，就可以获得我们关心的各项数据，这个脚本根据需要而定制，且输出信息的格式有要求。demo:<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> cat sh.d/database.sh</span><br><span class="line"><span class="meta">#</span>! /bin/bash</span><br><span class="line"><span class="meta">#</span></span><br><span class="line">echo -n "&lt;hostname&gt;"</span><br><span class="line">hostname</span><br><span class="line">echo -n '&lt;time&gt;'</span><br><span class="line">date '+%Y-%m-%d %H:%M:%S'</span><br><span class="line">echo -n '&lt;uptime&gt;'</span><br><span class="line">uptime | sed -r 's/.*up\s*([^,]*).*/\1/'</span><br><span class="line">echo -n '&lt;interface&gt;'</span><br><span class="line">/sbin/ifconfig | sed -nr '/^\S/&#123;N;s/\s+.*inet addr:(\S+).*/ \1/;H&#125;;$&#123;x;s/^\s*//g;s/\n/+/g;p&#125;'</span><br><span class="line">echo -n '&lt;process_number&gt;'</span><br><span class="line">ps -e | wc -l</span><br><span class="line">echo -n '&lt;disk_usage&gt;'</span><br><span class="line">df -h | awk -F'[ %]+' '$NF == "/"&#123;print $(NF-1)&#125;'</span><br></pre></td></tr></table></figure></p>
+<p>由于mussh具有远程执行本地脚本的能力，所以我们不需要把这个脚本拷贝到远程主机上。<br>阈值文件用来判断某项数据是否超标。比如如下示例，进程数超过180，我们认为要告警；磁盘使用率超过80%，也需要告警。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">$</span> cat etc/thv.d/database.thv</span><br><span class="line"><span class="meta">#</span>###########################################</span><br><span class="line"><span class="meta">#</span> 注意!!! #</span><br><span class="line"><span class="meta">#</span> 指标要与检查脚本里的名字一致 #</span><br><span class="line"><span class="meta">#</span>###########################################</span><br><span class="line"><span class="meta">#</span> 指标 最小值 最大值</span><br><span class="line">process_number 180 300</span><br><span class="line">disk_usage 0 80</span><br></pre></td></tr></table></figure></p>
+<p>这里需要注意的是检查脚本中出现的数据项的名字要和这里保持一致，这样程序才能找到关联。<br>所以，如果你想加入对一批相同类型的机器的监控，你需要：</p>
+<ol>
+<li>编辑一个IP列表文件，将他们的IP地址按合法的格式编辑</li>
+<li>根据自己关心的数据项，定制一个检查脚本，脚本的输出信息格式如示例脚本所示</li>
+<li>给你所关心数据项设置告警阈值</li>
+<li>在monitor.conf里添加一条配置</li>
+</ol>
+<h2><span id="3-数据存储">3. 数据存储</span></h2><p>所有数据存储在data文件夹中<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">data/</span><br><span class="line">|-- all_html</span><br><span class="line">| `-- 20130701</span><br><span class="line">| `-- 2008</span><br><span class="line">| `-- database_all.html</span><br><span class="line">|-- newest.txt</span><br><span class="line">|-- raw</span><br><span class="line">| `-- 20130701</span><br><span class="line">| `-- 2008</span><br><span class="line">| |-- database_all.raw</span><br><span class="line">| `-- database_warn.raw</span><br><span class="line">`-- warn_html</span><br><span class="line">`-- 20130701</span><br><span class="line">`-- 2008</span><br><span class="line">`-- database_warn.html</span><br></pre></td></tr></table></figure></p>
+<p>raw文件夹用于存储原始的数据<br>all_html用于存储包含所有数据项的html文件<br>warn_html用于存储只包含警告数据项的html文件<br>newest.txt用于记录最新的数据所在的文件夹<br>执行完snatch.sh，会在相应的日期时间目录下生成<em>_all.raw文件<br>执行完analyse.sh，会在相应的日期时间目录下生成</em>_warn.raw文件<br>执行完format.sh，会在相应的日期时间目录下生成<em>_all.html和</em>_warn.html文件</p>
+<h2><span id="4-展示">4. 展示</span></h2><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">display</span><br><span class="line">|-- new_warning -&gt; ../data/warn_html/20130701/2008</span><br><span class="line">|-- overall -&gt; ../data/all_html/</span><br><span class="line">`-- warning -&gt; ../data/warn_html/</span><br></pre></td></tr></table></figure>
+<p>display文件夹包含三个软连接<br>new_warning指向最新的警告数据<br>overall指向all_html文件夹<br>warning指向warn_html文件夹<br>在display目录下执行<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">nohup python -m SimpleHTTPServer 80 &amp;&gt;/dev/null &amp;</span><br></pre></td></tr></table></figure></p>
+<p>就可以在浏览器中查看这些数据了。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/monitor_v1_list.png" alt="monitor_v1_list"><br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/monito_v1_demo.bmp" alt="monitor_v1_demo"></p>
+<h2><span id="5-使用">5. 使用</span></h2><p>运行环境需要需要安装mussh和python的PyH模块。根据需要编辑crontab文件，如<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">*/30 8-16 * * * cd ~winway/monitor &amp;&amp; ./monitor.sh</span><br><span class="line">0 0-7,17-23 * * * cd ~winway/monitor &amp;&amp; ./monitor.sh</span><br></pre></td></tr></table></figure></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">shell</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">监控</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2013/07/01/a-simple-Linux-app-monitor-framework-1/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-python-multiprocessing-demo" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
@@ -373,111 +503,6 @@
 
 
   
-    <article id="post-python-parse-ini-json-xml-configuration" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/06/03/python-parse-ini-json-xml-configuration/">Python解析ini、json、xml格式配置文件</a>
-    </h1>
-  
-
-        
-        <a href="/2013/06/03/python-parse-ini-json-xml-configuration/" class="archive-article-date">
-  	<time datetime="2013-06-03T12:18:06.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-06-03</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <p>最近借做项目的机会，了解了几个常用的配置文件类型，包括ini、json、xml。<br>我所需要的配置文件大概是这样，包括属性id、port等，以及若干个ip、pwd对，以下尝试了ini、json、xml三种配置文件。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">id = 6</span><br><span class="line">port = 22</span><br><span class="line">ip = 1.1.1.1</span><br><span class="line">pwd = 123456</span><br><span class="line">ip = 1.1.1.2</span><br><span class="line">pwd = 123456</span><br><span class="line">ip = 2.2.2.1</span><br><span class="line">pwd = 123456</span><br></pre></td></tr></table></figure></p>
-<!-- toc -->
-<ul>
-<li><a href="#1-使用ini格式">1. 使用ini格式</a></li>
-<li><a href="#2-使用json格式">2. 使用json格式</a></li>
-<li><a href="#3-使用xml格式">3. 使用xml格式</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="1-使用ini格式">1. 使用ini格式</span></h2><figure class="highlight ini"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">[common]</span></span><br><span class="line"><span class="attr">id</span> = <span class="string">'5'</span></span><br><span class="line"><span class="attr">port</span> = <span class="number">22</span></span><br><span class="line"><span class="section">[node]</span></span><br><span class="line"><span class="attr">ip</span> = <span class="number">1.1</span>.<span class="number">1.1</span></span><br><span class="line"><span class="attr">pwd</span> = <span class="number">123456</span></span><br><span class="line"><span class="section">[node]</span></span><br><span class="line"><span class="attr">ip</span> = <span class="number">1.1</span>.<span class="number">1.2</span></span><br><span class="line"><span class="attr">pwd</span> = <span class="number">123456</span></span><br><span class="line"><span class="section">[node]</span></span><br><span class="line"><span class="attr">ip</span> = <span class="number">2.2</span>.<span class="number">2.1</span></span><br><span class="line"><span class="attr">pwd</span> = <span class="number">123456</span></span><br></pre></td></tr></table></figure>
-<p>配置文件格式简洁明了，但是很遗憾，这不是合法的ini格式，python的ConfigParser无法正确处理。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">In [<span class="number">12</span>]: <span class="keyword">import</span> ConfigParser</span><br><span class="line">In [<span class="number">13</span>]: cf = ConfigParser.ConfigParser()</span><br><span class="line">In [<span class="number">14</span>]: cf.read(<span class="string">'config.ini'</span>)</span><br><span class="line">Out[<span class="number">14</span>]: [<span class="string">'config.ini'</span>]</span><br><span class="line">In [<span class="number">15</span>]: cf.sections()</span><br><span class="line">Out[<span class="number">15</span>]: [<span class="string">'common'</span>, <span class="string">'node'</span>]</span><br><span class="line">In [<span class="number">16</span>]: cf.options(<span class="string">'node'</span>)</span><br><span class="line">Out[<span class="number">16</span>]: [<span class="string">'ip'</span>, <span class="string">'pwd'</span>]</span><br><span class="line">In [<span class="number">17</span>]: cf.get(<span class="string">'node'</span>, <span class="string">'ip'</span>)</span><br><span class="line">Out[<span class="number">17</span>]: <span class="string">'2.2.2.1'</span></span><br></pre></td></tr></table></figure></p>
-<h2><span id="2-使用json格式">2. 使用json格式</span></h2><figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[</span><br><span class="line">  &#123;<span class="attr">"id"</span> : <span class="string">"5"</span>&#125;,</span><br><span class="line">  &#123;<span class="attr">"port"</span> : <span class="number">22</span>&#125;,</span><br><span class="line">  &#123;<span class="attr">"node"</span> : [</span><br><span class="line">    &#123;<span class="attr">"ip"</span> : <span class="string">"1.1.1.1"</span>, <span class="attr">"pwd"</span> : <span class="string">"123456"</span>&#125;,</span><br><span class="line">    &#123;<span class="attr">"ip"</span> : <span class="string">"1.1.1.2"</span>, <span class="attr">"pwd"</span> : <span class="string">"123456"</span>&#125;,</span><br><span class="line">    &#123;<span class="attr">"ip"</span> : <span class="string">"2.2.2.1"</span>, <span class="attr">"pwd"</span> : <span class="string">"123456"</span>&#125;</span><br><span class="line">	]</span><br><span class="line">  &#125;</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
-<p>这不就是标准的python变量吗？<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">In [<span class="number">20</span>]: <span class="keyword">import</span> json</span><br><span class="line">In [<span class="number">21</span>]: v = json.load(file(<span class="string">'config.json'</span>))</span><br><span class="line">In [<span class="number">22</span>]: v</span><br><span class="line">Out[<span class="number">22</span>]:</span><br><span class="line">[&#123;<span class="string">u'id'</span>: <span class="string">u'5'</span>&#125;,</span><br><span class="line">&#123;<span class="string">u'port'</span>: <span class="number">22</span>&#125;,</span><br><span class="line">&#123;<span class="string">u'node'</span>: [&#123;<span class="string">u'ip'</span>: <span class="string">u'1.1.1.1'</span>, <span class="string">u'pwd'</span>: <span class="string">u'123456'</span>&#125;,</span><br><span class="line">&#123;<span class="string">u'ip'</span>: <span class="string">u'1.1.1.2'</span>, <span class="string">u'pwd'</span>: <span class="string">u'123456'</span>&#125;,</span><br><span class="line">&#123;<span class="string">u'ip'</span>: <span class="string">u'2.2.2.1'</span>, <span class="string">u'pwd'</span>: <span class="string">u'123456'</span>&#125;]&#125;]</span><br></pre></td></tr></table></figure></p>
-<p>这个虽然能满足需求，但是感觉读取的时候不够灵活。比如我想直接获取id的值吗，前提是我必须知道配置文件各项的准确顺序。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">In [<span class="number">31</span>]: v[<span class="number">0</span>][<span class="string">'id'</span>]</span><br><span class="line">Out[<span class="number">31</span>]: <span class="string">u'5'</span></span><br></pre></td></tr></table></figure></p>
-<h2><span id="3-使用xml格式">3. 使用xml格式</span></h2><figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="php"><span class="meta">&lt;?</span>xml version=<span class="string">"1.0"</span> encoding=<span class="string">"utf-8"</span><span class="meta">?&gt;</span></span></span><br><span class="line"><span class="tag">&lt;<span class="name">config</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">id</span>&gt;</span>5<span class="tag">&lt;/<span class="name">id</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">port</span>&gt;</span>22<span class="tag">&lt;/<span class="name">port</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">node</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">ip</span>&gt;</span>1.1.1.1<span class="tag">&lt;/<span class="name">ip</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">pwd</span>&gt;</span>123456<span class="tag">&lt;/<span class="name">pwd</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">node</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">node</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">ip</span>&gt;</span>1.1.1.2<span class="tag">&lt;/<span class="name">ip</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">pwd</span>&gt;</span>123456<span class="tag">&lt;/<span class="name">pwd</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">node</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">node</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">ip</span>&gt;</span>2.2.2.1<span class="tag">&lt;/<span class="name">ip</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">pwd</span>&gt;</span>123456<span class="tag">&lt;/<span class="name">pwd</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">node</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">config</span>&gt;</span></span><br></pre></td></tr></table></figure>
-<p>可以满足需求，但是比起前两种稍显臃肿。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line">$ cat config.py</span><br><span class="line"><span class="comment">#! /usr/bin/env python</span></span><br><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> xml.etree.ElementTree <span class="keyword">as</span> ET</span><br><span class="line"></span><br><span class="line">id = <span class="keyword">None</span></span><br><span class="line">port = <span class="keyword">None</span></span><br><span class="line">ipset = []</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">load_config</span><span class="params">(file)</span>:</span></span><br><span class="line">    root = ET.parse(file).getroot()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">global</span> id, port</span><br><span class="line">    id = root.find(<span class="string">'id'</span>).text</span><br><span class="line">    port = root.find(<span class="string">'port'</span>).text</span><br><span class="line"></span><br><span class="line">    nodes = root.findall(<span class="string">'node'</span>)</span><br><span class="line">    <span class="keyword">for</span> node <span class="keyword">in</span> nodes:</span><br><span class="line">        d = &#123;&#125;</span><br><span class="line">        d[<span class="string">'ip'</span>] = node.find(<span class="string">'ip'</span>).text</span><br><span class="line">        d[<span class="string">'pwd'</span>] = node.find(<span class="string">'pwd'</span>).text</span><br><span class="line">        ipset.append(d)</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line">    <span class="keyword">print</span> id</span><br><span class="line">    <span class="keyword">print</span> port</span><br><span class="line">    <span class="keyword">print</span> ipset</span><br><span class="line">    load_config(<span class="string">'config.xml'</span>)</span><br><span class="line">    <span class="keyword">print</span> id</span><br><span class="line">    <span class="keyword">print</span> port</span><br><span class="line">    <span class="keyword">print</span> ipset</span><br><span class="line"></span><br><span class="line">$ ./config.py</span><br><span class="line"><span class="keyword">None</span></span><br><span class="line"><span class="keyword">None</span></span><br><span class="line">[]</span><br><span class="line"><span class="number">5</span></span><br><span class="line"><span class="number">22</span></span><br><span class="line">[&#123;<span class="string">'ip'</span>: <span class="string">'1.1.1.1'</span>, <span class="string">'pwd'</span>: <span class="string">'123456'</span>&#125;, &#123;<span class="string">'ip'</span>: <span class="string">'1.1.1.2'</span>, <span class="string">'pwd'</span>: <span class="string">'123456'</span>&#125;, &#123;<span class="string">'ip'</span>: <span class="string">'2.2.2.1'</span>, <span class="string">'pwd'</span>: <span class="string">'123456'</span>&#125;]</span><br></pre></td></tr></table></figure></p>
-<p>以上是本人自己理解，不知是否有误，如果针对这个问题还有更好的选择，还望大家多多指教！！</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">python</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/06/03/python-parse-ini-json-xml-configuration/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/39/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/38/">38</a><a class="page-number" href="/page/39/">39</a><span class="page-number current">40</span><a class="page-number" href="/page/41/">41</a><a class="page-number" href="/page/42/">42</a><a class="extend next" rel="next" href="/page/41/">Next &raquo;</a>
@@ -594,19 +619,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -618,7 +635,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -626,7 +643,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -638,31 +663,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -670,11 +675,31 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">proxy</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -686,11 +711,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">proxy</a>
+                <a href="javascript:void(0)" class="js-tag color3">备份</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">备份</a>
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -714,22 +739,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
               </li>
              
@@ -738,75 +747,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">springboot</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">keytool</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">小文件</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">storm</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -814,7 +755,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -854,6 +803,94 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">spark</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">springboot</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">keytool</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">小文件</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">nagios</a>
               </li>
              
@@ -875,18 +912,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
               </li>
              
               <li class="article-tag-list-item">

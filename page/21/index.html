@@ -156,6 +156,107 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-open-falcon-alarm" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/12/23/open-falcon-alarm/">open-falcon源码阅读之alarm</a>
+    </h1>
+  
+
+        
+        <a href="/2017/12/23/open-falcon-alarm/" class="archive-article-date">
+  	<time datetime="2017-12-23T00:42:19.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-12-23</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p><em>Version：0.2.0</em></p>
+<!-- toc -->
+<ul>
+<li><a href="#1-架构图">1. 架构图</a></li>
+<li><a href="#2-流程图">2. 流程图</a></li>
+<li><a href="#3-源码解析">3. 源码解析</a></li>
+</ul>
+<!-- tocstop -->
+<h1><span id="1-架构图">1. 架构图</span></h1><p>Alarm读取Redis中的event，持久化到Mysql，并将event放到Redis的待发送队列或待合并队列。开启goroutine调用对应的接口异步发送。<br><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/open-falcon-alarm-arch.png" alt=""></p>
+<h1><span id="2-流程图">2. 流程图</span></h1><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/open-falcon-alarm-flow.png" alt=""></p>
+<h1><span id="3-源码解析">3. 源码解析</span></h1><figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> main</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> (</span><br><span class="line">	<span class="string">"flag"</span></span><br><span class="line">	<span class="string">"fmt"</span></span><br><span class="line">	<span class="string">"os"</span></span><br><span class="line">	<span class="string">"os/signal"</span></span><br><span class="line">	<span class="string">"syscall"</span></span><br><span class="line"></span><br><span class="line">	<span class="string">"github.com/gin-gonic/gin"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/cron"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/g"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/http"</span></span><br><span class="line">	<span class="string">"github.com/open-falcon/falcon-plus/modules/alarm/model"</span></span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">func</span> <span class="title">main</span><span class="params">()</span></span> &#123;</span><br><span class="line">	cfg := flag.String(<span class="string">"c"</span>, <span class="string">"cfg.json"</span>, <span class="string">"configuration file"</span>)</span><br><span class="line">	version := flag.Bool(<span class="string">"v"</span>, <span class="literal">false</span>, <span class="string">"show version"</span>)</span><br><span class="line">	help := flag.Bool(<span class="string">"h"</span>, <span class="literal">false</span>, <span class="string">"help"</span>)</span><br><span class="line">	flag.Parse()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> *version &#123;</span><br><span class="line">		fmt.Println(g.VERSION)</span><br><span class="line">		os.Exit(<span class="number">0</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	<span class="keyword">if</span> *help &#123;</span><br><span class="line">		flag.Usage()</span><br><span class="line">		os.Exit(<span class="number">0</span>)</span><br><span class="line">	&#125;</span><br><span class="line"></span><br><span class="line">	g.ParseConfig(*cfg) <span class="comment">// 加载配置文件</span></span><br><span class="line"></span><br><span class="line">	g.InitLog(g.Config().LogLevel) <span class="comment">// 根据配置文件设置日志级别</span></span><br><span class="line">	<span class="keyword">if</span> g.Config().LogLevel != <span class="string">"debug"</span> &#123;</span><br><span class="line">		gin.SetMode(gin.ReleaseMode)</span><br><span class="line">	&#125;</span><br><span class="line">	<span class="comment">/*</span></span><br><span class="line"><span class="comment">	Gin is a web framework written in Go (Golang).</span></span><br><span class="line"><span class="comment">	It features a martini-like API with much better performance,</span></span><br><span class="line"><span class="comment">	up to 40 times faster thanks to httprouter.</span></span><br><span class="line"><span class="comment">	If you need performance and good productivity, you will love Gin.</span></span><br><span class="line"><span class="comment">	HttpRouter is a lightweight high performance HTTP request router</span></span><br><span class="line"><span class="comment">	(also called multiplexer or just mux for short) for Go.</span></span><br><span class="line"><span class="comment">	In contrast to the default mux of Go's net/http package,</span></span><br><span class="line"><span class="comment">	this router supports variables in the routing pattern and matches against the request method.</span></span><br><span class="line"><span class="comment">	It also scales better.The router is optimized for high performance and a small memory footprint.</span></span><br><span class="line"><span class="comment">	It scales well even with very long paths and a large number of routes.</span></span><br><span class="line"><span class="comment">	A compressing dynamic trie (radix tree) structure is used for efficient matching.</span></span><br><span class="line"><span class="comment">	 */</span></span><br><span class="line"></span><br><span class="line">	g.InitRedisConnPool() <span class="comment">// 创建redis连接池</span></span><br><span class="line">	model.InitDatabase() <span class="comment">// 创建数据库连接和数据库表，使用了beego的orm</span></span><br><span class="line">	cron.InitSenderWorker() <span class="comment">// 创建IMWorkerChan/SmsWorkerChan/MailWorkerChan，根据配置设置channel长度</span></span><br><span class="line">	                        <span class="comment">// 实际在用信号量做并发控制，避免同时发送过多</span></span><br><span class="line"></span><br><span class="line">	<span class="keyword">go</span> http.Start() <span class="comment">// 启动http服务（使用gin框架实现），提供版本查询、健康查询、工作查询接口</span></span><br><span class="line">	<span class="keyword">go</span> cron.ReadHighEvent() <span class="comment">// 处理高优先级报警事件，包括入库、调callback、报警入redis待发送队列</span></span><br><span class="line">	<span class="keyword">go</span> cron.ReadLowEvent() <span class="comment">// 处理低优先级报警事件，包括入库、调callback、报警入redis待合并队列</span></span><br><span class="line">	<span class="keyword">go</span> cron.CombineSms() <span class="comment">// 读取/queue/user/sms队列中的短信内容，聚合后入库，并发送聚合短信</span></span><br><span class="line">	<span class="keyword">go</span> cron.CombineMail() <span class="comment">// 读取/queue/user/mail队列中的邮件内容，聚合发送</span></span><br><span class="line">	<span class="keyword">go</span> cron.CombineIM() <span class="comment">// 读取/queue/user/im队列中的IM内容，聚合后入库，并发送聚合消息</span></span><br><span class="line">	<span class="keyword">go</span> cron.ConsumeIM() <span class="comment">// 读取/im队列中的内容，调用微信发送网关地址发送</span></span><br><span class="line">	<span class="keyword">go</span> cron.ConsumeSms() <span class="comment">// 读取/sms队列中的内容，调用短信发送网关地址发送</span></span><br><span class="line">	<span class="keyword">go</span> cron.ConsumeMail() <span class="comment">// 读取/mail队列中的内容，调用邮件发送网关地址发送</span></span><br><span class="line">	<span class="keyword">go</span> cron.CleanExpiredEvent() <span class="comment">// 删除events表的旧数据，默认7天之前</span></span><br><span class="line"></span><br><span class="line">	<span class="comment">// 注册信号处理程序，监听syscall.SIGINT和syscall.SIGTERM信号</span></span><br><span class="line">	sigs := <span class="built_in">make</span>(<span class="keyword">chan</span> os.Signal, <span class="number">1</span>)</span><br><span class="line">	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)</span><br><span class="line">	<span class="keyword">go</span> <span class="function"><span class="keyword">func</span><span class="params">()</span></span> &#123;</span><br><span class="line">		&lt;-sigs</span><br><span class="line">		fmt.Println()</span><br><span class="line">		g.RedisConnPool.Close()</span><br><span class="line">		os.Exit(<span class="number">0</span>)</span><br><span class="line">	&#125;()</span><br><span class="line"></span><br><span class="line">	<span class="keyword">select</span> &#123;&#125; <span class="comment">// 等待</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<p>详细代码注释请参考<a href="https://github.com/winway/falcon-plus-learn，持续更新中" target="_blank" rel="noopener">https://github.com/winway/falcon-plus-learn，持续更新中</a></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">open-falcon</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/源码阅读/" class="article-tag-list-link color5">源码阅读</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/12/23/open-falcon-alarm/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-open-falcon-judge" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
@@ -376,112 +477,6 @@
 
 
   
-    <article id="post-check-attendance-py" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/11/07/check-attendance-py/">使用Python自动抓取考勤记录</a>
-    </h1>
-  
-
-        
-        <a href="/2017/11/07/check-attendance-py/" class="archive-article-date">
-  	<time datetime="2017-11-07T05:46:49.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-11-07</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#背景">背景</a></li>
-<li><a href="#功能介绍">功能介绍</a></li>
-<li><a href="#源码">源码</a></li>
-<li><a href="#效果展示">效果展示</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="背景">背景</span></h2><p>新公司需要指纹打卡，但是打卡机经常抽风。为了尽早发现打卡异常，避免月底出现一堆考勤异常的记录，同时又不想每天登陆网页查看打卡情况，使用Python实现了自动抓取考勤记录并发送至邮箱的功能。</p>
-<h2><span id="功能介绍">功能介绍</span></h2><ol>
-<li>页面抓取<br>使用requests模块，自动登陆考勤网站，抓取本月考勤内容</li>
-<li>获取节假日信息<br>调用<a href="http://www.easybots.cn/holiday_api.net" target="_blank" rel="noopener">节假日API</a>，获取节假日信息</li>
-<li>构造邮件正文内容<br>构造考勤表格，并根据工时、是否节假日等信息标记颜色</li>
-<li>发送邮件<br>使用smtplib发送邮件</li>
-</ol>
-<h2><span id="源码">源码</span></h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#! /usr/bin/env python</span></span><br><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> time</span><br><span class="line"><span class="keyword">import</span> datetime</span><br><span class="line"><span class="keyword">import</span> urllib2</span><br><span class="line"><span class="keyword">import</span> json</span><br><span class="line"><span class="keyword">import</span> requests</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> smtplib</span><br><span class="line"><span class="keyword">from</span> email.mime.text <span class="keyword">import</span> MIMEText</span><br><span class="line"><span class="keyword">from</span> email.header <span class="keyword">import</span> Header</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> sys  </span><br><span class="line">reload(sys)  </span><br><span class="line">sys.setdefaultencoding(<span class="string">'utf8'</span>)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">crawl_page</span><span class="params">(url, name, pwd)</span>:</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'crawl page ...'</span></span><br><span class="line"></span><br><span class="line">    HEADERS = &#123;<span class="string">'Referer'</span>: url,</span><br><span class="line">               <span class="string">'User-Agent'</span>: <span class="string">'Mozilla/5.0 (Windows NT 6.1; W…) Gecko/20100101 Firefox/56.0'</span>,</span><br><span class="line">               <span class="string">'Accept'</span>: <span class="string">'application/json, text/javascript, */*; q=0.01'</span>,</span><br><span class="line">               <span class="string">'Accept-Language'</span>: <span class="string">'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3'</span>,</span><br><span class="line">               &#125;</span><br><span class="line">    </span><br><span class="line">    postdata = &#123; <span class="string">'username'</span>: name,</span><br><span class="line">                 <span class="string">'password'</span>: pwd,</span><br><span class="line">                &#125;</span><br><span class="line">    </span><br><span class="line">    sessions = requests.session()</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">print</span> <span class="string">'Logining %s ...'</span> % url</span><br><span class="line">    </span><br><span class="line">    response = sessions.post(url, headers=HEADERS, data=postdata)</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">print</span> <span class="string">'[%s] status_code: %s'</span> % (url, response.status_code)</span><br><span class="line">    <span class="keyword">print</span> <span class="string">'[%s] content: %s'</span> % (url, response.content)</span><br><span class="line">    </span><br><span class="line">    token = json.loads(response.content)[<span class="string">'data'</span>][<span class="string">'user'</span>]</span><br><span class="line"></span><br><span class="line">    time.sleep(<span class="number">2</span>)</span><br><span class="line">    </span><br><span class="line">    url = url + <span class="string">'getAttendanceRecord'</span></span><br><span class="line">    postdata = &#123; <span class="string">'date'</span>: <span class="string">'%s-%s'</span> % (time.localtime().tm_year, time.localtime().tm_mon),</span><br><span class="line">                 <span class="string">'token'</span>: token,</span><br><span class="line">                &#125;</span><br><span class="line">    </span><br><span class="line">    response = sessions.post(url, headers=HEADERS, data=postdata)</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">print</span> response.status_code</span><br><span class="line">    <span class="keyword">print</span> response.content</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">return</span> json.loads(response.content)[<span class="string">'data'</span>][<span class="string">'rows'</span>]</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">HOLIDAYS = &#123;&#125;</span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">get_holidays</span><span class="params">(date)</span>:</span> <span class="comment"># date format: 2017-10-30</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'get holidays ...'</span></span><br><span class="line"></span><br><span class="line">    dt = datetime.datetime.strptime(date, <span class="string">'%Y-%m-%d'</span>)</span><br><span class="line"></span><br><span class="line">    server_url = <span class="string">"http://www.easybots.cn/api/holiday.php?m=%s"</span></span><br><span class="line">      </span><br><span class="line">    vop_response = urllib2.urlopen(server_url % str(dt.year) + str(dt.month))</span><br><span class="line">      </span><br><span class="line">    vop_data= json.loads(vop_response.read())</span><br><span class="line"></span><br><span class="line">    <span class="keyword">global</span> HOLIDAYS</span><br><span class="line">    HOLIDAYS = vop_data[str(dt.year) + str(dt.month)]</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">construct_mailbody</span><span class="params">(raw)</span>:</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'construct mailbody ...'</span></span><br><span class="line"></span><br><span class="line">    mailbody = <span class="string">'''</span></span><br><span class="line"><span class="string">&lt;h3&gt;</span></span><br><span class="line"><span class="string">&lt;font color="#006600"&gt;非工作日&lt;/font&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;</span></span><br><span class="line"><span class="string">&lt;font color="#00FF00"&gt;打卡正常&lt;/font&gt;&amp;nbsp;&amp;nbsp;&amp;nbsp;</span></span><br><span class="line"><span class="string">&lt;font color="#FF0000"&gt;打卡异常&lt;/font&gt;</span></span><br><span class="line"><span class="string">&lt;/h3&gt;</span></span><br><span class="line"><span class="string">&lt;table border="1"&gt;</span></span><br><span class="line"><span class="string">  &lt;tr&gt;</span></span><br><span class="line"><span class="string">    &lt;th&gt;日期&lt;/th&gt;</span></span><br><span class="line"><span class="string">    &lt;th&gt;姓名&lt;/th&gt;</span></span><br><span class="line"><span class="string">    &lt;th&gt;签到时间&lt;/th&gt;</span></span><br><span class="line"><span class="string">    &lt;th&gt;签退时间&lt;/th&gt;</span></span><br><span class="line"><span class="string">    &lt;th&gt;工时&lt;/th&gt;</span></span><br><span class="line"><span class="string">  &lt;/tr&gt;</span></span><br><span class="line"><span class="string">'''</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> r <span class="keyword">in</span> raw:</span><br><span class="line">        <span class="keyword">if</span> time.strptime(r[<span class="string">'checkday'</span>], <span class="string">'%Y-%m-%d'</span>) &gt; time.localtime(): <span class="comment"># time range</span></span><br><span class="line">            <span class="keyword">continue</span></span><br><span class="line"></span><br><span class="line">        bgcolor = <span class="string">"FFFFFF"</span></span><br><span class="line">        <span class="keyword">if</span> datetime.datetime.strptime(r[<span class="string">'checkday'</span>], <span class="string">'%Y-%m-%d'</span>).strftime(<span class="string">'%d'</span>) <span class="keyword">in</span> HOLIDAYS: <span class="comment"># ignore holidays</span></span><br><span class="line">            bgcolor=<span class="string">"#006600"</span></span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">if</span> r[<span class="string">'hours'</span>] <span class="keyword">is</span> <span class="keyword">None</span> <span class="keyword">or</span> float(r[<span class="string">'hours'</span>]) &lt; <span class="number">9</span>:</span><br><span class="line">                bgcolor=<span class="string">"#FF0000"</span></span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                bgcolor=<span class="string">"#00FF00"</span></span><br><span class="line"></span><br><span class="line">        mailbody += <span class="string">'''</span></span><br><span class="line"><span class="string">        &lt;tr bgcolor="%s"&gt;</span></span><br><span class="line"><span class="string">          &lt;td&gt;%s&lt;/td&gt;</span></span><br><span class="line"><span class="string">          &lt;td&gt;%s&lt;/td&gt;</span></span><br><span class="line"><span class="string">          &lt;td&gt;%s&lt;/td&gt;</span></span><br><span class="line"><span class="string">          &lt;td&gt;%s&lt;/td&gt;</span></span><br><span class="line"><span class="string">          &lt;td&gt;%s&lt;/td&gt;</span></span><br><span class="line"><span class="string">        &lt;/tr&gt;</span></span><br><span class="line"><span class="string">        '''</span> % (bgcolor, r[<span class="string">'checkday'</span>], r[<span class="string">'userName'</span>], r[<span class="string">'checkin'</span>], r[<span class="string">'checkout'</span>], r[<span class="string">'hours'</span>])</span><br><span class="line">    </span><br><span class="line">    mailbody += <span class="string">'''</span></span><br><span class="line"><span class="string">    &lt;/table&gt;</span></span><br><span class="line"><span class="string">    '''</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> mailbody</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">sendmail</span><span class="params">(host, sender, pwd, receivers, mailbody)</span>:</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'send mail ...'</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 第三方 SMTP 服务</span></span><br><span class="line">    mail_host = host  <span class="comment">#设置服务器</span></span><br><span class="line">    mail_user = sender    <span class="comment">#用户名</span></span><br><span class="line">    mail_pass = pwd   <span class="comment">#口令</span></span><br><span class="line">    </span><br><span class="line">    message = MIMEText(mailbody, <span class="string">'html'</span>, <span class="string">'utf-8'</span>)</span><br><span class="line">    message[<span class="string">'From'</span>] = Header(<span class="string">"Python"</span>, <span class="string">'utf-8'</span>)</span><br><span class="line">    message[<span class="string">'To'</span>] =  Header(<span class="string">','</span>.join(receivers), <span class="string">'utf-8'</span>)</span><br><span class="line">     </span><br><span class="line">    subject = <span class="string">'打卡记录'</span></span><br><span class="line">    message[<span class="string">'Subject'</span>] = Header(subject, <span class="string">'utf-8'</span>)</span><br><span class="line">     </span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        smtpObj = smtplib.SMTP() </span><br><span class="line">        smtpObj.esmtp_features[<span class="string">"auth"</span>] = <span class="string">"LOGIN PLAIN"</span></span><br><span class="line">        smtpObj.connect(mail_host, <span class="number">25</span>)    <span class="comment"># 25 为 SMTP 端口号</span></span><br><span class="line">        smtpObj.login(mail_user,mail_pass)  </span><br><span class="line">        smtpObj.sendmail(sender, receivers, message.as_string())</span><br><span class="line">        <span class="keyword">print</span> <span class="string">"邮件发送成功"</span></span><br><span class="line">    <span class="keyword">except</span> smtplib.SMTPException, e:</span><br><span class="line">        <span class="keyword">print</span> <span class="string">"Error: 无法发送邮件"</span></span><br><span class="line">        <span class="keyword">print</span> e</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">'__main__'</span>:</span><br><span class="line">    get_holidays(time.strftime(<span class="string">'%Y-%m-%d'</span>))</span><br><span class="line"></span><br><span class="line">    resp = crawl_page(<span class="string">'http://xxx.com/ehr/'</span>, <span class="string">'winway'</span>, <span class="string">'123456'</span>)</span><br><span class="line"></span><br><span class="line">    mailbody = construct_mailbody(resp)</span><br><span class="line"></span><br><span class="line">    sendmail(<span class="string">'smtp.163.com'</span>, <span class="string">'winway1988@163.com'</span>, <span class="string">'123456'</span>, [<span class="string">'winway1988@163.com'</span>], mailbody)</span><br></pre></td></tr></table></figure>
-<h2><span id="效果展示">效果展示</span></h2><p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/check_attendance.png" alt=""></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">Python</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/11/07/check-attendance-py/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/20/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/19/">19</a><a class="page-number" href="/page/20/">20</a><span class="page-number current">21</span><a class="page-number" href="/page/22/">22</a><a class="page-number" href="/page/23/">23</a><span class="space">&hellip;</span><a class="page-number" href="/page/42/">42</a><a class="extend next" rel="next" href="/page/22/">Next &raquo;</a>
@@ -598,19 +593,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -622,7 +609,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -630,7 +617,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -642,31 +637,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -674,11 +649,31 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">proxy</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -690,11 +685,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">proxy</a>
+                <a href="javascript:void(0)" class="js-tag color3">备份</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">备份</a>
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -718,22 +713,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
               </li>
              
@@ -742,75 +721,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">springboot</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">keytool</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">小文件</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">storm</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -818,7 +729,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -858,6 +777,94 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">spark</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">springboot</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">keytool</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">小文件</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">nagios</a>
               </li>
              
@@ -879,18 +886,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
               </li>
              
               <li class="article-tag-list-item">

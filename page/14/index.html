@@ -156,6 +156,113 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-hs2-gc" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/01/16/hs2-gc/">HiveServer2 gc问题引发的幽灵问题</a>
+    </h1>
+  
+
+        
+        <a href="/2022/01/16/hs2-gc/" class="archive-article-date">
+  	<time datetime="2022-01-16T02:24:09.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-01-16</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#问题">问题</a></li>
+<li><a href="#排查">排查</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="问题">问题</span></h2><p>数仓批处理任务有很多是使用TEZ引擎执行的，TEZ经常偶发一个报错，但是找不到具体的报错信息，而且重试基本能成功。<br>提交客户端只能看到以下信息。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">07-01-2022 13:31:29 CST - FAILED: Execution Error, return code 1 from org.apache.hadoop.hive.ql.exec.tez.TezTask</span><br><span class="line">07-01-2022 13:31:29 CST - Error: org.apache.hive.service.cli.HiveSQLException: Error while processing statement: FAILED: Execution Error, return code 1 from org.apache.hadoop.hive.ql.exec.tez.TezTask</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.Operation.toSQLException(Operation.java:380)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.SQLOperation.runQuery(SQLOperation.java:257)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.SQLOperation.access$800(SQLOperation.java:91)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.SQLOperation$BackgroundWork$1.run(SQLOperation.java:348)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.security.AccessController.doPrivileged(Native Method)</span><br><span class="line">07-01-2022 13:31:29 CST -   at javax.security.auth.Subject.doAs(Subject.java:422)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hadoop.security.UserGroupInformation.doAs(UserGroupInformation.java:1734)</span><br><span class="line">07-01-2022 13:31:29 CST -   at org.apache.hive.service.cli.operation.SQLOperation$BackgroundWork.run(SQLOperation.java:362)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.util.concurrent.FutureTask.run(FutureTask.java:266)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)</span><br><span class="line">07-01-2022 13:31:29 CST -   at java.lang.Thread.run(Thread.java:748) (state=08S01,code=1)</span><br></pre></td></tr></table></figure></p>
+<p>以下是对应时间点HiveServer2的日志报错信息。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">2022-01-07T13:31:27,255 ERROR [Thread-308969] exec.Task: Failed to execute tez graph.</span><br><span class="line">org.apache.tez.dag.api.SessionNotRunning: TezSession has already shutdown. No cluster diagnostics found.</span><br><span class="line">        at org.apache.tez.client.TezClient.waitTillReady(TezClient.java:1019) ~[tez-api-0.9.2.jar:0.9.2]</span><br><span class="line">        at org.apache.tez.client.TezClient.waitTillReady(TezClient.java:988) ~[tez-api-0.9.2.jar:0.9.2]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezSessionState.startSessionAndContainers(TezSessionState.java:396) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezSessionState.openInternal(TezSessionState.java:323) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezSessionPoolManager$TezSessionPoolSession.openInternal(TezSessionPoolManager.java:703) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezSessionState.open(TezSessionState.java:196) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezTask.updateSession(TezTask.java:303) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.tez.TezTask.execute(TezTask.java:168) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.Task.executeTask(Task.java:199) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.TaskRunner.runSequential(TaskRunner.java:100) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hadoop.hive.ql.exec.TaskRunner.run(TaskRunner.java:79) ~[hive-exec-2.3.5.jar:2.3.5]</span><br><span class="line">2022-01-07T13:31:29,241 ERROR [HiveServer2-Background-Pool: Thread-397923] ql.Driver: FAILED: Execution Error, return code 1 from org.apache.hadoop.hive.ql.exec.tez.TezTask</span><br><span class="line">2022-01-07T13:31:29,241  INFO [HiveServer2-Background-Pool: Thread-403158] hive.metastore: Closed a connection to metastore, current connections: 15</span><br><span class="line">2022-01-07T13:31:29,242  INFO [HiveServer2-Background-Pool: Thread-397923] hive.metastore: Closed a connection to metastore, current connections: 14</span><br><span class="line">2022-01-07T13:31:29,242  INFO [HiveServer2-Background-Pool: Thread-397923] ql.Driver: Completed executing command(queryId=hadoop_20220107131226_b26d6e21-7b1f-460c-b383-15a8541f57d4); Time taken: 1135.311 seconds</span><br><span class="line">2022-01-07T13:31:29,243  INFO [HiveServer2-Background-Pool: Thread-403158] hive.metastore: Opened a connection to metastore, current connections: 15</span><br><span class="line">2022-01-07T13:31:29,243 ERROR [HiveServer2-Background-Pool: Thread-397923] operation.Operation: Error running hive query: </span><br><span class="line">org.apache.hive.service.cli.HiveSQLException: Error while processing statement: FAILED: Execution Error, return code 1 from org.apache.hadoop.hive.ql.exec.tez.TezTask</span><br><span class="line">        at org.apache.hive.service.cli.operation.Operation.toSQLException(Operation.java:380) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hive.service.cli.operation.SQLOperation.runQuery(SQLOperation.java:257) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hive.service.cli.operation.SQLOperation.access$800(SQLOperation.java:91) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at org.apache.hive.service.cli.operation.SQLOperation$BackgroundWork$1.run(SQLOperation.java:348) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at java.security.AccessController.doPrivileged(Native Method) ~[?:1.8.0_151]</span><br><span class="line">        at javax.security.auth.Subject.doAs(Subject.java:422) ~[?:1.8.0_151]</span><br><span class="line">        at org.apache.hadoop.security.UserGroupInformation.doAs(UserGroupInformation.java:1734) ~[hadoop-common-2.7.2.jar:?]</span><br><span class="line">        at org.apache.hive.service.cli.operation.SQLOperation$BackgroundWork.run(SQLOperation.java:362) ~[hive-service-2.3.5.jar:2.3.5]</span><br><span class="line">        at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:511) ~[?:1.8.0_151]</span><br><span class="line">        at java.util.concurrent.FutureTask.run(FutureTask.java:266) ~[?:1.8.0_151]</span><br><span class="line">        at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149) [?:1.8.0_151]</span><br><span class="line">        at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624) [?:1.8.0_151]</span><br><span class="line">        at java.lang.Thread.run(Thread.java:748) [?:1.8.0_151]</span><br></pre></td></tr></table></figure></p>
+<p>由于报错信息中没有关键信息，甚至找不到application id，很难直接判断出问题根源。<br>但是怀疑，这种没法稳定复现的问题，大概率是触发了某个未知的瓶颈点引起的。</p>
+<h2><span id="排查">排查</span></h2><p>仔细翻看HiveServer2的日志，注意到以下日志信息。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20220116111408.png" alt=""><br>而且一般在出现报错的时间点附近，也会出现这种长时间pause的日志，遂怀疑是因为HiveServer2长时间gc导致服务无响应。<br>对HiveServer2 gc参数进行调整，增加了以下参数，果然这个报错的出现频率大大降低。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">-XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:+UseCMSInitiatingOccupancyOnly -XX:CMSInitiatingOccupancyFraction=68 -XX:+CMSClassUnloadingEnabled -XX:+CMSParallelRemarkEnabled -XX:+UseCMSCompactAtFullCollection -XX:CMSFullGCsBeforeCompaction=3</span><br></pre></td></tr></table></figure></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">hive</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">tez</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color3">gc</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2022/01/16/hs2-gc/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-spark-small-file" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
@@ -366,122 +473,6 @@
 
 
   
-    <article id="post-pb2df" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2021/10/01/pb2df/">动态解析protobuf格式kafka消息生成dataframe</a>
-    </h1>
-  
-
-        
-        <a href="/2021/10/01/pb2df/" class="archive-article-date">
-  	<time datetime="2021-09-30T18:59:01.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-10-01</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#背景">背景</a></li>
-<li><a href="#思路">思路</a></li>
-<li><a href="#代码">代码</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="背景">背景</span></h2><p>在<a href="https://winway.github.io/2021/09/04/kafkapb/">动态解析protobuf格式kafka消息</a>一文中，实现了动态解析PB格式的kafka消息，接下来需要将消息转换成dataframe格式，这样就可以方便的接入数仓的ods层了。</p>
-<h2><span id="思路">思路</span></h2><p>尝试了以下几种思路，最终通过遍历DynamicMessage.Builder构造Schema，遍历DynamicMessage构造Row实现。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/A32E0DD5-4041-4B8C-B866-CCE1A1D5B116.png" alt=""></p>
-<h2><span id="代码">代码</span></h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> java.sql.Timestamp</span><br><span class="line"><span class="keyword">import</span> java.time.Duration</span><br><span class="line"><span class="keyword">import</span> java.util</span><br><span class="line"><span class="keyword">import</span> java.util.&#123;Date, Properties&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> cn.soul.log_etl.utils.PBBuilder</span><br><span class="line"><span class="keyword">import</span> com.google.protobuf.&#123;Descriptors, InvalidProtocolBufferException, Message&#125;</span><br><span class="line"><span class="keyword">import</span> org.apache.kafka.clients.consumer.KafkaConsumer</span><br><span class="line"><span class="keyword">import</span> org.apache.kafka.common.serialization.&#123;ByteArrayDeserializer, StringDeserializer&#125;</span><br><span class="line"><span class="keyword">import</span> org.apache.spark.SparkConf</span><br><span class="line"><span class="keyword">import</span> org.apache.spark.sql.types._</span><br><span class="line"><span class="keyword">import</span> org.apache.spark.sql.&#123;Row, SparkSession&#125;</span><br><span class="line"><span class="keyword">import</span> org.apache.spark.sql.functions._</span><br><span class="line"></span><br><span class="line">object TestSchema &#123;</span><br><span class="line"></span><br><span class="line">  <span class="function">def <span class="title">printPBStruct</span><span class="params">(desc: Descriptors.Descriptor, prefix: String)</span>: Unit </span>= &#123;</span><br><span class="line">    <span class="keyword">if</span> (desc == <span class="keyword">null</span>) <span class="keyword">return</span></span><br><span class="line">    <span class="keyword">import</span> scala.collection.JavaConversions._</span><br><span class="line">    <span class="keyword">for</span> (field &lt;- desc.getFields) &#123;</span><br><span class="line">      <span class="keyword">if</span> (<span class="string">"MESSAGE"</span> == field.getJavaType.name) &#123;</span><br><span class="line">        System.out.println(prefix + field.getFullName + <span class="string">":"</span> + field.getJavaType.name + <span class="string">":"</span> + field.isRepeated + <span class="string">":"</span> + field.isMapField)</span><br><span class="line">        printPBStruct(field.getMessageType, prefix + <span class="string">"    "</span>)</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">else</span> System.out.println(prefix + field.getFullName + <span class="string">":"</span> + field.getJavaType.name + <span class="string">":"</span> + field.isRepeated + <span class="string">":"</span> + field.isMapField)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function">def <span class="title">getPbSchema</span><span class="params">(desc: Descriptors.Descriptor, prefix: String)</span>: StructType </span>= &#123;</span><br><span class="line">    var st = <span class="keyword">new</span> StructType()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (<span class="string">""</span>.equals(prefix)) &#123;</span><br><span class="line">      st = st.add(StructField(<span class="string">"ts"</span>, TimestampType))</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (desc == <span class="keyword">null</span>) <span class="keyword">return</span> st</span><br><span class="line"></span><br><span class="line">    <span class="keyword">import</span> scala.collection.JavaConversions._</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (field &lt;- desc.getFields) &#123;</span><br><span class="line">      val name = field.getFullName.split(<span class="string">"\\."</span>)(field.getFullName.split(<span class="string">"\\."</span>).length - <span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span> (<span class="string">"MESSAGE"</span> == field.getJavaType.name) &#123;</span><br><span class="line">        System.out.println(prefix + field.getFullName + <span class="string">":"</span> + field.getJavaType.name + <span class="string">":"</span> + field.isRepeated + <span class="string">":"</span> + field.isMapField)</span><br><span class="line"></span><br><span class="line">        val childst: StructType = getPbSchema(field.getMessageType, prefix + <span class="string">"    "</span>)</span><br><span class="line">        <span class="keyword">if</span> (field.isRepeated) &#123;</span><br><span class="line">          st = st.add(name, ArrayType(childst))</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">          st = st.add(name, childst)</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">else</span> &#123;</span><br><span class="line">        System.out.println(prefix + field.getFullName + <span class="string">":"</span> + field.getJavaType.name + <span class="string">":"</span> + field.isRepeated + <span class="string">":"</span> + field.isMapField)</span><br><span class="line"></span><br><span class="line">        val t = field.getJavaType.name match &#123;</span><br><span class="line">          <span class="keyword">case</span> <span class="string">"STRING"</span> =&gt; StringType</span><br><span class="line">          <span class="keyword">case</span> <span class="string">"LONG"</span> =&gt; LongType</span><br><span class="line">          <span class="keyword">case</span> <span class="string">"INT"</span> =&gt; IntegerType</span><br><span class="line">          <span class="keyword">case</span> <span class="string">"DOUBLE"</span> =&gt; DoubleType</span><br><span class="line">          <span class="keyword">case</span> <span class="string">"BOOLEAN"</span> =&gt; BooleanType</span><br><span class="line">          <span class="keyword">case</span> _ =&gt; println(<span class="string">"!!!!!! unknown "</span> + field.getJavaType.name); NullType</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (field.isRepeated) &#123;</span><br><span class="line">          st = st.add(StructField(name, ArrayType(t)))</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">          st = st.add(StructField(name, t))</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    st</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function">def <span class="title">getPbValue</span><span class="params">(pbMessage: Message, prefix: String, ts: Timestamp)</span>: Row </span>= &#123;</span><br><span class="line">    var s: Seq[Any] = Seq()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (<span class="string">""</span>.equals(prefix)) &#123;</span><br><span class="line">      s = s :+ ts</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (pbMessage == <span class="keyword">null</span>) <span class="keyword">return</span> Row()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">import</span> scala.collection.JavaConversions._</span><br><span class="line"></span><br><span class="line">    <span class="comment">// pbMessage.getAllFields只返回set的字段</span></span><br><span class="line">    <span class="keyword">for</span> (field &lt;- pbMessage.getDescriptorForType.getFields) &#123;</span><br><span class="line">      val name: String = field.getFullName.split(<span class="string">"\\."</span>)(field.getFullName.split(<span class="string">"\\."</span>).length - <span class="number">1</span>)</span><br><span class="line">      val v = pbMessage.getField(field)</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span> (<span class="string">"MESSAGE"</span> == field.getJavaType.name) &#123;</span><br><span class="line">        System.out.println(prefix + name + <span class="string">":"</span> + field.getJavaType.name + <span class="string">":"</span> + field.isRepeated + <span class="string">":"</span> + field.isMapField + <span class="string">":"</span> + v.getClass.getName)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (<span class="string">"java.util.Collections$UnmodifiableRandomAccessList"</span> == v.getClass.getName) &#123;</span><br><span class="line">          var s_tmp: Seq[Row] = Seq()</span><br><span class="line"></span><br><span class="line">          <span class="keyword">for</span> (m &lt;- v.asInstanceOf[util.List[Message]]) &#123;</span><br><span class="line">            s_tmp = s_tmp :+ getPbValue(m, prefix + <span class="string">"    "</span>, <span class="keyword">null</span>)</span><br><span class="line">          &#125;</span><br><span class="line"></span><br><span class="line">          s = s :+ s_tmp</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (<span class="string">"java.util.Collections$EmptyList"</span> == v.getClass.getName) &#123;</span><br><span class="line">          s = s :+ Seq()</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">else</span> s = s :+ getPbValue(v.asInstanceOf[Message], prefix + <span class="string">"    "</span>, <span class="keyword">null</span>)</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">else</span> &#123;</span><br><span class="line">        System.out.println(prefix + name + <span class="string">":"</span> + field.getJavaType.name + <span class="string">":"</span> + field.isRepeated + <span class="string">":"</span> + field.isMapField + <span class="string">":"</span> + v.getClass.getName)</span><br><span class="line"></span><br><span class="line">        s = s :+ v</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    Row.fromSeq(s)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">  <span class="function">def <span class="title">main</span><span class="params">(args: Array[String])</span>: Unit </span>= &#123;</span><br><span class="line">    val pbBuilder = PBBuilder.getBuilderByFile(PBBuilder.downloadDescriptorFile(<span class="string">"mymsg.description"</span>), <span class="string">"MyMsg"</span>)</span><br><span class="line"></span><br><span class="line">    printPBStruct(pbBuilder.getDescriptorForType, <span class="string">""</span>)</span><br><span class="line"></span><br><span class="line">    println(<span class="string">"=================================================="</span>)</span><br><span class="line"></span><br><span class="line">    val st = getPbSchema(pbBuilder.getDescriptorForType, <span class="string">""</span>)</span><br><span class="line">    println(st.treeString)</span><br><span class="line"></span><br><span class="line">    println(<span class="string">"=================================================="</span>)</span><br><span class="line"></span><br><span class="line">    val kafkaParams = <span class="keyword">new</span> Properties</span><br><span class="line">    kafkaParams.put(<span class="string">"bootstrap.servers"</span>, <span class="string">"172.16.22.11:9092"</span>)</span><br><span class="line">    kafkaParams.put(<span class="string">"group.id"</span>, <span class="string">"TestKafkaPB"</span>)</span><br><span class="line">    kafkaParams.put(<span class="string">"key.deserializer"</span>, classOf[StringDeserializer])</span><br><span class="line">    kafkaParams.put(<span class="string">"value.deserializer"</span>, classOf[ByteArrayDeserializer])</span><br><span class="line"></span><br><span class="line">    val consumer = <span class="keyword">new</span> KafkaConsumer[String, Array[Byte]](kafkaParams)</span><br><span class="line">    consumer.subscribe(util.Arrays.asList(<span class="string">"mymsg_topic"</span>))</span><br><span class="line"></span><br><span class="line">    val sparkConf = <span class="keyword">new</span> SparkConf()</span><br><span class="line">      .set(<span class="string">"spark.serializer"</span>, <span class="string">"org.apache.spark.serializer.KryoSerializer"</span>)</span><br><span class="line">      .setMaster(<span class="string">"local[*]"</span>)</span><br><span class="line"></span><br><span class="line">    val sparkSession: SparkSession = SparkSession.builder().config(sparkConf).getOrCreate()</span><br><span class="line"></span><br><span class="line">    val records = consumer.poll(Duration.ofMillis(<span class="number">4096</span>))</span><br><span class="line"></span><br><span class="line">    var cnt = <span class="number">0</span></span><br><span class="line">    var rows: Seq[Row] = Seq()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">import</span> scala.collection.JavaConversions._</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (record &lt;- records) &#123;</span><br><span class="line">      <span class="keyword">try</span> &#123;</span><br><span class="line">        val pbMessage = pbBuilder.mergeFrom(record.value).build()</span><br><span class="line"></span><br><span class="line">        System.out.println(pbMessage)</span><br><span class="line"></span><br><span class="line">        val r = getPbValue(pbMessage, <span class="string">""</span>, <span class="keyword">new</span> Timestamp(record.timestamp))</span><br><span class="line"></span><br><span class="line">        println(<span class="string">"!!!!!!!!!!!!!!"</span>)</span><br><span class="line">        println(r)</span><br><span class="line">        println(<span class="string">"!!!!!!!!!!!!!!"</span>)</span><br><span class="line"></span><br><span class="line">        rows = rows :+ r</span><br><span class="line"></span><br><span class="line">        cnt += <span class="number">1</span></span><br><span class="line">        <span class="keyword">if</span> (cnt &gt; <span class="number">10</span>) &#123;</span><br><span class="line">          println(<span class="string">"!!!!!!!!!!!!!!"</span>)</span><br><span class="line">          println(rows)</span><br><span class="line">          println(<span class="string">"!!!!!!!!!!!!!!"</span>)</span><br><span class="line"></span><br><span class="line">          val df = sparkSession.createDataFrame(rows, st)</span><br><span class="line"></span><br><span class="line">          val df2 = df</span><br><span class="line">            .withColumn(<span class="string">"year"</span>, date_format(df(<span class="string">"ts"</span>), <span class="string">"yyyy"</span>))</span><br><span class="line">            .withColumn(<span class="string">"month"</span>, date_format(df(<span class="string">"ts"</span>), <span class="string">"yyyy-MM"</span>))</span><br><span class="line">            .withColumn(<span class="string">"day"</span>, date_format(df(<span class="string">"ts"</span>), <span class="string">"yyyy-MM-dd"</span>))</span><br><span class="line">            .drop(<span class="string">"ts"</span>)</span><br><span class="line"></span><br><span class="line">          df2.printSchema()</span><br><span class="line">          df2.show()</span><br><span class="line">          df2.write</span><br><span class="line">            .format(<span class="string">"orc"</span>)</span><br><span class="line">            .mode(<span class="string">"append"</span>)</span><br><span class="line">            .partitionBy(<span class="string">"year"</span>, <span class="string">"month"</span>, <span class="string">"day"</span>)</span><br><span class="line">            .orc(<span class="string">"hdfs://emr-cluster/tmp/testpb"</span>)</span><br><span class="line"></span><br><span class="line">          System.exit(<span class="number">0</span>)</span><br><span class="line">        &#125;</span><br><span class="line">      &#125; <span class="keyword">catch</span> &#123;</span><br><span class="line">        <span class="keyword">case</span> e: InvalidProtocolBufferException =&gt;</span><br><span class="line">          e.printStackTrace()</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://www.codeleading.com/article/97581603821/" target="_blank" rel="noopener">https://www.codeleading.com/article/97581603821/</a></li>
-<li><a href="https://blog.csdn.net/lan_liang/article/details/6632127" target="_blank" rel="noopener">https://blog.csdn.net/lan_liang/article/details/6632127</a></li>
-<li><a href="https://stackoverflow.com/questions/53413674/importing-descriptor-with-included-import" target="_blank" rel="noopener">https://stackoverflow.com/questions/53413674/importing-descriptor-with-included-import</a></li>
-<li><a href="https://www.jianshu.com/p/10e029a55d3b" target="_blank" rel="noopener">https://www.jianshu.com/p/10e029a55d3b</a></li>
-<li><a href="https://stackoverflow.com/questions/30331935/protobuf-getallfields-performance" target="_blank" rel="noopener">https://stackoverflow.com/questions/30331935/protobuf-getallfields-performance</a></li>
-<li><a href="https://sparkbyexamples.com/spark/spark-sql-structtype-on-dataframe/" target="_blank" rel="noopener">https://sparkbyexamples.com/spark/spark-sql-structtype-on-dataframe/</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">kafka</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">protobuf</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">dataframe</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2021/10/01/pb2df/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/13/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><a class="page-number" href="/page/13/">13</a><span class="page-number current">14</span><a class="page-number" href="/page/15/">15</a><a class="page-number" href="/page/16/">16</a><span class="space">&hellip;</span><a class="page-number" href="/page/42/">42</a><a class="extend next" rel="next" href="/page/15/">Next &raquo;</a>
@@ -598,19 +589,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -622,7 +605,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -630,7 +613,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -642,31 +633,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -674,11 +645,31 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">proxy</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -690,11 +681,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">proxy</a>
+                <a href="javascript:void(0)" class="js-tag color3">备份</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">备份</a>
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -718,22 +709,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
               </li>
              
@@ -742,75 +717,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">springboot</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">keytool</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">小文件</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">storm</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -818,7 +725,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -858,6 +773,94 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">spark</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">springboot</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">keytool</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">小文件</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">nagios</a>
               </li>
              
@@ -879,18 +882,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
               </li>
              
               <li class="article-tag-list-item">

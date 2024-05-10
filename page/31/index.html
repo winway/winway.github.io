@@ -156,6 +156,175 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-big-data-storm" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2017/01/21/big-data-storm/">Hadoop生态系统介绍-Storm</a>
+    </h1>
+  
+
+        
+        <a href="/2017/01/21/big-data-storm/" class="archive-article-date">
+  	<time datetime="2017-01-21T06:00:12.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-01-21</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#前言">前言</a></li>
+<li><a href="#工作原理">工作原理</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="前言">前言</span></h2><p>提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。</p>
+<ol>
+<li><a href="https://winway.github.io/2017/01/07/big-data-intro/">Hadoop生态系统介绍-概览</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-kerberos/">Hadoop生态系统介绍-Kerberos</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-zookeeper/">Hadoop生态系统介绍-Zookeeper</a></li>
+<li><a href="https://winway.github.io/2017/01/11/big-data-hdfs/">Hadoop生态系统介绍-HDFS</a></li>
+<li><a href="https://winway.github.io/2017/01/12/big-data-yarn/">Hadoop生态系统介绍-YARN</a></li>
+<li><a href="https://winway.github.io/2017/01/12/big-data-mapreduce/">Hadoop生态系统介绍-MapReduce</a></li>
+<li><a href="https://winway.github.io/2017/01/13/big-data-hive/">Hadoop生态系统介绍-Hive</a></li>
+<li><a href="https://winway.github.io/2017/01/13/big-data-pig/">Hadoop生态系统介绍-Pig</a></li>
+<li><strong><a href="https://winway.github.io/2017/01/21/big-data-storm/">Hadoop生态系统介绍-Storm</a></strong></li>
+<li><a href="https://winway.github.io/2017/01/26/big-data-hbase/">Hadoop生态系统介绍-Hbase</a></li>
+<li><a href="https://winway.github.io/2017/01/07/big-data-phoenix/">Hadoop生态系统介绍-Phoenix</a></li>
+</ol>
+<p>本文对流式处理框架Storm的工作原理进行介绍。</p>
+<h2><span id="工作原理">工作原理</span></h2><p><strong>Storm计算模型</strong><br><img src="http://www.uml.org.cn/yunjisuan/images/2015101231.jpg" alt=""><br>Storm 实现了一种数据流模型，其中数据持续地流经一个拓扑结构。一个数据流是一个无限的元组序列。元组就像一种使用一些附加的序列化代码来表示标准数据类型（比如整数、浮点和字节数组）或用户定义类型的结构。每个流由一个惟一 ID 定义，这个 ID 可用于构建数据源和接收器 (sink) 的拓扑结构。流起源于spout，spout将数据从外部来源流入 Storm 拓扑结构中。</p>
+<p>bolt实现了一个流上的单一转换和一个 Storm 拓扑结构中的所有处理。bolt既可以实现 MapReduce 之类的传统功能，也可以实现更复杂的操作），比如过滤、聚合或与数据库等外部实体通信。典型的 Storm 拓扑结构会实现多个转换，因此需要多个具有独立元组流的bolt。</p>
+<p><strong>Storm集群架构</strong><br><img src="http://www.uml.org.cn/yunjisuan/images/2016102621.png" alt=""><br>Storm集群采用主从架构，主节点是Nimbus，从节点是Supervisor，有关调度相关的信息存储到ZooKeeper集群中</p>
+<ul>
+<li>Nimbus<br>Storm集群的Master节点，负责分发用户代码，指派给具体的Supervisor节点上的Worker进程，去运行Topology对应的组件（Spout/Bolt）的Task</li>
+<li>Supervisor<br>Storm集群的从节点，负责管理运行在Supervisor节点上的每一个Worker进程的启动和终止。通过Storm的配置文件中的supervisor.slots.ports配置项，可以指定在一个Supervisor上最大允许多少个Slot，每个Slot通过端口号来唯一标识，一个端口号对应一个Worker进程</li>
+<li>ZooKeeper<br>用来协调Nimbus和Supervisor，如果Supervisor因故障出现问题而无法运行Topology，Nimbus会第一时间感知到，并重新分配Topology到其它可用的Supervisor上运行。</li>
+</ul>
+<p><strong>术语</strong></p>
+<ul>
+<li>Nimbus：负责资源分配和任务调度的主节点。</li>
+<li>Supervisor：负责接受nimbus分配的任务，启动和停止属于自己管理的worker进程。</li>
+<li>Worker：运行具体处理组件逻辑的进程。</li>
+<li>Task：worker中每一个spout/bolt的线程称为一个task. 在storm0.8之后，task不再与物理线程对应，同一个spout/bolt的task可能会共享一个物理线程，该线程称为executor。</li>
+<li>Topology：storm中运行的一个实时应用程序，因为各个组件间的消息流动形成逻辑上的一个拓扑结构。</li>
+<li>Spout：在一个topology中产生源数据流的组件。通常情况下spout会从外部数据源中读取数据，然后转换为topology内部的源数据。Spout是一个主动的角色，其接口中有个nextTuple()函数，storm框架会不停地调用此函数，用户只要在其中生成源数据即可。</li>
+<li>Bolt：在一个topology中接受数据然后执行处理的组件。Bolt可以执行过滤、转换、合并、写数据库等操作。Bolt是一个被动的角色，其接口中有个execute(Tuple input)函数,在接受到消息后会调用此函数，用户可以在其中执行自己想要的操作。</li>
+<li>Tuple：一次消息传递的基本单元。本来应该是一个key-value的map，但是由于各个组件间传递的tuple的字段名称已经事先定义好，所以tuple中只要按序填入各个value就行了，所以就是一个value list.</li>
+<li>Stream：源源不断传递的tuple就组成了stream。</li>
+</ul>
+<p><strong>Hadoop vs Storm</strong></p>
+<p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/storm1.png" alt=""></p>
+<p><strong>Storm设计：组件抽象</strong></p>
+<p>我们编写的处理业务逻辑的Topology提交到Storm集群后，就会发生任务的调度和资源的分配，从而也会基于Storm的设计，出现各种各样的组件。<br><img src="http://www.uml.org.cn/yunjisuan/images/2016102624.png" alt=""><br>一个Topology的Spout/Bolt对应的多个Task可能分布在多个Supervisor的多个Worker内部。而每个Worker内部又存在多个Executor，根据实际的Topology配置在运行时进行计算并分配。</p>
+<ul>
+<li>Topology：Storm对一个分布式计算应用程序的抽象，目的是通过实现一个Topology能够完整地完成一件事情（从业务角度来看）。一个Topology是由一组静态程序组件（Spout/Bolt）、组件关系Streaming Groups这两部分组成。</li>
+<li>Spout：描述了数据是如何从外部系统（或者组件内部直接产生）进入到Storm集群，并由该Spout所属的Topology来处理，通常是从一个数据源读取数据，也可以做一些简单的处理（为了不影响数据连续地、实时地、快速地进入到系统，通常不建议把复杂逻辑放在这里）。</li>
+<li>Bolt：描述了与业务相关的处理逻辑。</li>
+<li>Task：Spout/Bolt在运行时所表现出来的实体，都称为Task，一个Spout/Bolt在运行时可能对应一个或多个Spout Task/Bolt Task，与实际在编写Topology时进行配置有关。</li>
+<li>Worker：运行时Task所在的一级容器，Executor运行于Worker中，一个Worker对应于Supervisor上创建的一个JVM实例</li>
+<li>Executor：运行时Task所在的直接容器，在Executor中执行Task的处理逻辑；一个或多个Executor实例可以运行在同一个Worker进程中，一个或多个Task可以运行于同一个Executor中；在Worker进程并行的基础上，Executor可以并行，进而Task也能够基于Executor实现并行计算</li>
+</ul>
+<p><strong>Topology并行度计算</strong></p>
+<p>在编写代码设置并行度的时候，并行度只是一个提示信息，Storm会根据这个提示信息并结合其他一些参数配置（Task个数、Worker个数），去计算运行时的并行度。<br>这个并行度实际上描述的是，组成一个Topology的多个Spout/Bolt的运行时表现实体Task的分布<br><img src="http://www.uml.org.cn/yunjisuan/images/2016102625.png" alt=""></p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">conf.setNumWorkers(<span class="number">2</span>); <span class="comment">// 该Topology运行在Supervisor节点的2个Worker进程中</span></span><br><span class="line"></span><br><span class="line">topologyBuilder.setSpout(<span class="string">"blue-spout"</span>, <span class="keyword">new</span> BlueSpout(), <span class="number">2</span>); <span class="comment">// 设置并行度为2，则Task个数为2*1</span></span><br><span class="line"></span><br><span class="line">topologyBuilder.setBolt(<span class="string">"green-bolt"</span>, <span class="keyword">new</span> GreenBolt(), <span class="number">2</span>)</span><br><span class="line">               .setNumTasks(<span class="number">4</span>)</span><br><span class="line">               .shuffleGrouping(<span class="string">"blue-spout"</span>); <span class="comment">// 设置并行度为2，设置Task个数为4 ，则Task个数为2*2</span></span><br><span class="line"></span><br><span class="line">topologyBuilder.setBolt(<span class="string">"yellow-bolt"</span>, <span class="keyword">new</span> YellowBolt(), <span class="number">6</span>)</span><br><span class="line">               .shuffleGrouping(<span class="string">"green-bolt"</span>); <span class="comment">// 设置并行度为6，则Task个数为6*1</span></span><br></pre></td></tr></table></figure>
+<p>Storm是如何计算一个Topology运行时的并行度，并分配到2个Worker中的？<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">计算Task总数：2*1+4+6*1=12（总计创建12个Task实例）</span><br><span class="line">计算运行时Topology并行度：(2+2+6)/2=5（每个Worker对应5个Executor）</span><br><span class="line">将12个Task分配到2个Worker中的5*2个Executor中：应该是每个Worker上5个Executor，将6个Task分配到5个Executor中</span><br><span class="line">每个Worker中分配6个Task，应该是分配3个Yellow Task、2个Green Task、1个Blue Task</span><br></pre></td></tr></table></figure></p>
+<p>分配过程：从Task个数最少的开始，1个Blue Task只能放到一个Executor，总计1个Executor被占用；2个Green Task可以放到同一个Executor中，总计2个Executor被占用；最后看剩下的3个Yellow Task能否分配到5-2=3个Executor中，显然每个Yellow Task对应一个Executor<br><img src="http://www.uml.org.cn/yunjisuan/images/2016102626.png" alt=""></p>
+<p><strong>Storm记录级容错的基本原理</strong></p>
+<p>storm允许用户在spout中发射一个新的源tuple时为其指定一个message id, 这个message id可以是任意的object对象。多个源tuple可以共用一个message id，表示这多个源 tuple对用户来说是同一个消息单元。</p>
+<p>storm中记录级容错的意思是说，storm会告知用户每一个消息单元是否在指定时间内被完全处理了。</p>
+<p>那什么叫做完全处理呢，就是该message id绑定的源tuple及由该源tuple后续生成的tuple经过了topology中每一个应该到达的bolt的处理。</p>
+<p>举个例子。在spout由message 1绑定的tuple1和tuple2经过了bolt1和bolt2的处理生成两个新的tuple，并最终都流向了bolt3。当这个过程完成处理完时，称message 1被完全处理了。<br><img src="http://www.uml.org.cn/sjjm/images/2014092851.png" alt=""><br>在storm的topology中有一个系统级组件，叫做acker。这个acker的任务就是追踪从spout中流出来的每一个message id绑定的若干tuple的处理路径，如果在用户设置的最大超时时间内这些tuple没有被完全处理，那么acker就会告知spout该消息处理失败，相反则会告知spout该消息处理成功了。</p>
+<p>”记录tuple的处理路径”，如果曾经尝试过这么做的同学可以仔细地思考一下这件事的复杂程度。但是storm中却是使用了一种非常巧妙的方法做到了。</p>
+<p>在说明这个方法之前，我们来复习一个数学知识：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">A xor A = 0</span><br><span class="line">A xor B…xor B xor A = 0，其中每一个操作数出现且仅出现两次</span><br></pre></td></tr></table></figure></p>
+<p>storm中使用的巧妙方法就是基于这个理论。具体过程是这样的：在spout中系统会为用户指定的message id生成一个对应的64位整数，作为一个root id。root id会传递给acker及后续的bolt作为该消息单元的唯一标识。同时无论是spout还是bolt每次新生成一个tuple的时候，都会赋予该tuple一个64位的整数的id。Spout发射完某个message id对应的源tuple之后，会告知acker自己发射的root id及生成的那些源tuple的id。而bolt呢，每次接受到一个输入tuple处理完之后，也会告知acker自己处理的输入tuple的id及新生成的那些tuple的id。Acker只需要对这些id做一个简单的异或运算，就能判断出该root id对应的消息单元是否处理完成了。</p>
+<ol>
+<li><p>spout中绑定message 1生成了两个源tuple，id分别是0010和1011.<br><img src="http://static.oschina.net/uploads/space/2016/0125/181043_eKPq_2000675.jpg" alt=""></p>
+</li>
+<li><p>bolt1处理tuple 0010时生成了一个新的tuple，id为0110<br><img src="http://static.oschina.net/uploads/space/2016/0126/150057_Hsa2_2000675.jpg" alt=""></p>
+</li>
+<li><p>bolt2处理tuple 1011时生成了一个新的tuple，id为0111<br><img src="http://static.oschina.net/uploads/space/2016/0125/181207_baaW_2000675.jpg" alt=""></p>
+</li>
+<li><p>bolt3中接收到tuple 0110和tuple 0111，没有生成新的tuple<br><img src="http://static.oschina.net/uploads/space/2016/0125/181243_xKy0_2000675.jpg" alt=""></p>
+</li>
+</ol>
+<p><strong>容错过程存在一个可能出错的地方</strong></p>
+<p>如果生成的tuple id并不是完全各异的，acker可能会在消息单元完全处理完成之前就错误的计算为0。这个错误在理论上的确是存在的，但是在实际中其概率是极低极低的，完全可以忽略。</p>
+<p><strong>Storm的事务拓扑</strong></p>
+<p>事务拓扑(transactional topology)是storm0.7引入的特性，在最近发布的0.8版本中已经被封装为Trident，提供了更加便利和直观的接口。<br>事务拓扑的目的是为了满足对消息处理有着极其严格要求的场景，例如实时计算某个用户的成交笔数，要求结果完全精确，不能多也不能少。Storm的事务拓扑是完全基于它底层的spout/bolt/acker原语实现的，通过一层巧妙的封装得出一个优雅的实现。<br>事务拓扑简单来说就是将消息分为一个个的批(batch)，同一批内的消息以及批与批之间的消息可以并行处理，另一方面，用户可以设置某些bolt为committer，storm可以保证committer的finishBatch()操作是按严格不降序的顺序执行的。用户可以利用这个特性通过简单的编程技巧实现消息处理的精确。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">storm</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2017/01/21/big-data-storm/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-big-data-pig" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
@@ -420,135 +589,6 @@
 
 
   
-    <article id="post-big-data-mapreduce" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2017/01/12/big-data-mapreduce/">Hadoop生态系统介绍-MapReduce</a>
-    </h1>
-  
-
-        
-        <a href="/2017/01/12/big-data-mapreduce/" class="archive-article-date">
-  	<time datetime="2017-01-12T08:20:01.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2017-01-12</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#前言">前言</a></li>
-<li><a href="#工作原理">工作原理</a></li>
-</ul>
-<!-- tocstop -->
-<h2><span id="前言">前言</span></h2><p>提到大数据，不得不说Hadoop。Hadoop是一个生态系统，包括很多组件，每个组件都有其应用场景和用途，本系列就Hadoop生态系统的常见组件进行介绍。</p>
-<ol>
-<li><a href="https://winway.github.io/2017/01/07/big-data-intro/">Hadoop生态系统介绍-概览</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-kerberos/">Hadoop生态系统介绍-Kerberos</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-zookeeper/">Hadoop生态系统介绍-Zookeeper</a></li>
-<li><a href="https://winway.github.io/2017/01/11/big-data-hdfs/">Hadoop生态系统介绍-HDFS</a></li>
-<li><a href="https://winway.github.io/2017/01/12/big-data-yarn/">Hadoop生态系统介绍-YARN</a></li>
-<li><strong><a href="https://winway.github.io/2017/01/12/big-data-mapreduce/">Hadoop生态系统介绍-MapReduce</a></strong></li>
-<li><a href="https://winway.github.io/2017/01/13/big-data-hive/">Hadoop生态系统介绍-Hive</a></li>
-<li><a href="https://winway.github.io/2017/01/13/big-data-pig/">Hadoop生态系统介绍-Pig</a></li>
-<li><a href="https://winway.github.io/2017/01/21/big-data-storm/">Hadoop生态系统介绍-Storm</a></li>
-<li><a href="https://winway.github.io/2017/01/26/big-data-hbase/">Hadoop生态系统介绍-Hbase</a></li>
-<li><a href="https://winway.github.io/2017/01/07/big-data-phoenix/">Hadoop生态系统介绍-Phoenix</a></li>
-</ol>
-<p>本文对分布式计算框架MapReduce的工作原理进行介绍。</p>
-<h2><span id="工作原理">工作原理</span></h2><p><strong>输入与输出</strong></p>
-<p>Map/Reduce框架运转在&lt;key, value&gt; 键值对上，也就是说， 框架把作业的输入看为是一组&lt;key, value&gt; 键值对，同样也产出一组 &lt;key, value&gt; 键值对做为作业的输出，这两组键值对的类型可能不同。</p>
-<p>一个Map/Reduce 作业的输入和输出类型如下所示：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">(input) &lt;k1, v1&gt; -&gt; map -&gt; &lt;k2, v2&gt; -&gt; shuffle-&gt; &lt;k2, &#123;v2……&#125;&gt; -&gt; reduce -&gt; &lt;k3, v3&gt; (output)</span><br></pre></td></tr></table></figure></p>
-<p><img src="http://static.open-open.com/lib/uploadImg/20141118/20141118093209_354.jpg" alt=""></p>
-<p><strong>Shuffle and Sort</strong></p>
-<p>MapReduce 确保每个reducer 的输入都按键排序。将maper的输出排序并作为输入传给reducer，这个过程称为shuffle 。</p>
-<p>shuffle 是MapReduce 的”心脏”，是奇迹发生的地方。</p>
-<p><strong>map 端</strong><br><img src="http://images2015.cnblogs.com/blog/984597/201609/984597-20160903215055030-1333381766.png" alt=""><br>map 函数开始产生输出时，并不是简单地将它写到磁盘。它利用缓冲的方式写到内存，并进行预排序（出于效率的考虑）。每个map 任务都有一个环形内存缓冲区，用于存储任务的输出。默认情况下，缓冲区的大小为100 MB ，此值可以通过改变io.sort.mb 属性来调整。一旦缓冲内容达到阈值(io.sort.spill.percent ，默认为0.80 ，或80%) ，一个后台线程便开始把内容写到磁盘中(spill)。在写磁盘过程中， map 输出继续被写到缓冲区，但如果在此期间缓冲区被填满，map 会阻塞直到写磁盘过程完成。写磁盘将按轮询方式写到mapred.local.dir 属性指定的目录中。</p>
-<p>在写磁盘之前，线程首先根据reducer的数量把数据划分成相应的分区(partition) 。在每个分区中，后台线程按照键值在内存中进行排序，如果存在combiner ，它会在排序后的输出上运行。<br>一旦内存缓冲区达到spill的阈值，就会新建一个spill文件，因此在map 任务写完其最后一个输出记录之后，会有若干spill文件。在任务完成之前，spill文件被合并成一个已分区且已排序的输出文件。io.sort.factor属性控制着一次最多能合并多少文件，默认值是10。</p>
-<p>如果指定了combiner ，并且spill次数至少为3(min.num.spills.for.combine属性的值)时，则combiner 就会在输出文件写到磁盘之前运行。运行combiner 的意义在于使map 输出更紧凑，使得写到本地磁盘和传给reducer 的数据更少。<br>写磁盘时压缩map 输出往往是个很好的主意，因为这样会让写磁盘的速度更快，节约磁盘空间，并且减少传给reducer 的数据量。默认情况下，输出是不压缩的，但只要将mapred.compress . map.output 设置为true ，就可以启用中间结果压缩功能。使用的压缩库由mapred.map.output . compression.codec 指定。</p>
-<p><strong>reduce 端</strong></p>
-<p>现在转到处理过程的reduce 部分。map 输出文件位于运行map 任务的nodemanager的本地磁盘(注意，尽管map 输出经常写到本地磁盘，但reduce输出并不这样) ，现在， nodemanager需要为分区文件运行reduce 任务，reduce 任务需要集群上若干个map 任务的map 输出作为其特殊的分区文件。reducer 通过HTTP 方式得到输出文件的分区。</p>
-<p>每个map 任务的完成时间可能不同，因此只要有一个任务完成，reduce 任务就可以开始复制其输出。这就是reduce 任务的复制阶段(copy phase)。reduce 任务有多个复制线程，因此能够并行取得map 输出。默认值是5 个线程，但这个默认值可以通过设置mapred.reduce.parallel.copies 属性来改变。</p>
-<p>如果map 输出相当小，则会被复制到reduce的内存(缓冲区大小由mapred.job.shuffle.input.buffer.percent 属性控制，指定用于此用途的堆空间的百分比) ，否则， map 输出被写到磁盘。一旦内存缓冲区达到阈值大小(由mapred.job.shuffle.merge.percent 决定)或达到从map节点取过来的文件个数阈值(由mapred.inmem.merge.threshold 控制) ，则合并后写到磁盘中。</p>
-<p>随着磁盘上文件的增多，后台线程会将它们合并为更大的、排好序的文件。这会为后面的合并节省一些时间。为了合并，压缩的map输出都必须在内存中被解压缩。</p>
-<p>所有map输出被复制完后， reduce 任务进入排序阶段(sort phase，更恰当的说法是合并阶段，因为排序是在map 端进行的) ，这个阶段将map输出合并，维持其排序。这个过程是分多个轮次进行的。比如，如果有50 个map 输出，而合并因子(merge factor)是10(10 为默认设置，由io.sort.factor属性设置，与map的合并类似)，合并将进行5轮。每次将10 个文件合并成一个文件，因此最后有5 个中间文件。</p>
-<p>在最后阶段，即reduce阶段，并没有将这5个文件合并成一个已排序的文件，而是直接把数据输入reduce 函数，从而省略了一次磁盘操作。<br>在reduce 阶段，对已排序输出中的每个键都要调用reduce函数。此阶段的输出直接写到输出文件系统，一般为HDFS 。如果采用HDFS ，由于nodemanager节点也运行着datanode节点，所以第一个块复本(block replica)将被写到本地磁盘。</p>
-<p><strong>WordCount逻辑示意图</strong></p>
-<p><img src="http://raw.githubusercontent.com/winway/picRepo/master/pics/hadoop-mr1.png" alt=""></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">mapreduce</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2017/01/12/big-data-mapreduce/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
       <a class="extend prev" rel="prev" href="/page/30/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/29/">29</a><a class="page-number" href="/page/30/">30</a><span class="page-number current">31</span><a class="page-number" href="/page/32/">32</a><a class="page-number" href="/page/33/">33</a><span class="space">&hellip;</span><a class="page-number" href="/page/42/">42</a><a class="extend next" rel="next" href="/page/32/">Next &raquo;</a>
@@ -665,19 +705,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">ARP欺骗</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -689,7 +721,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -697,7 +729,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -709,31 +749,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -741,11 +761,31 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+                <a href="javascript:void(0)" class="js-tag color5">yarn</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">systemd</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">proxy</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">snmp</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -757,11 +797,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">proxy</a>
+                <a href="javascript:void(0)" class="js-tag color3">备份</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">备份</a>
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -785,22 +825,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
               </li>
              
@@ -809,75 +833,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">telent</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">springboot</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">keytool</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">小文件</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">storm</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -885,7 +841,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">datax</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kafka</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -925,6 +889,94 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">MongoDB</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">RockMongo</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">multiprocessing</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">dataframe</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">telent</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">spark</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">springboot</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">keytool</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">spark-sql</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">小文件</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">nagios</a>
               </li>
              
@@ -946,18 +998,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
               </li>
              
               <li class="article-tag-list-item">
