@@ -156,6 +156,126 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-domain2ip" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2018/06/14/domain2ip/">如何获取一个域名对应的所有IP地址</a>
+    </h1>
+  
+
+        
+        <a href="/2018/06/14/domain2ip/" class="archive-article-date">
+  	<time datetime="2018-06-14T07:59:06.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-06-14</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#1-问题">1、问题</a></li>
+<li><a href="#2-思路">2、思路</a></li>
+<li><a href="#3-实现方案">3、实现方案</a><ul>
+<li><a href="#shell-dig版本">shell + dig版本</a></li>
+<li><a href="#shell-dig分布式版本">shell + dig分布式版本</a></li>
+<li><a href="#golang发包版本">golang发包版本</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h1><span id="1-问题">1、问题</span></h1><p>给定一个域名，如何取得该域名对应的所有IP地址。</p>
+<h1><span id="2-思路">2、思路</span></h1><p>到全球所有DNS服务器上查询。但是我们很难得到全球所有的DNS服务器，所以只能尽量收集DNS服务器，解析出尽量多的IP地址。</p>
+<ul>
+<li>获取全球DNS服务器。可以通过<a href="https://public-dns.info/" target="_blank" rel="noopener">https://public-dns.info/</a>获得，虽然不敢保证是全球所有的，但是全球各个城市23000+的DNS服务器也差不多了</li>
+<li>针对每台DNS服务器发送DNS查询请求，获取IP地址信息</li>
+</ul>
+<h1><span id="3-实现方案">3、实现方案</span></h1><p><em>这里以解析某个域名的AAAA记录为例，代码：<a href="https://github.com/winway/domain2IP" target="_blank" rel="noopener">https://github.com/winway/domain2IP</a></em></p>
+<h2><span id="shell-dig版本">shell + dig版本</span></h2><p>Linux下有一个很强大的域名解析命令——dig。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"># dig -t AAAA +noquestion +noadditional +noauthority @207.234.132.214 www.who.int</span><br><span class="line"></span><br><span class="line">; &lt;&lt;&gt;&gt; DiG 9.9.4-RedHat-9.9.4-50.el7_3.1 &lt;&lt;&gt;&gt; -t AAAA +noquestion +noadditional +noauthority @207.234.132.214 www.who.int</span><br><span class="line">; (1 server found)</span><br><span class="line">;; global options: +cmd</span><br><span class="line">;; Got answer:</span><br><span class="line">;; -&gt;&gt;HEADER&lt;&lt;- opcode: QUERY, status: NOERROR, id: 2516</span><br><span class="line">;; flags: qr rd ra; QUERY: 1, ANSWER: 9, AUTHORITY: 0, ADDITIONAL: 1</span><br><span class="line"></span><br><span class="line">;; OPT PSEUDOSECTION:</span><br><span class="line">; EDNS: version: 0, flags:; udp: 1280</span><br><span class="line">;; ANSWER SECTION:</span><br><span class="line">www.who.int.            300     IN      CNAME   d334guqhelsxtv.cloudfront.net.</span><br><span class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:ca00:16:b115:d0c0:21</span><br><span class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:800:16:b115:d0c0:21</span><br><span class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:4e00:16:b115:d0c0:21</span><br><span class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:0:16:b115:d0c0:21</span><br><span class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:7400:16:b115:d0c0:21</span><br><span class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:2000:16:b115:d0c0:21</span><br><span class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:a000:16:b115:d0c0:21</span><br><span class="line">d334guqhelsxtv.cloudfront.net. 60 IN    AAAA    2600:9000:2004:b800:16:b115:d0c0:21</span><br><span class="line"></span><br><span class="line">;; Query time: 783 msec</span><br><span class="line">;; SERVER: 207.234.132.214#53(207.234.132.214)</span><br><span class="line">;; WHEN: Thu Jun 14 16:14:35 CST 2018</span><br><span class="line">;; MSG SIZE  rcvd: 307</span><br></pre></td></tr></table></figure></p>
+<p>我们直接使用dig命令实现域名解析，用shell并发的调用dig命令解析并聚合结果。这里为了防止负载过高，控制了一下并发度。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> cat getIP.sh</span><br><span class="line"><span class="meta">#</span>! /bin/bash</span><br><span class="line"><span class="meta">#</span></span><br><span class="line"></span><br><span class="line">CONFDIR=./conf/</span><br><span class="line">RESULTDIR=./result/</span><br><span class="line"></span><br><span class="line">if [[ $# -ne 1 ]]</span><br><span class="line">then</span><br><span class="line">    echo "Usage: sh $0 &lt;url&gt;"</span><br><span class="line">    exit</span><br><span class="line">fi</span><br><span class="line">url=$1</span><br><span class="line"></span><br><span class="line">nameservers=($(cat $&#123;CONFDIR&#125;/nameservers.txt | grep '[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*' | sort -u))</span><br><span class="line"></span><br><span class="line">N=300</span><br><span class="line"></span><br><span class="line">ts=$(date '+%s')</span><br><span class="line"></span><br><span class="line">for dns_server in $&#123;nameservers[*]&#125;</span><br><span class="line">do</span><br><span class="line">    &#123; dig -t AAAA +noquestion +noadditional +noauthority @$dns_server $url | awk '/IN[ \t]+AAAA/&#123;print $NF&#125;' &gt; /tmp/.$&#123;url&#125;.$&#123;ts&#125;.$&#123;dns_server&#125;.txt; echo "dig @$dns_server $url done"; &#125; &amp;</span><br><span class="line"></span><br><span class="line">    joblist=($(jobs -p))</span><br><span class="line">    while (( $&#123;#joblist[*]&#125; &gt; $N ))</span><br><span class="line">    do</span><br><span class="line">        echo "######## rest for a while ########"</span><br><span class="line">        sleep 0.1</span><br><span class="line">        joblist=($(jobs -p))</span><br><span class="line">    done</span><br><span class="line">done</span><br><span class="line"></span><br><span class="line">wait</span><br><span class="line"></span><br><span class="line">cat /tmp/.$&#123;url&#125;.$&#123;ts&#125;.*.txt | sort -u &gt;$&#123;RESULTDIR&#125;/$&#123;url&#125;.ip.txt</span><br><span class="line">find /tmp/ -name ".$&#123;url&#125;.$&#123;ts&#125;.*.txt" | xargs rm -f</span><br></pre></td></tr></table></figure></p>
+<p>运行情况如下，耗时4分多钟，解析出9000+IP地址<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"># time sh getIP.sh www.who.int</span><br><span class="line"></span><br><span class="line">real    4m10.336s</span><br><span class="line">user    4m12.732s</span><br><span class="line">sys     3m55.625s</span><br><span class="line"># wc -l result/www.who.int.ip.txt</span><br><span class="line">9862 result/www.who.int.ip.txt</span><br></pre></td></tr></table></figure></p>
+<h2><span id="shell-dig分布式版本">shell + dig分布式版本</span></h2><p>该版本是上个版本的分布式版本，核心功能相同，只是将DNS服务器列表切分为多份，分发到多台机器上同时处理，然后将结果取回合并。<br>该脚本负责切分任务、分发任务，收集结果<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> cat getIP_distributed.sh</span><br><span class="line"><span class="meta">#</span>! /bin/bash</span><br><span class="line"><span class="meta">#</span></span><br><span class="line"></span><br><span class="line">CONFDIR=./conf/</span><br><span class="line">RESULTDIR=./result/</span><br><span class="line">TMPDIR=./tmp/</span><br><span class="line"></span><br><span class="line">if [[ $# -ne 1 ]]</span><br><span class="line">then</span><br><span class="line">    echo "Usage: sh $0 &lt;url&gt;"</span><br><span class="line">    exit 1</span><br><span class="line">fi</span><br><span class="line">url=$1</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> get work node</span><br><span class="line">work_nodes=($(cat $&#123;CONFDIR&#125;/work_nodes.txt | grep '[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*' | sort -u))</span><br><span class="line">work_nodes_num=$&#123;#work_nodes[@]&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> split nameservers</span><br><span class="line">nameservers=($(cat $&#123;CONFDIR&#125;/nameservers.txt | grep '[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*' | sort -u))</span><br><span class="line">nameservers_num=$&#123;#nameservers[@]&#125;</span><br><span class="line">chunk=$(($nameservers_num/$work_nodes_num+1))</span><br><span class="line"></span><br><span class="line">work_node_index=0</span><br><span class="line">counter=1</span><br><span class="line">: &gt; $&#123;TMPDIR&#125;/$&#123;work_nodes[$work_node_index]&#125;_nameservers.txt</span><br><span class="line">for nameserver in $&#123;nameservers[@]&#125;</span><br><span class="line">do</span><br><span class="line">    if (($counter &gt; $chunk))</span><br><span class="line">    then</span><br><span class="line">        ((work_node_index++))</span><br><span class="line">        counter=1</span><br><span class="line">        : &gt; $&#123;TMPDIR&#125;/$&#123;work_nodes[$work_node_index]&#125;_nameservers.txt</span><br><span class="line">    fi</span><br><span class="line">    echo "$nameserver" &gt;&gt; $&#123;TMPDIR&#125;/$&#123;work_nodes[$work_node_index]&#125;_nameservers.txt</span><br><span class="line">    ((counter++))</span><br><span class="line">done</span><br><span class="line"></span><br><span class="line"><span class="meta">#</span> distribute and run</span><br><span class="line">for node in $&#123;work_nodes[@]&#125;</span><br><span class="line">do</span><br><span class="line">    echo "$node, count: $(wc -l $&#123;TMPDIR&#125;/$&#123;node&#125;_nameservers.txt)"</span><br><span class="line">    &#123; scp job.sh $&#123;TMPDIR&#125;/$&#123;node&#125;_nameservers.txt $node:/tmp/ &amp;&amp; ssh $node "sh /tmp/job.sh $node $url" &amp;&amp; scp $node:/tmp/$&#123;node&#125;_ip.txt $TMPDIR &amp;&amp; echo "[$(date)] $node done"; &#125; &amp;</span><br><span class="line">done</span><br><span class="line"></span><br><span class="line">wait</span><br><span class="line"></span><br><span class="line">for node in $&#123;work_nodes[@]&#125;</span><br><span class="line">do</span><br><span class="line">    cat $TMPDIR/$&#123;node&#125;_ip.txt &gt;&gt; $TMPDIR/$&#123;url&#125;_ip.txt</span><br><span class="line">done</span><br><span class="line"></span><br><span class="line">sort -u $TMPDIR/$&#123;url&#125;_ip.txt &gt;$&#123;RESULTDIR&#125;/$&#123;url&#125;_ip.txt</span><br></pre></td></tr></table></figure></p>
+<p>该脚本负责解析，与方案1几乎一样。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#</span> cat job.sh</span><br><span class="line"><span class="meta">#</span>! /bin/bash</span><br><span class="line"><span class="meta">#</span></span><br><span class="line"></span><br><span class="line">SCRIPT=$(readlink -f "$BASH_SOURCE")</span><br><span class="line"></span><br><span class="line">cd $(dirname $SCRIPT) || &#123; echo "cd $(dirname $SCRIPT) failed"; exit 1; &#125;</span><br><span class="line"></span><br><span class="line">node=$1</span><br><span class="line">url=$2</span><br><span class="line"></span><br><span class="line">nameservers=($(cat $&#123;node&#125;_nameservers.txt | grep '[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*' | sort -u))</span><br><span class="line"></span><br><span class="line">N=300</span><br><span class="line"></span><br><span class="line">ts=$(date '+%s')</span><br><span class="line"></span><br><span class="line">for nameserver in $&#123;nameservers[*]&#125;</span><br><span class="line">do</span><br><span class="line">    &#123; dig -t AAAA +noquestion +noadditional +noauthority @$nameserver $url | awk '/IN[ \t]+AAAA/&#123;print $NF&#125;' &gt; /tmp/.$&#123;url&#125;.$&#123;ts&#125;.$&#123;nameserver&#125;.txt; &#125; &amp;</span><br><span class="line"></span><br><span class="line">    joblist=($(jobs -p))</span><br><span class="line">    while (( $&#123;#joblist[*]&#125; &gt; $N ))</span><br><span class="line">    do</span><br><span class="line">        echo "######## rest for a while ########"</span><br><span class="line">        sleep 0.1</span><br><span class="line">        joblist=($(jobs -p))</span><br><span class="line">    done</span><br><span class="line">done</span><br><span class="line"></span><br><span class="line">wait</span><br><span class="line"></span><br><span class="line">cat /tmp/.$&#123;url&#125;.$&#123;ts&#125;.*.txt | sort -u &gt;$&#123;node&#125;_ip.txt</span><br><span class="line">find /tmp/ -name ".$&#123;url&#125;.*.txt" | xargs rm -f</span><br></pre></td></tr></table></figure></p>
+<p>运行情况如下，同时在3台机器上执行，耗时1分多钟，解析出9000+IP地址<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"># time sh getIP_distributed.sh www.who.int</span><br><span class="line"></span><br><span class="line">real    1m43.125s</span><br><span class="line">user    0m1.060s</span><br><span class="line">sys     0m0.201s</span><br><span class="line"></span><br><span class="line"># wc -l result/www.who.int.ip.txt</span><br><span class="line">9861 result/www.who.int_ip.txt</span><br></pre></td></tr></table></figure></p>
+<p><em>上述两个版本由于使用的是纯多进程dig方式，很难达到一个好的性能。因为单个进程资源占用太大，大量的进程又会频繁上下文切换。理想的方式是多进程加协程方式，这样就无法直接使用dig了，需要一个基于异步io的DNS解析实现。</em></p>
+<h2><span id="golang发包版本">golang发包版本</span></h2><p>该版本直接构造并发送DNS查询请求包，并捕包分析DNS查询应答包。<br>最初我是使用python实现的该版本，但是性能实在太差，单机耗时在1分钟左右，然后使用golang重写了一遍。<br>代码：<a href="https://github.com/winway/domain2IP/blob/master/getIP.go" target="_blank" rel="noopener">https://github.com/winway/domain2IP/blob/master/getIP.go</a><br>运行情况如下，单机耗时20秒。细心的读者会发现，这里解析出的IP比上述方案解析出的少，由于机器配置太低，存在些许丢包导致。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"># time go run getIP.go --url www.who.int</span><br><span class="line">2018/06/14 16:56:25 Start to dig url: www.who.int</span><br><span class="line">2018/06/14 16:56:25 Start capturePacket</span><br><span class="line">2018/06/14 16:56:25 Load 23298 nameserver</span><br><span class="line">2018/06/14 16:56:25 Start sendPacket</span><br><span class="line">2018/06/14 16:56:25 Set filter: udp and src port 53</span><br><span class="line">2018/06/14 16:56:39 Complete sendPacket</span><br><span class="line">2018/06/14 16:56:40 Waiting ...</span><br><span class="line">2018/06/14 16:56:41 Waiting ...</span><br><span class="line">2018/06/14 16:56:44 Get 9204 ip for www.who.int</span><br><span class="line"></span><br><span class="line">real    0m19.643s</span><br><span class="line">user    0m1.269s</span><br><span class="line">sys     0m0.469s</span><br></pre></td></tr></table></figure></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">shell</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">golang</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2018/06/14/domain2ip/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-kaggle-intro" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
@@ -382,121 +502,9 @@
 
 
   
-    <article id="post-AsimplePlugin" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2018/02/23/AsimplePlugin/">一个Python实现的简单插件机制</a>
-    </h1>
-  
-
-        
-        <a href="/2018/02/23/AsimplePlugin/" class="archive-article-date">
-  	<time datetime="2018-02-23T12:53:49.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2018-02-23</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#1-介绍">1. 介绍</a><ul>
-<li><a href="#定义插件">定义插件</a></li>
-<li><a href="#插件同步">插件同步</a></li>
-<li><a href="#插件加载">插件加载</a></li>
-<li><a href="#测试">测试</a></li>
-</ul>
-</li>
-<li><a href="#2-代码">2. 代码</a></li>
-<li><a href="#3-参考资料">3. 参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<h1><span id="1-介绍">1. 介绍</span></h1><p>本文介绍了一个Python实现的简单插件机制，可以为程序动态的增加功能，而无需重新部署程序甚至重启。<br>该机制包括两部分，同步机制和加载机制。同步机制用于获取插件代码；加载机制负责导入插件。</p>
-<h2><span id="定义插件">定义插件</span></h2><p>插件中实现名称相同的类、函数等，但是类和函数具有不同的实现，这样才能进行统一调用。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line">[root@winway plugin]<span class="comment"># ll plugins/</span></span><br><span class="line">total <span class="number">16</span></span><br><span class="line">-rw-r--r--. <span class="number">1</span> root root <span class="number">948</span> Feb <span class="number">23</span> <span class="number">17</span>:<span class="number">04</span> pluginA.py</span><br><span class="line">-rw-r--r--. <span class="number">1</span> root root <span class="number">948</span> Feb <span class="number">23</span> <span class="number">16</span>:<span class="number">49</span> pluginB.py</span><br><span class="line">-rw-r--r--. <span class="number">1</span> root root <span class="number">948</span> Feb <span class="number">23</span> <span class="number">16</span>:<span class="number">49</span> pluginC.py</span><br><span class="line"></span><br><span class="line">[root@winway plugin]<span class="comment"># cat plugins/pluginA.py</span></span><br><span class="line"><span class="comment">#!/usr/bin/env python</span></span><br><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"></span><br><span class="line"><span class="string">r"""</span></span><br><span class="line"><span class="string">plugin A</span></span><br><span class="line"><span class="string">"""</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">f</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'plugin A'</span></span><br><span class="line">[root@winway plugin]<span class="comment"># cat plugins/pluginB.py</span></span><br><span class="line"><span class="comment">#!/usr/bin/env python</span></span><br><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"></span><br><span class="line"><span class="string">r"""</span></span><br><span class="line"><span class="string">plugin B</span></span><br><span class="line"><span class="string">"""</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">f</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'plugin B'</span></span><br><span class="line">[root@winway plugin]<span class="comment"># cat plugins/pluginC.py</span></span><br><span class="line"><span class="comment">#!/usr/bin/env python</span></span><br><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"></span><br><span class="line"><span class="string">r"""</span></span><br><span class="line"><span class="string">plugin C</span></span><br><span class="line"><span class="string">"""</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">f</span><span class="params">()</span>:</span></span><br><span class="line">    <span class="keyword">print</span> <span class="string">'plugin C'</span></span><br></pre></td></tr></table></figure></p>
-<h2><span id="插件同步">插件同步</span></h2><p>插件下载通过http完成。开启http服务，提供插件下载功能。需要插件的地方可以通过http下载插件代码。<br>http服务代码如下：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">startHttpFileServer</span><span class="params">(dir, port)</span>:</span></span><br><span class="line">    <span class="string">"""http服务器，用于下载plugin文件"""</span></span><br><span class="line"></span><br><span class="line">    print(<span class="string">'startHttpFileServer'</span>)</span><br><span class="line"></span><br><span class="line">    ServerClass = BaseHTTPServer.HTTPServer</span><br><span class="line">    HandlerClass = SimpleHTTPRequestHandler</span><br><span class="line">    Protocol = <span class="string">"HTTP/1.0"</span></span><br><span class="line">    server_address = (<span class="string">'0.0.0.0'</span>, port)</span><br><span class="line"></span><br><span class="line">    HandlerClass.protocol_version = Protocol</span><br><span class="line">    httpd = ServerClass(server_address, HandlerClass)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> os.path.isdir(dir):  <span class="comment"># 切换到插件所在目录</span></span><br><span class="line">        os.chdir(dir)</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        print(<span class="string">'no such dir: %s'</span> % dir)</span><br><span class="line">        sys.exit()</span><br><span class="line"></span><br><span class="line">    sa = httpd.socket.getsockname()</span><br><span class="line">    print(<span class="string">"Serving HTTP on %s:%s"</span> % (sa[<span class="number">0</span>], sa[<span class="number">1</span>]))</span><br><span class="line"></span><br><span class="line">    httpd.serve_forever()  <span class="comment"># 启动http服务器</span></span><br></pre></td></tr></table></figure></p>
-<h2><span id="插件加载">插件加载</span></h2><p>根据名称，在插件目录中动态查找插件代码，并导入。使用md5判断是否需要重新导入插件。<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">findPlugin</span><span class="params">(self, moduleName)</span>:</span></span><br><span class="line">    <span class="string">"""查找moduleName，并计算md5"""</span></span><br><span class="line"></span><br><span class="line">    location = os.path.join(self.pluginDir, moduleName)</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> os.path.isdir(location) <span class="keyword">and</span> <span class="string">'__init__.py'</span> <span class="keyword">in</span> os.listdir(location):  <span class="comment"># package</span></span><br><span class="line">        info = imp.find_module(<span class="string">'__init__'</span>, [location])</span><br><span class="line">        md5 = self.computeMd5(location)</span><br><span class="line">    <span class="keyword">elif</span> os.path.isfile(location + <span class="string">'.py'</span>):  <span class="comment"># module</span></span><br><span class="line">        info = imp.find_module(moduleName, [self.pluginDir])</span><br><span class="line">        md5 = self.computeMd5(location + <span class="string">'.py'</span>)</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">return</span> <span class="keyword">False</span>, <span class="string">'no such module: %s'</span> % moduleName</span><br><span class="line"></span><br><span class="line">    plugin = &#123;<span class="string">"name"</span>: moduleName, <span class="string">"info"</span>: info, <span class="string">'md5'</span>: md5&#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">True</span>, plugin</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">loadPlugin</span><span class="params">(self, moduleName)</span>:</span></span><br><span class="line">    <span class="string">"""加载moduleName</span></span><br><span class="line"><span class="string">    如果没有加载过或有更新，则重新加载，否则直接返回self.plugins中保存的</span></span><br><span class="line"><span class="string">    """</span></span><br><span class="line"></span><br><span class="line">    ok, plugin = self.findPlugin(moduleName)</span><br><span class="line">    <span class="keyword">if</span> <span class="keyword">not</span> ok:</span><br><span class="line">        <span class="keyword">return</span> ok, plugin</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> plugin[<span class="string">'name'</span>] <span class="keyword">not</span> <span class="keyword">in</span> self.plugins:  <span class="comment"># 新增</span></span><br><span class="line">        print(<span class="string">'add plugin: %s'</span> % plugin[<span class="string">'name'</span>])</span><br><span class="line">        self.plugins[plugin[<span class="string">'name'</span>]] = &#123;&#125;</span><br><span class="line">        self.plugins[plugin[<span class="string">'name'</span>]][<span class="string">'module'</span>] = imp.load_module(plugin[<span class="string">'name'</span>], *plugin[<span class="string">"info"</span>])</span><br><span class="line">        self.plugins[plugin[<span class="string">'name'</span>]][<span class="string">'md5'</span>] = plugin[<span class="string">'md5'</span>]</span><br><span class="line">    <span class="keyword">elif</span> plugin[<span class="string">'name'</span>] <span class="keyword">in</span> self.plugins <span class="keyword">and</span> plugin[<span class="string">'md5'</span>] != self.plugins[plugin[<span class="string">'name'</span>]][<span class="string">'md5'</span>]:  <span class="comment"># 更新</span></span><br><span class="line">        print(<span class="string">'update plugin: %s'</span> % plugin[<span class="string">'name'</span>])</span><br><span class="line">        self.plugins[plugin[<span class="string">'name'</span>]][<span class="string">'module'</span>] = imp.load_module(plugin[<span class="string">'name'</span>], *plugin[<span class="string">"info"</span>])</span><br><span class="line">        self.plugins[plugin[<span class="string">'name'</span>]][<span class="string">'md5'</span>] = plugin[<span class="string">'md5'</span>]</span><br><span class="line"></span><br><span class="line">    <span class="comment"># TODO：删除遗留的module</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> <span class="keyword">True</span>, self.plugins[plugin[<span class="string">'name'</span>]][<span class="string">'module'</span>]</span><br><span class="line"></span><br><span class="line"><span class="function"><span class="keyword">def</span> <span class="title">computeMd5</span><span class="params">(self, entry)</span>:</span></span><br><span class="line">    <span class="string">"""计算文件或目录的md5值"""</span></span><br><span class="line"></span><br><span class="line">    md5 = hashlib.md5()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> os.path.isfile(entry):</span><br><span class="line">        md5.update(open(entry, <span class="string">'rb'</span>).read())</span><br><span class="line">    <span class="keyword">elif</span> os.path.isdir(entry):</span><br><span class="line">        <span class="keyword">for</span> path, dirList, fileList <span class="keyword">in</span> os.walk(entry):</span><br><span class="line">            <span class="keyword">for</span> file <span class="keyword">in</span> fileList:</span><br><span class="line">                <span class="keyword">if</span> glob.fnmatch.fnmatch(file, <span class="string">'*.py'</span>):</span><br><span class="line">                    md5.update(open(os.path.join(path, file), <span class="string">'rb'</span>).read())</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> md5.hexdigest()</span><br></pre></td></tr></table></figure></p>
-<h2><span id="测试">测试</span></h2><p>测试代码如下：<br><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">import</span> time</span><br><span class="line"></span><br><span class="line"><span class="keyword">from</span> plugin <span class="keyword">import</span> loader</span><br><span class="line"></span><br><span class="line">p = loader.Loader(<span class="string">'/tmp'</span>)  <span class="comment"># 插件目录设置为/tmp</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">while</span> <span class="keyword">True</span>:</span><br><span class="line">    <span class="comment"># 下载插件</span></span><br><span class="line">    os.system(<span class="string">"wget -q -r -np -nH --reject='index.html*,*.pyc' -P %s 'http://127.0.0.1:8080'"</span> % p.pluginDir)</span><br><span class="line"></span><br><span class="line">    ok, m = p.loadPlugin(<span class="string">'pluginA'</span>)  <span class="comment"># 动态查找并加载插件。新增插件或插件更新可以自动更新</span></span><br><span class="line">    <span class="keyword">if</span> ok:</span><br><span class="line">        getattr(m, <span class="string">'f'</span>)()</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">print</span> <span class="string">'no such plugin pluginA'</span></span><br><span class="line"></span><br><span class="line">    ok, m = p.loadPlugin(<span class="string">'pluginB'</span>)  <span class="comment"># 动态查找并加载插件</span></span><br><span class="line">    <span class="keyword">if</span> ok:</span><br><span class="line">        getattr(m, <span class="string">'f'</span>)()</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">print</span> <span class="string">'no such plugin pluginB'</span></span><br><span class="line"></span><br><span class="line">    ok, m = p.loadPlugin(<span class="string">'pluginC'</span>)  <span class="comment"># 动态查找并加载插件</span></span><br><span class="line">    <span class="keyword">if</span> ok:</span><br><span class="line">        getattr(m, <span class="string">'f'</span>)()</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">print</span> <span class="string">'no such plugin pluginC'</span></span><br><span class="line"></span><br><span class="line">    ok, m = p.loadPlugin(<span class="string">'pluginD'</span>)  <span class="comment"># 动态查找并加载插件</span></span><br><span class="line">    <span class="keyword">if</span> ok:</span><br><span class="line">        getattr(m, <span class="string">'f'</span>)()</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        <span class="keyword">print</span> <span class="string">'no such plugin pluginD'</span></span><br><span class="line"></span><br><span class="line">    time.sleep(<span class="number">5</span>)</span><br></pre></td></tr></table></figure></p>
-<h1><span id="2-代码">2. 代码</span></h1><p>代码地址：<a href="https://github.com/winway/simple-plugin" target="_blank" rel="noopener">https://github.com/winway/simple-plugin</a></p>
-<h1><span id="3-参考资料">3. 参考资料</span></h1><ul>
-<li><a href="https://stackoverflow.com/questions/932069/building-a-minimal-plugin-architecture-in-python" target="_blank" rel="noopener">https://stackoverflow.com/questions/932069/building-a-minimal-plugin-architecture-in-python</a></li>
-<li><a href="https://lkubuntu.wordpress.com/2012/10/02/writing-a-python-plugin-api/s" target="_blank" rel="noopener">https://lkubuntu.wordpress.com/2012/10/02/writing-a-python-plugin-api/</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">python</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/编程/" class="article-tag-list-link color3">编程</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2018/02/23/AsimplePlugin/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
-      <a class="extend prev" rel="prev" href="/page/19/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/18/">18</a><a class="page-number" href="/page/19/">19</a><span class="page-number current">20</span><a class="page-number" href="/page/21/">21</a><a class="page-number" href="/page/22/">22</a><span class="space">&hellip;</span><a class="page-number" href="/page/42/">42</a><a class="extend next" rel="next" href="/page/21/">Next &raquo;</a>
+      <a class="extend prev" rel="prev" href="/page/19/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/18/">18</a><a class="page-number" href="/page/19/">19</a><span class="page-number current">20</span><a class="page-number" href="/page/21/">21</a><a class="page-number" href="/page/22/">22</a><span class="space">&hellip;</span><a class="page-number" href="/page/43/">43</a><a class="extend next" rel="next" href="/page/21/">Next &raquo;</a>
     </nav>
   
 
@@ -610,6 +618,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
@@ -626,7 +638,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -642,10 +654,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">canal</a>
               </li>
              
@@ -654,11 +662,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -670,10 +682,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">systemd</a>
               </li>
              
@@ -682,15 +690,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">proxy</a>
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">备份</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -699,14 +715,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">grafana</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">备份</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -730,67 +738,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">storm</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">datax</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">kafka</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">olap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">presto</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">iptables</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
+                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -806,7 +758,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -818,11 +774,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -846,15 +802,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">springboot</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">keytool</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">spark</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -866,19 +826,55 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">storm</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+                <a href="javascript:void(0)" class="js-tag color1">datax</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">olap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">presto</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">iptables</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -903,6 +899,18 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
               </li>
              
               <li class="article-tag-list-item">

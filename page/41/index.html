@@ -156,6 +156,121 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-mussh-pdsh-pssh-usage" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2013/06/24/mussh-pdsh-pssh-usage/">mussh、pdsh、pssh的简单使用</a>
+    </h1>
+  
+
+        
+        <a href="/2013/06/24/mussh-pdsh-pssh-usage/" class="archive-article-date">
+  	<time datetime="2013-06-24T03:16:06.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-06-24</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>在<a href="https://winway.github.io/2013/05/11/server-batch-manage-tool-introduction/">服务器批量管理工具</a>一文中，提到了几款服务器批量管理工具，本文就其中的mussh、pdsh、pssh简单介绍其使用方法。</p>
+<!-- toc -->
+<ul>
+<li><a href="#1-mussh">1. mussh</a></li>
+<li><a href="#2-pdsh">2. pdsh</a></li>
+<li><a href="#3-pssh">3. pssh</a></li>
+<li><a href="#4-总结">4. 总结</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="1-mussh">1. mussh</span></h2><p>mussh的安装过程不再赘述，要使用mussh要先做好主机间的信任（方法自己查询）。mussh的使用较简单，要查询mussh的使用方法，可以<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mussh --help</span><br></pre></td></tr></table></figure></p>
+<p>常用的方法如下：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">mussh -m -u -b -t 6 -h user@x.x.x.x.. -c cmd</span><br><span class="line">mussh -m -u -b -t 6 -h user@x.x.x.x.. -C scriptfile</span><br><span class="line">mussh -m -u -b -t 6 -H hostlist -c cmd</span><br><span class="line">mussh -m -u -b -t 6 -H hostlist -C scriptfile</span><br></pre></td></tr></table></figure></p>
+<p>其中hostlist的格式为：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">user@x.x.x.x</span><br><span class="line">user@x.x.x.x</span><br><span class="line">user@x.x.x.x</span><br><span class="line">..</span><br></pre></td></tr></table></figure></p>
+<p>常见命令行参数意义：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">-m [n] Run concurrently on 'n' hosts at a time (asynchronous).</span><br><span class="line">Use '0' (zero) for infinite. (default if -m)</span><br><span class="line">-b Print each hosts' output in a block without mingling</span><br><span class="line">with other hosts' output.</span><br><span class="line">-B Allow hosts' output to mingle. (default)</span><br><span class="line">-u Unique. Eliminate duplicate hosts. (default)</span><br><span class="line">-U Do NOT make host list unique.</span><br><span class="line">-t &lt;secs&gt; Timeout setting for each session.</span><br><span class="line">(requires openssh 3.8 or newer)</span><br></pre></td></tr></table></figure></p>
+<h2><span id="2-pdsh">2. pdsh</span></h2><p>pdsh的安装过程不再赘述，要使用pdsh有两个前提：</p>
+<ol>
+<li>做好主机间的信任（方法自己查询）</li>
+<li>管理机和目标机均安装pdsh（不然无法使用pdcp和rpdcp）</li>
+</ol>
+<p>可以通过<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">man pdsh 或 pdsh -h</span><br><span class="line">man pdcp 或 pdcp -h</span><br><span class="line">man rpdcp 或 rpdcp -h</span><br></pre></td></tr></table></figure></p>
+<p>来查询使用方法。常用的方法如下:<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">pdsh -R ssh -l root -w x.x.x.x cmd</span><br><span class="line">pdsh -R ssh -l root -w hostname cmd</span><br><span class="line">pdsh -R ssh -l root -w ^hostlist cmd</span><br></pre></td></tr></table></figure></p>
+<p>其中hostlist的格式为：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">x.x.x.x</span><br><span class="line">hostname</span><br><span class="line">..</span><br></pre></td></tr></table></figure></p>
+<p><strong>若不加cmd，则进入交互模式，我觉得这个是pdsh的亮点。</strong></p>
+<h2><span id="3-pssh">3. pssh</span></h2><p>pssh的安装不再赘述，要使用pssh要先做好主机间的信任（方法自己查询）。<br>pssh安装完成，会出现一下五个命令：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">pssh parallel-ssh 在多个主机上并行地运行命令。</span><br><span class="line">pscp parallel-scp 把文件并行地复制到多个主机上。</span><br><span class="line">prsync parallel-rsync 通过 rsync 协议把文件高效地并行复制到多个主机上。</span><br><span class="line">pslurp parallel-slurp 把文件并行地从多个远程主机复制到中心主机上。</span><br><span class="line">pnuke parallel-nuke 并行地在多个远程主机上杀死进程。</span><br></pre></td></tr></table></figure></p>
+<p>要查各个命令的使用方法，可以不加任何参数运行该命令，这样就会出现各选项的意义。如：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">[winway@winway test]$ pssh</span><br><span class="line">Usage: pssh [OPTIONS] -h hosts.txt prog [arg0] ..</span><br><span class="line">-h --hosts hosts file (each line "host[:port] [user]")</span><br><span class="line">-l --user username (OPTIONAL)</span><br><span class="line">-p --par max number of parallel threads (OPTIONAL)</span><br><span class="line">-o --outdir output directory for stdout files (OPTIONAL)</span><br><span class="line">-e --errdir output directory for stderr files (OPTIONAL)</span><br><span class="line">-t --timeout timeout (secs) (-1 = no timeout) per host (OPTIONAL)</span><br><span class="line">-O --options SSH options (OPTIONAL)</span><br><span class="line">-v --verbose turn on warning and diagnostic messages (OPTIONAL)</span><br><span class="line">-P --print print output as we get it (OPTIONAL)</span><br><span class="line">-i --inline inline aggregated output for each server (OPTIONAL)</span><br><span class="line">Example: pssh -h nodes.txt -l irb2 -o /tmp/foo uptime</span><br></pre></td></tr></table></figure></p>
+<p>常用的方法如下：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">pssh -h hostlist -i cmd</span><br><span class="line">pscp -h hostlist src dest</span><br><span class="line">pslurp -h hostlist -L . dest src</span><br></pre></td></tr></table></figure></p>
+<h2><span id="4-总结">4. 总结</span></h2><p>综上所述，mussh、pdsh、pssh各有优缺点，我的选择是：<br>批量在远程主机上执行比较固定的操作时，用mussh，特别是它支持本机脚本远程执行；<br>批量在远程主机上执行不确定的操作时，用pdsh，因为它支持交互模式；<br>批量在远程主机上上传、下载文件时用pssh的pscp或prsync、pslurp；<br>个人愚见，欢迎指正。</p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">批量管理</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2013/06/24/mussh-pdsh-pssh-usage/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-python-parse-ini-json-xml-configuration" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
@@ -363,107 +478,9 @@
 
 
   
-    <article id="post-fork-and-shell-inherit-environment-variable" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2013/05/14/fork-and-shell-inherit-environment-variable/">关于fork以及子shell继承环境变量的疑问</a>
-    </h1>
-  
-
-        
-        <a href="/2013/05/14/fork-and-shell-inherit-environment-variable/" class="archive-article-date">
-  	<time datetime="2013-05-14T04:00:41.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2013-05-14</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<!-- tocstop -->
-<p>在shell里，有这样的说法</p>
-<blockquote>
-<p>在我目前这个shell的情况下，去启用另一个新的shell，新的那个shell 就是子程序啦！在一般的状态下，父程序的自定义变量是无法在子程序内使用的。但是透过export将变量变成环境变量后，就能够在子程序底下应用了</p>
-</blockquote>
-<p>但是在C里，父进程调用fork()创建子进程，子进程成为父进程的副本，复制父进程的所有进程内存到其内存地址空间中。父、子进程的“数据段”，“堆栈段”和“代码段”完全相同，即子进程中的每一个字节都和父进程一样。fork之后，从 fork 处开始父子进程并行执行，公有变量的值也在 fork 处被复制（当时的值），只不过父子进程分别使用各自的复本（而非共享）。</p>
-<p>我对上面的两段话就有点不理解啦，觉得有点矛盾，应该子shell自动继承父shell的变量啊。直到今天意识到忽略了一点。在开启子shell的时候，是fork+exec的模式，系统调用exec是以新的进程去代替原来的进程，原进程的代码段，数据段，堆栈段被新的进程所代替，所以父进程的变量是不会再存在于子进程了。而且exec可以接受一个指向环境字符串指针数组的指针，意思是把新的环境变量指定到新的进程中去，若不提供该指针则将原来的环境变量（即父进程的）默认为新进程的环境变量。</p>
-<p>这样，子shell只能继承父shell的环境变量，并且子shell对环境变量的修改不会影响到父shell就可以理解了。不知道以上的理解是否合理，还望高手指教！</p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">shell</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/Linux/" class="article-tag-list-link color1">Linux</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2013/05/14/fork-and-shell-inherit-environment-variable/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
-      <a class="extend prev" rel="prev" href="/page/40/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/39/">39</a><a class="page-number" href="/page/40/">40</a><span class="page-number current">41</span><a class="page-number" href="/page/42/">42</a><a class="extend next" rel="next" href="/page/42/">Next &raquo;</a>
+      <a class="extend prev" rel="prev" href="/page/40/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/39/">39</a><a class="page-number" href="/page/40/">40</a><span class="page-number current">41</span><a class="page-number" href="/page/42/">42</a><a class="page-number" href="/page/43/">43</a><a class="extend next" rel="next" href="/page/42/">Next &raquo;</a>
     </nav>
   
 
@@ -577,6 +594,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
@@ -593,7 +614,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -609,10 +630,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">canal</a>
               </li>
              
@@ -621,11 +638,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -637,10 +658,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">systemd</a>
               </li>
              
@@ -649,15 +666,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">proxy</a>
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">备份</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -666,14 +691,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">grafana</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">备份</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -697,67 +714,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">storm</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">datax</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">kafka</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">olap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">presto</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">iptables</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
+                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -773,7 +734,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -785,11 +750,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -813,15 +778,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">springboot</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">keytool</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">spark</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -833,19 +802,55 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">storm</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+                <a href="javascript:void(0)" class="js-tag color1">datax</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">olap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">presto</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">iptables</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -870,6 +875,18 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
               </li>
              
               <li class="article-tag-list-item">

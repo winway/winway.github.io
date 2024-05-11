@@ -156,6 +156,107 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-sparksql-cluster" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2022/01/16/sparksql-cluster/">Spark-sql支持cluster模式</a>
+    </h1>
+  
+
+        
+        <a href="/2022/01/16/sparksql-cluster/" class="archive-article-date">
+  	<time datetime="2022-01-16T03:29:16.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2022-01-16</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#问题">问题</a></li>
+<li><a href="#解决">解决</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="问题">问题</span></h2><p>使用Spark-sql执行sql不支持cluster模式，导致driver只能启动在提交机器，进而占用提交机大量内存。</p>
+<blockquote>
+<p>Exception in thread “main” org.apache.spark.SparkException: Cluster deploy mode is not applicable to Spark SQL shell.</p>
+</blockquote>
+<h2><span id="解决">解决</span></h2><p>开发一个spark程序，功能是读取sql内容，并逐个执行。使用spark-submit提交执行时设置为cluster模式。代码如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">package</span> cn.winway.data;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> org.apache.spark.SparkConf;</span><br><span class="line"><span class="keyword">import</span> org.apache.spark.sql.SparkSession;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.util.ArrayList;</span><br><span class="line"><span class="keyword">import</span> java.util.HashMap;</span><br><span class="line"><span class="keyword">import</span> java.util.List;</span><br><span class="line"><span class="keyword">import</span> java.util.Map;</span><br><span class="line"></span><br><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * * <span class="doctag">@Project</span>: spark_sql_executor</span></span><br><span class="line"><span class="comment"> * * <span class="doctag">@ClassName</span>: SparkSqlExecutor</span></span><br><span class="line"><span class="comment"> * * <span class="doctag">@Description</span>: spark-submit执行sql，使用cluster模式</span></span><br><span class="line"><span class="comment"> * * 参考资料</span></span><br><span class="line"><span class="comment"> * * https://blog.csdn.net/qq_16038125/article/details/86682466</span></span><br><span class="line"><span class="comment"> * * https://www.zhihu.com/question/454650801/answer/1836054040</span></span><br><span class="line"><span class="comment"> * * https://blog.csdn.net/zhiwenshow/article/details/107105339</span></span><br><span class="line"><span class="comment"> * * https://blog.csdn.net/qq_42567973/article/details/119568448</span></span><br><span class="line"><span class="comment"> * * <span class="doctag">@Author</span>: winway1988@163.com</span></span><br><span class="line"><span class="comment"> * * <span class="doctag">@Create</span>: 2022-01-11 16:58</span></span><br><span class="line"><span class="comment"> **/</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">SparkSqlExecutor</span> </span>&#123;</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> HashMap&lt;String, String&gt; argsMap = <span class="keyword">new</span> HashMap&lt;&gt;();</span><br><span class="line">    <span class="keyword">private</span> <span class="keyword">static</span> String fileContent;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 参数解析</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">parseArgs</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        String argType = <span class="keyword">null</span>;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (String arg : args) &#123;</span><br><span class="line">            System.out.println(<span class="string">"====&gt;&gt; arg: "</span> + arg);</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (<span class="string">"--hivevar"</span>.equals(arg) || <span class="string">"--hiveconf"</span>.equals(arg)) &#123;</span><br><span class="line">                argType = <span class="string">"ARG"</span>;</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (<span class="string">"-f"</span>.equals(arg)) &#123;</span><br><span class="line">                argType = <span class="string">"FILE"</span>;</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (<span class="string">"ARG"</span>.equals(argType)) &#123;</span><br><span class="line">                String[] argSplit = arg.split(<span class="string">"="</span>, <span class="number">2</span>);</span><br><span class="line">                argsMap.put(argSplit[<span class="number">0</span>], argSplit[<span class="number">1</span>]);</span><br><span class="line"></span><br><span class="line">                argType = <span class="keyword">null</span>;</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (<span class="string">"FILE"</span>.equals(argType)) &#123;</span><br><span class="line">                fileContent = arg;</span><br><span class="line"></span><br><span class="line">                argType = <span class="keyword">null</span>;</span><br><span class="line">                <span class="keyword">continue</span>;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> Exception(<span class="string">"Error args: "</span> + arg);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 删除注释</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">static</span> String <span class="title">deleteComment</span><span class="params">(String sqlFileContent)</span> </span>&#123;</span><br><span class="line">        StringBuilder sb = <span class="keyword">new</span> StringBuilder();</span><br><span class="line"></span><br><span class="line">        String[] sqlFileContentLine = sqlFileContent.split(<span class="string">"\n"</span>);</span><br><span class="line">        <span class="keyword">for</span> (String line : sqlFileContentLine) &#123;</span><br><span class="line">            sb.append(line.replaceAll(<span class="string">"^[ \t]*--.*$"</span>, <span class="string">""</span>).replaceAll(<span class="string">"--[^'\"]*$"</span>, <span class="string">""</span>));</span><br><span class="line">            sb.append(<span class="string">"\n"</span>);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> sb.toString();</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 替换变量</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">private</span> <span class="keyword">static</span> String <span class="title">substituteVar</span><span class="params">(String sqlFileContent)</span> </span>&#123;</span><br><span class="line">        <span class="keyword">for</span> (Map.Entry&lt;String, String&gt; e : argsMap.entrySet()) &#123;</span><br><span class="line">            String varName = e.getKey();</span><br><span class="line">            String varValue = e.getValue();</span><br><span class="line"></span><br><span class="line">            sqlFileContent = sqlFileContent.replace(<span class="string">"$&#123;hivevar:"</span> + varName + <span class="string">"&#125;"</span>, varValue);</span><br><span class="line">            sqlFileContent = sqlFileContent.replace(<span class="string">"$&#123;hiveconf:"</span> + varName + <span class="string">"&#125;"</span>, varValue);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> sqlFileContent;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="comment">/**</span></span><br><span class="line"><span class="comment">     * 根据指定分隔符分割sql，忽略在引号里面的分隔符</span></span><br><span class="line"><span class="comment">     */</span></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> List&lt;String&gt; <span class="title">splitSql</span><span class="params">(String str, <span class="keyword">char</span> delimiter)</span> </span>&#123;</span><br><span class="line">        List&lt;String&gt; tokensList = <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br><span class="line">        <span class="keyword">boolean</span> inQuotes = <span class="keyword">false</span>;</span><br><span class="line">        <span class="keyword">boolean</span> inSingleQuotes = <span class="keyword">false</span>;</span><br><span class="line"></span><br><span class="line">        StringBuilder b = <span class="keyword">new</span> StringBuilder();</span><br><span class="line">        <span class="keyword">char</span>[] chars = str.toCharArray();</span><br><span class="line"></span><br><span class="line">        <span class="keyword">int</span> idx = <span class="number">0</span>;</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">char</span> c : chars) &#123; <span class="comment">// 逐个字符遍历</span></span><br><span class="line">            <span class="keyword">char</span> flag = <span class="number">0</span>;</span><br><span class="line">            <span class="keyword">if</span> (idx &gt; <span class="number">0</span>) &#123;</span><br><span class="line">                flag = chars[idx - <span class="number">1</span>]; <span class="comment">// 前一个字符</span></span><br><span class="line">            &#125;</span><br><span class="line">            <span class="keyword">if</span> (c == delimiter) &#123; <span class="comment">// 遇到分隔符</span></span><br><span class="line">                <span class="keyword">if</span> (inQuotes) &#123;</span><br><span class="line">                    b.append(c);</span><br><span class="line">                &#125; <span class="keyword">else</span> <span class="keyword">if</span> (inSingleQuotes) &#123;</span><br><span class="line">                    b.append(c);</span><br><span class="line">                &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                    tokensList.add(b.toString());</span><br><span class="line">                    b = <span class="keyword">new</span> StringBuilder();</span><br><span class="line">                &#125;</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (c == <span class="string">'\"'</span> &amp;&amp; <span class="string">'\\'</span> != flag &amp;&amp; !inSingleQuotes) &#123; <span class="comment">// 遇到双引号</span></span><br><span class="line">                inQuotes = !inQuotes;</span><br><span class="line">                b.append(c);</span><br><span class="line">            &#125; <span class="keyword">else</span> <span class="keyword">if</span> (c == <span class="string">'\''</span> &amp;&amp; <span class="string">'\\'</span> != flag &amp;&amp; !inQuotes) &#123; <span class="comment">// 遇到单引号</span></span><br><span class="line">                inSingleQuotes = !inSingleQuotes;</span><br><span class="line">                b.append(c);</span><br><span class="line">            &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">                b.append(c);</span><br><span class="line">            &#125;</span><br><span class="line">            idx++;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        tokensList.add(b.toString());</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> tokensList;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> Exception </span>&#123;</span><br><span class="line">        SparkConf sparkConf = <span class="keyword">new</span> SparkConf();</span><br><span class="line"></span><br><span class="line">        sparkConf.set(<span class="string">"spark.serializer"</span>, <span class="string">"org.apache.spark.serializer.KryoSerializer"</span>)</span><br><span class="line">                .set(<span class="string">"spark.sql.codegen"</span>, <span class="string">"true"</span>)</span><br><span class="line">                .set(<span class="string">"spark.rdd.compress"</span>, <span class="string">"true"</span>)</span><br><span class="line">                .set(<span class="string">"spark.sql.catalogImplementation"</span>, <span class="string">"hive"</span>)</span><br><span class="line">                .set(<span class="string">"hive.support.concurrency"</span>, <span class="string">"true"</span>);</span><br><span class="line"></span><br><span class="line">        SparkSession ss = SparkSession.builder()</span><br><span class="line">                .config(sparkConf)</span><br><span class="line">                .enableHiveSupport()</span><br><span class="line">                .getOrCreate();</span><br><span class="line"></span><br><span class="line">        parseArgs(args);</span><br><span class="line"></span><br><span class="line">        System.out.println(<span class="string">"====&gt;&gt; argsMap: "</span>);</span><br><span class="line">        System.out.println(argsMap);</span><br><span class="line">        System.out.println(<span class="string">"====&gt;&gt; fileContent: "</span>);</span><br><span class="line">        System.out.println(fileContent);</span><br><span class="line"></span><br><span class="line">        String sqlFileContent = deleteComment(fileContent);</span><br><span class="line"></span><br><span class="line">        System.out.println(<span class="string">"====&gt;&gt; sqlFileContent: "</span>);</span><br><span class="line">        System.out.println(sqlFileContent);</span><br><span class="line"></span><br><span class="line">        sqlFileContent = substituteVar(sqlFileContent);</span><br><span class="line"></span><br><span class="line">        System.out.println(<span class="string">"====&gt;&gt; sqlFileContent: "</span>);</span><br><span class="line">        System.out.println(sqlFileContent);</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (String sql : splitSql(sqlFileContent, <span class="string">';'</span>)) &#123;</span><br><span class="line">            System.out.println(<span class="string">"====&gt;&gt; sql: "</span>);</span><br><span class="line">            System.out.println(sql.trim().length());</span><br><span class="line">            System.out.println(sql.trim());</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (sql.trim().length() &gt; <span class="number">0</span>) &#123;</span><br><span class="line">                ss.sql(sql.trim());</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        ss.stop();</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
+<p>提交命令：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line">spark-submit \</span><br><span class="line">    --class cn.winway.data.SparkSqlExecutor \</span><br><span class="line">    --master yarn \</span><br><span class="line">    --deploy-mode cluster \</span><br><span class="line">    --name "SparkSqlExecutor" \</span><br><span class="line">    --driver-cores 1  \</span><br><span class="line">    --driver-memory 1G \</span><br><span class="line">    --executor-cores 2  \</span><br><span class="line">    --executor-memory 2G \</span><br><span class="line">    --conf spark.executor.memoryOverhead=1G \</span><br><span class="line">    --conf spark.dynamicAllocation.enabled=true \</span><br><span class="line">    --conf spark.shuffle.service.enabled=true \</span><br><span class="line">    --conf spark.dynamicAllocation.minExecutors=10 \</span><br><span class="line">    --conf spark.dynamicAllocation.maxExecutors=400 \</span><br><span class="line">    --conf spark.dynamicAllocation.initialExecutors=10 \</span><br><span class="line">    --conf spark.sql.shuffle.partitions=500 \</span><br><span class="line">    --conf spark.sql.files.maxPartitionBytes=268435456 \</span><br><span class="line">    --conf spark.default.parallelism=500 \</span><br><span class="line">    --conf spark.sql.broadcastTimeout=900 \</span><br><span class="line">    --conf spark.ui.showConsoleProgress=true \</span><br><span class="line">    --conf spark.sql.hive.caseSensitiveInferenceMode=NEVER_INFER \</span><br><span class="line">    --conf spark.sql.adaptive.enabled=false \</span><br><span class="line">    --conf spark.debug.maxToStringFields=100 \</span><br><span class="line">    --conf spark.port.maxRetries=300 \</span><br><span class="line">    spark_sql_executor-1.0-SNAPSHOT.jar \</span><br><span class="line">    --hivevar etl_time="2022-01-11 11:11:11" \</span><br><span class="line">    --hivevar etl_date=2022-01-11 \</span><br><span class="line">    --hivevar rpt_date="2022-01-11" \</span><br><span class="line">    --hivevar year=2022 \</span><br><span class="line">    --hivevar month=2022-01 \</span><br><span class="line">    --hivevar hour="2022-01-11 11" \</span><br><span class="line">    -f "$(cat test.hql)"</span><br></pre></td></tr></table></figure></p>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">spark</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2022/01/16/sparksql-cluster/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-hs2-gc" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
@@ -380,102 +481,9 @@
 
 
   
-    <article id="post-gate-recommend" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2021/11/12/gate-recommend/">🪜🪜🪜🪜推荐</a>
-    </h1>
-  
-
-        
-        <a href="/2021/11/12/gate-recommend/" class="archive-article-date">
-  	<time datetime="2021-11-12T08:39:51.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-11-12</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<!-- tocstop -->
-<p><strong><em><a href="https://portal.shadowsocks.au/aff.php?aff=71233" target="_blank" rel="noopener">&gt;&gt;&gt; 🪜🪜🪜🪜 &lt;&lt;&lt;</a></em></strong></p>
-<p><img src="https://portal.shadowsocks.nz/assets/img/logo.png" alt=""></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">proxy</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/其他/" class="article-tag-list-link color3">其他</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2021/11/12/gate-recommend/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
   
     <nav id="page-nav">
-      <a class="extend prev" rel="prev" href="/page/13/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><a class="page-number" href="/page/13/">13</a><span class="page-number current">14</span><a class="page-number" href="/page/15/">15</a><a class="page-number" href="/page/16/">16</a><span class="space">&hellip;</span><a class="page-number" href="/page/42/">42</a><a class="extend next" rel="next" href="/page/15/">Next &raquo;</a>
+      <a class="extend prev" rel="prev" href="/page/13/">&laquo; Prev</a><a class="page-number" href="/">1</a><span class="space">&hellip;</span><a class="page-number" href="/page/12/">12</a><a class="page-number" href="/page/13/">13</a><span class="page-number current">14</span><a class="page-number" href="/page/15/">15</a><a class="page-number" href="/page/16/">16</a><span class="space">&hellip;</span><a class="page-number" href="/page/43/">43</a><a class="extend next" rel="next" href="/page/15/">Next &raquo;</a>
     </nav>
   
 
@@ -589,6 +597,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">C</a>
               </li>
              
@@ -605,7 +617,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">python</a>
+                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -621,10 +633,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">canal</a>
               </li>
              
@@ -633,11 +641,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -649,10 +661,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">sqoop</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">systemd</a>
               </li>
              
@@ -661,15 +669,23 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">Python</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">proxy</a>
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">Python</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">snmp</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">备份</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -678,14 +694,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">grafana</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">备份</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -709,67 +717,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">storm</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">datax</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">kafka</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">olap</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">presto</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">iptables</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
+                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -785,7 +737,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">protobuf</a>
+                <a href="javascript:void(0)" class="js-tag color4">kerberos</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">ranger</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -797,11 +753,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
+                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mutt</a>
+                <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -825,15 +781,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">spark</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">springboot</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">keytool</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">spark</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -845,19 +805,55 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">storm</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+                <a href="javascript:void(0)" class="js-tag color1">datax</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+                <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">kudu</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">olap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kylin</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">presto</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">spark streaming</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">数仓</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">iptables</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">firewalld</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -882,6 +878,18 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">rundeck</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">实时数仓</a>
               </li>
              
               <li class="article-tag-list-item">
