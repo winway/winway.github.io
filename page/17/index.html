@@ -156,6 +156,280 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-orc-snappy-splittable" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2021/03/30/orc-snappy-splittable/">Is orc+SNAPPY splittable?</a>
+    </h1>
+  
+
+        
+        <a href="/2021/03/30/orc-snappy-splittable/" class="archive-article-date">
+  	<time datetime="2021-03-30T09:24:54.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-03-30</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#orcparquetsnappy是不是可分的">orc/parquet+SNAPPY是不是可分的？</a><ul>
+<li><a href="#问题">问题</a></li>
+<li><a href="#测试过程">测试过程</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+</li>
+</ul>
+<!-- tocstop -->
+<h1><span id="orcparquetsnappy是不是可分的">orc/parquet+SNAPPY是不是可分的？</span></h1><p><strong>先说结论，实际测试结果是：orc+SNAPPY和parquet+SNAPPY都是可分的。</strong></p>
+<h2><span id="问题">问题</span></h2><p>最近遇到一个场景，想通过设置<code>tez.grouping.min-size/tez.grouping.max-size</code>参数，增加tez mapper数量，但是无论怎么调整这两个参数，tez mapper的数量始终不变。</p>
+<p>在我的认知里，一直认为orc+SNAPPY是可分的。查询网上的资料，说法不统一，但是大部分的观点也是可分的。</p>
+<p><a href="https://stackoverflow.com/questions/32382352/is-snappy-splittable-or-not-splittable" target="_blank" rel="noopener">https://stackoverflow.com/questions/32382352/is-snappy-splittable-or-not-splittable</a><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/orc_snappy1.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/orc_snappy2.png" alt=""></p>
+<p><a href="http://cloudsqale.com/2018/12/24/orc-files-split-computation-hive-on-tez/" target="_blank" rel="noopener">http://cloudsqale.com/2018/12/24/orc-files-split-computation-hive-on-tez/</a><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/orc_snappy3.png" alt=""></p>
+<p><a href="https://www.jianshu.com/p/885a3eca6f97" target="_blank" rel="noopener">https://www.jianshu.com/p/885a3eca6f97</a><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/orc_snappy4.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/orc_snappy5.png" alt=""></p>
+<h2><span id="测试过程">测试过程</span></h2><p>于是进行了下述测试。<br><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">-- 创建orc+SNAPPY表</span></span><br><span class="line"><span class="keyword">create</span> <span class="keyword">table</span> tmp.tmp_orc_parquet_test_orc <span class="keyword">STORED</span> <span class="keyword">as</span> orc TBLPROPERTIES (<span class="string">'orc.compress'</span>=<span class="string">'SNAPPY'</span>) <span class="keyword">as</span> </span><br><span class="line"><span class="keyword">select</span> t1.uid, <span class="keyword">action</span>, day_range, entity_id, cnt</span><br><span class="line"><span class="keyword">from</span> (</span><br><span class="line">    <span class="keyword">select</span> uid</span><br><span class="line">           ,nvl(<span class="keyword">action</span>, <span class="string">'all'</span>) <span class="keyword">as</span> <span class="keyword">action</span></span><br><span class="line">           ,day_range</span><br><span class="line">           ,entity_id</span><br><span class="line">           ,<span class="keyword">sum</span>(cnt) <span class="keyword">as</span> cnt</span><br><span class="line">    <span class="keyword">from</span> (</span><br><span class="line">        <span class="keyword">select</span> uid</span><br><span class="line">               ,(<span class="keyword">case</span> <span class="keyword">when</span> <span class="keyword">action</span>=<span class="string">'chat'</span> <span class="keyword">then</span> <span class="keyword">action</span></span><br><span class="line">                      <span class="keyword">when</span> <span class="keyword">action</span>=<span class="string">'publish'</span> <span class="keyword">then</span> <span class="keyword">action</span></span><br><span class="line">                      <span class="keyword">else</span> <span class="string">'interact'</span> <span class="keyword">end</span>) <span class="keyword">as</span> <span class="keyword">action</span></span><br><span class="line">               ,<span class="number">1</span> <span class="keyword">as</span> day_range</span><br><span class="line">               ,entity_id</span><br><span class="line">               ,cnt_d <span class="keyword">as</span> cnt</span><br><span class="line">        <span class="keyword">from</span> tmp.orc_parquet_test_input</span><br><span class="line">        <span class="keyword">where</span> <span class="keyword">day</span>=<span class="string">'2021-03-29'</span> <span class="keyword">and</span> cnt_d&gt;<span class="number">0</span></span><br><span class="line">    ) t</span><br><span class="line">    <span class="keyword">group</span> <span class="keyword">by</span> uid, <span class="keyword">action</span>, day_range, entity_id</span><br><span class="line">    <span class="keyword">grouping</span> <span class="keyword">sets</span>((uid, day_range, entity_id), (uid, <span class="keyword">action</span>, day_range, entity_id))</span><br><span class="line">) t1</span><br><span class="line">;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">--文件结构</span></span><br><span class="line">257044486 2021-03-30 15:52 hdfs://warehouse/tmp.db/tmp_orc_parquet_test_orc/000000_0</span><br><span class="line">111486209 2021-03-30 15:52 hdfs://warehouse/tmp.db/tmp_orc_parquet_test_orc/000001_0</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 创建parquet+SNAPPY表</span></span><br><span class="line"><span class="keyword">create</span> <span class="keyword">table</span> tmp.tmp_orc_parquet_test_parquet <span class="keyword">STORED</span> <span class="keyword">as</span> parquet TBLPROPERTIES(<span class="string">'parquet.compression'</span>=<span class="string">'SNAPPY'</span>) <span class="keyword">as</span> </span><br><span class="line"><span class="keyword">select</span> t1.uid, <span class="keyword">action</span>, day_range, entity_id, cnt</span><br><span class="line"><span class="keyword">from</span> (</span><br><span class="line">    <span class="keyword">select</span> uid</span><br><span class="line">           ,nvl(<span class="keyword">action</span>, <span class="string">'all'</span>) <span class="keyword">as</span> <span class="keyword">action</span></span><br><span class="line">           ,day_range</span><br><span class="line">           ,entity_id</span><br><span class="line">           ,<span class="keyword">sum</span>(cnt) <span class="keyword">as</span> cnt</span><br><span class="line">    <span class="keyword">from</span> (</span><br><span class="line">        <span class="keyword">select</span> uid</span><br><span class="line">               ,(<span class="keyword">case</span> <span class="keyword">when</span> <span class="keyword">action</span>=<span class="string">'chat'</span> <span class="keyword">then</span> <span class="keyword">action</span></span><br><span class="line">                      <span class="keyword">when</span> <span class="keyword">action</span>=<span class="string">'publish'</span> <span class="keyword">then</span> <span class="keyword">action</span></span><br><span class="line">                      <span class="keyword">else</span> <span class="string">'interact'</span> <span class="keyword">end</span>) <span class="keyword">as</span> <span class="keyword">action</span></span><br><span class="line">               ,<span class="number">1</span> <span class="keyword">as</span> day_range</span><br><span class="line">               ,entity_id</span><br><span class="line">               ,cnt_d <span class="keyword">as</span> cnt</span><br><span class="line">        <span class="keyword">from</span> tmp.orc_parquet_test_input</span><br><span class="line">        <span class="keyword">where</span> <span class="keyword">day</span>=<span class="string">'2021-03-29'</span> <span class="keyword">and</span> cnt_d&gt;<span class="number">0</span></span><br><span class="line">    ) t</span><br><span class="line">    <span class="keyword">group</span> <span class="keyword">by</span> uid, <span class="keyword">action</span>, day_range, entity_id</span><br><span class="line">    <span class="keyword">grouping</span> <span class="keyword">sets</span>((uid, day_range, entity_id), (uid, <span class="keyword">action</span>, day_range, entity_id))</span><br><span class="line">) t1</span><br><span class="line">;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">--文件结构</span></span><br><span class="line">272461453 2021-03-30 15:53 hdfs://warehouse/tmp.db/tmp_orc_parquet_test_parquet/000000_0</span><br><span class="line">105226145 2021-03-30 15:51 hdfs://warehouse/tmp.db/tmp_orc_parquet_test_parquet/000001_0</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 查询测试orc+SNAPPY</span></span><br><span class="line"><span class="keyword">select</span> <span class="keyword">action</span>, <span class="keyword">count</span>(*) <span class="keyword">from</span> tmp.tmp_orc_parquet_test_orc <span class="keyword">group</span> <span class="keyword">by</span> <span class="keyword">action</span>;</span><br><span class="line">Query ID = root_20210330180037_a584d773-c304-43f4-9df7-6acbd1551e08</span><br><span class="line">Total jobs = 1</span><br><span class="line">Launching Job 1 out of 1</span><br><span class="line">Status: Running (Executing on YARN cluster with App id application_1585297125447_2191065)</span><br><span class="line"></span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">        VERTICES      MODE        STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">Map 1 .......... container     SUCCEEDED      3          3        0        0       0       0  </span><br><span class="line">Reducer 2 ...... container     SUCCEEDED      2          2        0        0       0       0  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">VERTICES: 02/02  [==========================&gt;&gt;] 100%  ELAPSED TIME: 34.31 s    </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 查询测试parquet+SNAPPY</span></span><br><span class="line"><span class="keyword">select</span> <span class="keyword">action</span>, <span class="keyword">count</span>(*) <span class="keyword">from</span> tmp.tmp_orc_parquet_test_parquet <span class="keyword">group</span> <span class="keyword">by</span> <span class="keyword">action</span>;</span><br><span class="line">Query ID = root_20210330175955_56c67b68-4b51-41bc-8873-d61710fc9eb9</span><br><span class="line">Total jobs = 1</span><br><span class="line">Launching Job 1 out of 1</span><br><span class="line">Status: Running (Executing on YARN cluster with App id application_1585297125447_2191021)</span><br><span class="line"></span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">        VERTICES      MODE        STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">Map 1 .......... container     SUCCEEDED      8          8        0        0       0       0  </span><br><span class="line">Reducer 2 ...... container     SUCCEEDED      3          3        0        0       0       0  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">VERTICES: 02/02  [==========================&gt;&gt;] 100%  ELAPSED TIME: 16.62 s    </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">--设置读取size</span></span><br><span class="line"><span class="keyword">SET</span> tez.grouping.min-<span class="keyword">size</span>=<span class="number">10000000</span>; <span class="comment">-- 10M</span></span><br><span class="line"><span class="keyword">SET</span> tez.grouping.max-<span class="keyword">size</span>=<span class="number">50000000</span>;  <span class="comment">-- 50M</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 查询测试orc+SNAPPY</span></span><br><span class="line"><span class="keyword">select</span> <span class="keyword">action</span>, <span class="keyword">count</span>(*) <span class="keyword">from</span> tmp.tmp_orc_parquet_test_orc <span class="keyword">group</span> <span class="keyword">by</span> <span class="keyword">action</span>;</span><br><span class="line">Query ID = root_20210330180147_331eb0b4-5ab4-4b5d-aedb-f3492852c563</span><br><span class="line">Total jobs = 1</span><br><span class="line">Launching Job 1 out of 1</span><br><span class="line">Status: Running (Executing on YARN cluster with App id application_1585297125447_2191065)</span><br><span class="line"></span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">        VERTICES      MODE        STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">Map 1 .......... container     SUCCEEDED      3          3        0        0       0       0  </span><br><span class="line">Reducer 2 ...... container     SUCCEEDED      2          2        0        0       0       0  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">VERTICES: 02/02  [==========================&gt;&gt;] 100%  ELAPSED TIME: 20.13 s    </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 查询测试parquet+SNAPPY</span></span><br><span class="line"><span class="keyword">select</span> <span class="keyword">action</span>, <span class="keyword">count</span>(*) <span class="keyword">from</span> tmp.tmp_orc_parquet_test_parquet <span class="keyword">group</span> <span class="keyword">by</span> <span class="keyword">action</span>;</span><br><span class="line">Query ID = root_20210330180217_bb02f52f-6c3b-4bcf-ae70-ec44abb306c4</span><br><span class="line">Total jobs = 1</span><br><span class="line">Launching Job 1 out of 1</span><br><span class="line">Status: Running (Executing on YARN cluster with App id application_1585297125447_2191065)</span><br><span class="line"></span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">        VERTICES      MODE        STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">Map 1 .......... container     SUCCEEDED     39         39        0        0       0       0  </span><br><span class="line">Reducer 2 ...... container     SUCCEEDED      3          3        0        0       0       0  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">VERTICES: 02/02  [==========================&gt;&gt;] 100%  ELAPSED TIME: 21.49 s    </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">SET</span> mapreduce.input.fileinputformat.split.minsize=<span class="number">10000000</span>;</span><br><span class="line"><span class="keyword">SET</span> mapreduce.input.fileinputformat.split.maxsize=<span class="number">50000000</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">select</span> <span class="keyword">action</span>, <span class="keyword">count</span>(*) <span class="keyword">from</span> tmp.tmp_orc_parquet_test_orc <span class="keyword">group</span> <span class="keyword">by</span> <span class="keyword">action</span>;</span><br><span class="line">Query ID = root_20210406174753_a44ae3da-81be-4905-b965-67ae5fa35d14</span><br><span class="line">Total jobs = 1</span><br><span class="line">Launching Job 1 out of 1</span><br><span class="line">Status: Running (Executing on YARN cluster with App id application_1585297125447_2234780)</span><br><span class="line"></span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">        VERTICES      MODE        STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">Map 1 .......... container     SUCCEEDED     11         11        0        0       0       0  </span><br><span class="line">Reducer 2 ...... container     SUCCEEDED      4          4        0        0       0       0  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">VERTICES: 02/02  [==========================&gt;&gt;] 100%  ELAPSED TIME: 7.10 s     </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br></pre></td></tr></table></figure></p>
+<p>可见通过减小<code>tez.grouping.min-size/tez.grouping.max-size</code>参数，可以增加parquet+SNAPPY的mapper数，但是orc+SNAPPY的mapper数不变。<br>通过减小<code>mapreduce.input.fileinputformat.split.minsize、mapreduce.input.fileinputformat.split.maxsize</code>参数，可以增加orc+SNAPPY和parquet+SNAPPY的mapper数。<br>至于更深层次的原因，还没有功夫就探究。</p>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://stackoverflow.com/questions/32382352/is-snappy-splittable-or-not-splittable" target="_blank" rel="noopener">https://stackoverflow.com/questions/32382352/is-snappy-splittable-or-not-splittable</a></li>
+<li><a href="http://cloudsqale.com/2018/12/24/orc-files-split-computation-hive-on-tez/" target="_blank" rel="noopener">http://cloudsqale.com/2018/12/24/orc-files-split-computation-hive-on-tez/</a></li>
+<li><a href="https://orc.apache.org/docs/hive-config.html" target="_blank" rel="noopener">https://orc.apache.org/docs/hive-config.html</a></li>
+<li><a href="https://www.jianshu.com/p/885a3eca6f97" target="_blank" rel="noopener">https://www.jianshu.com/p/885a3eca6f97</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">tez</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">orc</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">snappy</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2021/03/30/orc-snappy-splittable/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-hdfscompress" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2020/06/06/hdfscompress/">HDFS文件压缩转储</a>
+    </h1>
+  
+
+        
+        <a href="/2020/06/06/hdfscompress/" class="archive-article-date">
+  	<time datetime="2020-06-06T09:00:01.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2020-06-06</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#需求">需求</a></li>
+<li><a href="#步骤">步骤</a><ul>
+<li><a href="#选取压缩类型">选取压缩类型</a></li>
+<li><a href="#转储">转储</a></li>
+</ul>
+</li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<h1><span id="需求">需求</span></h1><p>定期将HDFS文件压缩转储到阿里云OSS。</p>
+<h1><span id="步骤">步骤</span></h1><h2><span id="选取压缩类型">选取压缩类型</span></h2><p>Hadoop支持的主流压缩格式包括以下几种：</p>
+<table>
+<thead>
+<tr>
+<th>Codec</th>
+<th>File Extension</th>
+<th>Splittable?</th>
+<th>Degree of Compression</th>
+<th>Compression Speed</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gzip</td>
+<td>.gz</td>
+<td>No</td>
+<td>Medium</td>
+<td>Medium</td>
+</tr>
+<tr>
+<td>Bzip2</td>
+<td>.bz2</td>
+<td>Yes</td>
+<td>High</td>
+<td>Slow</td>
+</tr>
+<tr>
+<td>Snappy</td>
+<td>.snappy</td>
+<td>No</td>
+<td>Medium</td>
+<td>Fast</td>
+</tr>
+<tr>
+<td>LZO</td>
+<td>.lzo</td>
+<td>No, unless indexed</td>
+<td>Medium</td>
+<td>Fast</td>
+</tr>
+</tbody>
+</table>
+<p>其中可分割的只有bzip2和lzo(indexed)。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">hadoop jar $HADOOP_HOME/share/hadoop/tools/lib/hadoop-streaming-2.7.2.jar \</span><br><span class="line">    -Dmapreduce.map.java.opts=&apos;-Xmx768m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.map.memory.mb=1024 \</span><br><span class="line">    -Dmapreduce.reduce.java.opts=&apos;-Xmx1536m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.reduce.memory.mb=2048 \</span><br><span class="line">    -Dmapreduce.job.reduce.slowstart.completedmaps=0.9 \</span><br><span class="line">    -Dmapred.reduce.tasks=$parallelN \</span><br><span class="line">    -Dmapred.output.compress=true \</span><br><span class="line">    -Dmapred.compress.map.output=true \</span><br><span class="line">    -Dmapred.output.compression.codec=org.apache.hadoop.io.compress.BZip2Codec \</span><br><span class="line">    -input $hdfspath \</span><br><span class="line">    -output $hdfszippath \</span><br><span class="line">    -mapper /bin/cat \</span><br><span class="line">    -reducer /bin/cat \</span><br><span class="line">    -inputformat org.apache.hadoop.mapred.TextInputFormat \</span><br><span class="line">    -outputformat org.apache.hadoop.mapred.TextOutputFormat</span><br></pre></td></tr></table></figure></p>
+<p>先是使用bizp2进行了测试，但是压缩速度实在是太慢了，于是决定使用lzo。<br>lzo为了达到可分割，需要在压缩之后建立索引。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">hadoop jar $HADOOP_HOME/share/hadoop/tools/lib/hadoop-streaming-2.7.2.jar \</span><br><span class="line">    -Dmapreduce.map.java.opts=&apos;-Xmx768m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.map.memory.mb=1024 \</span><br><span class="line">    -Dmapreduce.reduce.java.opts=&apos;-Xmx1536m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.reduce.memory.mb=2048 \</span><br><span class="line">    -Dmapreduce.job.reduce.slowstart.completedmaps=0.9 \</span><br><span class="line">    -Dmapred.reduce.tasks=$parallelN \</span><br><span class="line">    -Dmapred.output.compress=true \</span><br><span class="line">    -Dmapred.compress.map.output=true \</span><br><span class="line">    -Dmapred.output.compression.codec=com.hadoop.compression.lzo.LzopCodec \</span><br><span class="line">    -input $hdfspath \</span><br><span class="line">    -output $hdfszippath \</span><br><span class="line">    -mapper /bin/cat \</span><br><span class="line">    -reducer /bin/cat \</span><br><span class="line">    -inputformat org.apache.hadoop.mapred.TextInputFormat \</span><br><span class="line">    -outputformat org.apache.hadoop.mapred.TextOutputFormat</span><br><span class="line"></span><br><span class="line">hadoop jar $HADOOP_HOME/lib/hadoop-lzo-0.4.21-SNAPSHOT.jar com.hadoop.compression.lzo.DistributedLzoIndexer $hdfszippath</span><br></pre></td></tr></table></figure></p>
+<h2><span id="转储">转储</span></h2><p>压缩完毕后，将文件拷贝到oss。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hadoop distcp -Dmapreduce.task.timeout=1200000 -m $parallelN $&#123;hdfszippath&#125;/* $&#123;osspath&#125;/</span><br></pre></td></tr></table></figure></p>
+<p><em>distcp过程中遇到一个问题：如果单个文件过大，在往oss拷贝的时候有可能失败，所以需要通过设置压缩任务reduce个数，控制最终单个文件的大小。</em></p>
+<h1><span id="参考资料">参考资料</span></h1><ul>
+<li><a href="https://www.dummies.com/programming/big-data/hadoop/compressing-data-in-hadoop/" target="_blank" rel="noopener">https://www.dummies.com/programming/big-data/hadoop/compressing-data-in-hadoop/</a></li>
+<li><a href="https://data-flair.training/forums/topic/which-compression-is-used-in-hadoop-which-of-them-is-splittable/" target="_blank" rel="noopener">https://data-flair.training/forums/topic/which-compression-is-used-in-hadoop-which-of-them-is-splittable/</a></li>
+<li><a href="https://blog.csdn.net/fjssharpsword/article/details/74908251" target="_blank" rel="noopener">https://blog.csdn.net/fjssharpsword/article/details/74908251</a></li>
+<li><a href="https://www.jianshu.com/p/10fc6c511761" target="_blank" rel="noopener">https://www.jianshu.com/p/10fc6c511761</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">hdfs</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2020/06/06/hdfscompress/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-sparkProblems" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
@@ -239,453 +513,6 @@
       
         <p class="article-more-link">
           <a class="article-more-a" href="/2020/06/06/sparkProblems/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-phoneRegion" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2020/02/28/phoneRegion/">手机号归属地查询</a>
-    </h1>
-  
-
-        
-        <a href="/2020/02/28/phoneRegion/" class="archive-article-date">
-  	<time datetime="2020-02-28T09:52:07.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2020-02-28</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#背景">背景</a><ul>
-<li><a href="#实时查询">实时查询</a></li>
-<li><a href="#离线查询">离线查询</a></li>
-</ul>
-</li>
-</ul>
-<!-- tocstop -->
-<h2><span id="背景">背景</span></h2><p>根据手机号查询归属地信息有很多种方法，可以使用<a href="http://www.ip138.com/sj/" target="_blank" rel="noopener">网页</a>查询，或使用程序调用其查询接口。不过如果需要频繁的或大批量的查询，这种方式就不太可行了。下面介绍两种使用场景，供大家参考。</p>
-<h3><span id="实时查询">实时查询</span></h3><p><em>场景：使用spark streaming实时消费用户注册信息（kafka），根据其中的手机号获取到对应的归属地信息并存储。</em><br>这种场景对处理延时要求较高，需要将归属地查询服务集成到程序内部，或至少提供内网的rpc调用方法。可以使用下面的库，支持java、python、go。<br><a href="https://github.com/fengjiajie/phone-number-geo" target="_blank" rel="noopener">https://github.com/fengjiajie/phone-number-geo</a></p>
-<h3><span id="离线查询">离线查询</span></h3><p><em>场景：数仓中查询用户的归属地信息，根据归属地信息进行聚合、统计。</em><br>这种场景由于涉及数据量较大，使用调用查询的方式不太可行，因为会进行上亿次的查询。可以将手机号和归属地的对应关系事先全部加载到hive表中，查询的时候根据手机号进行关联，具体方法如下。</p>
-<ol>
-<li><p>下载手机号归属地<a href="https://pypi.org/project/phone-db/" target="_blank" rel="noopener">数据文件</a>，这个文件是sqlite数据文件，可以使用sqlite打开。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"># sqlite3 phone.db</span><br><span class="line">sqlite&gt; .table</span><br><span class="line">phones   regions</span><br><span class="line">sqlite&gt; .schema phones # 查看表结构</span><br><span class="line">CREATE TABLE phones (</span><br><span class="line">        id INTEGER NOT NULL,</span><br><span class="line">        number INTEGER,</span><br><span class="line">        type INTEGER,</span><br><span class="line">        region_id INTEGER,</span><br><span class="line">        PRIMARY KEY (id),</span><br><span class="line">        FOREIGN KEY(region_id) REFERENCES regions (id)</span><br><span class="line">);</span><br><span class="line">CREATE INDEX ix_phones_number ON phones (number);</span><br><span class="line">sqlite&gt; .schema regions</span><br><span class="line">CREATE TABLE regions (</span><br><span class="line">        id INTEGER NOT NULL,</span><br><span class="line">        province VARCHAR,</span><br><span class="line">        city VARCHAR,</span><br><span class="line">        zip_code VARCHAR,</span><br><span class="line">        area_code VARCHAR,</span><br><span class="line">        PRIMARY KEY (id)</span><br><span class="line">);</span><br><span class="line">sqlite&gt; .headers on # 导出csv格式文件</span><br><span class="line">sqlite&gt; .mode csv</span><br><span class="line">sqlite&gt; .output /tmp/data.csv</span><br><span class="line">sqlite&gt; select t1.number, t1.type, t2.province, t2.city, t2.zip_code, t2.area_code from (</span><br><span class="line">   ...&gt;     select number, type, region_id from phones</span><br><span class="line">   ...&gt; ) t1 left join (</span><br><span class="line">   ...&gt;     select id, province, city, zip_code, area_code from regions</span><br><span class="line">   ...&gt; ) t2 on t1.region_id = t2.id;</span><br><span class="line">sqlite&gt; .quit</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>data.csv里面就是所有手机号归属地的对应信息了。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"># sed -i &apos;s/,/\t/g; s/&quot;//g&apos; /tmp/data.csv</span><br><span class="line"># head /tmp/data.csv</span><br><span class="line">0       2       山东    济南    250000  0531</span><br><span class="line">1300001 2       江苏    常州    213000  0519</span><br><span class="line">1300002 2       安徽    合肥    230000  0551</span><br><span class="line">1300003 2       四川    宜宾    644000  0831</span><br><span class="line">1300004 2       四川    自贡    643000  0813</span><br><span class="line">1300005 2       陕西    西安    710000  029</span><br><span class="line">1300006 2       江苏    南京    210000  025</span><br><span class="line">1300007 2       陕西    西安    710000  029</span><br><span class="line">1300008 2       湖北    武汉    430000  027</span><br><span class="line">1300009 2       陕西    西安    710000  029</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>将csv文件加载到hive表中。</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line">hive&gt; CREATE TABLE IF NOT EXISTS phone_region (</span><br><span class="line">    &gt; phone7             STRING     COMMENT &apos;手机号前7位&apos;,</span><br><span class="line">    &gt; phone_type         STRING     COMMENT &apos;手机号运营商&apos;,</span><br><span class="line">    &gt; province           STRING     COMMENT &apos;省&apos;,</span><br><span class="line">    &gt; city               STRING     COMMENT &apos;城市&apos;,</span><br><span class="line">    &gt; zip_code           STRING     COMMENT &apos;邮编&apos;,</span><br><span class="line">    &gt; area_code          STRING     COMMENT &apos;区号&apos;</span><br><span class="line">    &gt; ) COMMENT &apos;手机号归属地映射表&apos;</span><br><span class="line">    &gt; ROW FORMAT SERDE</span><br><span class="line">    &gt;     &apos;org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe&apos;</span><br><span class="line">    &gt; WITH SERDEPROPERTIES (</span><br><span class="line">    &gt;     &apos;colelction.delim&apos;=&apos;-&apos;,</span><br><span class="line">    &gt;     &apos;field.delim&apos;=&apos;\t&apos;,</span><br><span class="line">    &gt;     &apos;line.delim&apos;=&apos;\n&apos;,</span><br><span class="line">    &gt;     &apos;mapkey.delim&apos;=&apos;:&apos;,</span><br><span class="line">    &gt;     &apos;serialization.format&apos;=&apos;\t&apos;</span><br><span class="line">    &gt; );</span><br><span class="line">OK</span><br><span class="line">Time taken: 0.376 seconds</span><br><span class="line">hive&gt; LOAD DATA LOCAL INPATH &apos;/tmp/data.csv&apos; INTO TABLE phone_region;</span><br><span class="line">Loading data to table phone_region</span><br><span class="line">OK</span><br><span class="line">Time taken: 3.489 seconds</span><br><span class="line">hive&gt; INSERT OVERWRITE TABLE phone_region</span><br><span class="line">    &gt; SELECT phone7</span><br><span class="line">    &gt;        ,(CASE WHEN phone_type=&apos;1&apos; THEN &apos;移动&apos;</span><br><span class="line">    &gt;               WHEN phone_type=&apos;2&apos; THEN &apos;联通&apos;</span><br><span class="line">    &gt;               WHEN phone_type=&apos;3&apos; THEN &apos;电信&apos;</span><br><span class="line">    &gt;               WHEN phone_type=&apos;4&apos; THEN &apos;电信虚拟运营商&apos;</span><br><span class="line">    &gt;               WHEN phone_type=&apos;5&apos; THEN &apos;联通虚拟运营商&apos;</span><br><span class="line">    &gt;               WHEN phone_type=&apos;6&apos; THEN &apos;移动虚拟运营商&apos;</span><br><span class="line">    &gt;               ELSE &apos;&apos; END)</span><br><span class="line">    &gt;        ,province</span><br><span class="line">    &gt;        ,city</span><br><span class="line">    &gt;        ,zip_code</span><br><span class="line">    &gt;        ,area_code</span><br><span class="line">    &gt; FROM phone_region;</span><br><span class="line">Loading data to table phone_region</span><br><span class="line">hive&gt; select * FROM phone_region limit 10;</span><br><span class="line">OK</span><br><span class="line">0       联通    山东    济南    250000  0531</span><br><span class="line">1300001 联通    江苏    常州    213000  0519</span><br><span class="line">1300002 联通    安徽    合肥    230000  0551</span><br><span class="line">1300003 联通    四川    宜宾    644000  0831</span><br><span class="line">1300004 联通    四川    自贡    643000  0813</span><br><span class="line">1300005 联通    陕西    西安    710000  029</span><br><span class="line">1300006 联通    江苏    南京    210000  025</span><br><span class="line">1300007 联通    陕西    西安    710000  029</span><br><span class="line">1300008 联通    湖北    武汉    430000  027</span><br><span class="line">1300009 联通    陕西    西安    710000  029</span><br><span class="line">Time taken: 0.191 seconds, Fetched: 10 row(s)</span><br><span class="line">hive&gt; SELECT COUNT(*) FROM phone_region;</span><br><span class="line">415284</span><br></pre></td></tr></table></figure></li>
-</ol>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">手机号</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">归属地</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/其他/" class="article-tag-list-link color3">其他</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2020/02/28/phoneRegion/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-flumeAction" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2019/09/13/flumeAction/">Flume实战总结</a>
-    </h1>
-  
-
-        
-        <a href="/2019/09/13/flumeAction/" class="archive-article-date">
-  	<time datetime="2019-09-13T07:32:31.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2019-09-13</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#前言">前言</a></li>
-<li><a href="#flume介绍">Flume介绍</a></li>
-<li><a href="#架构演进">架构演进</a></li>
-<li><a href="#kafka-topic覆盖问题">Kafka topic覆盖问题</a></li>
-<li><a href="#flume重复读取日志问题">Flume重复读取日志问题</a></li>
-<li><a href="#memory-channel重启丢数据问题">Memory Channel重启丢数据问题</a></li>
-<li><a href="#error-while-querying-external-table-containing-flume-stream">Error while querying external table containing Flume stream</a></li>
-<li><a href="#kafka-sinksource-生产消费大消息问题">Kafka Sink/Source 生产/消费大消息问题</a></li>
-<li><a href="#kafka-sink支持时间戳索引">Kafka Sink支持时间戳索引</a></li>
-<li><a href="#低版本kafkasource消费高版本kafka消息问题">低版本KafkaSource消费高版本Kafka消息问题</a></li>
-<li><a href="#多节点消费kafka负载均衡问题">多节点消费kafka负载均衡问题</a></li>
-<li><a href="#kafka-sink吞吐量优化">Kafka Sink吞吐量优化</a></li>
-<li><a href="#吞吐量优化">吞吐量优化</a></li>
-<li><a href="#flume监控">Flume监控</a></li>
-</ul>
-<!-- tocstop -->
-<p><em>Version：Flume 1.8.0</em></p>
-<h1><span id="前言">前言</span></h1><p>一直使用Flume进行日志收集，本文就使用Flume的过程中遇到的问题、知识点进行总结记录，不会涉及Flume的基本用法，读者需要对Flume有一定了解。</p>
-<h1><span id="flume介绍">Flume介绍</span></h1><p><a href="https://flume.apache.org/releases/content/1.8.0/FlumeUserGuide.html" target="_blank" rel="noopener">Flume</a>是Cloudera开发的一个高可用的，高可靠的，分布式的海量日志采集、聚合和传输的系统，Flume支持在日志系统中定制各类数据发送方，用于收集数据。数据源可定制、可扩展，数据存储系统可定制、可扩展。<br>Flume运行的核心是agent。它是一个完整的数据收集工具，含有三个核心组件，分别是source、channel、sink。Flume传输的数据的基本单位是event，如果是文本文件，通常是一行记录，这也是事务的基本单位。通过source、channel、sink，event可以从一个地方流向另一个地方。</p>
-<p><img src="https://flume.apache.org/_images/UserGuide_image02.png" alt=""></p>
-<p>Flume的数据流由事件(Event)贯穿始终。事件是Flume的基本数据单位，它携带日志数据（字节数组形式）并且携带有头信息，这些Event由Agent外部的Source，比如上图中的Web Server生成。当Source捕获事件后会进行特定的格式化，然后Source会把事件推入(单个或多个)Channel中。你可以把Channel看作是一个缓冲区，它将保存事件直到Sink处理完该事件。Sink负责持久化日志或者把事件推向另一个Source。不同类型的Source，Channel和Sink可以自由组合。组合方式基于用户设置的配置文件，非常灵活。比如：Channel可以把事件暂存在内存里，也可以持久化到本地硬盘上。Sink可以把日志写入HDFS, HBase，甚至是另外一个Source等等。<br>就这样，单纯通过配置，Flume就可以实现大多数日志收集、传输、存储的需求。</p>
-<h1><span id="架构演进">架构演进</span></h1><p>最初的日志收集架构如下图，很简单。应用服务器部署flume-agent，使用taildir source收集日志，并上报至汇聚节点flume-collector，flume-collector将日志统一写入HDFS。</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913161017.png" alt=""></p>
-<p>随着业务的发展，日志规模和多样性都有所增加。</p>
-<ul>
-<li>fluem-agent增加了使用kafka source收集Kafka日志</li>
-<li>flume collector同时将日志写入HDFS和Kafka</li>
-</ul>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20190913-162321.png" alt=""></p>
-<p>在这个阶段，遇到了一个问题：HDFS的写入和Kafka的写入会相互影响。<br>主要原因在于：HdfsSink使用的Channel和KafkaSink使用的Channel共用了同一个Source，由于Source同步写两个Channel，当其中一个Channel由于Sink速度跟不上而满时，另一个的速度也会受到影响。</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913162846.png" alt=""></p>
-<p>我们可以使用下面的架构解决该问题，但缺点是：一份日志会被flume agent读取两次。</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913163601.png" alt=""></p>
-<p>最终，采用了如下架构解决该问题。flume-collector不再直接写HDFS，而是使用另外的flume-hdfs-sinker异步消费Kafka再写入HDFS。</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913163815.png" alt=""></p>
-<h1><span id="kafka-topic覆盖问题">Kafka topic覆盖问题</span></h1><p>使用kafka source消费Kafka的A topic，同时使用kafka sink写入Kafka的B topic，但是kafka sink并没有如期写入B，而是写入了A。其实这个问题在Flume的<a href="https://flume.apache.org/releases/content/1.8.0/FlumeUserGuide.html" target="_blank" rel="noopener">文档</a>中写的很清楚。</p>
-<p>kafka sink有如下几个配置：当event header中含有“topic”字段时，kafka sink会优先使用该字段的value作为目的topic，而不是配置指定的topic。</p>
-<table>
-<thead>
-<tr>
-<th>Property</th>
-<th>Default</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>kafka.topic</td>
-<td>default-flume-topic</td>
-<td>The topic in Kafka to which the messages will be published. If this parameter is configured, messages will be published to this topic. <strong>If the event header contains a “topic” field, the event will be published to that topic overriding the topic configured here.</strong> Arbitrary header substitution is supported, eg. %{header} is replaced with value of event header named “header”. (If using the substitution, it is recommended to set “auto.create.topics.enable” property of Kafka broker to true.)</td>
-</tr>
-<tr>
-<td>allowTopicOverride</td>
-<td>true</td>
-<td>When set, the sink will allow a message to be produced into a topic specified by the topicHeader property (if provided).</td>
-</tr>
-<tr>
-<td>topicHeader</td>
-<td>topic</td>
-<td>When set in conjunction with allowTopicOverride will produce a message into the value of the header named using the value of this property. <strong>Care should be taken when using in conjunction with the Kafka Source topicHeader property to avoid creating a loopback.</strong></td>
-</tr>
-</tbody>
-</table>
-<p>同时kafka source有如下几个配置：从Kafka读取的消息，event header默认会设置一个字段“topic”，存储源topic的名字。</p>
-<table>
-<thead>
-<tr>
-<th>Property</th>
-<th>Default</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>setTopicHeader</td>
-<td>true</td>
-<td><strong>When set to true, stores the topic of the retrieved message into a header, defined by the topicHeader property.</strong></td>
-</tr>
-<tr>
-<td>topicHeader</td>
-<td>topic</td>
-<td>Defines the name of the header in which to store the name of the topic the message was received from, if the setTopicHeader property is set to true. <strong>Care should be taken if combining with the Kafka Sink topicHeader property so as to avoid sending the message back to the same topic in a loop.</strong></td>
-</tr>
-</tbody>
-</table>
-<p>所以，Flume的默认行为就是从哪个topic读，就写入哪个topic。知道了原因，这个问题就很好解决了。</p>
-<ul>
-<li>将Kafak source的setTopicHeader设置为false</li>
-<li>将Kafka sink的allowTopicOverride设置为false</li>
-</ul>
-<h1><span id="flume重复读取日志问题">Flume重复读取日志问题</span></h1><p>使用Flume的taildir source采集服务器日志写入HDFS，发现HDFS上的日志条数多于服务器上的日志。分析服务器上的Flume日志，发现了问题。<br>Flume使用inode识别文件，会在内存中记录inode和读取偏移的对应关系MAP&lt;inode，pos&gt;，并且这个map只增不减。当文件从磁盘删除后，inode就会被重用，会出现同一个inode对应不同的文件。<br>当Flume发现新文件产生时，会检查该文件的inode对应的pos。同一个inode第二次被使用时，如果当前文件小于已经删除的文件大小，pos被重置为0。<br>正常情况下日志输出如下，发现新文件后，因为其inode对应的pos大于文件大小（inode复用），重置该文件的读取偏移pos为0，开始读取。</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913173504.png" alt=""></p>
-<p>重复读取日志的情况输出如下，inode为3147478的文件在15:00的时候生成，开始从pos 0读取；在16:00的时候pos被重置成了0，问题就出在这里。相当于这个文件被重复读取了一遍。</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20190913-173820.png" alt=""></p>
-<p>查看对应位置的<a href="https://github.com/apache/flume/blob/release-1.8.0/flume-ng-sources/flume-taildir-source/src/main/java/org/apache/flume/source/taildir/ReliableTaildirEventReader.java#L256-L260" target="_blank" rel="noopener">源码</a>，发现在f.length() &lt; tf.getPos()时，会进入该重置pos的逻辑。f.length()表示当前文件的size，tf.getPos()表示该文件对应的inode的读取偏移，理论上这种情况只会出现在发现新文件时，由于新文件的size小，且新文件对应的inode以前使用过，所以重置pos是对的。但是这里重置就很奇怪，会导致读取不准确。除非在1和2之间，文件发生了变化，比如日志滚动，f.length获取的是新文件的size，tf指向的是滚动后的文件。</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913174314.png" alt=""></p>
-<p>测试程序验证了这个猜测：在两个f.length之间删除文件并重建，f.length会输出新文件的size。</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190913174351.png" alt=""></p>
-<p><strong>所以根本原因是，在执行updateTailFiles的过程中（1和2之间），日志发生了滚动。</strong><br>google搜索，有人也遇到了同样的的问题：<a href="https://issues.apache.org/jira/browse/FLUME-3320" target="_blank" rel="noopener">https://issues.apache.org/jira/browse/FLUME-3320</a></p>
-<p>目前这个问题还没有好的解决方案：</p>
-<ol>
-<li>应用处理，日志去重。对于应用开发是个负担，且浪费计算资源</li>
-<li>等待flume修复该bug，目前flume最新版本还没有修复这个bug</li>
-<li>自行<a href="https://github.com/apache/flume/pull/297/files" target="_blank" rel="noopener">修复</a>，可以在f.length() &lt; tf.getPos()的同时再次判断f和tf的inode是否一致</li>
-</ol>
-<h1><span id="memory-channel重启丢数据问题">Memory Channel重启丢数据问题</span></h1><p>Flume 1.8在关闭各组件时是随机关闭的，例如先关闭sink再关闭source，这样势必导致部分数据丢失。详见[<a href="https://issues.apache.org/jira/browse/FLUME-2894" target="_blank" rel="noopener">FLUME-2894</a>]。<br><a href="https://flume.apache.org/releases/1.9.0.html" target="_blank" rel="noopener">Flume 1.9</a>改进为先关闭source组件，再关闭sink组件，最后关闭channel组件。</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20190914111907.png" alt=""></p>
-<p>但是在关闭sink组件时并没有判断memory channel中是否还有数据没有消费完，所以memory channel中的数据在重启时存在丢失风险。<br>解决方案：</p>
-<ol>
-<li><p>关闭进程之前，使用iptables禁掉source的数据接收端口或数据拉取端口，待memory channel中的数据全部消费完毕，再关闭进程。这个方法可以解决问题，但是操作比较麻烦。</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">iptables -A INPUT -p tcp --dport 4141 -j REJECT</span><br><span class="line">关闭进程</span><br><span class="line">iptables -D INPUT 1</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>修改<a href="https://github.com/apache/flume/pull/296/files" target="_blank" rel="noopener">代码</a>，实现按照source、sink、channel的顺序关闭各组件，并且等待memory channel空之后再关闭sink。</p>
-</li>
-</ol>
-<h1><span id="error-while-querying-external-table-containing-flume-stream">Error while querying external table containing Flume stream</span></h1><p>使用Flume的HdfsSink往HDFS写文件时，会先写入以<code>.tmp</code>结尾的临时文件，待文件关闭时，重命名去掉<code>.tmp</code>后缀。<br>如果在此期间使用Hive查询该文件，就可能出现找不到文件的问题。可以通过设置<code>hdfs.inUsePrefix = .</code>避免该问题。</p>
-<table>
-<thead>
-<tr>
-<th>Property</th>
-<th>Default</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>hdfs.inUseSuffix</td>
-<td>.tmp</td>
-<td>Suffix that is used for temporal files that flume actively writes into</td>
-</tr>
-<tr>
-<td>hdfs.inUsePrefix</td>
-<td>–</td>
-<td>Prefix that is used for temporal files that flume actively writes into</td>
-</tr>
-</tbody>
-</table>
-<p>详见：</p>
-<ul>
-<li><a href="https://stackoverflow.com/questions/32968450/hive-error-while-querying-external-table-containing-flume-stream" target="_blank" rel="noopener">https://stackoverflow.com/questions/32968450/hive-error-while-querying-external-table-containing-flume-stream</a></li>
-<li><a href="https://www.iteye.com/blog/liyonghui160com-2173163" target="_blank" rel="noopener">https://www.iteye.com/blog/liyonghui160com-2173163</a></li>
-</ul>
-<h1><span id="kafka-sinksource-生产消费大消息问题">Kafka Sink/Source 生产/消费大消息问题</span></h1><p>Kafka的消息有大小限制，默认1M，超过这个限制的消息在生产和消费的时候会报错。以下几个参数控制着可生产和消费的消息的大小：</p>
-<ul>
-<li>Broker side<br><code>replica.fetch.max.bytes</code> - this will allow for the replicas in the brokers to send messages within the cluster and make sure the messages are replicated correctly. If this is too small, then the message will never be replicated, and therefore, the consumer will never see the message because the message will never be committed (fully replicated).<br><code>message.max.bytes</code> - this is the largest size of the message that can be received by the broker from a producer.<br><code>max.message.bytes(per topic)</code> - this is the largest size of the message the broker will allow to be appended to the topic. This size is validated pre-compression. (Defaults to broker’s message.max.bytes.)</li>
-<li>Producer side<br><code>max.request.size</code> - The maximum size of a request in bytes. This is also effectively a cap on the maximum record size. Note that the server has its own cap on record size which may be different from this. This setting will limit the number of record batches the producer will send in a single request to avoid sending huge requests.</li>
-<li>Consumer side<br><code>max.partition.fetch.bytes(New Consumer)</code> - The maximum amount of data per-partition the server will return. The maximum total memory used for a request will be <code>#partitions * max.partition.fetch.bytes</code>. This size must be at least as large as the maximum message size the server allows or else it is possible for the producer to send messages larger than the consumer can fetch. If that happens, the consumer can get stuck trying to fetch a large message on a certain partition.<br><code>fetch.message.max.bytes(Old Consumer)</code> - The number of bytes of messages to attempt to fetch for each topic-partition in each fetch request. These bytes will be read into memory for each partition, so this helps control the memory used by the consumer. The fetch request size must be at least as large as the maximum message size the server allows or else it is possible for the producer to send messages larger than the consumer can fetch.</li>
-</ul>
-<p>对应的Flume配置为：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">agent.sinks.kafkasink.kafka.producer.max.request.size = 3145728  # 允许生产3M的消息</span><br><span class="line">agent.sources.kafkasource.kafka.consumer.max.partition.fetch.bytes = 3145728  # 允许消费3M的消息</span><br></pre></td></tr></table></figure></p>
-<p>通过配置上述的参数，可以调整Flume/Kafka允许生产和消费的消息大小限制，但是我们没办法强制要求数据源必须产生符合限制的消息。一旦数据源产生了超过Flume/Kafka所允许的消息大小的消息，Flume就会阻塞住，一直重试，影响后续消息的传输，所以可以在Flume中增加interceptor，对超过限制的消息提前进行处理。interceptor核心代码如下：<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> Event <span class="title">intercept</span><span class="params">(Event event)</span> </span>&#123;</span><br><span class="line">    String body = <span class="keyword">new</span> String(event.getBody());</span><br><span class="line"></span><br><span class="line">    <span class="keyword">try</span> &#123;</span><br><span class="line">        <span class="keyword">if</span> (body.length() &gt; MAX_MESSAGE_SIZE) &#123;</span><br><span class="line">            logger.error(<span class="string">"Message size is too large "</span> + body.length() + <span class="string">" ! Skip it."</span>);</span><br><span class="line">            logger.error(<span class="string">"Show 2048 byte: "</span> + body.substring(<span class="number">0</span>, <span class="number">2048</span>));</span><br><span class="line"></span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125; <span class="keyword">catch</span> (Exception e) &#123;</span><br><span class="line">        logger.error(body);</span><br><span class="line">        logger.error(e.getStackTrace().toString(), e);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> event;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> List&lt;Event&gt; <span class="title">intercept</span><span class="params">(List&lt;Event&gt; events)</span> </span>&#123;</span><br><span class="line">    List&lt;Event&gt; interceptedEvents = <span class="keyword">new</span> ArrayList&lt;Event&gt;(events.size());</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (Event e : events) &#123;</span><br><span class="line">        Event interceptedEvent = intercept(e);</span><br><span class="line">        <span class="keyword">if</span> (interceptedEvent != <span class="keyword">null</span>) &#123;</span><br><span class="line">            interceptedEvents.add(interceptedEvent);</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> interceptedEvents;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>详见：</p>
-<ul>
-<li><a href="https://cwiki.apache.org/confluence/display/KAFKA/FAQ#FAQ-Howtoconsumelargemessages" target="_blank" rel="noopener">https://cwiki.apache.org/confluence/display/KAFKA/FAQ#FAQ-Howtoconsumelargemessages</a>?</li>
-<li><a href="https://stackoverflow.com/questions/21020347/how-can-i-send-large-messages-with-kafka-over-15mb?answertab=votes#tab-top" target="_blank" rel="noopener">https://stackoverflow.com/questions/21020347/how-can-i-send-large-messages-with-kafka-over-15mb?answertab=votes#tab-top</a></li>
-<li><a href="https://www.jianshu.com/p/ad53fdf1c2c2" target="_blank" rel="noopener">https://www.jianshu.com/p/ad53fdf1c2c2</a></li>
-</ul>
-<h1><span id="kafka-sink支持时间戳索引">Kafka Sink支持时间戳索引</span></h1><p>Kafka从0.10.0开始增加了<a href="https://www.cnblogs.com/huxi2b/p/6050778.html" target="_blank" rel="noopener">时间戳索引</a>，可以根据时间查询对应的offset。<br><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">/**</span></span><br><span class="line"><span class="comment"> * Look up the offsets for the given partitions by timestamp. The returned offset for each partition is the</span></span><br><span class="line"><span class="comment"> * earliest offset whose timestamp is greater than or equal to the given timestamp in the corresponding partition.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * This is a blocking call. The consumer does not have to be assigned the partitions.</span></span><br><span class="line"><span class="comment"> * If the message format version in a partition is before 0.10.0, i.e. the messages do not have timestamps, null</span></span><br><span class="line"><span class="comment"> * will be returned for that partition.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * Notice that this method may block indefinitely if the partition does not exist.</span></span><br><span class="line"><span class="comment"> *</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@param</span> timestampsToSearch the mapping from partition to the timestamp to look up.</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@return</span> a mapping from partition to the timestamp and offset of the first message with timestamp greater</span></span><br><span class="line"><span class="comment"> *         than or equal to the target timestamp. &#123;<span class="doctag">@code</span> null&#125; will be returned for the partition if there is no</span></span><br><span class="line"><span class="comment"> *         such message.</span></span><br><span class="line"><span class="comment"> * <span class="doctag">@throws</span> IllegalArgumentException if the target timestamp is negative.</span></span><br><span class="line"><span class="comment"> */</span></span><br><span class="line"><span class="meta">@Override</span></span><br><span class="line"><span class="function"><span class="keyword">public</span> Map&lt;TopicPartition, OffsetAndTimestamp&gt; <span class="title">offsetsForTimes</span><span class="params">(Map&lt;TopicPartition, Long&gt; timestampsToSearch)</span> </span>&#123;</span><br><span class="line">    <span class="keyword">for</span> (Map.Entry&lt;TopicPartition, Long&gt; entry : timestampsToSearch.entrySet()) &#123;</span><br><span class="line">        <span class="comment">// we explicitly exclude the earliest and latest offset here so the timestamp in the returned</span></span><br><span class="line">        <span class="comment">// OffsetAndTimestamp is always positive.</span></span><br><span class="line">        <span class="keyword">if</span> (entry.getValue() &lt; <span class="number">0</span>)</span><br><span class="line">            <span class="keyword">throw</span> <span class="keyword">new</span> IllegalArgumentException(<span class="string">"The target time for partition "</span> + entry.getKey() + <span class="string">" is "</span> +</span><br><span class="line">                    entry.getValue() + <span class="string">". The target time cannot be negative."</span>);</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="keyword">return</span> fetcher.getOffsetsByTimes(timestampsToSearch, requestTimeoutMs);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure></p>
-<p>Flume1.8默认使用的Kafka版本是0.9.0，该版本还不支持时间戳索引。如果希望使用Kafka sink写入的消息支持根据时间查询offset，则需要使用0.10.0版本的Kafka重新编译Flume。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;kafka.version&gt;0.9.0.1&lt;/kafka.version&gt;</span><br></pre></td></tr></table></figure></p>
-<p>步骤如下：</p>
-<ol>
-<li><p>修改依赖的Kafka版本</p>
-<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">&lt;!-- &lt;kafka.version&gt;0.9.0.1&lt;/kafka.version&gt; --&gt;</span><br><span class="line">&lt;kafka.version&gt;0.10.0.1&lt;/kafka.version&gt;</span><br></pre></td></tr></table></figure>
-</li>
-<li><p>编译Flume，参考：<br><a href="https://birdben.github.io/2016/08/26/Flume/Flume%E5%AD%A6%E4%B9%A0%EF%BC%88%E4%BA%94%EF%BC%89Flume%E7%BC%96%E8%AF%91%E5%AE%89%E8%A3%85/" target="_blank" rel="noopener">https://birdben.github.io/2016/08/26/Flume/Flume%E5%AD%A6%E4%B9%A0%EF%BC%88%E4%BA%94%EF%BC%89Flume%E7%BC%96%E8%AF%91%E5%AE%89%E8%A3%85/</a><br><a href="https://www.iteye.com/blog/cpjsjxy-2278031" target="_blank" rel="noopener">https://www.iteye.com/blog/cpjsjxy-2278031</a><br><a href="https://www.cnblogs.com/chenpi/p/7214745.html" target="_blank" rel="noopener">https://www.cnblogs.com/chenpi/p/7214745.html</a></p>
-</li>
-<li>替换Flume lib下Kafka的相关jar包</li>
-</ol>
-<h1><span id="低版本kafkasource消费高版本kafka消息问题">低版本KafkaSource消费高版本Kafka消息问题</span></h1><ul>
-<li>问题分析<br>Flume报错信息：<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20191220192637.png" alt=""></li>
-</ul>
-<p>Kafka报错信息：<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20191220192343.png" alt=""></p>
-<p>查看Kafka clients<a href="https://github.com/apache/kafka/blob/3e9d1c1411c5268de382f9dfcc95bdf66d0063a0/clients/src/main/java/org/apache/kafka/common/record/MemoryRecordsBuilder.java#L395~L426" target="_blank" rel="noopener">代码</a>，发现在headers不为空的时候，会触发这个报错，遂怀疑分区中写入了headers不为空的消息。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/20191220193140.png" alt=""><br>通过消费指定分区，指定offset的消息，发现猜测正确！！该消息是应用使用Kafka clients 2.x写入的。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">import os</span><br><span class="line">import sys</span><br><span class="line">import time</span><br><span class="line">from kafka import KafkaConsumer</span><br><span class="line">from kafka import TopicPartition</span><br><span class="line"></span><br><span class="line">consumer = KafkaConsumer(group_id=&apos;winwaytest2&apos;,</span><br><span class="line">                         bootstrap_servers=[&apos;172.16.xx.xx&apos;],</span><br><span class="line">                         )</span><br><span class="line"></span><br><span class="line">consumer.assign([</span><br><span class="line">    TopicPartition(&apos;xxxxx&apos;, 0),</span><br><span class="line">    ])</span><br><span class="line"></span><br><span class="line">for message in consumer:</span><br><span class="line">    print message</span><br></pre></td></tr></table></figure></p>
-<ul>
-<li><p>问题产生原因<br>应用使用Kafka clinets 2.x版本写入消息，Flume 1.8的KafkaSource使用的是Kafka clinets 0.10.0.1，导致无法消费。</p>
-</li>
-<li><p>解决方法</p>
-<ol>
-<li>升级Flume 1.8依赖的Kafka clients版本到2.x，不过不太可行，存在一些api兼容问题</li>
-<li>直接使用Flume 1.9</li>
-</ol>
-</li>
-</ul>
-<h1><span id="多节点消费kafka负载均衡问题">多节点消费kafka负载均衡问题</span></h1><p>多个Flume节点使用Kafka Source消费一批kafka topic的时候（配置同样的group id），发现节点负载不均匀，个别节点处理速度慢，导致对应的分区出现消费堆积问题。<br>引起该问题的原因是默认的分区分配策略导致的，默认的分区分配策略针对每个topic的分区以range的方式进行分配，无法保证每个节点分配到的总分区数量差不多。将分区分配策略由默认的<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">agent.sources.kafkasource1.kafka.consumer.partition.assignment.strategy = org.apache.kafka.clients.consumer.RangeAssignor</span><br></pre></td></tr></table></figure></p>
-<p>修改为<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">agent.sources.kafkasource1.kafka.consumer.partition.assignment.strategy = org.apache.kafka.clients.consumer.RoundRobinAssignor</span><br></pre></td></tr></table></figure></p>
-<p>或<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">agent.sources.kafkasource1.kafka.consumer.partition.assignment.strategy = org.apache.kafka.clients.consumer.StickyAssignor</span><br></pre></td></tr></table></figure></p>
-<p>可解决该问题。</p>
-<p>参考资料：</p>
-<ul>
-<li><a href="https://stackoverflow.com/questions/55533605/how-kafka-consumer-works-if-consumers-are-more-that-partitions" target="_blank" rel="noopener">https://stackoverflow.com/questions/55533605/how-kafka-consumer-works-if-consumers-are-more-that-partitions</a></li>
-<li><a href="https://www.jianshu.com/p/91277c38fda6" target="_blank" rel="noopener">https://www.jianshu.com/p/91277c38fda6</a></li>
-<li><a href="https://medium.com/@anyili0928/what-i-have-learned-from-kafka-partition-assignment-strategy-799fdf15d3ab" target="_blank" rel="noopener">https://medium.com/@anyili0928/what-i-have-learned-from-kafka-partition-assignment-strategy-799fdf15d3ab</a></li>
-<li><a href="https://generalthink.github.io/2019/06/06/kafka-consumer-partition-assign/" target="_blank" rel="noopener">https://generalthink.github.io/2019/06/06/kafka-consumer-partition-assign/</a></li>
-</ul>
-<h1><span id="kafka-sink吞吐量优化">Kafka Sink吞吐量优化</span></h1><ul>
-<li>相关参数</li>
-</ul>
-<table>
-<thead>
-<tr>
-<th>Type</th>
-<th>Property</th>
-<th>Default</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Memory Channel</td>
-<td>capacity</td>
-<td>100</td>
-<td>The maximum number of events stored in the channel</td>
-</tr>
-<tr>
-<td>Memory Channel</td>
-<td>transactionCapacity</td>
-<td>100</td>
-<td>The maximum number of events the channel will take from a source or give to a sink per transaction</td>
-</tr>
-<tr>
-<td>Kafka Sink</td>
-<td>flumeBatchSize</td>
-<td>100</td>
-<td>How many messages to process in one batch. Larger batches improve throughput while adding latency</td>
-</tr>
-</tbody>
-</table>
-<ul>
-<li>使用多个sink<br>定义多个KafkaSink消费同一个Channel</li>
-</ul>
-<p>参考：<a href="https://medium.com/data-collective/scaling-a-flume-agent-to-handle-120k-events-sec-11f70a428ca2" target="_blank" rel="noopener">https://medium.com/data-collective/scaling-a-flume-agent-to-handle-120k-events-sec-11f70a428ca2</a></p>
-<h1><span id="吞吐量优化">吞吐量优化</span></h1><p>多个source写入同一个channel或者多个sink消费同一个channel，都需要加锁。如下图，将内部结构由A改为B，减少channel的锁竞争。</p>
-<p><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/WX20210515-145123.png" alt=""></p>
-<p>示例配置如下：<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">#configure for consume log from kafka to hdfs</span><br><span class="line">agent.sources = s1 s2</span><br><span class="line">agent.channels = c1 c2</span><br><span class="line">agent.sinks = k1 k2</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">#Describe/configure the source</span><br><span class="line">agent.sources.s1.type = org.apache.flume.source.kafka.KafkaSource</span><br><span class="line">agent.sources.s1.channels = c1</span><br><span class="line"></span><br><span class="line">#Describe/configure the source</span><br><span class="line">agent.sources.s2.type = org.apache.flume.source.kafka.KafkaSource</span><br><span class="line">agent.sources.s2.channels = c2</span><br><span class="line"></span><br><span class="line">#configure for channels</span><br><span class="line">agent.channels.c1.type = memory</span><br><span class="line"></span><br><span class="line">#configure for channels</span><br><span class="line">agent.channels.c2.type = memory</span><br><span class="line"></span><br><span class="line">#configure for sinks</span><br><span class="line">agent.sinks.k1.type = hdfs</span><br><span class="line">agent.sinks.hdfssink1.channel = c1</span><br><span class="line"></span><br><span class="line">#configure for sinks</span><br><span class="line">agent.sinks.k2.type = hdfs</span><br><span class="line">agent.sinks.hdfssink2.channel = c2</span><br></pre></td></tr></table></figure></p>
-<h1><span id="flume监控">Flume监控</span></h1><p>Flume提供了以下几种监控机制：</p>
-<ul>
-<li><a href="https://flume.apache.org/releases/content/1.8.0/FlumeUserGuide.html#jmx-reporting" target="_blank" rel="noopener">JMX Reporting</a></li>
-<li><a href="https://flume.apache.org/releases/content/1.8.0/FlumeUserGuide.html#ganglia-reporting" target="_blank" rel="noopener">Ganglia Reporting</a></li>
-<li><a href="https://flume.apache.org/releases/content/1.8.0/FlumeUserGuide.html#json-reporting" target="_blank" rel="noopener">JSON Reporting</a></li>
-<li><a href="https://flume.apache.org/releases/content/1.8.0/FlumeUserGuide.html#custom-reporting" target="_blank" rel="noopener">Custom Reporting</a></li>
-</ul>
-<p>其中JSON Reporting比较简单、易用、灵活，可以直接发送HTTP请求获取Flume的运行状态信息，只需要在启动Flume时加上<code>-Dflume.monitoring.type=http -Dflume.monitoring.port=34545</code>参数，就可以使用HTTP获取metric信息。<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br></pre></td><td class="code"><pre><span class="line">[root@localhost ~]# curl 'http://127.0.0.1:34545/metrics' | python -m json.tool</span><br><span class="line">&#123;</span><br><span class="line">    "CHANNEL.channel1": &#123;</span><br><span class="line">        "ChannelCapacity": "2600000",</span><br><span class="line">        "ChannelFillPercentage": "0.0038461538461538464",</span><br><span class="line">        "ChannelSize": "100",</span><br><span class="line">        "EventPutAttemptCount": "11649320466",</span><br><span class="line">        "EventPutSuccessCount": "11649320466",</span><br><span class="line">        "EventTakeAttemptCount": "11649320572",</span><br><span class="line">        "EventTakeSuccessCount": "11649317405",</span><br><span class="line">        "StartTime": "1563766387062",</span><br><span class="line">        "StopTime": "0",</span><br><span class="line">        "Type": "CHANNEL"</span><br><span class="line">    &#125;,</span><br><span class="line">    "CHANNEL.channel2": &#123;</span><br><span class="line">        "ChannelCapacity": "6800000",</span><br><span class="line">        "ChannelFillPercentage": "0.06991176470588235",</span><br><span class="line">        "ChannelSize": "4754",</span><br><span class="line">        "EventPutAttemptCount": "97781696225",</span><br><span class="line">        "EventPutSuccessCount": "97781680954",</span><br><span class="line">        "EventTakeAttemptCount": "97781706696",</span><br><span class="line">        "EventTakeSuccessCount": "97781675100",</span><br><span class="line">        "StartTime": "1563766387063",</span><br><span class="line">        "StopTime": "0",</span><br><span class="line">        "Type": "CHANNEL"</span><br><span class="line">    &#125;,</span><br><span class="line">    "SINK.hdfssink": &#123;</span><br><span class="line">        "BatchCompleteCount": "1936406",</span><br><span class="line">        "BatchEmptyCount": "20",</span><br><span class="line">        "BatchUnderflowCount": "32",</span><br><span class="line">        "ConnectionClosedCount": "9506",</span><br><span class="line">        "ConnectionCreatedCount": "9508",</span><br><span class="line">        "ConnectionFailedCount": "0",</span><br><span class="line">        "EventDrainAttemptCount": "5809260313",</span><br><span class="line">        "EventDrainSuccessCount": "5809259087",</span><br><span class="line">        "StartTime": "1563766387067",</span><br><span class="line">        "StopTime": "0",</span><br><span class="line">        "Type": "SINK"</span><br><span class="line">    &#125;,</span><br><span class="line">    ……</span><br><span class="line">    ……</span><br></pre></td></tr></table></figure></p>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">flume</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2019/09/13/flumeAction/">展开全文 >></a>
         </p>
       
 
@@ -831,6 +658,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">shell</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">监控</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
@@ -843,14 +678,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">shell</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">监控</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
@@ -859,11 +686,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
+                <a href="javascript:void(0)" class="js-tag color4">pig</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -875,11 +702,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -899,14 +726,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">proxy</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Python</a>
               </li>
              
@@ -915,7 +734,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">proxy</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">独立开发</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -939,15 +770,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">tez</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">gc</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">独立开发</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -959,7 +790,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -979,10 +810,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
               </li>
              
@@ -992,14 +819,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1015,6 +834,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">springboot</a>
               </li>
              
@@ -1027,7 +854,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+                <a href="javascript:void(0)" class="js-tag color4">小文件</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1035,11 +862,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">小文件</a>
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">storm</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1048,14 +879,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1068,6 +891,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">kylin</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -1115,11 +942,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">

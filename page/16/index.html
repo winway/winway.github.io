@@ -156,6 +156,229 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-pb2df" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2021/10/01/pb2df/">动态解析protobuf格式kafka消息生成dataframe</a>
+    </h1>
+  
+
+        
+        <a href="/2021/10/01/pb2df/" class="archive-article-date">
+  	<time datetime="2021-09-30T18:59:01.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-10-01</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#背景">背景</a></li>
+<li><a href="#思路">思路</a></li>
+<li><a href="#代码">代码</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="背景">背景</span></h2><p>在<a href="https://winway.github.io/2021/09/04/kafkapb/">动态解析protobuf格式kafka消息</a>一文中，实现了动态解析PB格式的kafka消息，接下来需要将消息转换成dataframe格式，这样就可以方便的接入数仓的ods层了。</p>
+<h2><span id="思路">思路</span></h2><p>尝试了以下几种思路，最终通过遍历DynamicMessage.Builder构造Schema，遍历DynamicMessage构造Row实现。<br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/A32E0DD5-4041-4B8C-B866-CCE1A1D5B116.png" alt=""></p>
+<h2><span id="代码">代码</span></h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> java.sql.Timestamp</span><br><span class="line"><span class="keyword">import</span> java.time.Duration</span><br><span class="line"><span class="keyword">import</span> java.util</span><br><span class="line"><span class="keyword">import</span> java.util.&#123;Date, Properties&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> cn.soul.log_etl.utils.PBBuilder</span><br><span class="line"><span class="keyword">import</span> com.google.protobuf.&#123;Descriptors, InvalidProtocolBufferException, Message&#125;</span><br><span class="line"><span class="keyword">import</span> org.apache.kafka.clients.consumer.KafkaConsumer</span><br><span class="line"><span class="keyword">import</span> org.apache.kafka.common.serialization.&#123;ByteArrayDeserializer, StringDeserializer&#125;</span><br><span class="line"><span class="keyword">import</span> org.apache.spark.SparkConf</span><br><span class="line"><span class="keyword">import</span> org.apache.spark.sql.types._</span><br><span class="line"><span class="keyword">import</span> org.apache.spark.sql.&#123;Row, SparkSession&#125;</span><br><span class="line"><span class="keyword">import</span> org.apache.spark.sql.functions._</span><br><span class="line"></span><br><span class="line">object TestSchema &#123;</span><br><span class="line"></span><br><span class="line">  <span class="function">def <span class="title">printPBStruct</span><span class="params">(desc: Descriptors.Descriptor, prefix: String)</span>: Unit </span>= &#123;</span><br><span class="line">    <span class="keyword">if</span> (desc == <span class="keyword">null</span>) <span class="keyword">return</span></span><br><span class="line">    <span class="keyword">import</span> scala.collection.JavaConversions._</span><br><span class="line">    <span class="keyword">for</span> (field &lt;- desc.getFields) &#123;</span><br><span class="line">      <span class="keyword">if</span> (<span class="string">"MESSAGE"</span> == field.getJavaType.name) &#123;</span><br><span class="line">        System.out.println(prefix + field.getFullName + <span class="string">":"</span> + field.getJavaType.name + <span class="string">":"</span> + field.isRepeated + <span class="string">":"</span> + field.isMapField)</span><br><span class="line">        printPBStruct(field.getMessageType, prefix + <span class="string">"    "</span>)</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">else</span> System.out.println(prefix + field.getFullName + <span class="string">":"</span> + field.getJavaType.name + <span class="string">":"</span> + field.isRepeated + <span class="string">":"</span> + field.isMapField)</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function">def <span class="title">getPbSchema</span><span class="params">(desc: Descriptors.Descriptor, prefix: String)</span>: StructType </span>= &#123;</span><br><span class="line">    var st = <span class="keyword">new</span> StructType()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (<span class="string">""</span>.equals(prefix)) &#123;</span><br><span class="line">      st = st.add(StructField(<span class="string">"ts"</span>, TimestampType))</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (desc == <span class="keyword">null</span>) <span class="keyword">return</span> st</span><br><span class="line"></span><br><span class="line">    <span class="keyword">import</span> scala.collection.JavaConversions._</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (field &lt;- desc.getFields) &#123;</span><br><span class="line">      val name = field.getFullName.split(<span class="string">"\\."</span>)(field.getFullName.split(<span class="string">"\\."</span>).length - <span class="number">1</span>)</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span> (<span class="string">"MESSAGE"</span> == field.getJavaType.name) &#123;</span><br><span class="line">        System.out.println(prefix + field.getFullName + <span class="string">":"</span> + field.getJavaType.name + <span class="string">":"</span> + field.isRepeated + <span class="string">":"</span> + field.isMapField)</span><br><span class="line"></span><br><span class="line">        val childst: StructType = getPbSchema(field.getMessageType, prefix + <span class="string">"    "</span>)</span><br><span class="line">        <span class="keyword">if</span> (field.isRepeated) &#123;</span><br><span class="line">          st = st.add(name, ArrayType(childst))</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">          st = st.add(name, childst)</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">else</span> &#123;</span><br><span class="line">        System.out.println(prefix + field.getFullName + <span class="string">":"</span> + field.getJavaType.name + <span class="string">":"</span> + field.isRepeated + <span class="string">":"</span> + field.isMapField)</span><br><span class="line"></span><br><span class="line">        val t = field.getJavaType.name match &#123;</span><br><span class="line">          <span class="keyword">case</span> <span class="string">"STRING"</span> =&gt; StringType</span><br><span class="line">          <span class="keyword">case</span> <span class="string">"LONG"</span> =&gt; LongType</span><br><span class="line">          <span class="keyword">case</span> <span class="string">"INT"</span> =&gt; IntegerType</span><br><span class="line">          <span class="keyword">case</span> <span class="string">"DOUBLE"</span> =&gt; DoubleType</span><br><span class="line">          <span class="keyword">case</span> <span class="string">"BOOLEAN"</span> =&gt; BooleanType</span><br><span class="line">          <span class="keyword">case</span> _ =&gt; println(<span class="string">"!!!!!! unknown "</span> + field.getJavaType.name); NullType</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (field.isRepeated) &#123;</span><br><span class="line">          st = st.add(StructField(name, ArrayType(t)))</span><br><span class="line">        &#125; <span class="keyword">else</span> &#123;</span><br><span class="line">          st = st.add(StructField(name, t))</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    st</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line">  <span class="function">def <span class="title">getPbValue</span><span class="params">(pbMessage: Message, prefix: String, ts: Timestamp)</span>: Row </span>= &#123;</span><br><span class="line">    var s: Seq[Any] = Seq()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (<span class="string">""</span>.equals(prefix)) &#123;</span><br><span class="line">      s = s :+ ts</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="keyword">if</span> (pbMessage == <span class="keyword">null</span>) <span class="keyword">return</span> Row()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">import</span> scala.collection.JavaConversions._</span><br><span class="line"></span><br><span class="line">    <span class="comment">// pbMessage.getAllFields只返回set的字段</span></span><br><span class="line">    <span class="keyword">for</span> (field &lt;- pbMessage.getDescriptorForType.getFields) &#123;</span><br><span class="line">      val name: String = field.getFullName.split(<span class="string">"\\."</span>)(field.getFullName.split(<span class="string">"\\."</span>).length - <span class="number">1</span>)</span><br><span class="line">      val v = pbMessage.getField(field)</span><br><span class="line"></span><br><span class="line">      <span class="keyword">if</span> (<span class="string">"MESSAGE"</span> == field.getJavaType.name) &#123;</span><br><span class="line">        System.out.println(prefix + name + <span class="string">":"</span> + field.getJavaType.name + <span class="string">":"</span> + field.isRepeated + <span class="string">":"</span> + field.isMapField + <span class="string">":"</span> + v.getClass.getName)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (<span class="string">"java.util.Collections$UnmodifiableRandomAccessList"</span> == v.getClass.getName) &#123;</span><br><span class="line">          var s_tmp: Seq[Row] = Seq()</span><br><span class="line"></span><br><span class="line">          <span class="keyword">for</span> (m &lt;- v.asInstanceOf[util.List[Message]]) &#123;</span><br><span class="line">            s_tmp = s_tmp :+ getPbValue(m, prefix + <span class="string">"    "</span>, <span class="keyword">null</span>)</span><br><span class="line">          &#125;</span><br><span class="line"></span><br><span class="line">          s = s :+ s_tmp</span><br><span class="line">        &#125; <span class="keyword">else</span> <span class="keyword">if</span> (<span class="string">"java.util.Collections$EmptyList"</span> == v.getClass.getName) &#123;</span><br><span class="line">          s = s :+ Seq()</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="keyword">else</span> s = s :+ getPbValue(v.asInstanceOf[Message], prefix + <span class="string">"    "</span>, <span class="keyword">null</span>)</span><br><span class="line">      &#125;</span><br><span class="line">      <span class="keyword">else</span> &#123;</span><br><span class="line">        System.out.println(prefix + name + <span class="string">":"</span> + field.getJavaType.name + <span class="string">":"</span> + field.isRepeated + <span class="string">":"</span> + field.isMapField + <span class="string">":"</span> + v.getClass.getName)</span><br><span class="line"></span><br><span class="line">        s = s :+ v</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    Row.fromSeq(s)</span><br><span class="line">  &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">  <span class="function">def <span class="title">main</span><span class="params">(args: Array[String])</span>: Unit </span>= &#123;</span><br><span class="line">    val pbBuilder = PBBuilder.getBuilderByFile(PBBuilder.downloadDescriptorFile(<span class="string">"mymsg.description"</span>), <span class="string">"MyMsg"</span>)</span><br><span class="line"></span><br><span class="line">    printPBStruct(pbBuilder.getDescriptorForType, <span class="string">""</span>)</span><br><span class="line"></span><br><span class="line">    println(<span class="string">"=================================================="</span>)</span><br><span class="line"></span><br><span class="line">    val st = getPbSchema(pbBuilder.getDescriptorForType, <span class="string">""</span>)</span><br><span class="line">    println(st.treeString)</span><br><span class="line"></span><br><span class="line">    println(<span class="string">"=================================================="</span>)</span><br><span class="line"></span><br><span class="line">    val kafkaParams = <span class="keyword">new</span> Properties</span><br><span class="line">    kafkaParams.put(<span class="string">"bootstrap.servers"</span>, <span class="string">"172.16.22.11:9092"</span>)</span><br><span class="line">    kafkaParams.put(<span class="string">"group.id"</span>, <span class="string">"TestKafkaPB"</span>)</span><br><span class="line">    kafkaParams.put(<span class="string">"key.deserializer"</span>, classOf[StringDeserializer])</span><br><span class="line">    kafkaParams.put(<span class="string">"value.deserializer"</span>, classOf[ByteArrayDeserializer])</span><br><span class="line"></span><br><span class="line">    val consumer = <span class="keyword">new</span> KafkaConsumer[String, Array[Byte]](kafkaParams)</span><br><span class="line">    consumer.subscribe(util.Arrays.asList(<span class="string">"mymsg_topic"</span>))</span><br><span class="line"></span><br><span class="line">    val sparkConf = <span class="keyword">new</span> SparkConf()</span><br><span class="line">      .set(<span class="string">"spark.serializer"</span>, <span class="string">"org.apache.spark.serializer.KryoSerializer"</span>)</span><br><span class="line">      .setMaster(<span class="string">"local[*]"</span>)</span><br><span class="line"></span><br><span class="line">    val sparkSession: SparkSession = SparkSession.builder().config(sparkConf).getOrCreate()</span><br><span class="line"></span><br><span class="line">    val records = consumer.poll(Duration.ofMillis(<span class="number">4096</span>))</span><br><span class="line"></span><br><span class="line">    var cnt = <span class="number">0</span></span><br><span class="line">    var rows: Seq[Row] = Seq()</span><br><span class="line"></span><br><span class="line">    <span class="keyword">import</span> scala.collection.JavaConversions._</span><br><span class="line"></span><br><span class="line">    <span class="keyword">for</span> (record &lt;- records) &#123;</span><br><span class="line">      <span class="keyword">try</span> &#123;</span><br><span class="line">        val pbMessage = pbBuilder.mergeFrom(record.value).build()</span><br><span class="line"></span><br><span class="line">        System.out.println(pbMessage)</span><br><span class="line"></span><br><span class="line">        val r = getPbValue(pbMessage, <span class="string">""</span>, <span class="keyword">new</span> Timestamp(record.timestamp))</span><br><span class="line"></span><br><span class="line">        println(<span class="string">"!!!!!!!!!!!!!!"</span>)</span><br><span class="line">        println(r)</span><br><span class="line">        println(<span class="string">"!!!!!!!!!!!!!!"</span>)</span><br><span class="line"></span><br><span class="line">        rows = rows :+ r</span><br><span class="line"></span><br><span class="line">        cnt += <span class="number">1</span></span><br><span class="line">        <span class="keyword">if</span> (cnt &gt; <span class="number">10</span>) &#123;</span><br><span class="line">          println(<span class="string">"!!!!!!!!!!!!!!"</span>)</span><br><span class="line">          println(rows)</span><br><span class="line">          println(<span class="string">"!!!!!!!!!!!!!!"</span>)</span><br><span class="line"></span><br><span class="line">          val df = sparkSession.createDataFrame(rows, st)</span><br><span class="line"></span><br><span class="line">          val df2 = df</span><br><span class="line">            .withColumn(<span class="string">"year"</span>, date_format(df(<span class="string">"ts"</span>), <span class="string">"yyyy"</span>))</span><br><span class="line">            .withColumn(<span class="string">"month"</span>, date_format(df(<span class="string">"ts"</span>), <span class="string">"yyyy-MM"</span>))</span><br><span class="line">            .withColumn(<span class="string">"day"</span>, date_format(df(<span class="string">"ts"</span>), <span class="string">"yyyy-MM-dd"</span>))</span><br><span class="line">            .drop(<span class="string">"ts"</span>)</span><br><span class="line"></span><br><span class="line">          df2.printSchema()</span><br><span class="line">          df2.show()</span><br><span class="line">          df2.write</span><br><span class="line">            .format(<span class="string">"orc"</span>)</span><br><span class="line">            .mode(<span class="string">"append"</span>)</span><br><span class="line">            .partitionBy(<span class="string">"year"</span>, <span class="string">"month"</span>, <span class="string">"day"</span>)</span><br><span class="line">            .orc(<span class="string">"hdfs://emr-cluster/tmp/testpb"</span>)</span><br><span class="line"></span><br><span class="line">          System.exit(<span class="number">0</span>)</span><br><span class="line">        &#125;</span><br><span class="line">      &#125; <span class="keyword">catch</span> &#123;</span><br><span class="line">        <span class="keyword">case</span> e: InvalidProtocolBufferException =&gt;</span><br><span class="line">          e.printStackTrace()</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://www.codeleading.com/article/97581603821/" target="_blank" rel="noopener">https://www.codeleading.com/article/97581603821/</a></li>
+<li><a href="https://blog.csdn.net/lan_liang/article/details/6632127" target="_blank" rel="noopener">https://blog.csdn.net/lan_liang/article/details/6632127</a></li>
+<li><a href="https://stackoverflow.com/questions/53413674/importing-descriptor-with-included-import" target="_blank" rel="noopener">https://stackoverflow.com/questions/53413674/importing-descriptor-with-included-import</a></li>
+<li><a href="https://www.jianshu.com/p/10e029a55d3b" target="_blank" rel="noopener">https://www.jianshu.com/p/10e029a55d3b</a></li>
+<li><a href="https://stackoverflow.com/questions/30331935/protobuf-getallfields-performance" target="_blank" rel="noopener">https://stackoverflow.com/questions/30331935/protobuf-getallfields-performance</a></li>
+<li><a href="https://sparkbyexamples.com/spark/spark-sql-structtype-on-dataframe/" target="_blank" rel="noopener">https://sparkbyexamples.com/spark/spark-sql-structtype-on-dataframe/</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">kafka</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">protobuf</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">dataframe</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2021/10/01/pb2df/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-kafkapb" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
+  <div class="article-inner">
+
+
+
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="article-title" href="/2021/09/04/kafkapb/">动态解析protobuf格式kafka消息</a>
+    </h1>
+  
+
+        
+        <a href="/2021/09/04/kafkapb/" class="archive-article-date">
+  	<time datetime="2021-09-04T12:40:59.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-09-04</time>
+</a>
+
+
+        
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <!-- toc -->
+<ul>
+<li><a href="#背景">背景</a></li>
+<li><a href="#代码">代码</a></li>
+<li><a href="#参考资料">参考资料</a></li>
+</ul>
+<!-- tocstop -->
+<h2><span id="背景">背景</span></h2><p>为了减少日志量，业务方直接将经过protobuf序列化的数据写入kafka，需要消费kafka并解析其中PB格式的消息。为了避免将业务方的PB对象集成到解析项目中（因为可能会有很多业务的PB对象），需要动态完成解析工作。</p>
+<h2><span id="代码">代码</span></h2><figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> com.google.protobuf.*;</span><br><span class="line"><span class="keyword">import</span> com.google.protobuf.util.JsonFormat;</span><br><span class="line"><span class="keyword">import</span> org.apache.kafka.clients.consumer.ConsumerRecord;</span><br><span class="line"><span class="keyword">import</span> org.apache.kafka.clients.consumer.ConsumerRecords;</span><br><span class="line"><span class="keyword">import</span> org.apache.kafka.clients.consumer.KafkaConsumer;</span><br><span class="line"><span class="keyword">import</span> org.apache.kafka.common.serialization.ByteArrayDeserializer;</span><br><span class="line"><span class="keyword">import</span> org.apache.kafka.common.serialization.StringDeserializer;</span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> java.io.FileInputStream;</span><br><span class="line"><span class="keyword">import</span> java.io.IOException;</span><br><span class="line"><span class="keyword">import</span> java.nio.file.Path;</span><br><span class="line"><span class="keyword">import</span> java.nio.file.Paths;</span><br><span class="line"><span class="keyword">import</span> java.time.Duration;</span><br><span class="line"><span class="keyword">import</span> java.util.ArrayList;</span><br><span class="line"><span class="keyword">import</span> java.util.Arrays;</span><br><span class="line"><span class="keyword">import</span> java.util.List;</span><br><span class="line"><span class="keyword">import</span> java.util.Properties;</span><br><span class="line"></span><br><span class="line"><span class="keyword">public</span> <span class="class"><span class="keyword">class</span> <span class="title">TestKafkaPB</span> </span>&#123;</span><br><span class="line">    <span class="keyword">public</span> <span class="keyword">static</span> DynamicMessage.<span class="function">Builder <span class="title">getBuilder</span><span class="params">(String protoFile, String targetClassName)</span> <span class="keyword">throws</span> InterruptedException, Descriptors.DescriptorValidationException, IOException </span>&#123;</span><br><span class="line">        System.out.println(<span class="string">"------generate descriptor------"</span>);</span><br><span class="line"></span><br><span class="line">        Path path = Paths.get(protoFile);</span><br><span class="line">        String dirName = path.getParent().toString();</span><br><span class="line">        String fileName = path.getFileName().toString();</span><br><span class="line">        String fileNameNoExt = fileName.split(<span class="string">"\\."</span>)[<span class="number">0</span>];</span><br><span class="line">        String descriptorFile = dirName + <span class="string">"/"</span> + fileNameNoExt + <span class="string">".description"</span>;</span><br><span class="line"></span><br><span class="line">        <span class="comment">// 生成descriptor文件</span></span><br><span class="line">        String protocCMD = String.format(<span class="string">"protoc --descriptor_set_out=%s %s --include_imports --proto_path %s"</span>, descriptorFile, protoFile, dirName);</span><br><span class="line">        System.out.println(protocCMD);</span><br><span class="line"></span><br><span class="line">        Process process = Runtime.getRuntime().exec(protocCMD);</span><br><span class="line">        process.waitFor();</span><br><span class="line">        <span class="keyword">int</span> exitValue = process.exitValue();</span><br><span class="line">        <span class="keyword">if</span> (exitValue != <span class="number">0</span>) &#123;</span><br><span class="line">            System.out.println(<span class="string">"protoc execute failed"</span>);</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        System.out.println(<span class="string">"------customer msg------"</span>);</span><br><span class="line">        Descriptors.Descriptor pbDescritpor = <span class="keyword">null</span>;</span><br><span class="line">        DescriptorProtos.FileDescriptorSet descriptorSet = DescriptorProtos.FileDescriptorSet.parseFrom(<span class="keyword">new</span> FileInputStream(descriptorFile));</span><br><span class="line"></span><br><span class="line">        List&lt;Descriptors.FileDescriptor&gt; dependencyFileDescriptorList = <span class="keyword">new</span> ArrayList&lt;&gt;();</span><br><span class="line">        <span class="keyword">for</span> (<span class="keyword">int</span> i = <span class="number">0</span>; i &lt; descriptorSet.getFileCount() - <span class="number">1</span>; i++) &#123;</span><br><span class="line">            dependencyFileDescriptorList.add(Descriptors.FileDescriptor.buildFrom(descriptorSet.getFile(i), dependencyFileDescriptorList.toArray(<span class="keyword">new</span> Descriptors.FileDescriptor[i])));</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (DescriptorProtos.FileDescriptorProto fdp : descriptorSet.getFileList()) &#123;</span><br><span class="line">            Descriptors.FileDescriptor fileDescriptor = Descriptors.FileDescriptor.buildFrom(fdp, dependencyFileDescriptorList.toArray(<span class="keyword">new</span> Descriptors.FileDescriptor[<span class="number">0</span>]));</span><br><span class="line"></span><br><span class="line">            <span class="keyword">for</span> (Descriptors.Descriptor descriptor : fileDescriptor.getMessageTypes()) &#123;</span><br><span class="line">                String className = fdp.getOptions().getJavaPackage() + <span class="string">"."</span></span><br><span class="line">                        + fdp.getOptions().getJavaOuterClassname() + <span class="string">"$"</span></span><br><span class="line">                        + descriptor.getName();</span><br><span class="line">                System.out.println(descriptor.getFullName() + <span class="string">" -&gt; "</span> + className);</span><br><span class="line"></span><br><span class="line">                <span class="keyword">if</span> (descriptor.getName().equals(targetClassName)) &#123;</span><br><span class="line">                    System.out.println(targetClassName + <span class="string">" descriptor found"</span>);</span><br><span class="line">                    pbDescritpor = descriptor;</span><br><span class="line">                    <span class="keyword">break</span>;</span><br><span class="line">                &#125;</span><br><span class="line">            &#125;</span><br><span class="line"></span><br><span class="line">            <span class="keyword">if</span> (pbDescritpor != <span class="keyword">null</span>) &#123;</span><br><span class="line">                <span class="keyword">break</span>;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">if</span> (pbDescritpor == <span class="keyword">null</span>) &#123;</span><br><span class="line">            System.out.println(<span class="string">"No matched descriptor"</span>);</span><br><span class="line">            <span class="keyword">return</span> <span class="keyword">null</span>;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> DynamicMessage.newBuilder(pbDescritpor);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    <span class="function"><span class="keyword">public</span> <span class="keyword">static</span> <span class="keyword">void</span> <span class="title">main</span><span class="params">(String[] args)</span> <span class="keyword">throws</span> InterruptedException, IOException, Descriptors.DescriptorValidationException </span>&#123;</span><br><span class="line"></span><br><span class="line">        Properties kafkaParams = <span class="keyword">new</span> Properties();</span><br><span class="line">        kafkaParams.put(<span class="string">"bootstrap.servers"</span>, <span class="string">"192.168.101.31:9092"</span>);</span><br><span class="line">        kafkaParams.put(<span class="string">"group.id"</span>, <span class="string">"TestKafkaPB"</span>);</span><br><span class="line">        kafkaParams.put(<span class="string">"key.deserializer"</span>, StringDeserializer.class);</span><br><span class="line">        kafkaParams.put(<span class="string">"value.deserializer"</span>, ByteArrayDeserializer.class);</span><br><span class="line"></span><br><span class="line">        KafkaConsumer&lt;String, <span class="keyword">byte</span>[]&gt; consumer = <span class="keyword">new</span> KafkaConsumer&lt;String, <span class="keyword">byte</span>[]&gt;(kafkaParams);</span><br><span class="line">        consumer.subscribe(Arrays.asList(<span class="string">"ads-request-pageview"</span>));</span><br><span class="line"></span><br><span class="line">        DynamicMessage.Builder pbBuilder = getBuilder(<span class="string">"/tmp/my_message.proto"</span>, <span class="string">"MessageInfo"</span>);</span><br><span class="line"></span><br><span class="line">        ConsumerRecords&lt;String, <span class="keyword">byte</span>[]&gt; records = consumer.poll(Duration.ofMillis(<span class="number">1024</span>));</span><br><span class="line"></span><br><span class="line">        <span class="keyword">for</span> (ConsumerRecord&lt;String, <span class="keyword">byte</span>[]&gt; record : records) &#123;</span><br><span class="line">            <span class="keyword">try</span> &#123;</span><br><span class="line">                Message pbMessage = pbBuilder.mergeFrom(record.value()).build();</span><br><span class="line">                System.out.println(pbMessage);</span><br><span class="line"></span><br><span class="line">                String j = JsonFormat.printer().print(pbMessage);</span><br><span class="line">                System.out.println(j);</span><br><span class="line">            &#125; <span class="keyword">catch</span> (InvalidProtocolBufferException e) &#123;</span><br><span class="line">                e.printStackTrace();</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+<h2><span id="参考资料">参考资料</span></h2><ul>
+<li><a href="https://blog.csdn.net/lan_liang/article/details/6632127" target="_blank" rel="noopener">https://blog.csdn.net/lan_liang/article/details/6632127</a></li>
+<li><a href="https://www.codeleading.com/article/97581603821/" target="_blank" rel="noopener">https://www.codeleading.com/article/97581603821/</a></li>
+<li><a href="https://stackoverflow.com/questions/53413674/importing-descriptor-with-included-import" target="_blank" rel="noopener">https://stackoverflow.com/questions/53413674/importing-descriptor-with-included-import</a></li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+	<div class="article-tag tagcloud">
+		<i class="icon-price-tags icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color1">kafka</a>
+        		</li>
+      		 
+        		<li class="article-tag-list-item">
+        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">protobuf</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+      
+	<div class="article-category tagcloud">
+		<i class="icon-book icon"></i>
+		<ul class="article-tag-list">
+			 
+        		<li class="article-tag-list-item">
+        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
+        		</li>
+      		
+		</ul>
+	</div>
+
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2021/09/04/kafkapb/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-yarnapphang" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
   <div class="article-inner">
 
@@ -255,280 +478,6 @@
       
         <p class="article-more-link">
           <a class="article-more-a" href="/2021/05/15/yarnapphang/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-orc-snappy-splittable" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2021/03/30/orc-snappy-splittable/">Is orc+SNAPPY splittable?</a>
-    </h1>
-  
-
-        
-        <a href="/2021/03/30/orc-snappy-splittable/" class="archive-article-date">
-  	<time datetime="2021-03-30T09:24:54.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2021-03-30</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#orcparquetsnappy是不是可分的">orc/parquet+SNAPPY是不是可分的？</a><ul>
-<li><a href="#问题">问题</a></li>
-<li><a href="#测试过程">测试过程</a></li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-</li>
-</ul>
-<!-- tocstop -->
-<h1><span id="orcparquetsnappy是不是可分的">orc/parquet+SNAPPY是不是可分的？</span></h1><p><strong>先说结论，实际测试结果是：orc+SNAPPY和parquet+SNAPPY都是可分的。</strong></p>
-<h2><span id="问题">问题</span></h2><p>最近遇到一个场景，想通过设置<code>tez.grouping.min-size/tez.grouping.max-size</code>参数，增加tez mapper数量，但是无论怎么调整这两个参数，tez mapper的数量始终不变。</p>
-<p>在我的认知里，一直认为orc+SNAPPY是可分的。查询网上的资料，说法不统一，但是大部分的观点也是可分的。</p>
-<p><a href="https://stackoverflow.com/questions/32382352/is-snappy-splittable-or-not-splittable" target="_blank" rel="noopener">https://stackoverflow.com/questions/32382352/is-snappy-splittable-or-not-splittable</a><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/orc_snappy1.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/orc_snappy2.png" alt=""></p>
-<p><a href="http://cloudsqale.com/2018/12/24/orc-files-split-computation-hive-on-tez/" target="_blank" rel="noopener">http://cloudsqale.com/2018/12/24/orc-files-split-computation-hive-on-tez/</a><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/orc_snappy3.png" alt=""></p>
-<p><a href="https://www.jianshu.com/p/885a3eca6f97" target="_blank" rel="noopener">https://www.jianshu.com/p/885a3eca6f97</a><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/orc_snappy4.png" alt=""><br><img src="https://raw.githubusercontent.com/winway/picRepo/master/pics/orc_snappy5.png" alt=""></p>
-<h2><span id="测试过程">测试过程</span></h2><p>于是进行了下述测试。<br><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">-- 创建orc+SNAPPY表</span></span><br><span class="line"><span class="keyword">create</span> <span class="keyword">table</span> tmp.tmp_orc_parquet_test_orc <span class="keyword">STORED</span> <span class="keyword">as</span> orc TBLPROPERTIES (<span class="string">'orc.compress'</span>=<span class="string">'SNAPPY'</span>) <span class="keyword">as</span> </span><br><span class="line"><span class="keyword">select</span> t1.uid, <span class="keyword">action</span>, day_range, entity_id, cnt</span><br><span class="line"><span class="keyword">from</span> (</span><br><span class="line">    <span class="keyword">select</span> uid</span><br><span class="line">           ,nvl(<span class="keyword">action</span>, <span class="string">'all'</span>) <span class="keyword">as</span> <span class="keyword">action</span></span><br><span class="line">           ,day_range</span><br><span class="line">           ,entity_id</span><br><span class="line">           ,<span class="keyword">sum</span>(cnt) <span class="keyword">as</span> cnt</span><br><span class="line">    <span class="keyword">from</span> (</span><br><span class="line">        <span class="keyword">select</span> uid</span><br><span class="line">               ,(<span class="keyword">case</span> <span class="keyword">when</span> <span class="keyword">action</span>=<span class="string">'chat'</span> <span class="keyword">then</span> <span class="keyword">action</span></span><br><span class="line">                      <span class="keyword">when</span> <span class="keyword">action</span>=<span class="string">'publish'</span> <span class="keyword">then</span> <span class="keyword">action</span></span><br><span class="line">                      <span class="keyword">else</span> <span class="string">'interact'</span> <span class="keyword">end</span>) <span class="keyword">as</span> <span class="keyword">action</span></span><br><span class="line">               ,<span class="number">1</span> <span class="keyword">as</span> day_range</span><br><span class="line">               ,entity_id</span><br><span class="line">               ,cnt_d <span class="keyword">as</span> cnt</span><br><span class="line">        <span class="keyword">from</span> tmp.orc_parquet_test_input</span><br><span class="line">        <span class="keyword">where</span> <span class="keyword">day</span>=<span class="string">'2021-03-29'</span> <span class="keyword">and</span> cnt_d&gt;<span class="number">0</span></span><br><span class="line">    ) t</span><br><span class="line">    <span class="keyword">group</span> <span class="keyword">by</span> uid, <span class="keyword">action</span>, day_range, entity_id</span><br><span class="line">    <span class="keyword">grouping</span> <span class="keyword">sets</span>((uid, day_range, entity_id), (uid, <span class="keyword">action</span>, day_range, entity_id))</span><br><span class="line">) t1</span><br><span class="line">;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">--文件结构</span></span><br><span class="line">257044486 2021-03-30 15:52 hdfs://warehouse/tmp.db/tmp_orc_parquet_test_orc/000000_0</span><br><span class="line">111486209 2021-03-30 15:52 hdfs://warehouse/tmp.db/tmp_orc_parquet_test_orc/000001_0</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 创建parquet+SNAPPY表</span></span><br><span class="line"><span class="keyword">create</span> <span class="keyword">table</span> tmp.tmp_orc_parquet_test_parquet <span class="keyword">STORED</span> <span class="keyword">as</span> parquet TBLPROPERTIES(<span class="string">'parquet.compression'</span>=<span class="string">'SNAPPY'</span>) <span class="keyword">as</span> </span><br><span class="line"><span class="keyword">select</span> t1.uid, <span class="keyword">action</span>, day_range, entity_id, cnt</span><br><span class="line"><span class="keyword">from</span> (</span><br><span class="line">    <span class="keyword">select</span> uid</span><br><span class="line">           ,nvl(<span class="keyword">action</span>, <span class="string">'all'</span>) <span class="keyword">as</span> <span class="keyword">action</span></span><br><span class="line">           ,day_range</span><br><span class="line">           ,entity_id</span><br><span class="line">           ,<span class="keyword">sum</span>(cnt) <span class="keyword">as</span> cnt</span><br><span class="line">    <span class="keyword">from</span> (</span><br><span class="line">        <span class="keyword">select</span> uid</span><br><span class="line">               ,(<span class="keyword">case</span> <span class="keyword">when</span> <span class="keyword">action</span>=<span class="string">'chat'</span> <span class="keyword">then</span> <span class="keyword">action</span></span><br><span class="line">                      <span class="keyword">when</span> <span class="keyword">action</span>=<span class="string">'publish'</span> <span class="keyword">then</span> <span class="keyword">action</span></span><br><span class="line">                      <span class="keyword">else</span> <span class="string">'interact'</span> <span class="keyword">end</span>) <span class="keyword">as</span> <span class="keyword">action</span></span><br><span class="line">               ,<span class="number">1</span> <span class="keyword">as</span> day_range</span><br><span class="line">               ,entity_id</span><br><span class="line">               ,cnt_d <span class="keyword">as</span> cnt</span><br><span class="line">        <span class="keyword">from</span> tmp.orc_parquet_test_input</span><br><span class="line">        <span class="keyword">where</span> <span class="keyword">day</span>=<span class="string">'2021-03-29'</span> <span class="keyword">and</span> cnt_d&gt;<span class="number">0</span></span><br><span class="line">    ) t</span><br><span class="line">    <span class="keyword">group</span> <span class="keyword">by</span> uid, <span class="keyword">action</span>, day_range, entity_id</span><br><span class="line">    <span class="keyword">grouping</span> <span class="keyword">sets</span>((uid, day_range, entity_id), (uid, <span class="keyword">action</span>, day_range, entity_id))</span><br><span class="line">) t1</span><br><span class="line">;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">--文件结构</span></span><br><span class="line">272461453 2021-03-30 15:53 hdfs://warehouse/tmp.db/tmp_orc_parquet_test_parquet/000000_0</span><br><span class="line">105226145 2021-03-30 15:51 hdfs://warehouse/tmp.db/tmp_orc_parquet_test_parquet/000001_0</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 查询测试orc+SNAPPY</span></span><br><span class="line"><span class="keyword">select</span> <span class="keyword">action</span>, <span class="keyword">count</span>(*) <span class="keyword">from</span> tmp.tmp_orc_parquet_test_orc <span class="keyword">group</span> <span class="keyword">by</span> <span class="keyword">action</span>;</span><br><span class="line">Query ID = root_20210330180037_a584d773-c304-43f4-9df7-6acbd1551e08</span><br><span class="line">Total jobs = 1</span><br><span class="line">Launching Job 1 out of 1</span><br><span class="line">Status: Running (Executing on YARN cluster with App id application_1585297125447_2191065)</span><br><span class="line"></span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">        VERTICES      MODE        STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">Map 1 .......... container     SUCCEEDED      3          3        0        0       0       0  </span><br><span class="line">Reducer 2 ...... container     SUCCEEDED      2          2        0        0       0       0  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">VERTICES: 02/02  [==========================&gt;&gt;] 100%  ELAPSED TIME: 34.31 s    </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 查询测试parquet+SNAPPY</span></span><br><span class="line"><span class="keyword">select</span> <span class="keyword">action</span>, <span class="keyword">count</span>(*) <span class="keyword">from</span> tmp.tmp_orc_parquet_test_parquet <span class="keyword">group</span> <span class="keyword">by</span> <span class="keyword">action</span>;</span><br><span class="line">Query ID = root_20210330175955_56c67b68-4b51-41bc-8873-d61710fc9eb9</span><br><span class="line">Total jobs = 1</span><br><span class="line">Launching Job 1 out of 1</span><br><span class="line">Status: Running (Executing on YARN cluster with App id application_1585297125447_2191021)</span><br><span class="line"></span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">        VERTICES      MODE        STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">Map 1 .......... container     SUCCEEDED      8          8        0        0       0       0  </span><br><span class="line">Reducer 2 ...... container     SUCCEEDED      3          3        0        0       0       0  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">VERTICES: 02/02  [==========================&gt;&gt;] 100%  ELAPSED TIME: 16.62 s    </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">--设置读取size</span></span><br><span class="line"><span class="keyword">SET</span> tez.grouping.min-<span class="keyword">size</span>=<span class="number">10000000</span>; <span class="comment">-- 10M</span></span><br><span class="line"><span class="keyword">SET</span> tez.grouping.max-<span class="keyword">size</span>=<span class="number">50000000</span>;  <span class="comment">-- 50M</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 查询测试orc+SNAPPY</span></span><br><span class="line"><span class="keyword">select</span> <span class="keyword">action</span>, <span class="keyword">count</span>(*) <span class="keyword">from</span> tmp.tmp_orc_parquet_test_orc <span class="keyword">group</span> <span class="keyword">by</span> <span class="keyword">action</span>;</span><br><span class="line">Query ID = root_20210330180147_331eb0b4-5ab4-4b5d-aedb-f3492852c563</span><br><span class="line">Total jobs = 1</span><br><span class="line">Launching Job 1 out of 1</span><br><span class="line">Status: Running (Executing on YARN cluster with App id application_1585297125447_2191065)</span><br><span class="line"></span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">        VERTICES      MODE        STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">Map 1 .......... container     SUCCEEDED      3          3        0        0       0       0  </span><br><span class="line">Reducer 2 ...... container     SUCCEEDED      2          2        0        0       0       0  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">VERTICES: 02/02  [==========================&gt;&gt;] 100%  ELAPSED TIME: 20.13 s    </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line"></span><br><span class="line"><span class="comment">-- 查询测试parquet+SNAPPY</span></span><br><span class="line"><span class="keyword">select</span> <span class="keyword">action</span>, <span class="keyword">count</span>(*) <span class="keyword">from</span> tmp.tmp_orc_parquet_test_parquet <span class="keyword">group</span> <span class="keyword">by</span> <span class="keyword">action</span>;</span><br><span class="line">Query ID = root_20210330180217_bb02f52f-6c3b-4bcf-ae70-ec44abb306c4</span><br><span class="line">Total jobs = 1</span><br><span class="line">Launching Job 1 out of 1</span><br><span class="line">Status: Running (Executing on YARN cluster with App id application_1585297125447_2191065)</span><br><span class="line"></span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">        VERTICES      MODE        STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">Map 1 .......... container     SUCCEEDED     39         39        0        0       0       0  </span><br><span class="line">Reducer 2 ...... container     SUCCEEDED      3          3        0        0       0       0  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">VERTICES: 02/02  [==========================&gt;&gt;] 100%  ELAPSED TIME: 21.49 s    </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">SET</span> mapreduce.input.fileinputformat.split.minsize=<span class="number">10000000</span>;</span><br><span class="line"><span class="keyword">SET</span> mapreduce.input.fileinputformat.split.maxsize=<span class="number">50000000</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">select</span> <span class="keyword">action</span>, <span class="keyword">count</span>(*) <span class="keyword">from</span> tmp.tmp_orc_parquet_test_orc <span class="keyword">group</span> <span class="keyword">by</span> <span class="keyword">action</span>;</span><br><span class="line">Query ID = root_20210406174753_a44ae3da-81be-4905-b965-67ae5fa35d14</span><br><span class="line">Total jobs = 1</span><br><span class="line">Launching Job 1 out of 1</span><br><span class="line">Status: Running (Executing on YARN cluster with App id application_1585297125447_2234780)</span><br><span class="line"></span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">        VERTICES      MODE        STATUS  TOTAL  COMPLETED  RUNNING  PENDING  FAILED  KILLED  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">Map 1 .......... container     SUCCEEDED     11         11        0        0       0       0  </span><br><span class="line">Reducer 2 ...... container     SUCCEEDED      4          4        0        0       0       0  </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br><span class="line">VERTICES: 02/02  [==========================&gt;&gt;] 100%  ELAPSED TIME: 7.10 s     </span><br><span class="line"><span class="comment">----------------------------------------------------------------------------------------------</span></span><br></pre></td></tr></table></figure></p>
-<p>可见通过减小<code>tez.grouping.min-size/tez.grouping.max-size</code>参数，可以增加parquet+SNAPPY的mapper数，但是orc+SNAPPY的mapper数不变。<br>通过减小<code>mapreduce.input.fileinputformat.split.minsize、mapreduce.input.fileinputformat.split.maxsize</code>参数，可以增加orc+SNAPPY和parquet+SNAPPY的mapper数。<br>至于更深层次的原因，还没有功夫就探究。</p>
-<h2><span id="参考资料">参考资料</span></h2><ul>
-<li><a href="https://stackoverflow.com/questions/32382352/is-snappy-splittable-or-not-splittable" target="_blank" rel="noopener">https://stackoverflow.com/questions/32382352/is-snappy-splittable-or-not-splittable</a></li>
-<li><a href="http://cloudsqale.com/2018/12/24/orc-files-split-computation-hive-on-tez/" target="_blank" rel="noopener">http://cloudsqale.com/2018/12/24/orc-files-split-computation-hive-on-tez/</a></li>
-<li><a href="https://orc.apache.org/docs/hive-config.html" target="_blank" rel="noopener">https://orc.apache.org/docs/hive-config.html</a></li>
-<li><a href="https://www.jianshu.com/p/885a3eca6f97" target="_blank" rel="noopener">https://www.jianshu.com/p/885a3eca6f97</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">tez</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color4">orc</a>
-        		</li>
-      		 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color2">snappy</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2021/03/30/orc-snappy-splittable/">展开全文 >></a>
-        </p>
-      
-
-      
-      <div class="clearfix"></div>
-    </div>
-  </div>
-</article>
-
-<aside class="wrap-side-operation">
-    <div class="mod-side-operation">
-        
-        <div class="jump-container" id="js-jump-container" style="display:none;">
-            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
-                <i class="icon-font icon-back"></i>
-            </a>
-            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
-                <i class="icon-font icon-plane jump-plane"></i>
-            </div>
-        </div>
-        
-        
-    </div>
-</aside>
-
-
-
-
-  
-    <article id="post-hdfscompress" class="article article-type-post  article-index" itemscope="" itemprop="blogPost">
-  <div class="article-inner">
-
-
-
-    
-      <header class="article-header">
-        
-  
-    <h1 itemprop="name">
-      <a class="article-title" href="/2020/06/06/hdfscompress/">HDFS文件压缩转储</a>
-    </h1>
-  
-
-        
-        <a href="/2020/06/06/hdfscompress/" class="archive-article-date">
-  	<time datetime="2020-06-06T09:00:01.000Z" itemprop="datePublished"><i class="icon-calendar icon"></i>2020-06-06</time>
-</a>
-
-
-        
-      </header>
-    
-    <div class="article-entry" itemprop="articleBody">
-      
-        <!-- toc -->
-<ul>
-<li><a href="#需求">需求</a></li>
-<li><a href="#步骤">步骤</a><ul>
-<li><a href="#选取压缩类型">选取压缩类型</a></li>
-<li><a href="#转储">转储</a></li>
-</ul>
-</li>
-<li><a href="#参考资料">参考资料</a></li>
-</ul>
-<!-- tocstop -->
-<h1><span id="需求">需求</span></h1><p>定期将HDFS文件压缩转储到阿里云OSS。</p>
-<h1><span id="步骤">步骤</span></h1><h2><span id="选取压缩类型">选取压缩类型</span></h2><p>Hadoop支持的主流压缩格式包括以下几种：</p>
-<table>
-<thead>
-<tr>
-<th>Codec</th>
-<th>File Extension</th>
-<th>Splittable?</th>
-<th>Degree of Compression</th>
-<th>Compression Speed</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Gzip</td>
-<td>.gz</td>
-<td>No</td>
-<td>Medium</td>
-<td>Medium</td>
-</tr>
-<tr>
-<td>Bzip2</td>
-<td>.bz2</td>
-<td>Yes</td>
-<td>High</td>
-<td>Slow</td>
-</tr>
-<tr>
-<td>Snappy</td>
-<td>.snappy</td>
-<td>No</td>
-<td>Medium</td>
-<td>Fast</td>
-</tr>
-<tr>
-<td>LZO</td>
-<td>.lzo</td>
-<td>No, unless indexed</td>
-<td>Medium</td>
-<td>Fast</td>
-</tr>
-</tbody>
-</table>
-<p>其中可分割的只有bzip2和lzo(indexed)。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">hadoop jar $HADOOP_HOME/share/hadoop/tools/lib/hadoop-streaming-2.7.2.jar \</span><br><span class="line">    -Dmapreduce.map.java.opts=&apos;-Xmx768m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.map.memory.mb=1024 \</span><br><span class="line">    -Dmapreduce.reduce.java.opts=&apos;-Xmx1536m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.reduce.memory.mb=2048 \</span><br><span class="line">    -Dmapreduce.job.reduce.slowstart.completedmaps=0.9 \</span><br><span class="line">    -Dmapred.reduce.tasks=$parallelN \</span><br><span class="line">    -Dmapred.output.compress=true \</span><br><span class="line">    -Dmapred.compress.map.output=true \</span><br><span class="line">    -Dmapred.output.compression.codec=org.apache.hadoop.io.compress.BZip2Codec \</span><br><span class="line">    -input $hdfspath \</span><br><span class="line">    -output $hdfszippath \</span><br><span class="line">    -mapper /bin/cat \</span><br><span class="line">    -reducer /bin/cat \</span><br><span class="line">    -inputformat org.apache.hadoop.mapred.TextInputFormat \</span><br><span class="line">    -outputformat org.apache.hadoop.mapred.TextOutputFormat</span><br></pre></td></tr></table></figure></p>
-<p>先是使用bizp2进行了测试，但是压缩速度实在是太慢了，于是决定使用lzo。<br>lzo为了达到可分割，需要在压缩之后建立索引。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">hadoop jar $HADOOP_HOME/share/hadoop/tools/lib/hadoop-streaming-2.7.2.jar \</span><br><span class="line">    -Dmapreduce.map.java.opts=&apos;-Xmx768m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.map.memory.mb=1024 \</span><br><span class="line">    -Dmapreduce.reduce.java.opts=&apos;-Xmx1536m -XX:+UseConcMarkSweepGC&apos; \</span><br><span class="line">    -Dmapreduce.reduce.memory.mb=2048 \</span><br><span class="line">    -Dmapreduce.job.reduce.slowstart.completedmaps=0.9 \</span><br><span class="line">    -Dmapred.reduce.tasks=$parallelN \</span><br><span class="line">    -Dmapred.output.compress=true \</span><br><span class="line">    -Dmapred.compress.map.output=true \</span><br><span class="line">    -Dmapred.output.compression.codec=com.hadoop.compression.lzo.LzopCodec \</span><br><span class="line">    -input $hdfspath \</span><br><span class="line">    -output $hdfszippath \</span><br><span class="line">    -mapper /bin/cat \</span><br><span class="line">    -reducer /bin/cat \</span><br><span class="line">    -inputformat org.apache.hadoop.mapred.TextInputFormat \</span><br><span class="line">    -outputformat org.apache.hadoop.mapred.TextOutputFormat</span><br><span class="line"></span><br><span class="line">hadoop jar $HADOOP_HOME/lib/hadoop-lzo-0.4.21-SNAPSHOT.jar com.hadoop.compression.lzo.DistributedLzoIndexer $hdfszippath</span><br></pre></td></tr></table></figure></p>
-<h2><span id="转储">转储</span></h2><p>压缩完毕后，将文件拷贝到oss。<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hadoop distcp -Dmapreduce.task.timeout=1200000 -m $parallelN $&#123;hdfszippath&#125;/* $&#123;osspath&#125;/</span><br></pre></td></tr></table></figure></p>
-<p><em>distcp过程中遇到一个问题：如果单个文件过大，在往oss拷贝的时候有可能失败，所以需要通过设置压缩任务reduce个数，控制最终单个文件的大小。</em></p>
-<h1><span id="参考资料">参考资料</span></h1><ul>
-<li><a href="https://www.dummies.com/programming/big-data/hadoop/compressing-data-in-hadoop/" target="_blank" rel="noopener">https://www.dummies.com/programming/big-data/hadoop/compressing-data-in-hadoop/</a></li>
-<li><a href="https://data-flair.training/forums/topic/which-compression-is-used-in-hadoop-which-of-them-is-splittable/" target="_blank" rel="noopener">https://data-flair.training/forums/topic/which-compression-is-used-in-hadoop-which-of-them-is-splittable/</a></li>
-<li><a href="https://blog.csdn.net/fjssharpsword/article/details/74908251" target="_blank" rel="noopener">https://blog.csdn.net/fjssharpsword/article/details/74908251</a></li>
-<li><a href="https://www.jianshu.com/p/10fc6c511761" target="_blank" rel="noopener">https://www.jianshu.com/p/10fc6c511761</a></li>
-</ul>
-
-      
-
-      
-    </div>
-    <div class="article-info article-info-index">
-      
-      
-	<div class="article-tag tagcloud">
-		<i class="icon-price-tags icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="javascript:void(0)" class="js-tag article-tag-list-link color5">hdfs</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-      
-	<div class="article-category tagcloud">
-		<i class="icon-book icon"></i>
-		<ul class="article-tag-list">
-			 
-        		<li class="article-tag-list-item">
-        			<a href="/categories/大数据/" class="article-tag-list-link color4">大数据</a>
-        		</li>
-      		
-		</ul>
-	</div>
-
-
-      
-        <p class="article-more-link">
-          <a class="article-more-a" href="/2020/06/06/hdfscompress/">展开全文 >></a>
         </p>
       
 
@@ -674,6 +623,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
           <ul class="article-tag-list" q-show="showTags">
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">shell</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">监控</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">python</a>
               </li>
              
@@ -686,14 +643,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">shell</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">监控</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">azkaban</a>
               </li>
              
@@ -702,11 +651,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">pig</a>
+                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">mapreduce</a>
+                <a href="javascript:void(0)" class="js-tag color4">pig</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -718,11 +667,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
+                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">hdfs</a>
+                <a href="javascript:void(0)" class="js-tag color1">hbase</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -742,14 +691,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">golang</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">proxy</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">Python</a>
               </li>
              
@@ -758,7 +699,19 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color2">golang</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">proxy</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">fuse-dfs</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">独立开发</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -782,15 +735,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">tez</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color3">gc</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">独立开发</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -802,7 +755,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">kubernetes</a>
+                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -822,10 +775,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color2">kaggle</a>
-              </li>
-             
-              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color5">批量管理</a>
               </li>
              
@@ -835,14 +784,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color2">open-falcon</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -858,6 +799,14 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">手机号</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color4">归属地</a>
+              </li>
+             
+              <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">springboot</a>
               </li>
              
@@ -870,7 +819,7 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
+                <a href="javascript:void(0)" class="js-tag color4">小文件</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -878,11 +827,15 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">小文件</a>
+                <a href="javascript:void(0)" class="js-tag color3">webhdfs</a>
               </li>
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">storm</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -891,14 +844,6 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color4">数据湖</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color5">存算分离</a>
-              </li>
-             
-              <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -911,6 +856,10 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
              
               <li class="article-tag-list-item">
                 <a href="javascript:void(0)" class="js-tag color1">kylin</a>
+              </li>
+             
+              <li class="article-tag-list-item">
+                <a href="javascript:void(0)" class="js-tag color3">mongodb</a>
               </li>
              
               <li class="article-tag-list-item">
@@ -958,11 +907,11 @@ return o(i(t),arguments.length<2?void 0:u(arguments[1]))}})},function(t,n,r){var
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
+                <a href="javascript:void(0)" class="js-tag color4">cap</a>
               </li>
              
               <li class="article-tag-list-item">
-                <a href="javascript:void(0)" class="js-tag color4">cap</a>
+                <a href="javascript:void(0)" class="js-tag color1">clickhouse</a>
               </li>
              
               <li class="article-tag-list-item">
